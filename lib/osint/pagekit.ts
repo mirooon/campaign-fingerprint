@@ -780,6 +780,48 @@ function resolveAgainst(href: string, base: string | null): URL | null {
   }
 }
 
+/** One script or stylesheet reference of a page; null when the address has no host. */
+function assetRef(u: URL, kind: AssetRef["kind"], pageHost: string | null): AssetRef | null {
+  const host = hostOfUrl(u);
+  if (!host) return null;
+  const path = u.pathname.toLowerCase() || "/";
+  const sameOrigin = pageHost !== null && host === pageHost;
+  const segs = path.split("/");
+  return {
+    key: sameOrigin ? path : `${host}${path}`,
+    url: `${u.protocol}//${u.host.toLowerCase()}${u.pathname}`,
+    host,
+    path,
+    basename: segs[segs.length - 1] ?? "",
+    kind,
+    sameOrigin,
+  };
+}
+
+/**
+ * UUID path segments shared by at least `MIN_PATH_ID_RESOURCES` same-origin resources of a page (the
+ * prefix is the path before the first such resource's UUID). Resources of other hosts do not count:
+ * a UUID on a shared CDN names that CDN's object, not the operator's account. Sorted by id, max 10.
+ */
+function pathIdsOf(resources: URL[], pageHost: string | null): PathId[] {
+  const byId = new Map<string, { paths: Set<string>; prefix: string }>();
+  for (const u of resources) {
+    if (pageHost === null || hostOfUrl(u) !== pageHost) continue;
+    const segs = u.pathname.toLowerCase().split("/");
+    segs.forEach((seg, i) => {
+      if (!UUID_SEGMENT.test(seg)) return;
+      const entry = byId.get(seg) ?? { paths: new Set<string>(), prefix: `${segs.slice(0, i).join("/")}/` };
+      entry.paths.add(u.pathname);
+      byId.set(seg, entry);
+    });
+  }
+  return [...byId]
+    .filter(([, e]) => e.paths.size >= MIN_PATH_ID_RESOURCES)
+    .map(([id, e]) => ({ id, prefix: e.prefix }))
+    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .slice(0, MAX_PATH_IDS);
+}
+
 function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques"> {
   const t = detectPageTechniques(html, pageUrl);
   return { ...(t.commentBlock ? { commentBlock: t.commentBlock } : {}), ...(t.techniques.length ? { techniques: t.techniques } : {}) };
@@ -813,22 +855,13 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
     const comments: string[] = [];
     const seenComments = new Set<string>();
     let cyrillic = false;
-    /** UUID path segment -> same-origin resource paths that contain it, and the path before it (first seen). */
-    const pathIdResources = new Map<string, { urls: Set<string>; prefix: string }>();
-
     /** Every resolved src/href (any origin): tenants of the landing-page platform in the file addresses. */
     const resourceUrls: string[] = [];
+    const resources: URL[] = [];
     const addResource = (href: string) => {
       const u = resolveAgainst(href, base);
       if (u && resourceUrls.length < 2000) resourceUrls.push(u.toString());
-      if (!u || pageHost === null || hostOfUrl(u) !== pageHost) return;
-      const segs = u.pathname.toLowerCase().split("/");
-      segs.forEach((seg, i) => {
-        if (!UUID_SEGMENT.test(seg)) return;
-        const entry = pathIdResources.get(seg) ?? { urls: new Set<string>(), prefix: `${segs.slice(0, i).join("/")}/` };
-        entry.urls.add(u.pathname);
-        pathIdResources.set(seg, entry);
-      });
+      if (u) resources.push(u);
     };
 
     const addComment = (raw: string) => {
@@ -844,23 +877,8 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
     const addAsset = (href: string, kind: "js" | "css") => {
       if (assets.size >= MAX_ASSETS) return;
       const u = resolveAgainst(href, base);
-      if (!u) return;
-      const host = hostOfUrl(u);
-      if (!host) return;
-      const path = u.pathname.toLowerCase() || "/";
-      const sameOrigin = pageHost !== null && host === pageHost;
-      const key = sameOrigin ? path : `${host}${path}`;
-      if (assets.has(key)) return;
-      const segs = path.split("/");
-      assets.set(key, {
-        key,
-        url: `${u.protocol}//${u.host.toLowerCase()}${u.pathname}`,
-        host,
-        path,
-        basename: segs[segs.length - 1] ?? "",
-        kind,
-        sameOrigin,
-      });
+      const a = u ? assetRef(u, kind, pageHost) : null;
+      if (a && !assets.has(a.key)) assets.set(a.key, a);
     };
 
     for (const e of events) {
@@ -924,11 +942,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       assets: [...assets.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
       comments,
       cyrillicComments: cyrillic,
-      pathIds: [...pathIdResources]
-        .filter(([, e]) => e.urls.size >= MIN_PATH_ID_RESOURCES)
-        .map(([id, e]) => ({ id, prefix: e.prefix }))
-        .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-        .slice(0, MAX_PATH_IDS),
+      pathIds: pathIdsOf(resources, pageHost),
       lander: extractLanderConfig(html),
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
@@ -952,11 +966,33 @@ function linksOf(ids: PlatformLinkIds | null): Pick<PageKit, "platformLinks"> {
 /**
  * Adds what the requests recorded with a page (HAR entries, the request list of a scan) say about the
  * page kit: tenants of the landing-page platform and the identifiers in its links (cuuid, suuid,
- * launcher). Works without the page code (pass an empty kit).
+ * launcher). Without the page code (`kit` null, e.g. a scan that kept only the request list) the
+ * requests also stand in for the page's resources: `.js`/`.css` addresses become assets and UUID path
+ * segments of same-origin requests become path ids, as the `<script>`/`<link>` tags would have given
+ * them. With page code the tags are the better source (a request list also holds files loaded by
+ * third-party scripts), so assets and path ids stay as they are. `pageUrl` is the page address (needed
+ * to tell same-origin files); without it no assets are added.
  */
-export function withRequestUrls(kit: PageKit | null, requests: string[]): PageKit {
-  const k = kit ?? emptyKit();
+export function withRequestUrls(kit: PageKit | null, requests: string[], pageUrl?: string): PageKit {
+  const k = kit ?? { ...emptyKit(), ...(pageUrl ? resourcesOfRequests(requests, pageUrl) : {}) };
   const tenants = landingCdnTenants([...(k.platformTenants ?? []).map((t) => `/landing-cdn/${t}/`), ...requests]);
   const links = mergePlatformLinkIds(k.platformLinks, platformLinkIds(requests));
   return { ...k, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links) };
+}
+
+/** Script/stylesheet assets (by file extension, query dropped) and path ids of a page's request list. */
+function resourcesOfRequests(requests: string[], pageUrl: string): Pick<PageKit, "assets" | "pathIds"> {
+  const page = parseAbsolute(pageUrl);
+  const pageHost = page ? hostOfUrl(page) : null;
+  const urls = requests.map((r) => resolveAgainst(r, null)).filter((u): u is URL => u !== null);
+  const assets = new Map<string, AssetRef>();
+  for (const u of urls) {
+    const ext = /\.(m?js|css)$/i.exec(u.pathname)?.[1]?.toLowerCase();
+    const a = ext ? assetRef(u, ext === "css" ? "css" : "js", pageHost) : null;
+    if (a && !assets.has(a.key) && assets.size < MAX_ASSETS) assets.set(a.key, a);
+  }
+  return {
+    assets: [...assets.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
+    pathIds: pathIdsOf(urls, pageHost),
+  };
 }

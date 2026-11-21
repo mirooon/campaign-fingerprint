@@ -30,7 +30,7 @@ export interface CaseProvenance {
   caseId?: string;
   landingUrl?: string | null;
   landingInferred?: boolean;
-  bodySource?: "har" | "saved-html" | "none";
+  bodySource?: "har" | "saved-html" | "wayback" | "none";
   har?: string | null;
   harFromCase?: string | null;
   savedHtml?: string | null;
@@ -97,6 +97,7 @@ export function completeness(input: CompletenessInput): Completeness {
   const body = p?.bodySource ?? (str(f.domSimhash) || str(f.finalUrl) ? "saved-html" : p ? "none" : undefined);
   if (body === "har") items.push({ id: "page", status: "ok", label: p?.harFromCase ? "strona (z HAR z innej sprawy)" : "strona (z HAR)" });
   else if (body === "saved-html") items.push({ id: "page", status: "ok", label: "strona (z zapisu)" });
+  else if (body === "wayback") items.push({ id: "page", status: "ok", label: "strona (kopia z archiwum internetu)" });
   else
     items.push({
       id: "page",

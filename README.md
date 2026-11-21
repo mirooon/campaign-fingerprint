@@ -66,6 +66,12 @@ bun run analyze-material -- --url https://oferta.example/       # sam link (pobr
 bun run analyze-material -- --text "Ewa Przykładowa poleca…"   # sam tekst reklamy
 ```
 
+Ocena partii na własnych etykietach (plik `{"kampania": ["sprawa", …]}` albo `{"sprawa": "kampania"}`): F1 par i B-cubed jednym poleceniem.
+
+```bash
+bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wynik jako JSON
+```
+
 Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
 
 ### Jak zebrać materiał

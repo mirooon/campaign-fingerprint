@@ -292,3 +292,142 @@ describe("importCases: a HAR without the document body (request list of a scan)"
     expect(reqs.some((u) => u.includes(`/landing-cdn/${TENANT}/`))).toBe(true);
   });
 });
+
+describe("importCases: folders collected from public sources (scan service, web archive, press)", () => {
+  let dir: string;
+  const casesDir = () => path.join(dir, "cases");
+  const outDir = () => path.join(dir, "out");
+  const LANDER = "7b1d2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
+  const TARGET = `https://lander-skan.example/landers/${LANDER}/?clickid=c0ffee12&key=0123456789abcdef0123456789abcdef&fbclid=IwAR0test&utm_source=fb`;
+  const LABELS = { rodzina: "RODZINA-ZNACZNIK", odcisk: "ODCISK-ZNACZNIK", pewnosc: "PEWNOSC-ZNACZNIK", uwagi: "UWAGI-ZNACZNIK" };
+  const SOURCES = [{ url: "https://skaner.example/result/0001/", typ: "urlscan", data_wpisu: "2026-01-15T09:10:00Z", data_dostepu: "2026-01-20" }];
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 7, 7, 7]);
+  type Prov = { cases: Array<Record<string, unknown> & { id: string }> };
+  const prov = () => JSON.parse(readFileSync(path.join(outDir(), "provenance.json"), "utf8")) as Prov;
+  const records = () => JSON.parse(readFileSync(path.join(outDir(), "input.json"), "utf8")) as Array<Record<string, unknown>>;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-collected-"));
+    // scan-service layout: the service's own result page, a HAR rebuilt from its request list, the search record, its screenshot of the page
+    const s = path.join(casesDir(), "skan-1");
+    mkdirSync(s, { recursive: true });
+    writeFileSync(path.join(s, "zrodlo.json"), JSON.stringify({ cel: TARGET, zrodla: SOURCES, ...LABELS, pliki: {} }));
+    writeFileSync(path.join(s, "urlscan_wynik.html"), `<html><head><title>Wynik skanu</title></head><body>${'<a href="https://lander-skan.example/">x</a>'.repeat(5)}</body></html>`);
+    const req = (url: string, type: string, hash: string) => ({
+      _resourceType: type,
+      _urlscan_hash: hash,
+      startedDateTime: "2026-01-15T09:10:00.000Z",
+      serverIPAddress: "192.0.2.10",
+      request: { method: "GET", url },
+      response: { status: 200, headers: [{ name: "server", value: "nginx" }], content: {} },
+    });
+    writeFileSync(
+      path.join(s, "zadania_urlscan.har"),
+      JSON.stringify({
+        log: {
+          pages: [{ title: "" }],
+          entries: [
+            req(TARGET, "document", "a".repeat(64)),
+            req(`https://cdn.example/_cdn/production/landing-cdn/${LANDER}/app.js`, "script", "b".repeat(64)),
+            req("https://tracker.example/click?key=0123456789abcdef0123456789abcdef", "xhr", "c".repeat(64)),
+          ],
+        },
+      }),
+    );
+    writeFileSync(
+      path.join(s, "urlscan_rekord.json"),
+      JSON.stringify({ page: { ip: "192.0.2.10", asn: "AS64500", asnname: "TESTNET-AS, ZZ", server: "nginx", tlsIssuer: "Test CA", domainAgeDays: 3, title: "Tytuł strony" } }),
+    );
+    writeFileSync(path.join(s, "zrzut_urlscan.png"), PNG);
+    // web-archive copy: the archived body, the capture index and the address
+    const w = path.join(casesDir(), "archiwum-1");
+    mkdirSync(w, { recursive: true });
+    writeFileSync(path.join(w, "zrodlo.json"), JSON.stringify({ cel: "archiwum.example", zrodla: [], ...LABELS }));
+    writeFileSync(path.join(w, "wayback_20260115093000.html"), '<html><head><title>Kopia</title><script src="/web/20260115093000js_/https://archiwum.example/app.js"></script></head><body>ARCHIVED-BODY</body></html>');
+    writeFileSync(path.join(w, "wayback_cdx.json"), JSON.stringify({ wiersze: [] }));
+    // press folder: an article about the scam (not the landing page), images named by role, registry data from the collection date
+    const p = path.join(casesDir(), "prasa-1");
+    mkdirSync(p, { recursive: true });
+    writeFileSync(path.join(p, "zrodlo.json"), JSON.stringify({ cel: "prasa-lander.example", zrodla: [], ...LABELS }));
+    writeFileSync(path.join(p, "artykul_prasowy.html"), '<html><head><title>Artykuł</title></head><body><a href="https://prasa-lander.example/">lander</a></body></html>');
+    writeFileSync(path.join(p, "reklama_fb_zrzut.png"), PNG);
+    writeFileSync(path.join(p, "lander_zrzut.jpg"), PNG);
+    writeFileSync(path.join(p, "formularz_zrzut.jpg"), PNG);
+    writeFileSync(
+      path.join(p, "rdap_dns.json"),
+      JSON.stringify({
+        domena: "prasa-lander.example",
+        dostep: "2026-01-20T10:00:00Z",
+        utworzona: "2026-01-10T18:19:13Z",
+        wygasa: "2027-01-10T18:19:13Z",
+        rejestrator: ["Test Registrar IANA:9999"],
+        status: ["client transfer prohibited"],
+        ns: ["ns1.dns.example.", "ns2.dns.example."],
+        a: ["192.0.2.44"],
+      }),
+    );
+    await importCases({ casesDir: casesDir(), outDir: outDir() });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("scan service: keeps the full target address (path, click id, key, fbclid, utm) instead of the host of the result page", () => {
+    const rec = records().find((r) => r.id === "skan-1")!;
+    expect(rec.landing_url).toBe(TARGET);
+    expect(rec.first_seen).toBe("2026-01-15T09:10:00.000Z");
+    const src = fixtureSources(path.join(outDir(), "fixtures"));
+    const key = new URL(TARGET);
+    key.searchParams.delete("fbclid");
+    key.searchParams.delete("utm_source");
+    key.searchParams.sort();
+    const reqs = src.requestsFor?.(key.toString()) ?? [];
+    expect(reqs.some((u) => u.includes(`/landing-cdn/${LANDER}/`))).toBe(true);
+    expect(prov().cases.find((c) => c.id === "skan-1")).toMatchObject({ bodySource: "har", landingInferred: false, savedHtml: null });
+  });
+
+  it("scan service: the service's screenshot is a page screenshot, not an ad screenshot (no OCR of the advertiser, no creative hash)", () => {
+    const rec = records().find((r) => r.id === "skan-1")!;
+    expect(rec.screenshot).toBeNull();
+    expect(rec.more_screenshots).toBeUndefined();
+    expect(prov().cases.find((c) => c.id === "skan-1")!.pageScreenshots).toEqual([path.join(casesDir(), "skan-1", "zrzut_urlscan.png")]);
+  });
+
+  it("scan service: the search record is page metadata (IP, ASN, server, TLS issuer, domain age, title)", async () => {
+    expect(prov().cases.find((c) => c.id === "skan-1")!.scan).toEqual({ ip: "192.0.2.10", asn: "AS64500", asnName: "TESTNET-AS, ZZ", server: "nginx", tlsIssuer: "Test CA", domainAgeDays: 3, title: "Tytuł strony" });
+    const asn = await fixtureSources(path.join(outDir(), "fixtures")).asn("192.0.2.10");
+    expect(asn?.asn).toBe(64500);
+  });
+
+  it("never carries the label fields of the source file into the material; public sources go to provenance.json", () => {
+    const files = ["input.json", "mapping.json", "fixtures/http.json", "fixtures/dns.json"].map((f) => readFileSync(path.join(outDir(), f), "utf8")).join("\n");
+    for (const v of Object.values(LABELS)) expect(files).not.toContain(v);
+    const p = prov();
+    expect(JSON.stringify(p.cases)).not.toContain(LABELS.rodzina);
+    expect(p.cases.find((c) => c.id === "skan-1")!.sources).toEqual(SOURCES);
+  });
+
+  it("web archive: the address from the source file, the capture time from the file name, the archived body as the page", async () => {
+    const rec = records().find((r) => r.id === "archiwum-1")!;
+    expect(rec.landing_url).toBe("https://archiwum.example/");
+    expect(rec.first_seen).toBe("2026-01-15T09:30:00.000Z");
+    expect(prov().cases.find((c) => c.id === "archiwum-1")).toMatchObject({ bodySource: "wayback", landingInferred: false });
+    const page = await fixtureSources(path.join(outDir(), "fixtures")).fetchPage("https://archiwum.example/");
+    const body = page.body?.toString() ?? "";
+    expect(body).toContain("ARCHIVED-BODY");
+    expect(body).toContain('src="https://archiwum.example/app.js"');
+  });
+
+  it("press folder: image roles from the names, the article is not the landing page, registry data from the collection date", async () => {
+    const rec = records().find((r) => r.id === "prasa-1")!;
+    expect(rec.landing_url).toBe("https://prasa-lander.example/");
+    expect(rec.screenshot).toBe(path.join(casesDir(), "prasa-1", "reklama_fb_zrzut.png"));
+    const c = prov().cases.find((x) => x.id === "prasa-1")!;
+    expect(c).toMatchObject({ bodySource: "none", savedHtml: null });
+    expect(c.pageScreenshots).toEqual(["formularz_zrzut.jpg", "lander_zrzut.jpg"].map((f) => path.join(casesDir(), "prasa-1", f)));
+    const src = fixtureSources(path.join(outDir(), "fixtures"));
+    expect((await src.dns("prasa-lander.example", ["NS"])).ns).toEqual(["ns1.dns.example", "ns2.dns.example"]);
+    expect((await src.dns("prasa-lander.example", ["A"])).a).toEqual(["192.0.2.44"]);
+    const rdap = await src.rdap("prasa-lander.example");
+    expect(rdap?.created?.slice(0, 10)).toBe("2026-01-10");
+    expect(rdap?.registrar).toContain("Test Registrar");
+  });
+});

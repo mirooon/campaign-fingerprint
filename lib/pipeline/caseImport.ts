@@ -17,6 +17,8 @@
  * HAR files, a HAR filed in a neighbouring case, a page saved from disk (no address), several
  * screenshots, a video of the ad and a yt-dlp `.info.json`, and cases with media only.
  * One case with several different pages gives one record per page (`<case>_<sub-folder>`).
+ * Folders collected from public sources (scan service, web archive, press; `collectedCase.ts`) take
+ * the address from their source file and the role of each file from its name.
  */
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
@@ -24,6 +26,20 @@ import path from "node:path";
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
+import {
+  COLLECTED_SOURCE_FILE,
+  collectedImageRole,
+  isCollectedPage,
+  readCollectedSource,
+  recordedLookups,
+  scanCymruAnswers,
+  scanMeta,
+  unwrapWayback,
+  waybackTime,
+  type CollectedSource,
+  type RecordedLookups,
+  type ScanMeta,
+} from "./collectedCase";
 
 export interface CaseLookups {
   /** Passive DNS answers for the requested record types (missing types = no records). */
@@ -57,17 +73,24 @@ export interface ImportedCase {
   landingInferred: boolean;
   /** Fixture key of the landing page (normalised URL, as the pipeline requests it). */
   pageKey: string | null;
-  bodySource: "har" | "saved-html" | "none";
+  /** "har" also covers a HAR with requests only (a scan service's request list); "wayback" = an archived copy. */
+  bodySource: "har" | "saved-html" | "wayback" | "none";
   har: string | null;
   /** Case folder the HAR was found in, when it is not this case (a HAR filed in the wrong folder). */
   harFromCase: string | null;
   savedHtml: string | null;
   screenshot: string | null;
   moreScreenshots: string[];
+  /** Screenshots of the landing page (a scan service's screenshot, press images of the page): kept for the record, not read as the ad. */
+  pageScreenshots: string[];
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
   firstSeen: string | null;
+  /** Public sources of a collected folder (address, type, entry and access dates). */
+  sources: CollectedSource[];
+  /** Page metadata from a scan service's search record. */
+  scan: ScanMeta | null;
 }
 
 export interface CaseImportResult {
@@ -283,7 +306,17 @@ interface Capture {
   landingUrl: string | null;
   /** A HAR without the document body (e.g. rebuilt from the request list of a scan): only its requests are read. */
   requestsOnly?: boolean;
+  /** Archive time of a web-archive copy (ISO); the body is the archived page. */
+  archivedAt?: string | null;
   inferred: boolean;
+}
+
+/** What a folder collected from public sources says about itself (`collectedCase.ts`). */
+interface Collected {
+  target: string | null;
+  sources: CollectedSource[];
+  scan: ScanMeta | null;
+  lookups: RecordedLookups | null;
 }
 
 interface CaseScan {
@@ -293,11 +326,43 @@ interface CaseScan {
   /** HAR files of the case that match none of its pages. */
   spareHars: Har[];
   screenshots: string[];
+  pageScreenshots: string[];
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
   infoTime: string | null;
   notes: string[];
+  collected: Collected | null;
+}
+
+/** Parsed JSON of a file, or null with a note when it cannot be read. */
+function readJsonNote(file: string, rel: string, notes: string[]): unknown {
+  try {
+    return JSON.parse(readFileSync(file, "utf8"));
+  } catch (e) {
+    notes.push(`${rel}: nieczytelny plik (${(e as Error).message})`);
+    return null;
+  }
+}
+
+/**
+ * Source file, search record and recorded lookups of a folder collected from public sources; null for
+ * other folders. Only the address and the public sources are read from the source file (no labels).
+ */
+function readCollected(files: CaseFile[], abs: (f: CaseFile) => string, notes: string[]): Collected | null {
+  const root = (name: string) => files.find((f) => f.dir === "" && f.name === name);
+  const src = root(COLLECTED_SOURCE_FILE);
+  if (!src) return null;
+  const { target, sources } = readCollectedSource(readJsonNote(abs(src), src.rel, notes));
+  if (!target) notes.push(`${src.rel}: brak adresu docelowego (pole cel)`);
+  const rec = root("urlscan_rekord.json");
+  const look = root("rdap_dns.json");
+  return {
+    target,
+    sources,
+    scan: rec ? scanMeta(readJsonNote(abs(rec), rec.rel, notes)) : null,
+    lookups: look ? recordedLookups(readJsonNote(abs(look), look.rel, notes)) : null,
+  };
 }
 
 function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseScan {
@@ -305,6 +370,7 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   const files = walkCase(dir);
   const abs = (f: CaseFile) => path.join(dir, ...f.rel.split("/"));
   const notes: string[] = [];
+  const collected = readCollected(files, abs, notes);
 
   const hars: Array<Har & { dir: string }> = [];
   for (const f of files.filter((x) => /\.har$/i.test(x.name))) {
@@ -320,7 +386,8 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   const dirs = [...new Set(files.map((f) => f.dir))];
   for (const d of dirs) {
     const here = files.filter((f) => f.dir === d);
-    const htmls = here.filter((f) => HTML_EXT.test(f.name) && !SAVED_FRAME.test(f.name));
+    // in a collected folder only web-archive copies are pages (not a scan service's result page, not a press article)
+    const htmls = here.filter((f) => HTML_EXT.test(f.name) && !SAVED_FRAME.test(f.name) && (!collected || isCollectedPage(f.name)));
     const dirHars = hars.filter((h) => h.dir === d);
     const mhtml = here.find((f) => /\.mhtml?$/i.test(f.name));
     const manifest = here.find((f) => f.name === "manifest.json");
@@ -331,8 +398,15 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     } catch {
       // an unreadable bundle file: the address may still come from the page or the HAR
     }
+    if (collected?.target) bundleUrl = collected.target;
     const name = d.replace(/\//g, "_");
     for (const f of htmls) {
+      const archivedAt = collected ? waybackTime(f.name) : null;
+      if (archivedAt) {
+        const saved = unwrapWayback(readFileSync(abs(f), "utf8"));
+        captures.push({ name, dir: d, htmlName: f.rel, saved, savedFrom: bundleUrl, har: null, main: null, landingUrl: bundleUrl, archivedAt, inferred: false });
+        continue;
+      }
       const saved = readFileSync(abs(f), "utf8");
       const savedFrom = httpUrl(savedFromUrl(saved)) ?? bundleUrl;
       let har: Har | null = null;
@@ -373,6 +447,8 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   }
 
   const rootMedia = files.filter((f) => f.dir === "");
+  const shots = rootMedia.filter((f) => SCREENSHOT_EXT.test(f.name));
+  const isAd = (f: CaseFile) => !collected || collectedImageRole(f.name) === "ad";
   const videos = rootMedia.filter((f) => VIDEO_EXT.test(f.name));
   if (videos.length > 1) notes.push(`kilka plików wideo, użyty pierwszy: ${videos[0].name}`);
   let advertiser: string | null = null;
@@ -394,12 +470,14 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     dir,
     captures,
     spareHars: hars.filter((h) => !used.has(h)),
-    screenshots: rootMedia.filter((f) => SCREENSHOT_EXT.test(f.name)).map(abs),
+    screenshots: shots.filter(isAd).map(abs),
+    pageScreenshots: shots.filter((f) => !isAd(f)).map(abs),
     video: videos[0] ? abs(videos[0]) : null,
     advertiser,
     adLibraryId,
     infoTime,
     notes,
+    collected,
   };
 }
 
@@ -442,7 +520,16 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     for (const h of s.spareHars) {
       if (!scans.some((x) => x.captures.some((c) => c.har === h))) log(`[${id}] HAR ${path.basename(h.file)} nie pasuje do żadnej strony tej sprawy, pominięty`);
     }
-    const media = { screenshot: s.screenshots[0] ?? null, moreScreenshots: s.screenshots.slice(1), video: s.video, advertiser: s.advertiser, adLibraryId: s.adLibraryId };
+    const media = {
+      screenshot: s.screenshots[0] ?? null,
+      moreScreenshots: s.screenshots.slice(1),
+      pageScreenshots: s.pageScreenshots,
+      video: s.video,
+      advertiser: s.advertiser,
+      adLibraryId: s.adLibraryId,
+      sources: s.collected?.sources ?? [],
+      scan: s.collected?.scan ?? null,
+    };
     const hasMedia = !!(media.screenshot || media.video || media.adLibraryId);
     if (!s.captures.length && !hasMedia) continue; // not a case folder
 
@@ -488,7 +575,11 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     };
 
     if (!pages.length) {
-      push({ id, caseId: id, capture: "", landingUrl: null, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, firstSeen: mediaTime ?? s.infoTime });
+      // a collected folder names its target even when no copy of the page survived (press images only)
+      const target = s.collected?.target ?? null;
+      const targetHost = target ? normalizeUrl(target)?.host : null;
+      if (targetHost) landingHosts.add(targetHost);
+      push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, firstSeen: mediaTime ?? s.infoTime });
       log(`[${id}] bez strony docelowej | zrzuty: ${s.screenshots.length} | wideo: ${media.video ? "tak" : "nie"}${media.adLibraryId ? ` | biblioteka reklam: ${media.adLibraryId}` : ""}`);
       continue;
     }
@@ -519,7 +610,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
 
       const bodyFile = `pages/${safeName(itemId)}.html`;
       write(path.join(fix, bodyFile), body);
-      const bodySource: ImportedCase["bodySource"] = c.main || c.requestsOnly ? "har" : "saved-html";
+      const bodySource: ImportedCase["bodySource"] = c.main || c.requestsOnly ? "har" : c.archivedAt ? "wayback" : "saved-html";
       const requests = c.har ? requestUrls(c.har.entries) : [];
       http[pageKey] = {
         status: 200,
@@ -568,12 +659,35 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         harFromCase,
         savedHtml: c.htmlName,
         ...media,
-        firstSeen: earliestHar(c) ?? mediaTime ?? s.infoTime,
+        firstSeen: c.archivedAt ?? earliestHar(c) ?? mediaTime ?? s.infoTime,
       });
       log(
-        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : "zapisana strona"} | obrazy z HAR: ${n} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
+        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `kopia z archiwum (${c.archivedAt})` : "zapisana strona"} | obrazy z HAR: ${n} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
       );
     }
+  }
+
+  // Lookups recorded when a collected folder was made: the state at that time wins over a later lookup.
+  const recorded = new Map<string, RecordedLookups>();
+  const scanned: ScanMeta[] = [];
+  for (const s of scans) {
+    const r = s.collected?.lookups;
+    if (r) recorded.set(r.domain, r);
+    if (s.collected?.scan) scanned.push(s.collected.scan);
+  }
+  for (const r of recorded.values()) {
+    const rec = (dns[r.domain] ??= {});
+    if (r.ns.length) rec.NS = r.ns;
+    if (r.a.length && !hostIps.get(r.domain)?.size) rec.A = r.a.filter((ip) => !ip.includes(":"));
+    if (r.rdap) write(path.join(fix, "rdap", `${safeName(r.domain)}.json`), JSON.stringify(r.rdap, null, 1));
+  }
+  // The AS a scan service saw for the page IP (the record names no prefix, so none is invented).
+  for (const m of scanned) {
+    const a = scanCymruAnswers(m);
+    const q = a && cymruOriginQuery(m.ip!);
+    if (!a || !q || cymru[q]) continue;
+    cymru[q] = [a.origin];
+    cymru[cymruAsNameQuery(a.asn)] ??= [a.asName];
   }
 
   // DNS: A/AAAA as captured in the HAR; the rest (and hosts without a HAR) through passive lookups.
@@ -591,7 +705,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       rec.A = captured.filter((ip) => !ip.includes(":"));
       rec.AAAA = captured.filter((ip) => ip.includes(":"));
     }
-    if (!o.lookups) continue;
+    if (!o.lookups || recorded.has(registrableDomain(host) ?? host)) continue;
     const lookups = o.lookups;
     const live = await quiet(() => lookups.dns(host, ["A", "AAAA", "CNAME"]), {});
     if (!captured.length) {

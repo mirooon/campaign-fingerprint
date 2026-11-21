@@ -6,6 +6,7 @@ import {
   normalizeComment,
   normalizeEndpointPath,
   simhashDistance,
+  withRequestUrls,
 } from "./pagekit";
 
 const PAGE = "https://lp.oferta-demo.example/rejestracja/krok1";
@@ -351,5 +352,36 @@ describe("path identifiers (account IDs in same-origin resource paths)", () => {
       <img src="https://cdn.vendor.test/${ID}/b.png">
       <a href="/offer/${ID}/one">1</a><a href="/offer/${ID}/two">2</a></body></html>`;
     expect(extractPageKit(html, "https://shop-a.example/").pathIds).toEqual([]);
+  });
+});
+
+describe("withRequestUrls: page resources from a request list when the page code is missing", () => {
+  const PAGE = "https://lp-skan.example/pl/oferta/";
+  const ID = "1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9";
+  const REQUESTS = [
+    PAGE,
+    "https://lp-skan.example/pl/oferta/index_files/loader.js",
+    "https://lp-skan.example/pl/oferta/index_files/style.css?v=3",
+    "https://cdn.example/lib/widget.min.js",
+    "https://lp-skan.example/pl/oferta/img/photo2.webp",
+    `https://lp-skan.example/_cdn/${ID}/a.png`,
+    `https://lp-skan.example/_cdn/${ID}/b.png`,
+  ];
+
+  it("takes scripts and stylesheets as assets and UUID path segments as path ids, as the page code would give them", () => {
+    const kit = withRequestUrls(null, REQUESTS, PAGE);
+    expect(kit.assets.map((a) => [a.key, a.kind, a.sameOrigin])).toEqual([
+      ["/pl/oferta/index_files/loader.js", "js", true],
+      ["/pl/oferta/index_files/style.css", "css", true],
+      ["cdn.example/lib/widget.min.js", "js", false],
+    ]);
+    expect(kit.pathIds).toEqual([{ id: ID, prefix: "/_cdn/" }]);
+  });
+
+  it("leaves the assets of a page with code unchanged (requests add only platform traces there)", () => {
+    const html = '<html><head><script src="/main.js"></script></head><body></body></html>';
+    const kit = withRequestUrls(extractPageKit(html, PAGE), REQUESTS, PAGE);
+    expect(kit.assets.map((a) => a.key)).toEqual(["/main.js"]);
+    expect(kit.pathIds).toEqual([]);
   });
 });

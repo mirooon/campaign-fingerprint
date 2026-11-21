@@ -186,11 +186,16 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     return { crawler, mobile, finalUrlDiffers, domDistance, suspected: reasons.length > 0, reasons };
   };
 
-  const loadPage = (url: string): Promise<PageInfo> => {
+  /**
+   * Page under its key (normalised address), fetched once per key. `fetchUrl` is the address actually
+   * requested (default: the key); live mode passes the full input address, because the normalised key
+   * drops `fbclid`/`utm_*` and many scam pages show the offer only to the full address.
+   */
+  const loadPage = (url: string, fetchUrl: string = url): Promise<PageInfo> => {
     const existing = pagePromises.get(url);
     if (existing) return existing;
     const p = (async (): Promise<PageInfo> => {
-      const res = await sources.fetchPage(url);
+      const res = await sources.fetchPage(fetchUrl);
       const { body, ...fetchMeta } = res;
       let extract = null;
       let kit = null;
@@ -212,9 +217,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           }
         }
       }
-      // requests recorded with the page (HAR): traces visible without the page code (platform tenant)
+      // requests recorded with the page (HAR): traces visible without the page code (platform tenant, and
+      // the page's files when only the request list survived)
       const requests = sources.requestsFor?.(url) ?? (res.finalUrl !== url ? sources.requestsFor?.(res.finalUrl) : null) ?? null;
-      if (requests?.length) kit = withRequestUrls(kit, requests);
+      if (requests?.length) kit = withRequestUrls(kit, requests, res.finalUrl || url);
       let favicon: PageInfo["favicon"] = null;
       if (!skip.favicon && extract?.faviconUrl) {
         try {
@@ -385,7 +391,9 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           // "#capture=<id>" marks one of several saved copies of the same address (cloaking, a funnel behind one URL)
           pageKey = landing.url + (/#capture=[\w.-]+$/.exec(item.landingUrl ?? "")?.[0] ?? "");
           try {
-            page = await loadPage(pageKey);
+            // offline fixtures are stored under the normalised key; a live request goes to the full input address
+            const full = landingSource === "input" && sources.mode === "live" ? item.landingUrl!.replace(/#.*$/, "") : pageKey;
+            page = await loadPage(pageKey, full);
             if (page.fetch.error) errors.push(`page: ${page.fetch.error}`);
           } catch (e) {
             errors.push(`page: ${errMsg(e)}`);

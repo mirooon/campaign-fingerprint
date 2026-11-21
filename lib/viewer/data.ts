@@ -28,7 +28,7 @@ export function loadViewerData(): ViewerData {
     const campaigns = read<CampaignsFile>("campaigns.json");
     const summariesFile = read<{ summaries: Record<string, CampaignSummary> }>("summaries.json");
     if (!graph || !campaigns) {
-      return { graph: null, campaigns: null, summaries: {}, error: "Brak data/graph.json lub data/campaigns.json — uruchom: bun run pipeline --offline" };
+      return { graph: null, campaigns: null, summaries: {}, error: `Brak bazy znanych kampanii w ${DATA_DIR} (graph.json, campaigns.json). Zbuduj ją: bun run base -- --cases <katalog spraw> (w kontenerze: docker compose run --rm app bun run base -- --cases /dane/probka), albo bun run pipeline --offline dla próbki.` };
     }
     return { graph, campaigns, summaries: summariesFile?.summaries ?? {}, error: null };
   } catch (e) {

@@ -1,0 +1,3 @@
+# Python packages of the default container profile (venv in /opt/venv). Add light packages here only:
+# the profile `full` adds torch and SpeechBrain in its own stage (docker/requirements-full.txt).
+# Later tasks add their packages below (face detection with OpenCV, BigQuery client, ...).

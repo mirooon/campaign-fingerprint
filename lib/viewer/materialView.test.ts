@@ -11,6 +11,7 @@ const weakLink = { ...strongLink, strong: false, score: 0.3, evidence: [{ eviden
 
 const result: MaterialResult = {
   mode: "offline",
+  steps: [],
   items: [
     item("a", { verdict: "known_campaign", campaign: "K01", links: [strongLink] }),
     item("b", { verdict: "similar_campaigns", similarCampaigns: ["K01", "K02"] }),

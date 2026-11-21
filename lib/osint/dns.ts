@@ -201,6 +201,11 @@ export async function resolveDns(name: string, opts: DnsOptions = {}): Promise<D
   return wrapCached(getDefaultCache(), normalized, types, servers, run);
 }
 
+/** Cache key of a DNS answer: name, the (sorted) record types and the resolvers asked. Also read by `cache:freeze`. */
+export function dnsCacheKey(name: string, types: DnsRecordType[], servers?: string[]): string {
+  return `dns:${name}:${types.join(",")}:${(servers ?? []).join(",")}`;
+}
+
 function wrapCached(
   cache: FileCache,
   name: string,
@@ -208,8 +213,7 @@ function wrapCached(
   servers: string[] | undefined,
   run: () => Promise<DnsRecords>,
 ): Promise<DnsRecords> {
-  const key = `dns:${name}:${types.join(",")}:${(servers ?? []).join(",")}`;
-  return cache.wrap(key, run, {
+  return cache.wrap(dnsCacheKey(name, types, servers), run, {
     shouldCache: (r) => Object.keys(r.errors).length < types.length,
   });
 }

@@ -194,10 +194,15 @@ function retryAfterMs(res: Response): number | null {
  * Looks up certificates for a domain on crt.sh. Returns null when every
  * attempt failed (nothing is cached in that case).
  */
+/** Cache key of the crt.sh answer for an ASCII domain. Also read by `cache:freeze`. */
+export function ctCacheKey(asciiDomain: string): string {
+  return `ct:${asciiDomain}`;
+}
+
 export async function lookupCt(domain: string, opts: CtLookupOptions = {}): Promise<CtResult | null> {
   const ascii = toAsciiHost(domain);
   if (!ascii) throw new Error(`Invalid domain for CT lookup: ${domain}`);
-  return queryCrtSh(ascii, `ct:${ascii}`, opts);
+  return queryCrtSh(ascii, ctCacheKey(ascii), opts);
 }
 
 export interface CtSearchOptions extends CtLookupOptions {

@@ -6,6 +6,7 @@
  *  - fixtures/ recorded RAW responses: http.json + pages/*.html (redirect chains),
  *    dns.json, rdap/*.json (raw RDAP), crtsh/*.json (raw crt.sh), cymru.json (raw TXT)
  *  - linking.json: sample-specific additions to the deny/weak lists
+ *  - demo/: material of `bun run demo` (a phone screenshot of a dead page with its address in the bar)
  *
  * Everything is fictional: people ("Adam Testowy"...), brands, reserved domains
  * (.example/.test), documentation IP ranges (192.0.2/24, 198.51.100/24, 203.0.113/24)
@@ -672,6 +673,26 @@ const FAVICONS: Record<string, string> = {
   "n5.png": "#f7931a",
 };
 
+/**
+ * Phone screenshot of a page that no longer exists: the browser bar holds the (fictional, under the reserved example.com; the bar parser accepts only real public suffixes) address,
+ * the body an error message. The demo reads the address from the bar, as it would from a real capture.
+ * Rendered here, not at demo time, because the container has no fonts.
+ */
+async function deadPageScreenshot(): Promise<Buffer> {
+  const text = (x: number, y: number, size: number, fill: string, body: string, anchor = "start") =>
+    `<text x="${x}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${size}" fill="${fill}" text-anchor="${anchor}">${body}</text>`;
+  const body = [
+    `<rect width="1170" height="2532" fill="#ffffff"/>`,
+    `<rect width="1170" height="354" fill="#f1f3f4"/>`,
+    text(60, 110, 46, "#202124", "10:15"),
+    `<rect x="60" y="170" width="1050" height="120" rx="60" fill="#ffffff" stroke="#c4c7c5" stroke-width="3"/>`,
+    text(120, 248, 56, "#202124", "martwa-oferta.example.com"),
+    text(585, 1100, 64, "#5f6368", "Nie można otworzyć strony", "middle"),
+    text(585, 1200, 44, "#5f6368", "Strona została usunięta", "middle"),
+  ].join("");
+  return sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="1170" height="2532">${body}</svg>`)).flatten({ background: "#ffffff" }).png({ compressionLevel: 9 }).toBuffer();
+}
+
 async function favicon(color: string, letter: string): Promise<Buffer> {
   const s = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32"><rect width="32" height="32" rx="6" fill="${color}"/><text x="16" y="23" font-family="Arial" font-size="20" font-weight="700" fill="#fff" text-anchor="middle">${letter}</text></svg>`;
   return sharp(Buffer.from(s)).png().toBuffer();
@@ -985,6 +1006,7 @@ async function main() {
       }
     }
   }
+  writeFile("demo/zrzut-martwa-strona.png", await deadPageScreenshot());
   console.log(`[sample] ${ADS.length} reklam, ${IMAGES.length} obrazów, ${Object.keys(DOMAINS).length} domen, ${Object.keys(http).length} odpowiedzi HTTP w fixtures`);
   console.log(`[sample] dHash: max odległość w rodzinie kreacji = ${maxWithin}, min odległość między różnymi kreacjami = ${minAcross} (${minAcrossPair})`);
   console.log(`[sample] portfele: TRON ${W.tronC1}, ETH ${W.ethC5}, BTC ${W.btcC5}, BTC ${W.btcN5}`);

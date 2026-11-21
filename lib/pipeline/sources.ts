@@ -15,6 +15,7 @@ import { lookupCt, parseCrtSh, type CtResult } from "../osint/ct";
 import { resolveDns, type DnsRecords, type DnsRecordType } from "../osint/dns";
 import { fetchBinary, fetchPage, type FetchPageResult, type HopFn } from "../osint/fetchPage";
 import { lookupRdap, parseRdap, type RdapInfo } from "../osint/rdap";
+import { frozenSources, type FrozenData } from "./freeze";
 
 export interface FetchOptions {
   /** Override the browser User-Agent (used by the opt-in cloaking check). */
@@ -44,19 +45,45 @@ function emptyDns(name: string): DnsRecords {
   return { name, a: [], aaaa: [], cname: [], ns: [], mx: [], txt: [], errors: {} };
 }
 
+/** Cache key of a fetched page: address and the User-Agent sent. Also read by `cache:freeze`. */
+export function pageCacheKey(url: string, userAgent?: string): string {
+  return `GET2 ${url} UA=${userAgent ?? "default"}`;
+}
+
+/** Cache key of a fetched binary (favicon, image) by address. Also read by `cache:freeze`. */
+export function binaryCacheKey(url: string): string {
+  return `GET-BIN ${url}`;
+}
+
+/**
+ * Passive network sources with the answers cached in `.cache/` (pages, binaries, DNS, RDAP, crt.sh, ASN).
+ * `cache:freeze` turns that cache into replayable fixtures.
+ */
 export function liveSources(opts: LiveSourceOptions = {}): EnrichmentSources {
   const pageCache = createCache({ namespace: "page", defaultTtlMs: TTL.day });
+  const binaryCache = createCache({ namespace: "binary", defaultTtlMs: TTL.day });
   const skipCt = opts.skipCt ?? /^(off|0|false|no)$/i.test(process.env.CT ?? "");
   return {
     mode: "live",
     fetchPage: (url, fo = {}) =>
       pageCache.wrap(
-        `GET2 ${url} UA=${fo.userAgent ?? "default"}`,
+        pageCacheKey(url, fo.userAgent),
         () => fetchPage(url, { timeoutMs: opts.fetchTimeoutMs ?? 8_000, referer: opts.referer, userAgent: fo.userAgent }),
         // Do not cache transient failures.
         { shouldCache: (r) => r.errorCode !== "timeout" && r.errorCode !== "network" },
       ),
-    fetchBinary: async (url) => (await fetchBinary(url, { timeoutMs: opts.fetchTimeoutMs ?? 8_000 })).data,
+    fetchBinary: async (url) => {
+      // cached as base64 JSON so that `cache:freeze` can replay favicons and images without the network
+      const hit = await binaryCache.wrap(
+        binaryCacheKey(url),
+        async () => {
+          const data = (await fetchBinary(url, { timeoutMs: opts.fetchTimeoutMs ?? 8_000 })).data;
+          return data ? { base64: data.toString("base64") } : null;
+        },
+        { shouldCache: (v) => v !== null },
+      );
+      return hit ? Buffer.from(hit.base64, "base64") : null;
+    },
     dns: (name, types) => resolveDns(name, { types }),
     rdap: (domain) => lookupRdap(domain),
     ct: (domain) => (skipCt ? Promise.resolve(null) : lookupCt(domain)),
@@ -85,8 +112,10 @@ function readJson<T>(file: string, fallback: T): T {
   return existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as T) : fallback;
 }
 
-/** Offline sources backed by recorded raw responses in `dir`. */
+/** Offline sources backed by recorded raw responses in `dir`, or by the `frozen.json` of `cache:freeze` when the folder has one. */
 export function fixtureSources(dir: string): EnrichmentSources {
+  const frozenFile = path.join(dir, "frozen.json");
+  if (existsSync(frozenFile)) return frozenSources(readJson<FrozenData>(frozenFile, { version: 1, pages: {}, binaries: {}, dns: {}, rdap: {}, ct: {}, asn: {} }));
   const http = readJson<Record<string, FixtureHttpEntry>>(path.join(dir, "http.json"), {});
   const dns = readJson<FixtureDns>(path.join(dir, "dns.json"), {});
   const cymru = readJson<Record<string, string[]>>(path.join(dir, "cymru.json"), {});

@@ -1,6 +1,6 @@
 /** bun run import-cases -- --cases <katalog spraw> --out <katalog roboczy> [--lookups] [--ct] */
-import { resolveDns, resolveTxt } from "../lib/osint/dns";
-import { importCases, type CaseLookups } from "../lib/pipeline/caseImport";
+import { importCases } from "../lib/pipeline/caseImport";
+import { liveLookups } from "../lib/pipeline/liveLookups";
 import { cli, main } from "./_cli";
 
 const args = cli(
@@ -19,30 +19,6 @@ Dalej: bun run ingest -- --input <out>/input.json --mapping <out>/mapping.json -
        bun run enrich -- --items <out>/items.json --out <out>/enriched.json --offline --fixtures <out>/fixtures --archive <out>/archive [--ocr] [--clip]
        bun run build-graph -- --enriched <out>/enriched.json --graph <out>/graph.json --campaigns <out>/campaigns.json`,
 );
-
-const USER_AGENT = "hacknation-osint-starter/0.1 (passive lookup)";
-
-async function getJson(url: string, timeoutMs: number): Promise<unknown | null> {
-  const res = await fetch(url, { redirect: "follow", signal: AbortSignal.timeout(timeoutMs), headers: { accept: "application/rdap+json, application/json", "user-agent": USER_AGENT } });
-  if (!res.ok) return null;
-  try {
-    return JSON.parse(await res.text());
-  } catch {
-    return null; // an HTML error page
-  }
-}
-
-function liveLookups(withCt: boolean): CaseLookups {
-  return {
-    dns: async (name, types) => {
-      const r = await resolveDns(name, { types });
-      return { A: r.a, AAAA: r.aaaa, CNAME: r.cname, NS: r.ns, MX: r.mx, TXT: r.txt };
-    },
-    rdapRaw: (domain) => getJson(`https://rdap.org/domain/${encodeURIComponent(domain)}`, 20_000),
-    ...(withCt ? { ctRaw: (domain: string) => getJson(`https://crt.sh/?q=${encodeURIComponent(domain)}&output=json`, 40_000) } : {}),
-    txt: (name) => resolveTxt(name),
-  };
-}
 
 void main(async () => {
   if (!args.cases || !args.out) throw new Error("wymagane: --cases i --out (zob. --help)");

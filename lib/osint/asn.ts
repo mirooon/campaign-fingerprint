@@ -134,6 +134,11 @@ function getDefaultCache(): FileCache {
   return defaultCache;
 }
 
+/** Cache key of the origin lookup for a canonical IP. Also read by `cache:freeze`. */
+export function asnCacheKey(canonicalIpAddress: string): string {
+  return `origin:${canonicalIpAddress}`;
+}
+
 /**
  * Maps an IP to its origin ASN(s) and AS name. Returns null when the IP is
  * invalid or not announced. Errors of the origin query propagate; a failing
@@ -179,5 +184,5 @@ export async function lookupAsn(ip: string, opts: AsnLookupOptions = {}): Promis
     };
   };
 
-  return cache ? cache.wrap(`origin:${canonical}`, run) : run();
+  return cache ? cache.wrap(asnCacheKey(canonical), run) : run();
 }

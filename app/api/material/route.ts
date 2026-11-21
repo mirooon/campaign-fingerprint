@@ -12,7 +12,8 @@ import { existsSync } from "node:fs";
 import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { safeCaseName } from "@/lib/viewer/caseDetect";
-import { DATA_DIR } from "@/lib/viewer/data";
+import { DATA_DIR, SAMPLE_BASE } from "@/lib/viewer/data";
+import { rateLimitResponse } from "@/lib/viewer/rateLimit";
 import { newJobId, registerJob, startJob, workRoot, type Job, type JobCase } from "@/lib/viewer/jobs";
 import { extractZip, MAX_FILES, maxBytes, safeRelative, UploadError } from "@/lib/viewer/upload";
 
@@ -28,6 +29,8 @@ async function flattenSingleTop(dir: string): Promise<void> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limited = rateLimitResponse(request);
+  if (limited) return limited;
   let form: FormData;
   try {
     form = await request.formData();
@@ -39,7 +42,8 @@ export async function POST(request: Request): Promise<Response> {
   const caseNames = form.getAll("cases").map(String);
   const url = String(form.get("url") ?? "").trim().slice(0, 2048);
   const text = String(form.get("text") ?? "").trim().slice(0, 5000);
-  const live = form.get("live") !== "0";
+  // ANALYZE_OFFLINE=1 (the container default) switches the passive lookups off whatever the form asks for.
+  const live = form.get("live") !== "0" && process.env.ANALYZE_OFFLINE !== "1";
   if (!files.length && !url && !text) return Response.json({ error: "Dodaj pliki, link albo tekst reklamy" }, { status: 400 });
   if (files.length > MAX_FILES) return Response.json({ error: `Za dużo plików (maks. ${MAX_FILES})` }, { status: 400 });
   const limit = maxBytes();
@@ -91,6 +95,7 @@ export async function POST(request: Request): Promise<Response> {
     const fixtures = path.join(DATA_DIR, "sample", "fixtures");
     await startJob(job, {
       dataDir: DATA_DIR,
+      sampleBase: SAMPLE_BASE,
       caseDirs,
       url: url || undefined,
       text: text || undefined,

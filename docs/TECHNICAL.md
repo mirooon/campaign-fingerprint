@@ -673,7 +673,7 @@ Wszystkie pola z tej listy są opcjonalne: przeglądarka działa także na wynik
 Wejście (zod, `app/api/analyze/route.ts:13-20`): `{ url?: string ≤ 2048, text?: string ≤ 5000, imageUrl?: string ≤ 2048, offline?: boolean }`. Wymagane jest co najmniej jedno z `url`, `text`, `imageUrl`. Błąd walidacji → 400, brak `graph.json` → 503, wyjątek → 500.
 
 Przebieg (`lib/pipeline/analyze.ts:91`):
-1. Źródła: `offline` (albo `ANALYZE_OFFLINE=1`) korzysta z `data/sample/fixtures`, w przeciwnym razie `liveSources({skipCt:true})`, czyli bez crt.sh (`app/api/analyze/route.ts:36-37`). Konfiguracja wag pochodzi z `LINK_CONFIG` albo `data/sample/linking.json` (`app/api/analyze/route.ts:38`).
+1. Źródła: `offline` (albo `ANALYZE_OFFLINE=1`) korzysta z `data/sample/fixtures`, w przeciwnym razie `liveSources({skipCt:true})`, czyli bez crt.sh (`app/api/analyze/route.ts:36-37`). Konfiguracja wag pochodzi z `LINK_CONFIG`, z `<VIEWER_DATA_DIR>/linking.json` albo `../linking-default.json`, a dla przebiegu próbki z `data/sample/linking.json` (`lib/pipeline/linkConfigFile.ts`); dla innych danych bez pliku są wagi wbudowane.
 2. `enrichItems` dla jednej reklamy o id `nowa-reklama`, potem `buildEvidenceGraph(..., includeItemPivots)` (`analyze.ts:114`). Nowe pivoty (backend, kit, parametry kampanii, CNAME) są porównywane tak samo jak pozostałe, po id węzła; listy person, OCR, ASR i test cloakingu nie są tu uruchamiane.
 3. Dla każdego pivotu, który istnieje w `graph.json` (to samo id węzła), wszystkie reklamy z tym węzłem dostają dowód o wadze `waga_zapisanego_węzła × relacja_nowej` (`analyze.ts:132`). Relacja drugiej reklamy jest ignorowana, a idf pochodzi z oryginalnego zbioru. To przybliżenie.
 4. Obraz: Hamming do `data.dhash` reklam, ten sam próg i wzór co w §4.5 (`analyze.ts:142-149`). Simhash DOM nie jest porównywany.
@@ -711,7 +711,11 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | `import-cases` | `--cases` (katalog spraw, wymagane), `--out` (katalog roboczy, wymagane), `--lookups` (pasywne DNS, RDAP, ASN dla domen stron), `--ct` (także crt.sh) | `bun run import-cases -- --cases sprawy/ --out praca/ --lookups` |
 | `ingest` | `--input` (`data/sample/ads.csv`), `--mapping` (`data/sample/mapping.json` tylko bez `--input`; z `--input` mapowanie automatyczne), `--out` (`data/work/items.json`), `--base-dir` (katalog pliku) | `bun run ingest -- --input nask.csv --mapping nask-mapping.json --base-dir ./nask` |
 | `enrich` | `--items`, `--out` (`data/work/enriched.json`), `--offline`, `--fixtures` (`data/sample/fixtures`), `--concurrency` (4), `--skip` (lista: `page,favicon,image,dns,rdap,ct,asn`), `--personas` (bez `--items`: `data/sample/personas.json`), `--ner`, `--cloaking`, `--ocr`, `--asr`, `--audio`, `--archive` (`data/work/archive`) / `--no-archive` | `bun run enrich -- --skip ct` · `bun run enrich -- --offline --cloaking --ocr --audio` |
-| `build-graph` | `--enriched`, `--graph` (`data/graph.json`), `--campaigns` (`data/campaigns.json`), `--config` (**domyślnie `data/sample/linking.json`**), `--text` (`tfidf`; też `TEXT_SIMILARITY`) | `bun run build-graph -- --config recall.json --text embedding` |
+| `build-graph` | `--enriched`, `--graph` (`data/graph.json`), `--campaigns` (`data/campaigns.json`), `--config` (domyślnie wagi wbudowane; dla domyślnego `data/work/enriched.json`, czyli przebiegu próbki, `data/sample/linking.json`), `--text` (`tfidf`; też `TEXT_SIMILARITY`) | `bun run build-graph -- --config recall.json --text embedding` |
+| `base` | `--cases` (wymagane), `--out` (`VIEWER_DATA_DIR`, potem `data/`), `--offline` (domyślnie, gdy `ANALYZE_OFFLINE=1`), `--lookups` (wymusza DNS, RDAP, ASN), `--labels` (opcjonalne etykiety `{kampania: [id]}`), `--config` (domyślnie wagi wbudowane) | `bun run base -- --cases /dane/probka --out /dane/baza` |
+| `cache:freeze` | `--out` (wymagane), `--cache` (`CACHE_DIR`, potem `.cache`) | `bun run cache:freeze -- --out dane/zamrozone && bun run enrich -- --offline --fixtures dane/zamrozone` |
+| `demo` | `--out` (`DEMO_OUT`, potem `dane/demo`), `--sample` (`data/sample`) | `bun run demo` |
+| `demo-batch` | `--out` (`dane`), `--cases-name` (`syntetyczne`), `--new-name` (`syntetyczne-nowe`), `--sample` | `bun run demo-batch -- --out dane --cases-name probka --new-name nowe` |
 | `evaluate` | `--graph`, `--campaigns`, `--json` | `bun run evaluate -- --json > metryki.json` |
 | `pipeline` | `--input`, `--mapping`, `--offline`, `--fixtures`, `--config` (z próbką: `data/sample/linking.json`; z `--input`: domyślne), `--text`, `--concurrency`, `--skip`, `--personas` (z próbką: `data/sample/personas.json`), `--ner`, `--cloaking`, `--ocr`, `--asr`, `--audio`; archiwum HTML zawsze w `data/work/archive` | `bun run pipeline --offline` · `bun run pipeline -- --input nask.csv --mapping m.json --skip ct` |
 | `summarize` | `--graph`, `--campaigns`, `--out` (`data/summaries.json`), `--campaign K01`, `--limit N`, `--all` (też kampanie 1-elementowe) | `LLM_PROVIDER=ollama bun run summarize -- --limit 10` |
@@ -728,6 +732,29 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 `pipeline` zawsze zapisuje do domyślnych ścieżek z `steps.ts:22-37`, więc nadpisuje `data/graph.json` i `data/campaigns.json`. Eksperymenty kieruj przez `build-graph --graph/--campaigns` do innych plików. `ct:watch` kończy się kodem 2, gdy żaden strumień CT nie przysłał danych (`scripts/ct-watch.ts:94`), a `ct:backfill`, gdy żaden wzorzec nie dał odpowiedzi (`scripts/ct-backfill.ts:69`).
 
 ---
+
+### 9.1 Kontener i CLI dla osób oceniających (od 21.11.2026, zadanie i7)
+
+Obraz (`Dockerfile`, cel `run`) zawiera `bun` w wersji z `packageManager`, `node_modules`, zbudowane GUI, `scripts/`, `lib/`, `app/` i `data/sample` (żadnych innych danych: `.dockerignore` wyklucza `data/work`, `.cache`, `.env*`, uploady i `dane/`). Narzędzia: `tesseract-ocr` z językiem polskim, `ffmpeg` z `ffprobe`, `libchromaprint-tools` (`fpcalc`), `unzip` (wgrywanie ZIP w `/api/analyze-material`), Python 3 z venv `/opt/venv` i `scripts/py/requirements.txt` (dziś bez pakietów; tu dopisują swoje lekkie pakiety kolejne zadania). Użytkownik `node`, wolumen `/dane`.
+
+Szybki start (`docker compose`, katalog `./dane` na hoście to `/dane` w kontenerze):
+
+```bash
+docker compose up -d                                                # GUI na :3000
+docker compose run --rm app bun run base -- --cases /dane/probka    # baza znanych kampanii z próbki
+docker compose run --rm app bun run analyze-material -- --cases /dane/nowe --csv /dane/wynik.csv --each-file
+docker compose run --rm app bun run demo                            # bez własnych danych: baza i partia syntetyczne
+```
+
+`base` zapisuje bazę w `VIEWER_DATA_DIR` (`/dane/baza`), skąd czyta ją i GUI, i `analyze-material` bez `--data`. Kroki: `import-cases`, `ingest`, `enrich` (zawsze z zapisanych odpowiedzi), `build-graph`; status każdego kroku jest w `<baza>/base.json`, a krok, który się nie wykonał (brak DNS/RDAP/ASN w trybie offline, brak whisper.cpp, odcisku audio, modelu CLIP), ma `status: "skipped"` i powód. Wagi: `DEFAULT_LINK_CONFIG`, nie plik próbki (próbka ma fikcyjny skracacz i znacznik generatora); `--config` kopiuje plik do `<baza>/linking.json`, żeby analiza używała tych samych wag. Wynik `analyze-material` (`--json`) ma pole `steps` z wynikiem każdego kroku per sprawa (`done`, `skipped` z powodem w `detail`, `error`).
+
+Zmienne kontenera: `VIEWER_DATA_DIR=/dane/baza`, `DEMO_OUT=/dane/demo`, `MATERIAL_WORK_DIR=/dane/praca` (wgrania z GUI), `BUN_BIN=/usr/local/bin/bun` (runner analizy z GUI), `TZ=Europe/Warsaw` (bez niego `firstSeen` ze zrzutów przesuwa się o 2 h), `HF_HUB_OFFLINE=1` (CLIP tylko z modelu lokalnego: `allowRemoteModels=false`; bez modelu krok `clip` jest `skipped` z powodem, bez prób pobierania), `ANALYZE_OFFLINE=1`. Gdy w `VIEWER_DATA_DIR` nie ma bazy, GUI działa i pokazuje komunikat z poleceniem `base`.
+
+Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i modelu), głos (brak SpeechBrain), CLIP (brak modelu), LLM (brak Ollamy) i zapytania sieciowe; `full` (`app-full`, cel `full`) dodaje `whisper-cli` (whisper.cpp) i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (`WHISPER_MODEL_DIR`, domyślnie `~/models/whisper`, `WHISPER_MODEL`; `SPEAKER_MODEL_HOST`, w kontenerze `SPEAKER_MODEL_DIR`); `llm` (`ollama`) i `ct` (`certstream`) są tylko w profilach. Gotowa baza z paczki niepublicznej: zakomentowany wolumen `/dane/baza:ro` w `docker-compose.yml`.
+
+`bun run cache:freeze` (`lib/pipeline/freeze.ts`) zapisuje to, co przebieg z siecią zostawił w `.cache/` (strony, favicony i obrazy po adresie, DNS, RDAP, crt.sh, ASN), jako `<out>/frozen.json`; `fixtureSources` (czyli `--offline --fixtures <out>`, także w `analyze-material --fixtures`) odtwarza z niego przebieg bez sieci. Cache trzyma odpowiedzi sparsowane, dlatego to osobny format, nie surowe fixtures próbki. Odpowiedzi binarne trafiają do cache dopiero od tej wersji (`binaryCacheKey`). Test: `tests/cacheFreeze.offline.test.ts` (to samo wzbogacenie z zamrożonych odpowiedzi co z przebiegu źródłowego).
+
+`bun run demo` (`lib/pipeline/demoScenario.ts', test `tests/demo.offline.test.ts`): buduje bazę z 12 spraw próbki i analizuje 8 materiałów: znana kampania, podobne kampanie, duplikat, za mało danych, martwa strona (tylko zrzut z adresem na pasku; adres `martwa-oferta.example.com`, bo parser paska przyjmuje tylko prawdziwe sufiksy, a `example.com` jest zarezerwowane; cechy z nagranych odpowiedzi RDAP, crt.sh i DNS, `missing` mówi, czego brakło) oraz trzy strony jednej kampanii ze zmienionymi domenami i twarzami i wspólnym zapleczem (serwer trackera, konto platformy, backend formularza z identyfikatorem klienta), czyli jedna nowa kampania N1. Wynik: `<out>/wynik/wynik.json` i `wynik.csv`.
 
 ## 10. Konfiguracja
 
@@ -749,8 +776,9 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | `CT` | włączony | `sources.ts:47` | `off/0/false/no` pomija crt.sh |
 | `DNS_SERVERS` | systemowe | `dns.ts:62` | lista IP po przecinku |
 | `FETCH_INSECURE_TLS` | `0` | `fetchPage.ts:197` | `1` akceptuje nieważne certyfikaty TLS |
-| `ANALYZE_OFFLINE` | `0` | `app/api/analyze/route.ts:36` | `1` = `/api/analyze` tylko z fixtures |
-| `LINK_CONFIG` | `data/sample/linking.json` | `app/api/analyze/route.ts:38` | konfiguracja wag dla `/api/analyze` |
+| `ANALYZE_OFFLINE` | `0` (w kontenerze `1`) | `app/api/analyze/route.ts`, `app/api/material/route.ts`, `scripts/base.ts` | `1` = `/api/analyze` tylko z fixtures, analiza z GUI bez zapytań sieciowych, `base` bez DNS/RDAP/ASN |
+| `ANALYZE_RATE_LIMIT`, `ANALYZE_RATE_WINDOW_S` | wyłączony, 60 s | `lib/viewer/rateLimit.ts` | limit zapytań na klienta (nagłówek `X-Forwarded-For`/`X-Real-IP`) do `/api/analyze`, `/api/analyze-material`, `/api/material`; po przekroczeniu 429 z `Retry-After`. Przy publicznym adresie ustaw też `ANALYZE_OFFLINE=1` (wtedy żądanie nie może włączyć pobierania stron) i `MATERIAL_MAX_MB` (413) |
+| `LINK_CONFIG` | `<VIEWER_DATA_DIR>/linking.json`, `<VIEWER_DATA_DIR>/../linking-default.json`; plik próbki tylko dla przebiegu próbki | `lib/pipeline/linkConfigFile.ts` | konfiguracja wag dla `/api/analyze` i analizy z GUI |
 | `WHISPER_MODEL` | `~/models/whisper/ggml-large-v3-turbo.bin` | `lib/media/asr.ts:26` | model whisper.cpp dla ASR |
 | `MLX_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | `asr.ts:30` | tylko gdy brak whisper-cli i model jest już lokalnie |
 | `HF_HUB_CACHE` / `HF_HOME` | `~/.cache/huggingface` | `asr.ts:45` | gdzie szukać lokalnego modelu mlx |

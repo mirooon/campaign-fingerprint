@@ -168,6 +168,8 @@ export interface MaterialResult {
   /** Campaigns made of new records only (linked with each other, not with the existing run). */
   newCampaigns?: Array<{ id: string; members: string[]; evidence: string[] }>;
   skipped: Array<{ id: string; reason: string }>;
+  /** Outcome of every step per case (done, skipped with the reason in `detail`, error); the "start" events are left out. */
+  steps: MaterialProgress[];
   notes: string[];
 }
 
@@ -244,6 +246,11 @@ const FEATURE_KEYS = [
   "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques",
 ];
 
+/**
+ * Compares new material (case folders, a link, a text or a dataset file) with an existing run: imports and
+ * enriches only the new records, builds one graph with the run, and gives each record a verdict, its links and
+ * the outcome of every step (`steps`, skipped ones with the reason). Reads and writes files in `ctx`.
+ */
 export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext): Promise<MaterialResult> {
   const toolNotes = new Map<string, string>();
   const log = (m: string) => {
@@ -251,9 +258,12 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     if (off) toolNotes.set(off[1], off[2]);
     ctx.log?.(m);
   };
+  const steps: MaterialProgress[] = [];
   const progress = (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => {
+    const event: MaterialProgress = { caseId, step, status, ...(detail ? { detail } : {}) };
+    if (status !== "start") steps.push(event);
     try {
-      ctx.onProgress?.({ caseId, step, status, ...(detail ? { detail } : {}) });
+      ctx.onProgress?.(event);
     } catch {
       // a failing listener must not stop the analysis
     }
@@ -597,7 +607,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const v = results.filter((r) => r.caseId === c).map((r) => r.verdict);
     progress(c, "group", "done", [...new Set(v)].join(", "));
   }
-  return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, notes };
+  return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, steps, notes };
 }
 
 /** Outcome of the media and lookup steps per case, from what the enrichment produced. */

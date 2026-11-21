@@ -196,6 +196,11 @@ function getDefaultCache(): FileCache {
  * RDAP lookup for a registrable domain. Returns null when the registry has no
  * record (HTTP 404); throws RdapHttpError on other HTTP failures.
  */
+/** Cache key of an RDAP answer for an ASCII domain. Also read by `cache:freeze`. */
+export function rdapCacheKey(asciiDomain: string): string {
+  return `rdap:${asciiDomain}`;
+}
+
 export async function lookupRdap(domain: string, opts: RdapLookupOptions = {}): Promise<RdapInfo | null> {
   const ascii = toAsciiHost(domain);
   if (!ascii) throw new Error(`Invalid domain for RDAP: ${domain}`);
@@ -216,5 +221,5 @@ export async function lookupRdap(domain: string, opts: RdapLookupOptions = {}): 
 
   if (opts.cache === false) return run();
   const cache = opts.cache ?? getDefaultCache();
-  return cache.wrap(`rdap:${ascii}`, run);
+  return cache.wrap(rdapCacheKey(ascii), run);
 }

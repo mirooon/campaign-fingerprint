@@ -1,0 +1,4 @@
+# Heavy packages of the profile `full` (docker compose --profile full): speaker embeddings (SpeechBrain, CPU torch).
+# torch and torchaudio come from the CPU wheel index (see Dockerfile), so the image has no CUDA libraries.
+speechbrain
+soundfile

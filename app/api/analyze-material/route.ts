@@ -13,6 +13,8 @@ import { mkdir, readdir, readFile, rename, rm, writeFile } from "node:fs/promise
 import path from "node:path";
 import type { MaterialResult } from "@/lib/pipeline/analyzeMaterial";
 import { DATA_DIR } from "@/lib/viewer/data";
+import { rateLimitResponse } from "@/lib/viewer/rateLimit";
+import { maxBytes } from "@/lib/viewer/upload";
 
 const MAX_FILES = 400;
 
@@ -42,6 +44,9 @@ async function flattenSingleTop(dir: string): Promise<void> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  const limited = rateLimitResponse(request);
+  if (limited) return limited;
+  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${Math.round(maxBytes() / 1024 / 1024)} MB` }, { status: 413 });
   let form: FormData;
   try {
     form = await request.formData();
@@ -79,7 +84,7 @@ export async function POST(request: Request): Promise<Response> {
     if (files.length) args.push("--case", caseDir);
     if (url) args.push("--url", url);
     if (text) args.push("--text", text);
-    if (form.get("live") === "1") args.push("--live");
+    if (form.get("live") === "1" && process.env.ANALYZE_OFFLINE !== "1") args.push("--live");
     if (form.get("asr") === "1") args.push("--asr", "--audio");
     const sample = path.join(DATA_DIR, "sample", "fixtures");
     if (existsSync(sample)) args.push("--fixtures", sample);

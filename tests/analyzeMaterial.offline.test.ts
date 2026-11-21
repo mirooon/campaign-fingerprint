@@ -91,4 +91,17 @@ describe("analyzeMaterial", () => {
     const res = await analyzeMaterial({ caseDir }, ctx("w2"));
     expect(res.items.map((i) => [i.id, i.verdict])).toEqual([["nowa-sprawa", "new_campaign"]]);
   });
+
+  it("keeps the outcome of every step in the result, skipped steps with their reason", async () => {
+    const caseDir = path.join(root, "upload", "kroki");
+    mkdirSync(caseDir, { recursive: true });
+    writeFileSync(path.join(caseDir, "Strona.html"), `<!-- saved from url=(0036)https://kroki-demo.example/lp -->\n<html><body><p>Tekst.</p></body></html>`);
+    const res = await analyzeMaterial({ caseDir }, ctx("w3"));
+    const step = (name: string) => res.steps.find((s) => s.caseId === "kroki" && s.step === name);
+    expect(step("lookups")).toMatchObject({ status: "skipped" });
+    expect(step("lookups")?.detail).toMatch(/offline/);
+    expect(step("asr")).toMatchObject({ status: "skipped" });
+    expect(step("clip")?.detail).toBeTruthy();
+    expect(res.steps.some((s) => s.status === "start")).toBe(false);
+  });
 });

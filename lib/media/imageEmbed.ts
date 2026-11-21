@@ -35,7 +35,9 @@ function modelId(model?: string): string {
 }
 
 async function load(model: string): Promise<Embedder> {
-  const { AutoProcessor, CLIPVisionModelWithProjection, RawImage } = await import("@huggingface/transformers");
+  const { AutoProcessor, CLIPVisionModelWithProjection, RawImage, env } = await import("@huggingface/transformers");
+  // HF_HUB_OFFLINE=1 (the container): only a model already on disk, no download attempt; without it CLIP is reported as unavailable.
+  if (process.env.HF_HUB_OFFLINE === "1") env.allowRemoteModels = false;
   const processor = await AutoProcessor.from_pretrained(model);
   const vision = await CLIPVisionModelWithProjection.from_pretrained(model, { dtype: "fp32" });
   return async (bytes: Buffer) => {
@@ -57,7 +59,7 @@ function getEmbedder(model?: string): Promise<Embedder> {
   return p;
 }
 
-/** Loads the model once (downloading it on first use) and reports whether embeddings work. */
+/** Loads the model once (downloading it on first use, unless HF_HUB_OFFLINE=1) and reports whether embeddings work. */
 export async function detectClip(model?: string): Promise<ClipStatus> {
   const id = modelId(model);
   try {

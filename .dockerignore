@@ -1,10 +1,19 @@
 node_modules
 .next
 .cache
-data/work
 .git
 .env*
 !.env.example
 *.log
 coverage
-.venv-speaker
+.venv*
+tsconfig.tsbuildinfo
+# data: only the synthetic sample goes into the image
+data/work
+data/evidence
+data/ct-watch.jsonl
+data/watch.jsonl
+dane
+**/.DS_Store
+# uploads of the GUI and local runs
+uploads

@@ -23,7 +23,11 @@
     "media:smoke": "bun scripts/media-smoke.ts",
     "ct:watch": "bun scripts/ct-watch.ts",
     "ct:backfill": "bun scripts/ct-backfill.ts",
-    "analyze-material": "bun scripts/analyze-material.ts"
+    "analyze-material": "bun scripts/analyze-material.ts",
+    "base": "bun scripts/base.ts",
+    "cache:freeze": "bun scripts/cache-freeze.ts",
+    "demo-batch": "bun scripts/demo-batch.ts",
+    "demo": "bun scripts/demo.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

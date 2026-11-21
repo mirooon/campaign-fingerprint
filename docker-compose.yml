@@ -1,30 +1,67 @@
-# App (viewer + /api/analyze) and a local Ollama.
-#   docker compose up -d ollama
-#   docker compose exec ollama ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M
-#   docker compose exec ollama ollama pull bge-m3
-#   docker compose up --build app
-# On macOS, Ollama in Docker has no Metal GPU: prefer the native Ollama and run only the app:
-#   OLLAMA_HOST=http://host.docker.internal:11434 docker compose up --build --no-deps app
-# Optional local CT stream (certstream-server-go) for `bun run ct:watch`:
-#   docker compose --profile ct up -d certstream
+# Quick start for evaluators (no network and no Ollama needed):
+#   docker compose up -d                                                  # GUI on http://localhost:3000
+#   docker compose run --rm app bun run base -- --cases /dane/probka      # base of known campaigns from ./dane/probka
+#   docker compose run --rm app bun run analyze-material -- --cases /dane/nowe --csv /dane/wynik.csv
+# ./dane on the host is /dane in the container (cases in, base in ./dane/baza, results out).
+# Optional profiles: full (ASR + speaker voice), llm (Ollama), ct (certstream).
 services:
   app:
-    build: .
+    build:
+      context: .
+      target: run
+    image: odcisk-kampanii:latest
     ports:
       - "3000:3000"
+    volumes:
+      - ./dane:/dane
+      # A ready base from the non-public data pack (read-only) instead of the one built into ./dane/baza,
+      # described in docs/DANE-NIEPUBLICZNE.md:
+      # - /ścieżka/do/paczki/baza:/dane/baza:ro
     environment:
+      VIEWER_DATA_DIR: ${VIEWER_DATA_DIR:-/dane/baza}
+      ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
+      TZ: ${TZ:-Europe/Warsaw}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
       OLLAMA_HOST: ${OLLAMA_HOST:-http://ollama:11434}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
-    depends_on:
-      - ollama
     restart: unless-stopped
 
+  # Profile `full`: the same GUI and CLI plus ASR (whisper.cpp) and speaker voice (SpeechBrain, CPU).
+  # Models stay on the host and are mounted read-only (nothing is downloaded in the container):
+  #   docker compose --profile full up -d app-full
+  #   docker compose --profile full run --rm app-full bun run analyze-material -- --cases /dane/nowe --asr --speaker --csv /dane/wynik.csv
+  # WHISPER_MODEL_DIR: folder with the ggml model (default ~/models/whisper), SPEAKER_MODEL_HOST: folder of the ECAPA model.
+  app-full:
+    build:
+      context: .
+      target: full
+    image: odcisk-kampanii:full
+    profiles: ["full"]
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./dane:/dane
+      - ${WHISPER_MODEL_DIR:-~/models/whisper}:/models/whisper:ro
+      - ${SPEAKER_MODEL_HOST:-~/models/speechbrain/spkrec-ecapa-voxceleb}:/models/speechbrain/spkrec-ecapa-voxceleb:ro
+    environment:
+      VIEWER_DATA_DIR: ${VIEWER_DATA_DIR:-/dane/baza}
+      ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
+      TZ: ${TZ:-Europe/Warsaw}
+      WHISPER_MODEL: ${WHISPER_MODEL:-/models/whisper/ggml-large-v3-turbo.bin}
+      SPEAKER_MODEL_DIR: /models/speechbrain/spkrec-ecapa-voxceleb
+    restart: unless-stopped
+
+  # Profile `llm`: local Ollama for summaries, NER and embeddings.
+  #   docker compose --profile llm up -d ollama
+  #   docker compose exec ollama ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M   (or Bielik)
+  #   docker compose exec ollama ollama pull bge-m3
+  #   docker compose --profile llm run --rm app bun run llm:smoke
+  # On macOS Ollama in Docker has no Metal GPU: prefer the native one (OLLAMA_HOST=http://host.docker.internal:11434).
   ollama:
     image: ollama/ollama:${OLLAMA_IMAGE_TAG:-latest}
+    profiles: ["llm"]
     ports:
       - "11434:11434"
     volumes:

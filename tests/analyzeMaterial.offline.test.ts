@@ -53,6 +53,32 @@ describe("analyzeMaterial", () => {
     expect(it.links[0].otherCampaign).toBe(expectedCampaign);
     expect(it.verdictText).toContain(expectedCampaign);
     expect(it.features.landingUrl).toBeTruthy();
+    // every premise says what it is: a shared node (with its id and type) or a similarity edge
+    const ev = it.links.flatMap((l) => l.evidence);
+    expect(ev.length).toBeGreaterThan(0);
+    for (const e of ev) {
+      if (e.kind === "pivot") {
+        expect(e.pivotType).toBeTruthy();
+        expect(e.pivot?.startsWith(`${e.pivotType}:`)).toBe(true);
+        expect(e.edgeType).toBeNull();
+      } else {
+        expect(e.kind).toBe("similarity");
+        expect(e.edgeType).toMatch(/^similar_/);
+        expect(e.pivot).toBeNull();
+      }
+    }
+    expect(ev.some((e) => e.kind === "pivot")).toBe(true);
+    // traits of the record, counted against the existing run only
+    const dom = it.pivots!.find((p) => p.type === "domain" && p.df > 0)!;
+    expect(dom).toBeTruthy();
+    expect(dom.sharedWith.length).toBe(dom.df);
+    expect(dom.sharedWith).not.toContain(it.id);
+    expect(dom.sharedWith.every((id) => run.ds.items.some((x) => x.id === id))).toBe(true);
+    expect(dom.data.created).toMatch(/^\d{4}-\d{2}-\d{2}/);
+    for (const p of it.pivots!) {
+      expect(p.id.startsWith(`${p.type}:`)).toBe(true);
+      expect(p.discounted).toBe(p.discountReasons.length > 0);
+    }
   });
 
   it("reports a saved page with nothing in common as a new campaign", async () => {

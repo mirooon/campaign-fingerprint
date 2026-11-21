@@ -13,19 +13,44 @@ import path from "node:path";
 import { campaignLinkVerdict, clusterCampaigns, type LinkVerdict } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { buildEvidenceGraph } from "../graph/link";
-import type { CampaignsFile, EvidenceGraph } from "../graph/model";
+import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
 import type { CompiledWatchlist } from "../text/persona";
 import { importCases } from "./caseImport";
 import { enrichItems } from "./enrich";
-import { normalizeRecords, type ColumnMapping } from "./ingest";
+import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
+import { DuplicateFinder, duplicateTraits, isInsufficient, missingData, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
 import type { EnrichedDataset, Item } from "./types";
+import { contentWords } from "../text/uiChrome";
 
 export interface MaterialInput {
   /** Folder with the material of one case (any mix the case importer reads). */
   caseDir?: string;
+  /**
+   * Folders of several cases analysed together: one import and one graph, so the new materials are
+   * compared with each other as well as with the existing run.
+   */
+  caseDirs?: string[];
+  /**
+   * Dataset file (.csv, .tsv, .json, .jsonl): every row becomes a material, through the same column
+   * mapping as `bun run ingest` (automatic, or `datasetMapping`). Relative image and video paths are
+   * resolved against the file's folder. The case of a row is its `case` column, else its id.
+   */
+  datasetFile?: string;
+  /** Column mapping (JSON) for `datasetFile`, as `bun run ingest --mapping`. */
+  datasetMapping?: string;
   url?: string;
   text?: string;
+}
+
+export type MaterialStep = "import" | "ocr" | "address_bar" | "asr" | "audio" | "clip" | "lookups" | "features" | "compare" | "group";
+
+/** Progress of one case: a step starts, ends, is skipped (with the reason in `detail`) or fails. */
+export interface MaterialProgress {
+  caseId: string;
+  step: MaterialStep;
+  status: "start" | "done" | "skipped" | "error";
+  detail?: string;
 }
 
 export interface MaterialContext {
@@ -41,9 +66,11 @@ export interface MaterialContext {
   personas?: CompiledWatchlist | null;
   media?: { ocr?: boolean; asr?: boolean; audio?: boolean; clip?: boolean; speaker?: boolean; adLibrary?: boolean };
   log?: (m: string) => void;
+  /** Progress per case and step (import, media, lookups, graph, campaign rules, verdicts). */
+  onProgress?: (e: MaterialProgress) => void;
 }
 
-export type MaterialVerdict = "known_campaign" | "similar_campaigns" | "new_campaign";
+export type MaterialVerdict = "known_campaign" | "similar_campaigns" | "new_campaign" | "duplicate" | "insufficient";
 
 export interface MaterialLink {
   other: string;
@@ -53,11 +80,49 @@ export interface MaterialLink {
   strong: boolean;
   /** What the campaign rules made of this link. */
   rule: LinkVerdict;
-  evidence: Array<{ evidence: string; weight: number; strong: boolean; discounted: boolean }>;
+  evidence: MaterialEvidence[];
 }
+
+/** One premise of a link: a shared trait (pivot) or a similarity, with the same fields as `PairEvidence`. */
+export interface MaterialEvidence {
+  evidence: string;
+  weight: number;
+  strong: boolean;
+  discounted: boolean;
+  kind?: PairEvidence["kind"];
+  /** Type of the shared node (kind = pivot), e.g. "domain", "tracker", "page_template". */
+  pivotType?: EntityType | null;
+  /** Similarity edge (kind = similarity), e.g. "similar_image", "similar_text". */
+  edgeType?: EdgeType | null;
+  /** Id of the shared node (kind = pivot), e.g. "domain:example.test". */
+  pivot?: string | null;
+}
+
+export interface MaterialPivot {
+  /** Node id, e.g. "domain:example.test". */
+  id: string;
+  type: string;
+  label: string;
+  weight: number | null;
+  strong: boolean;
+  /** Down-weighted: a shared-infrastructure list, frequency, or an indirect relation (e.g. an outbound link). */
+  discounted: boolean;
+  discountReasons: string[];
+  /** Records of the existing run with this trait. */
+  df: number;
+  /** Those records (ids, at most MAX_SHARED_WITH). */
+  sharedWith: string[];
+  /** Node details; for a domain also `created` (RDAP registration date). */
+  data: Record<string, unknown>;
+}
+
+/** Cap of `MaterialPivot.sharedWith` (df keeps the full count). */
+export const MAX_SHARED_WITH = 100;
 
 export interface MaterialItemResult {
   id: string;
+  /** Case (folder name) the record comes from; for a bare link or text, the record id. */
+  caseId?: string;
   verdict: MaterialVerdict;
   verdictText: string;
   /** Existing campaign the record joined (id from the existing run). */
@@ -68,6 +133,20 @@ export interface MaterialItemResult {
   apart: string[];
   /** Other new records of the same material in the same campaign (e.g. the pages of one funnel). */
   withNew: string[];
+  /** New campaign of this batch (`N1`, `N2` ...) when the record's campaign holds new records only (two or more). */
+  newCampaign?: string | null;
+  /** The record is the same ad collected again: the original (existing or earlier in the batch) and why. */
+  duplicateOf?: DuplicateOf;
+  /** What to add so the material can be compared (verdicts insufficient and new_campaign). */
+  missing?: string[];
+  /** Block of comments written into the landing page: its size and how many other records (run and batch) carry the same block. */
+  fakeComments?: { count: number; repeatedInOtherItems: number };
+  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments. */
+  techniques?: string[];
+  /** Traits of the record (graph pivots) with their weight and how many records of the existing run share them. */
+  pivots?: MaterialPivot[];
+  /** Faces found in the record's pictures (reserved: no face detection in the pipeline yet, never filled). */
+  faces?: Array<{ image: string; x: number; y: number; w: number; h: number; persona?: string; similarity?: number }>;
   links: MaterialLink[];
   /** Traits of the record read from the material (graph node data). */
   features: Record<string, unknown>;
@@ -77,6 +156,8 @@ export interface MaterialItemResult {
 export interface MaterialResult {
   mode: "offline" | "hybrid";
   items: MaterialItemResult[];
+  /** Campaigns made of new records only (linked with each other, not with the existing run). */
+  newCampaigns?: Array<{ id: string; members: string[]; evidence: string[] }>;
   skipped: Array<{ id: string; reason: string }>;
   notes: string[];
 }
@@ -136,14 +217,37 @@ function mergeDatasets(base: EnrichedDataset, extra: EnrichedDataset): EnrichedD
   };
 }
 
+function bareRecord(input: MaterialInput): Item {
+  return { id: "nowa-reklama", platform: null, advertiser: null, text: input.text?.trim() || null, imageUrl: null, imagePath: null, landingUrl: input.url?.trim() || null, firstSeen: null, lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: null, extra: {} };
+}
+
+/** Folder the image paths of a dataset are relative to: absolute, or relative to the working directory or the run folder. */
+function resolveBaseDir(baseDir: string, dataDir: string): string {
+  if (path.isAbsolute(baseDir)) return baseDir;
+  const fromCwd = path.resolve(baseDir);
+  return existsSync(fromCwd) ? fromCwd : path.resolve(dataDir, baseDir);
+}
+
 const FEATURE_KEYS = [
   "landingUrl", "finalUrl", "landingSource", "landingFragment", "observedUrls", "inAppBrowser", "advertiser", "uiView", "adLibraryIds",
   "personas", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "cloakerInSource", "platformAccount",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques",
 ];
 
 export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext): Promise<MaterialResult> {
-  const log = ctx.log ?? (() => {});
+  const toolNotes = new Map<string, string>();
+  const log = (m: string) => {
+    const off = /^(OCR|ASR|CLIP|odcisk audio) pominięty: (.*)$/.exec(m);
+    if (off) toolNotes.set(off[1], off[2]);
+    ctx.log?.(m);
+  };
+  const progress = (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => {
+    try {
+      ctx.onProgress?.({ caseId, step, status, ...(detail ? { detail } : {}) });
+    } catch {
+      // a failing listener must not stop the analysis
+    }
+  };
   const config = ctx.config ?? DEFAULT_LINK_CONFIG;
   const enrichedFile = findEnriched(ctx.dataDir);
   if (!enrichedFile) throw new Error(`brak enriched.json w ${ctx.dataDir} (ani w work/)`);
@@ -157,34 +261,72 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   let skipped: MaterialResult["skipped"] = [];
   const notes: string[] = [];
   const importDir = path.join(ctx.workDir, "import");
-  if (input.caseDir) {
-    // the importer reads every case of a folder: give it a folder with only this case
+  /** Case of each new record (folder name; the record id for a bare link or text). */
+  const caseOf = new Map<string, string>();
+  const caseDirs = [...(input.caseDir ? [input.caseDir] : []), ...(input.caseDirs ?? [])];
+  if (caseDirs.length) {
+    // the importer reads every case of a folder: give it a folder with only these cases
     const casesDir = path.join(ctx.workDir, "cases");
     rmSync(casesDir, { recursive: true, force: true });
     mkdirSync(casesDir, { recursive: true });
-    symlinkSync(path.resolve(input.caseDir), path.join(casesDir, path.basename(input.caseDir)), "dir");
-    const res = await importCases({ casesDir, outDir: importDir, log: (m) => notes.push(m) });
+    const names = new Set<string>();
+    for (const dir of caseDirs) {
+      const folder = path.basename(path.resolve(dir));
+      let name = folder;
+      for (let k = 2; names.has(name); k++) name = `${folder}-${k}`;
+      names.add(name);
+      symlinkSync(path.resolve(dir), path.join(casesDir, name), "dir");
+    }
+    for (const n of names) progress(n, "import", "start");
+    let res: Awaited<ReturnType<typeof importCases>>;
+    try {
+      res = await importCases({ casesDir, outDir: importDir, log: (m) => notes.push(m) });
+    } catch (e) {
+      for (const n of names) progress(n, "import", "error", (e as Error).message);
+      throw e;
+    }
     skipped = res.skipped;
-    const records = readJson<Array<Record<string, unknown>>>(path.join(importDir, "input.json")).filter(
-      (r) => r.id === path.basename(input.caseDir!) || r.case === path.basename(input.caseDir!),
-    );
+    const records = readJson<Array<Record<string, unknown>>>(path.join(importDir, "input.json")).filter((r) => names.has(String(r.case ?? r.id)));
     const mapping = readJson<ColumnMapping>(path.join(importDir, "mapping.json"));
-    if (input.url) for (const r of records) r.landing_url ??= input.url;
+    const single = caseDirs.length === 1;
+    if (input.url && single) for (const r of records) r.landing_url ??= input.url;
     items = normalizeRecords(records, mapping).items;
-    if (input.text) for (const it of items) it.text = [it.text, input.text].filter(Boolean).join("\n");
+    for (const r of records) caseOf.set(String(r.id), String(r.case ?? r.id));
+    if (input.text && single) for (const it of items) it.text = [it.text, input.text].filter(Boolean).join("\n");
+    if (!single && (input.url || input.text)) items.push(bareRecord(input));
+    const imported = new Set(records.map((r) => String(r.case ?? r.id)));
+    for (const n of names) {
+      if (imported.has(n)) progress(n, "import", "done", `${records.filter((r) => String(r.case ?? r.id) === n).length} rekord(y)`);
+      else progress(n, "import", "skipped", skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`))?.reason ?? "brak strony, zrzutu ani wideo w katalogu");
+    }
   }
-  if (!items.length && (input.url || input.text)) {
-    items = [
-      { id: "nowa-reklama", platform: null, advertiser: null, text: input.text?.trim() || null, imageUrl: null, imagePath: null, landingUrl: input.url?.trim() || null, firstSeen: null, lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: null, extra: {} },
-    ];
+  if (input.datasetFile) {
+    const file = path.resolve(input.datasetFile);
+    const rows = normalizeRecords(loadRecords(file), loadMapping(input.datasetMapping)).items;
+    const dir = path.dirname(file);
+    const local = (p: string | null | undefined) => (p && !/^https?:\/\//i.test(p) ? (path.isAbsolute(p) ? p : path.resolve(dir, p)) : null);
+    for (const it of rows) {
+      it.imagePath = local(it.imagePath) ?? local(it.imageUrl);
+      if (it.imagePath && it.imageUrl && !/^https?:\/\//i.test(it.imageUrl)) it.imageUrl = null;
+      it.videoPath = local(it.videoPath);
+      if (it.extraImagePaths) it.extraImagePaths = it.extraImagePaths.map((p) => local(p) ?? p);
+      caseOf.set(it.id, it.extra.case || it.id);
+    }
+    notes.push(`plik zbioru: ${rows.length} rekordów z ${path.basename(file)}`);
+    items.push(...rows);
   }
+  if (!items.length && (input.url || input.text)) items = [bareRecord(input)];
   if (!items.length) throw new Error("materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu");
   const existingIds = new Set(base.items.map((i) => i.id));
+  const taken = new Set<string>();
   for (const it of items) {
+    const caseId = caseOf.get(it.id) ?? it.id;
     let id = it.id;
-    for (let k = 2; existingIds.has(id); k++) id = `${it.id}-${k}`;
+    for (let k = 2; existingIds.has(id) || taken.has(id); k++) id = `${it.id}-${k}`;
     it.id = id;
     it.label = null;
+    taken.add(id);
+    caseOf.set(id, caseId);
   }
   const newIds = new Set(items.map((i) => i.id));
   log(`nowe rekordy: ${[...newIds].join(", ")}`);
@@ -193,29 +335,68 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const fixtureDir = path.join(importDir, "fixtures");
   const fallbackFixtures = ctx.fixtures && existsSync(ctx.fixtures) ? ctx.fixtures : fixtureDir;
   const sources = existsSync(fixtureDir) ? hybridSources(fixtureDir, ctx.live ?? null) : (ctx.live ?? fixtureSources(fallbackFixtures));
-  const extra = await enrichItems(items, {
-    sources,
-    baseDir: importDir,
-    concurrency: 2,
-    skip: ctx.live ? { ct: true } : {},
-    personas: ctx.personas ?? null,
-    ocr: ctx.media?.ocr ?? true,
-    asr: ctx.media?.asr ?? false,
-    audio: ctx.media?.audio ?? false,
-    clip: ctx.media?.clip ?? false,
-    speaker: ctx.media?.speaker ?? false,
-    adLibrary: ctx.media?.adLibrary ?? false,
-    archiveDir: null,
-    log,
-  });
+  const caseIds = [...new Set(items.map((it) => caseOf.get(it.id) ?? it.id))];
+  const itemsOf = (c: string) => items.filter((it) => (caseOf.get(it.id) ?? it.id) === c);
+  const media = { ocr: ctx.media?.ocr ?? true, asr: ctx.media?.asr ?? false, audio: ctx.media?.audio ?? false, clip: ctx.media?.clip ?? false };
+  const hasImage = (it: Item) => !!(it.imagePath || it.imageUrl || it.extraImagePaths?.length);
+  const planned: Array<[MaterialStep, boolean, (it: Item) => boolean]> = [
+    ["ocr", media.ocr, hasImage],
+    ["address_bar", media.ocr, (it) => hasImage(it) || !!it.videoPath],
+    ["asr", media.asr, (it) => !!it.videoPath],
+    ["audio", media.audio, (it) => !!it.videoPath],
+    ["clip", media.clip, (it) => hasImage(it) || !!it.videoPath],
+    ["lookups", !!ctx.live, () => true],
+  ];
+  for (const c of caseIds) for (const [step, on, applies] of planned) if (on && itemsOf(c).some(applies)) progress(c, step, "start");
+  let extra: EnrichedDataset;
+  try {
+    extra = await enrichItems(items, {
+      sources,
+      baseDir: importDir,
+      concurrency: 2,
+      skip: ctx.live ? { ct: true } : {},
+      personas: ctx.personas ?? null,
+      ocr: ctx.media?.ocr ?? true,
+      asr: ctx.media?.asr ?? false,
+      audio: ctx.media?.audio ?? false,
+      clip: ctx.media?.clip ?? false,
+      speaker: ctx.media?.speaker ?? false,
+      adLibrary: ctx.media?.adLibrary ?? false,
+      archiveDir: null,
+      log,
+    });
+  } catch (e) {
+    for (const c of caseIds) for (const [step, on, applies] of planned) if (on && itemsOf(c).some(applies)) progress(c, step, "error", (e as Error).message);
+    throw e;
+  }
+  reportMediaSteps(extra, caseIds, itemsOf, media, !!ctx.live, toolNotes, progress);
 
   // 3. One graph and the campaign rules over the existing dataset plus the new records
   const merged = mergeDatasets(base, extra);
   const textMethod = oldGraph?.textMethod === "none" ? "none" : "tfidf";
-  const raw = buildEvidenceGraph(merged, { config, textMethod });
-  const { campaigns } = clusterCampaigns(raw, { config });
+  const phase = <T>(step: MaterialStep, run: () => T): T => {
+    for (const c of caseIds) progress(c, step, "start");
+    try {
+      const out = run();
+      for (const c of caseIds) progress(c, step, "done");
+      return out;
+    } catch (e) {
+      for (const c of caseIds) progress(c, step, "error", (e as Error).message);
+      throw e;
+    }
+  };
+  const raw = phase("features", () => buildEvidenceGraph(merged, { config, textMethod, includeItemPivots: true }));
+  // traits of the existing run: which records of the run hold each pivot
+  const baseHolders = new Map<string, string[]>();
+  for (const [itemId, facts] of Object.entries(raw.itemPivots ?? {})) {
+    if (newIds.has(itemId)) continue;
+    for (const f of facts) baseHolders.set(f.pivot, [...(baseHolders.get(f.pivot) ?? []), itemId]);
+  }
+  const { campaigns } = phase("compare", () => clusterCampaigns(raw, { config }));
+  for (const c of caseIds) progress(c, "group", "start");
   const accountOf = new Map<string, string>();
   const nodeData = new Map<string, Record<string, unknown>>();
+  const nodeById = new Map(raw.nodes.map((n) => [n.id, n]));
   for (const n of raw.nodes) {
     if (n.type !== "item") continue;
     nodeData.set(n.key, n.data);
@@ -230,6 +411,33 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     }
     return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
   };
+
+  const pivotsOf = (id: string): MaterialPivot[] =>
+    (raw.itemPivots?.[id] ?? [])
+      .map((f): MaterialPivot | null => {
+        const node = nodeById.get(f.pivot);
+        if (!node) return null;
+        const holders = (baseHolders.get(f.pivot) ?? []).sort();
+        const nodeData: Record<string, unknown> = { ...node.data };
+        delete nodeData.weightParts;
+        if (node.type === "domain" && !nodeData.created) nodeData.created = merged.domains[node.key]?.rdap?.created ?? null;
+        const reasons = node.discounts.map((d) => `${d.reason} (×${d.factor})`);
+        if (f.relation < 1) reasons.push(`relacja pośrednia ×${Math.round(f.relation * 100) / 100}: ${f.how}`);
+        return {
+          id: node.id,
+          type: node.type,
+          label: node.label,
+          weight: node.weight,
+          strong: node.strong && f.relation >= 1,
+          discounted: reasons.length > 0,
+          discountReasons: reasons,
+          df: holders.length,
+          sharedWith: holders.slice(0, MAX_SHARED_WITH),
+          data: nodeData,
+        };
+      })
+      .filter((p): p is MaterialPivot => p !== null)
+      .sort((a, b) => Number(b.strong) - Number(a.strong) || (b.weight ?? 0) - (a.weight ?? 0) || a.id.localeCompare(b.id));
 
   const results: MaterialItemResult[] = [];
   for (const id of newIds) {
@@ -251,7 +459,16 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
           score: l.score,
           strong: l.strong,
           rule: campaignLinkVerdict(l, config, accountOf),
-          evidence: l.evidence.slice(0, 6).map((e) => ({ evidence: e.evidence, weight: e.weight, strong: e.strong, discounted: e.discounted })),
+          evidence: l.evidence.slice(0, 6).map((e) => ({
+            evidence: e.evidence,
+            weight: e.weight,
+            strong: e.strong,
+            discounted: e.discounted,
+            kind: e.kind,
+            pivotType: e.pivotType,
+            edgeType: e.edgeType,
+            pivot: e.pivot,
+          })),
         };
       })
       .sort((x, y) => Number(y.strong) - Number(x.strong) || y.score - x.score)
@@ -271,18 +488,134 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     // the landing URL may come from the material itself (address bar, ad text), not from the input
     if (!features.landingUrl && extra.perItem[id]?.landing) features.landingUrl = extra.perItem[id].landing!.url;
     const withNew = (camp?.members ?? []).filter((m) => m !== id && newIds.has(m));
+    const block = typeof data.commentBlock === "string" ? nodeById.get(data.commentBlock) : undefined;
     results.push({
       id,
+      caseId: caseOf.get(id) ?? id,
       verdict,
       verdictText: withNew.length && verdict !== "known_campaign" ? `${verdictText} Razem z: ${withNew.join(", ")}.` : verdictText,
       campaign: known,
       similarCampaigns: similar,
       apart: fam?.apart ?? [],
       withNew,
+      newCampaign: null,
+      ...(block ? { fakeComments: { count: Number(data.fakeCommentCount ?? 0), repeatedInOtherItems: Math.max(0, block.df - 1) } } : {}),
+      ...(Array.isArray(data.techniques) && data.techniques.length ? { techniques: data.techniques as string[] } : {}),
+      pivots: pivotsOf(id),
       links,
       features,
       errors: extra.perItem[id]?.errors ?? [],
     });
   }
-  return { mode: ctx.live ? "hybrid" : "offline", items: results, skipped, notes };
+
+  // 4. Campaigns of new records only: N1, N2 ... in the order of the records
+  const newCampaigns: NonNullable<MaterialResult["newCampaigns"]> = [];
+  const nOf = new Map<string, string>();
+  for (const r of results) {
+    const camp = campaigns.campaigns.find((c) => c.id === campaigns.assignments[r.id]);
+    if (!camp || camp.members.length < 2 || camp.members.some((m) => !newIds.has(m))) continue;
+    let nid = nOf.get(camp.id);
+    if (!nid) {
+      nid = `N${newCampaigns.length + 1}`;
+      nOf.set(camp.id, nid);
+      newCampaigns.push({ id: nid, members: [...camp.members], evidence: camp.topEvidence.map((e) => e.label) });
+    }
+    r.newCampaign = nid;
+  }
+
+  // 5. Duplicates: the same ad collected again (against the run and the earlier records of the batch)
+  const baseDir = resolveBaseDir(base.baseDir, ctx.dataDir);
+  const itemById = new Map(merged.items.map((it) => [it.id, it]));
+  const traitsOf = (id: string) => {
+    const it = itemById.get(id);
+    const dir = newIds.has(id) ? importDir : baseDir;
+    const img = it?.imagePath ? (path.isAbsolute(it.imagePath) ? it.imagePath : path.join(dir, it.imagePath)) : null;
+    return duplicateTraits(id, nodeData.get(id) ?? {}, it?.landingUrl ?? merged.perItem[id]?.landing?.url ?? null, img);
+  };
+  const dups = await new DuplicateFinder().find(
+    [...newIds].map(traitsOf),
+    base.items.map((it) => traitsOf(it.id)),
+  );
+  const byId = new Map(results.map((r) => [r.id, r]));
+  for (const r of results) {
+    const d = dups.get(r.id);
+    if (!d) continue;
+    const orig = byId.get(d.id);
+    const campaign = orig ? orig.campaign : oldOf(d.id);
+    r.verdict = "duplicate";
+    r.duplicateOf = d;
+    r.campaign = campaign;
+    if (orig) {
+      r.similarCampaigns = orig.similarCampaigns;
+      r.newCampaign = orig.newCampaign ?? r.newCampaign;
+    }
+    r.verdictText = `Duplikat materiału ${d.id}: ${d.reason}.${campaign ? ` Kampania ${campaign}.` : r.newCampaign ? ` Nowa kampania ${r.newCampaign}.` : ""}`;
+  }
+
+  // 6. Not enough to compare: no address, no identifier, (almost) no text, and no link over the thresholds
+  for (const r of results) {
+    if (r.verdict === "duplicate") continue;
+    const enr = merged.perItem[r.id];
+    const it = itemById.get(r.id);
+    const data = nodeData.get(r.id) ?? {};
+    const camp = campaigns.campaigns.find((c) => c.id === campaigns.assignments[r.id]);
+    const t = enr?.text;
+    const words = contentWords([it?.text, enr?.ocrText, enr?.extraOcrText, enr?.asrText].filter(Boolean).join("\n")).length;
+    const s: Sufficiency = {
+      hasAddress: !!(r.features.landingUrl || data.finalUrl || enr?.landing || enr?.pageKey || enr?.observedUrls?.length || t?.urls.length),
+      hasIdentifier: !!(t?.emails.length || t?.phones.length || t?.telegram.length || t?.whatsapp.length || t?.wallets.length || data.metaAdId || (data.adLibraryIds as unknown[] | undefined)?.length || data.platformAccount),
+      contentWords: words,
+      hasImage: !!enr?.image,
+      hasVideo: !!it?.videoPath,
+      hasPage: !!enr?.pageKey,
+      linked: (camp?.members.length ?? 1) > 1 || !!camp?.familyId,
+    };
+    if (isInsufficient(s)) {
+      r.verdict = "insufficient";
+      r.missing = missingData(s);
+      r.verdictText = `Za mało danych do porównania: brak adresu strony, identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`;
+    } else if (r.verdict === "new_campaign") {
+      const m = missingData(s);
+      if (m.length) r.missing = m;
+    }
+  }
+  for (const c of caseIds) {
+    const v = results.filter((r) => r.caseId === c).map((r) => r.verdict);
+    progress(c, "group", "done", [...new Set(v)].join(", "));
+  }
+  return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, notes };
+}
+
+/** Outcome of the media and lookup steps per case, from what the enrichment produced. */
+function reportMediaSteps(
+  extra: EnrichedDataset,
+  caseIds: string[],
+  itemsOf: (c: string) => Item[],
+  media: { ocr: boolean; asr: boolean; audio: boolean; clip: boolean },
+  live: boolean,
+  toolNotes: Map<string, string>,
+  progress: (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => void,
+): void {
+  for (const c of caseIds) {
+    const its = itemsOf(c);
+    const enr = its.map((it) => extra.perItem[it.id]).filter(Boolean);
+    const img = its.some((it) => !!(it.imagePath || it.imageUrl || it.extraImagePaths?.length));
+    const vid = its.some((it) => !!it.videoPath);
+    const errs = enr.flatMap((e) => e.errors);
+    const errOf = (re: RegExp) => errs.find((e) => re.test(e));
+    const report = (step: MaterialStep, on: boolean, offWhy: string, applies: boolean, missingWhy: string, tool: string | null, done: boolean, doneWhy: string, errRe: RegExp) => {
+      if (!on) return progress(c, step, "skipped", offWhy);
+      if (!applies) return progress(c, step, "skipped", missingWhy);
+      if (tool && toolNotes.has(tool)) return progress(c, step, "skipped", `${tool}: ${toolNotes.get(tool)}`);
+      const err = errOf(errRe);
+      if (err && !done) return progress(c, step, "error", err);
+      progress(c, step, "done", done ? undefined : doneWhy);
+    };
+    report("ocr", media.ocr, "OCR wyłączony", img, "brak obrazu", "OCR", enr.some((e) => !!(e.ocrText || e.extraOcrText)), "nie odczytano tekstu", /ocr|tesseract/i);
+    report("address_bar", media.ocr, "wymaga OCR", img || vid, "brak zrzutu i wideo", "OCR", enr.some((e) => (e.observedUrls?.length ?? 0) > 0), "brak paska adresu na zrzutach", /pasek|address/i);
+    report("asr", media.asr, "transkrypcja wyłączona", vid, "brak wideo", "ASR", enr.some((e) => !!e.asrText), "brak mowy", /asr|whisper|transkry/i);
+    report("audio", media.audio, "odcisk audio wyłączony", vid, "brak wideo", "odcisk audio", enr.some((e) => (e.audioFp?.fingerprint.length ?? 0) > 0), "brak ścieżki dźwiękowej", /fpcalc|audio/i);
+    report("clip", media.clip, "CLIP wyłączony", img || vid, "brak obrazu i wideo", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "brak osadzenia", /clip/i);
+    report("lookups", live, "tryb offline: bez zapytań sieciowych, tylko strony z materiału", true, "", null, true, "", /dns|rdap|asn/i);
+  }
 }

@@ -119,3 +119,23 @@ export function sponsoredPost(raw: string | null | undefined): SponsoredPost {
   const advertiser = i > 0 ? clean(lines[i - 1]) : null;
   return { text: inLibrary ? text : lines.slice(start).join("\n"), advertiser };
 }
+
+/** Buttons under every post (reactions, comments, sharing): interface, not content. */
+const ENGAGEMENT = [
+  /lubię\s+to!?/giu,
+  /(?<![\p{L}\p{N}])(?:komentarz(?:e|y)?|skomentuj|udostępnij|udostępnienia|wyślij|obserwuj|reakcje)(?![\p{L}\p{N}])/giu,
+  /(?<![\p{L}\p{N}])(?:like|comment|comments|share|shares|send|follow)(?![\p{L}\p{N}])/giu,
+];
+
+/**
+ * Words of content in a text: what is left after the interface labels of the platform (the
+ * "sponsored" tag, call-to-action and reaction buttons, ad-library markers) and bare numbers or
+ * punctuation. Used to tell whether a material says anything to compare it by.
+ */
+export function contentWords(raw: string | null | undefined): string[] {
+  let text = stripUiChrome(raw).text;
+  text = text.replace(SPONSORED, " ");
+  for (const re of CALLS_TO_ACTION) text = text.replace(re, " ");
+  for (const re of ENGAGEMENT) text = text.replace(re, " ");
+  return text.split(/[^\p{L}\p{N}]+/u).filter((w) => /\p{L}/u.test(w) && w.length >= 2);
+}

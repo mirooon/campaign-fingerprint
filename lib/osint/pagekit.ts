@@ -12,6 +12,7 @@
  * JavaScript is never executed. The scanner never throws on malformed HTML, and
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
+import { detectPageTechniques, type CommentBlock, type PageTechnique } from "./pageTechniques";
 import { extractLanderConfig, type LanderConfig } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
@@ -69,6 +70,10 @@ export interface PageKit {
   pathIds: PathId[];
   /** Configuration record of the landing-page platform embedded in the page (`window.aio`), when present. */
   lander?: LanderConfig | null;
+  /** Block of comments written into the page (no real comments plugin), when present. */
+  commentBlock?: CommentBlock | null;
+  /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
+  techniques?: PageTechnique[];
 }
 
 export interface PathId {
@@ -696,6 +701,11 @@ function resolveAgainst(href: string, base: string | null): URL | null {
   }
 }
 
+function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques"> {
+  const t = detectPageTechniques(html, pageUrl);
+  return { ...(t.commentBlock ? { commentBlock: t.commentBlock } : {}), ...(t.techniques.length ? { techniques: t.techniques } : {}) };
+}
+
 /** Extracts the page-kit fingerprint of one HTML document. Never throws. */
 export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: number; shingle?: number } = {}): PageKit {
   if (!html) return emptyKit();
@@ -825,6 +835,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         .slice(0, MAX_PATH_IDS),
       lander: extractLanderConfig(html),
+      ...techniquesOf(html, pageUrl),
     };
   } catch {
     return emptyKit();

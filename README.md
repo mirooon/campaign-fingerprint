@@ -212,9 +212,13 @@ LLM_PROVIDER=anthropic bun run summarize
 **Nowy materiał** (zakładka „Nowa reklama” w UI): `POST /api/analyze-material` przyjmuje `multipart/form-data` z plikami jednej sprawy (zrzuty, zapisana strona z folderem `_files`, HAR, nagranie, `.info.json` z yt-dlp albo zip z tym wszystkim; nazwa pliku może zawierać ścieżkę), opcjonalnie `url` i `text`, oraz flagi `live=1` (pasywne DNS, RDAP, ASN i jedno pobranie strony, której nie ma w materiale) i `asr=1` (transkrypcja i odcisk dźwięku). Materiał przechodzi ten sam import i wzbogacenie co cały zbiór, trafia do jednego grafu ze znanymi reklamami i dostaje werdykt na dwóch poziomach: znana kampania, nowa kampania podobna do znanych (ta sama grupa) albo nowa kampania, razem z najbliższymi reklamami i przesłankami. Porównanie idzie z przebiegiem, który pokazuje przeglądarka (`VIEWER_DATA_DIR`, potrzebny też `enriched.json`). Ten sam krok z wiersza poleceń:
 
 ```bash
-bun run analyze-material -- --case sprawa/ --data ../praca/v1 [--live] [--asr] [--json]
+bun run analyze-material -- --case sprawa/ --data ../praca/v1 [--live] [--asr] [--json wynik.json]
+# partia: każdy podkatalog to sprawa (--each-file: także luźne pliki), wynik wiersz po wierszu
+bun run analyze-material -- --cases partia/ --data ../praca/v1 --csv wynik.csv [--json wynik.json]
 curl -s localhost:3000/api/analyze-material -F files=@zrzut.png -F files=@strona.har
 ```
+
+Werdykty obejmują też `duplicate` (ta sama reklama zebrana ponownie, z kampanią oryginału) i `insufficient` (za mało danych, z listą tego, co dorzucić). Reguły są w `docs/TECHNICAL.md` (§5.3b), pola wyniku w §8.0a.
 
 Zrzut bez strony też wystarcza: domena z paska adresu przeglądarki (górny pas zrzutu albo klatki nagrania ekranu) staje się adresem strony.
 

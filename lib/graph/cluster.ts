@@ -80,7 +80,8 @@ export function clusterCampaigns(
     if (!g.hasNode(link.a)) g.addNode(link.a);
     if (!g.hasNode(link.b)) g.addNode(link.b);
     // Strong links get at least the strong threshold so Louvain respects them.
-    const weight = link.strong ? Math.max(link.score, config.strongThreshold) : link.score;
+    const score = campaignScore(link, config);
+    const weight = link.strong ? Math.max(score, config.strongThreshold) : score;
     g.mergeEdge(link.a, link.b, { weight });
   }
   let community: Record<string, number> = {};
@@ -212,6 +213,18 @@ export function clusterCampaigns(
 
 export type LinkVerdict = "campaign" | "below" | "single_kind" | "account_conflict";
 
+/** Evidence of a kind that only counts for groups of similar campaigns (e.g. page techniques). */
+function familyOnly(e: ItemLink["evidence"][number], config: LinkConfig): boolean {
+  const kinds = config.campaignRules.familyOnlyKinds ?? [];
+  return kinds.length > 0 && kinds.includes(e.pivotType ?? e.edgeType ?? e.kind);
+}
+
+/** Score of a link for the campaign level: without the family-only evidence. */
+export function campaignScore(link: ItemLink, config: LinkConfig): number {
+  if (!link.evidence.some((e) => familyOnly(e, config))) return link.score;
+  return combineScores(link.evidence.filter((e) => !familyOnly(e, config)).map((e) => e.weight));
+}
+
 /** Evidence that counts towards corroboration: not negligible, and when discounted, still weighty after the discount. */
 function countedEvidence(link: ItemLink, config: LinkConfig) {
   return link.evidence.filter((e) => e.weight >= 0.02 && (!e.discounted || e.weight >= config.campaignRules.discountedMinWeight));
@@ -225,12 +238,12 @@ function countedEvidence(link: ItemLink, config: LinkConfig) {
  */
 export function campaignLinkVerdict(link: ItemLink, config: LinkConfig, accountOf: Map<string, string> = new Map()): LinkVerdict {
   if (link.strong) return "campaign";
-  if (link.score < config.minLinkScore) return "below";
+  if (campaignScore(link, config) < config.minLinkScore) return "below";
   const r = config.campaignRules;
   const accA = accountOf.get(link.a);
   const accB = accountOf.get(link.b);
   if (r.accountConflict && accA && accB && accA !== accB) return "account_conflict";
-  const counted = countedEvidence(link, config);
+  const counted = countedEvidence(link, config).filter((e) => !familyOnly(e, config));
   const kinds = new Set(counted.map((e) => e.pivotType ?? e.edgeType ?? e.kind));
   if (kinds.size >= r.minEvidenceKinds) return "campaign";
   if (kinds.size !== 1) return "single_kind";

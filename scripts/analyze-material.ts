@@ -1,11 +1,14 @@
 /**
- * bun run analyze-material -- (--case <katalog sprawy> | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library] [--json]
- * Analiza nowego materiału względem istniejącego przebiegu (graph.json, campaigns.json, enriched.json).
+ * bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik> [--mapping m.json] | --url <link> | --text <treść>)
+ *   [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+ * Analiza nowego materiału (jednej sprawy albo partii spraw) względem istniejącego przebiegu (graph.json, campaigns.json, enriched.json).
  */
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { analyzeMaterial } from "../lib/pipeline/analyzeMaterial";
+import { batchCaseDirs } from "../lib/pipeline/caseBatch";
+import { materialCsv } from "../lib/pipeline/materialCsv";
 import { liveSources } from "../lib/pipeline/sources";
 import { loadLinkConfig } from "../lib/pipeline/steps";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
@@ -14,6 +17,10 @@ import { cli, main } from "./_cli";
 const args = cli(
   {
     case: { type: "string" },
+    cases: { type: "string" },
+    "each-file": { type: "boolean" },
+    dataset: { type: "string" },
+    mapping: { type: "string" },
     url: { type: "string" },
     text: { type: "string" },
     data: { type: "string" },
@@ -26,28 +33,36 @@ const args = cli(
     clip: { type: "boolean" },
     speaker: { type: "boolean" },
     "ad-library": { type: "boolean" },
-    json: { type: "boolean" },
+    csv: { type: "string" },
+    json: { type: "string" },
     out: { type: "string" },
     fixtures: { type: "string" },
   } as const,
-  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library] [--json]
+  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+--cases: każdy podkatalog to sprawa; wszystkie idą przez jeden import i jeden graf. --each-file: każdy luźny plik w katalogu to osobna sprawa.
+--dataset: każdy wiersz pliku zbioru to materiał (mapowanie kolumn jak w bun run ingest; --mapping jak tam). Ścieżki obrazów względem katalogu pliku.
+--csv: wynik partii, wiersz na rekord (material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data).
+--json: pełny wynik (MaterialResult) do pliku; "-" = na standardowe wyjście. --out: to samo do pliku (używa przeglądarka).
 --data: katalog z graph.json, campaigns.json i enriched.json (domyślnie VIEWER_DATA_DIR albo data/).
 --live: pasywne DNS, RDAP i ASN oraz jeden GET strony, której nie ma w materiale. Bez tego tylko materiał.
 --config / --personas: konfiguracja wag i lista osób (domyślnie <data>/linking.json i <data>/personas.json albo katalog wyżej).`,
 );
 
 void main(async () => {
-  if (!args.case && !args.url && !args.text) throw new Error("podaj --case, --url albo --text (zob. --help)");
+  if (!args.case && !args.cases && !args.dataset && !args.url && !args.text) throw new Error("podaj --case, --cases, --dataset, --url albo --text (zob. --help)");
   const dataDir = path.resolve(args.data ?? process.env.VIEWER_DATA_DIR ?? "data");
+  const workDir = path.resolve(args.work ?? mkdtempSync(path.join(os.tmpdir(), "analiza-")));
   const pick = (...files: string[]) => files.find((f) => existsSync(f));
   const configFile = args.config ?? process.env.LINK_CONFIG ?? pick(path.join(dataDir, "linking.json"), path.join(dataDir, "..", "linking-default.json"));
   const personasFile = args.personas ?? process.env.PERSONAS ?? pick(path.join(dataDir, "personas.json"), path.join(dataDir, "..", "personas.json"));
   const log = (m: string) => console.error(`[analiza] ${m}`);
+  const caseDirs = args.cases ? batchCaseDirs(args.cases, { eachFile: !!args["each-file"], scratchDir: workDir }) : undefined;
+  if (caseDirs && !caseDirs.length) throw new Error(`brak spraw w ${args.cases} (podkatalogi albo --each-file dla luźnych plików)`);
   const res = await analyzeMaterial(
-    { caseDir: args.case ? path.resolve(args.case) : undefined, url: args.url, text: args.text },
+    { caseDir: args.case ? path.resolve(args.case) : undefined, caseDirs, datasetFile: args.dataset, datasetMapping: args.mapping, url: args.url, text: args.text },
     {
       dataDir,
-      workDir: path.resolve(args.work ?? mkdtempSync(path.join(os.tmpdir(), "analiza-"))),
+      workDir,
       fixtures: args.fixtures,
       live: args.live ? liveSources({ skipCt: true }) : null,
       config: loadLinkConfig(configFile),
@@ -57,13 +72,22 @@ void main(async () => {
     },
   );
   if (args.out) writeFileSync(args.out, JSON.stringify(res));
-  if (args.json) {
+  if (args.csv) {
+    writeFileSync(args.csv, materialCsv(res));
+    log(`CSV: ${args.csv} (${res.items.length} wierszy)`);
+  }
+  if (args.json === "-") {
     process.stdout.write(JSON.stringify(res));
     return;
   }
+  if (args.json) writeFileSync(args.json, JSON.stringify(res, null, 1));
   for (const n of res.notes) log(n);
+  const counts = new Map<string, number>();
+  for (const it of res.items) counts.set(it.verdict, (counts.get(it.verdict) ?? 0) + 1);
+  log(`werdykty: ${[...counts.entries()].map(([k, v]) => `${k} ${v}`).join(", ")}${res.newCampaigns?.length ? ` | nowe kampanie: ${res.newCampaigns.length}` : ""}`);
+  if (args.csv || args.json) return;
   for (const it of res.items) {
-    console.log(`\n${it.id}: ${it.verdictText}`);
+    console.log(`\n${it.id}${it.caseId && it.caseId !== it.id ? ` [${it.caseId}]` : ""}: ${it.verdictText}`);
     for (const [k, v] of Object.entries(it.features)) if (!["ocrText", "asrText"].includes(k)) console.log(`   ${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`);
     for (const l of it.links.slice(0, 5)) {
       console.log(`   ↔ ${l.other} (${l.otherCampaign ?? "-"}) wynik ${l.score.toFixed(2)}${l.strong ? " SILNE" : ""} [${l.rule}]`);

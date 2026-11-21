@@ -67,6 +67,13 @@ const TRACKER_LABELS: Record<string, string> = {
   yandex_metrica: "Yandex Metrica",
 };
 
+const TECHNIQUE_LABELS: Record<string, string> = {
+  fake_app_store: "udawany sklep z aplikacjami",
+  back_trap: "pułapka przycisku „wstecz”",
+  fake_social_post: "udawany post z serwisu społecznościowego",
+  fake_comments: "fałszywe komentarze wpisane w stronę",
+};
+
 function shortUrl(url: string, max = 64): string {
   const s = url.replace(/^https?:\/\//, "");
   return s.length > max ? `${s.slice(0, max - 1)}…` : s;
@@ -553,6 +560,24 @@ export function buildEvidenceGraph(
         }
         if (kit.domSimhash) itemData.domSimhash = kit.domSimhash;
         if (kit.cyrillicComments) itemData.cyrillic = true;
+        // Comments written into the page: the set of authors is part of the template
+        const cb = kit.commentBlock;
+        if (cb) {
+          const who = `${cb.authors.slice(0, 3).join(", ")}${cb.authors.length > 3 ? "…" : ""}`;
+          const id = g.node("comment_block", cb.key, `blok ${cb.count} komentarzy (${who})`, { authors: cb.authors, count: cb.count, samples: cb.samples });
+          g.edge(finalUrlNode, id, "has_comment_block", `sekcja komentarzy wpisana w kod strony, bez wtyczki serwisu (${cb.count} komentarzy, ${cb.authors.length} autorów)`);
+          add(id, "comment_block", [...finalPath, id], rel, `ten sam blok fałszywych komentarzy (${cb.authors.length} autorów: ${who})`);
+          itemData.commentBlock = id;
+          itemData.fakeCommentCount = Math.max(Number(itemData.fakeCommentCount ?? 0), cb.count);
+        }
+        // Techniques: the same modus operandi (second level only, campaignRules.familyOnlyKinds)
+        for (const t of kit.techniques ?? []) {
+          const id = g.node("technique", t, TECHNIQUE_LABELS[t] ?? t, { technique: t });
+          g.edge(finalUrlNode, id, "uses_technique", `technika strony: ${TECHNIQUE_LABELS[t] ?? t}`);
+          add(id, "technique", [...finalPath, id], rel, `ta sama technika strony (${TECHNIQUE_LABELS[t] ?? t}): podobny sposób działania`);
+          const list = (itemData.techniques as string[] | undefined) ?? [];
+          if (!list.includes(t)) itemData.techniques = [...list, t];
+        }
       }
       if (page?.cloaking) {
         itemData.cloakingSuspected = page.cloaking.suspected;

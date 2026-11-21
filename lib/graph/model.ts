@@ -42,6 +42,10 @@ export const ENTITY_TYPES = [
   "meta_ad",
   // DSA transparency of the Meta Ad Library (MetaAdsCollector, opt-in)
   "ad_payer",
+  // page techniques (21.11): fake comment block written into the page (template trace) and the
+  // technique names (modus operandi, second level only)
+  "comment_block",
+  "technique",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -80,6 +84,8 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   click_server: "Serwer trackera (clickid xid)",
   meta_ad: "Reklama w Mecie (z fbclid)",
   ad_payer: "Płatnik reklamy (biblioteka reklam, DSA)",
+  comment_block: "Blok fałszywych komentarzy",
+  technique: "Technika strony",
 };
 
 export type EdgeType =
@@ -113,6 +119,8 @@ export type EdgeType =
   | "clicked_ad"
   | "mentions_persona"
   | "paid_by"
+  | "has_comment_block"
+  | "uses_technique"
   | "similar_image"
   | "similar_image_semantic"
   | "similar_text"

@@ -91,6 +91,23 @@ export async function hashImage(input: Buffer): Promise<ImageHashes> {
   };
 }
 
+/** Grayscale thumbnail (size x size, row-major, 0-255) for a pixel comparison of two pictures. */
+export async function grayThumbnail(input: Buffer, size = 64): Promise<number[]> {
+  return grayscalePixels(input, size, size);
+}
+
+/**
+ * Share of pixels whose gray level differs by more than `level` between two thumbnails of the same
+ * size. Re-compression and a brightness change move every pixel a little (share ~0); a sticker, a
+ * crop or a changed headline moves a patch of pixels a lot (share of the patch area).
+ */
+export function differingPixelShare(a: number[], b: number[], level = 40): number {
+  if (a.length !== b.length || !a.length) throw new Error(`Thumbnail size mismatch: ${a.length} vs ${b.length}`);
+  let n = 0;
+  for (let i = 0; i < a.length; i++) if (Math.abs(a[i] - b[i]) > level) n++;
+  return n / a.length;
+}
+
 const POPCOUNT_NIBBLE = [0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4];
 
 /** Hamming distance between two equal-length hex hashes. Throws on invalid input. */

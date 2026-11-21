@@ -53,7 +53,15 @@ export interface LinkConfig {
    * landing-page platform under different accounts are never joined by non-strong evidence:
    * a shared kit then makes them similar campaigns (second level), not one campaign.
    */
-  campaignRules: { minEvidenceKinds: number; singleKindMinScore: number; notAloneKinds: string[]; accountConflict: boolean; discountedMinWeight: number };
+  campaignRules: {
+    minEvidenceKinds: number;
+    singleKindMinScore: number;
+    notAloneKinds: string[];
+    accountConflict: boolean;
+    discountedMinWeight: number;
+    /** Evidence kinds that never count for a campaign (score, kinds, clustering weight), only for groups of similar campaigns. */
+    familyOnlyKinds?: string[];
+  };
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -191,6 +199,12 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // The payer declared to Meta under the DSA (one paying account behind several ads);
     // a free-text name, so generic names are damped by IDF like any other pivot.
     ad_payer: 0.7,
+    // The same set of comment authors written into pages on different domains: one page template.
+    // A template trace like page_template: it needs a second kind of evidence to join a campaign.
+    comment_block: 0.45,
+    // Technique of the page (fake app store, back trap, fake social post, fake comments): the same
+    // modus operandi, counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
+    technique: 0.2,
   },
   strongThreshold: 0.7,
   maxStrongDfRatio: 0.5,
@@ -200,7 +214,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   campaignRules: {
     minEvidenceKinds: 2,
     singleKindMinScore: 0.5,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "persona", "similar_voice"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "persona", "similar_voice", "comment_block"],
+    familyOnlyKinds: ["technique"],
     accountConflict: true,
     discountedMinWeight: 0.3,
   },

@@ -45,6 +45,12 @@ export interface LinkConfig {
   /** Minimum combined pair score for an edge in the clustering graph. */
   minLinkScore: number;
   /**
+   * What graph.json keeps (clustering uses every pair): each ad's `topKPerItem` best links with at most
+   * `maxEvidence` premises each, plus every link inside a campaign with at most `campaignMaxEvidence`
+   * premises (null = all), because the campaign card and the evidence pack read the written file.
+   */
+  output: { topKPerItem: number; maxEvidence: number; campaignMaxEvidence: number | null };
+  /**
    * Which non-strong links may join two ads into one campaign (first level). Traces of a page kit
    * (`notAloneKinds`: template, shop theme, cloned portal), sold and reused across operators, and the
    * payer of the ad library (ad accounts are rented out or stolen), count
@@ -107,6 +113,12 @@ export interface LinkConfig {
   };
   /** Base weight of the "same creative file" pivot (SHA-256 of the image or video file). */
   creativeFileWeight?: number;
+  /**
+   * Comment blocks of common first names weigh less (commentNameFactors): the factor is the mean
+   * inverse frequency of the block's first names over all blocks, at least `floor`, and only from
+   * `minBlocks` blocks on. null switches it off.
+   */
+  commentBlockNames?: { minBlocks: number; floor: number } | null;
   /**
    * Base weight of a campaign inside a tracker: its key (tracker_campaign, 32 hex) or an internal number
    * scoped by the tracker server (`kit.machineScopedParams`). It joins, but below strongThreshold: one
@@ -292,6 +304,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   maxPivotDf: 400,
   idf: { enabled: true, floor: 0.2, ubiquityStart: 0.5, ubiquityMinItems: 10 },
   minLinkScore: 0.15,
+  output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
     notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer"],
@@ -327,6 +340,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     contentVariant: { imageHamming: 6, clipMinCosine: 0.95 },
   },
   creativeFileWeight: 0.95,
+  commentBlockNames: { minBlocks: 5, floor: 0.3 },
   trackerCampaignWeight: 0.6,
   familyMinScore: 0.3,
   similarity: {

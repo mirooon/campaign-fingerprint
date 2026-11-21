@@ -22,6 +22,7 @@ import { simhashDistance } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain, toUnicodeHost } from "../osint/urls";
 import type { EnrichedDataset, Item } from "../pipeline/types";
 import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/similarity";
+import { commentNameFactors } from "./commentNames";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import {
   CREATIVE_FILE_PREFIX,
@@ -806,10 +807,14 @@ export function buildEvidenceGraph(
       pivotItems.set(fact.pivot, list);
     }
   }
+  const blocks = [...g.nodes.values()].filter((nd) => nd.type === "comment_block");
+  const nameFactors = config.commentBlockNames ? commentNameFactors(Object.fromEntries(blocks.map((nd) => [nd.id, (nd.data.authors as string[] | undefined) ?? []])), config.commentBlockNames) : new Map<string, number>();
   for (const node of g.nodes.values()) {
     if (node.type === "item") continue;
     node.df = pivotItems.get(node.id)?.length ?? 0;
     node.discounts = discounter.discountsFor({ type: node.type, key: node.key, id: node.id, data: node.data });
+    const nameFactor = nameFactors.get(node.id) ?? 1;
+    if (nameFactor < 1) node.discounts.push({ reason: "pospolite imiona w bloku komentarzy (częste w blokach innych stron)", factor: nameFactor, rule: "comment_names" });
     const base = node.data.burst
       ? config.registrationBurstWeight
       : node.data.exactFile

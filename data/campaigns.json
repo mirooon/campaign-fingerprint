@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-21T18:40:21.883Z",
+  "generatedAt": "2026-11-21T21:06:40.543Z",
   "method": {
     "unionFind": "silne dowody (waga typu × lista ≥ 0.7)",
     "louvain": {
@@ -10,7 +10,7 @@
     },
     "minLinkScore": 0.15,
     "rules": [
-      "kampania: silny dowód albo wynik pary ≥ 0.15; cechy zestawu stron (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, comment_block) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą",
+      "kampania: silny dowód albo wynik pary ≥ 0.15; cechy zestawu stron i płatnik z biblioteki reklam (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, comment_block, ad_payer) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą",
       "treść (similar_text, similar_image, similar_image_semantic, similar_audio, similar_voice, imagehash): bez infrastruktury po obu stronach kampanię tworzą co najmniej 2 różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ 0.97 z tym samym dźwiękiem) łączy sam",
       "wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ 6, CLIP ≥ 0.95); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza",
       "tylko grupa podobnych kampanii: technique, persona",
@@ -107,7 +107,468 @@
         "deepfakeScoreMax": 0.93,
         "basis": "infrastructure"
       },
-      "familyId": null
+      "familyId": null,
+      "evolution": {
+        "stable": [
+          {
+            "type": "persona",
+            "values": [
+              {
+                "id": "persona:adam-testowy",
+                "label": "Adam Testowy",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 9
+              }
+            ]
+          },
+          {
+            "type": "telegram",
+            "values": [
+              {
+                "id": "telegram:t.me/kryptozysk_vip",
+                "label": "t.me/kryptozysk_vip",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 9
+              }
+            ]
+          }
+        ],
+        "changing": [
+          {
+            "type": "advertiser",
+            "values": [
+              {
+                "id": "advertiser:finanse dziś demo",
+                "label": "Finanse Dziś Demo",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "advertiser:inwestor pl test",
+                "label": "Inwestor PL Test",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:rynek i ty demo",
+                "label": "Rynek i Ty Demo",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:nowe technologie demo",
+                "label": "Nowe Technologie Demo",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "advertiser:kryptowaluty 24 demo",
+                "label": "Kryptowaluty 24 Demo",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "asn",
+            "values": [
+              {
+                "id": "asn:AS13335",
+                "label": "AS13335 CLOUDFLARENET",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "asset",
+            "values": [
+              {
+                "id": "asset:/css/style.css",
+                "label": "CSS /css/style.css",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "asset:/assets/js/kz-form.3fa9c1.js",
+                "label": "JS /assets/js/kz-form.3fa9c1.js",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "asset:/js/jquery-3.7.1.min.js",
+                "label": "JS /js/jquery-3.7.1.min.js",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "campaign_param",
+            "values": [
+              {
+                "id": "campaign_param:utm_campaign=пл_инвест_лиды_07",
+                "label": "utm_campaign=пл_инвест_лиды_07",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "campaign_param:utm_source=facebook",
+                "label": "utm_source=facebook",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "comment",
+            "values": [
+              {
+                "id": "comment:syntetyczna strona testowa (starter hacknation) — fikcyjne osoby i marki",
+                "label": "„syntetyczna strona testowa (starter hacknation) — fikcyjne …”",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "comment:walidacja numeru telefonu",
+                "label": "„walidacja numeru telefonu”",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "comment:вставляем форму после блока phone (демо, синтетические данные)",
+                "label": "„вставляем форму после блока phone (демо, синтетические данн…”",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "domain",
+            "values": [
+              {
+                "id": "domain:kryptozysk-ai.example",
+                "label": "kryptozysk-ai.example",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 5
+              },
+              {
+                "id": "domain:zysk-ai-platforma.example",
+                "label": "zysk-ai-platforma.example",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "domain:kz-ai-start.test",
+                "label": "kz-ai-start.test",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "endpoint",
+            "values": [
+              {
+                "id": "endpoint:leads-gate.test/api/v1/submit/<uuid>/#klient=0b9a5c3e-1d2f-4a6b-9c8d-7e6f5a4b3c2d",
+                "label": "backend leads-gate.test/api/v1/submit/<uuid>/ (klient 0b9a5c3e-1d2f-4…)",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 5
+              },
+              {
+                "id": "endpoint:leads-gate.test/api/v1/submit/<uuid>/#klient=7f6e5d4c-3b2a-4190-8f7e-6d5c4b3a2910",
+                "label": "backend leads-gate.test/api/v1/submit/<uuid>/ (klient 7f6e5d4c-3b2a-4…)",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "favicon",
+            "values": [
+              {
+                "id": "favicon:mmh3:939194119",
+                "label": "favicon 939194119",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 5
+              },
+              {
+                "id": "favicon:mmh3:1212812803",
+                "label": "favicon 1212812803",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "hidden_fields",
+            "values": [
+              {
+                "id": "hidden_fields:click_ref,geo",
+                "label": "ukryte pola: click_ref, geo",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "host",
+            "values": [
+              {
+                "id": "host:kryptozysk-ai.example",
+                "label": "kryptozysk-ai.example",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 5
+              },
+              {
+                "id": "host:zysk-ai-platforma.example",
+                "label": "zysk-ai-platforma.example",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "host:kz-ai-start.test",
+                "label": "kz-ai-start.test",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "imagehash",
+            "values": [
+              {
+                "id": "imagehash:8084ac1a1e0ca1a4",
+                "label": "obraz 8084ac1a1e0ca1a4",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "imagehash:sha256:fc178902e7645cf0539684a8f367eb2fa819d67b30fca5c9cb90508a73c92853",
+                "label": "plik obrazu kreacji fc178902e764…",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:80a08c1a1e0ca1a4",
+                "label": "obraz 80a08c1a1e0ca1a4",
+                "firstSeen": "2026-09-07T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:db8d90d5df9e09c2190456d0c846e39a99a2728d556dee7dce7e2b318fbbcaec",
+                "label": "plik obrazu kreacji db8d90d5df9e…",
+                "firstSeen": "2026-09-07T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:48e7228d4473e386232eb6e354d19aa5f0761f816afa6d5661af1670b2891073",
+                "label": "plik obrazu kreacji 48e7228d4473…",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:30d0d1cbced831c9",
+                "label": "obraz 30d0d1cbced831c9",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:4fc492413b11d9b591fd5f00201f25bf54f488136dcb6ff39183e1a4618c4d88",
+                "label": "plik obrazu kreacji 4fc492413b11…",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:209295898e9c31c9",
+                "label": "obraz 209295898e9c31c9",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:13af603dcce32e80df884305959f969df2857b54a49ab122f5ece60f63f44e84",
+                "label": "plik obrazu kreacji 13af603dcce3…",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:36d6d1cbced831c9",
+                "label": "obraz 36d6d1cbced831c9",
+                "firstSeen": "2026-09-22T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:99879430e72e624600e10d4d00b90059284f6a0fff71dfccd3f123e605bc5923",
+                "label": "plik obrazu kreacji 99879430e72e…",
+                "firstSeen": "2026-09-22T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:c4d4587470784428",
+                "label": "obraz c4d4587470784428",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:230393d07c6de08196de5e682807d235fd8034c5dfaab717bb9e377aba828165",
+                "label": "plik obrazu kreacji 230393d07c6d…",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:8084ac1a1e0ca5a4",
+                "label": "obraz 8084ac1a1e0ca5a4",
+                "firstSeen": "2026-10-01T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:5622d1f1bf9f4761ba53fdc737be47b33269f5fb5604af29dc25e2d984502a6f",
+                "label": "plik obrazu kreacji 5622d1f1bf9f…",
+                "firstSeen": "2026-10-01T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:6868587470784428",
+                "label": "obraz 6868587470784428",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:b68c52bff89eec223a8e7b99125706bd1a630b47e34dc7507a3a82b0b57314d3",
+                "label": "plik obrazu kreacji b68c52bff89e…",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "ip",
+            "values": [
+              {
+                "id": "ip:104.21.32.15",
+                "label": "104.21.32.15",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "ip:172.67.141.88",
+                "label": "172.67.141.88",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "nameserver",
+            "values": [
+              {
+                "id": "nameserver:ada.ns.cloudflare.com + bob.ns.cloudflare.com",
+                "label": "ada.ns.cloudflare.com, bob.ns.cloudflare.com",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "registrar",
+            "values": [
+              {
+                "id": "registrar:namecheap, inc.",
+                "label": "NameCheap, Inc.",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "registrar:namecheap, inc.|2026-09-02",
+                "label": "seria rejestracji: NameCheap, Inc., 2026-09-02 (3 domen w 19 h)",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "tracker",
+            "values": [
+              {
+                "id": "tracker:ga4:G-K7Z9QX41LM",
+                "label": "Google Analytics 4 G-K7Z9QX41LM",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "tracker:meta_pixel:812345678901234",
+                "label": "Meta Pixel 812345678901234",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "url",
+            "values": [
+              {
+                "id": "url:https://kryptozysk-ai.example/start",
+                "label": "kryptozysk-ai.example/start",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "url:https://kryptozysk-ai.example/oferta",
+                "label": "kryptozysk-ai.example/oferta",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zysk-ai-platforma.example/",
+                "label": "zysk-ai-platforma.example/",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zysk-ai-platforma.example/rejestracja",
+                "label": "zysk-ai-platforma.example/rejestracja",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zysk-ai-platforma.example/?ref=ig",
+                "label": "zysk-ai-platforma.example/?ref=ig",
+                "firstSeen": "2026-09-22T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://kryptozysk-ai.example/wywiad",
+                "label": "kryptozysk-ai.example/wywiad",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://kryptozysk-ai.example/start?src=kz",
+                "label": "kryptozysk-ai.example/start?src=kz",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://kz-ai-start.test/",
+                "label": "kz-ai-start.test/",
+                "firstSeen": "2026-10-05T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "wallet",
+            "values": [
+              {
+                "id": "wallet:tron:TBYajBg29wGci5ubjkqMpFmQrbX98YKomQ",
+                "label": "TRON TBYajBg2…8YKomQ",
+                "firstSeen": "2026-09-15T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "K02",
@@ -201,7 +662,396 @@
           "weight": 0.57
         }
       ],
-      "familyId": null
+      "familyId": null,
+      "evolution": {
+        "stable": [
+          {
+            "type": "persona",
+            "values": [
+              {
+                "id": "persona:ewa-przykladowa",
+                "label": "Ewa Przykładowa",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          }
+        ],
+        "changing": [
+          {
+            "type": "advertiser",
+            "values": [
+              {
+                "id": "advertiser:energia polska demo",
+                "label": "Energia Polska Demo",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "advertiser:dywidenda info test",
+                "label": "Dywidenda Info Test",
+                "firstSeen": "2026-09-01T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "advertiser:wiadomości gospodarcze demo",
+                "label": "Wiadomości Gospodarcze Demo",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "advertiser:oszczędzaj mądrze demo",
+                "label": "Oszczędzaj Mądrze Demo",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "asn",
+            "values": [
+              {
+                "id": "asn:AS13335",
+                "label": "AS13335 CLOUDFLARENET",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "asset",
+            "values": [
+              {
+                "id": "asset:/static/js/bal-energy-lead.9f8e7d.js",
+                "label": "JS /static/js/bal-energy-lead.9f8e7d.js",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "campaign_param",
+            "values": [
+              {
+                "id": "campaign_param:utm_medium=cpc",
+                "label": "utm_medium=cpc",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "campaign_param:utm_source=facebook",
+                "label": "utm_source=facebook",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "comment",
+            "values": [
+              {
+                "id": "comment:syntetyczna strona testowa (starter hacknation) — fikcyjne osoby i marki",
+                "label": "„syntetyczna strona testowa (starter hacknation) — fikcyjne …”",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "domain",
+            "values": [
+              {
+                "id": "domain:baltycka-energia-inwestycje.example",
+                "label": "baltycka-energia-inwestycje.example",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 4
+              },
+              {
+                "id": "domain:energia-dywidenda.test",
+                "label": "energia-dywidenda.test",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "email",
+            "values": [
+              {
+                "id": "email:kontakt@baltycka-energia-inwestycje.example",
+                "label": "kontakt@baltycka-energia-inwestycje.example",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 4
+              }
+            ]
+          },
+          {
+            "type": "endpoint",
+            "values": [
+              {
+                "id": "endpoint:*/api/lead",
+                "label": "backend /api/lead (ta sama domena)",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              },
+              {
+                "id": "endpoint:*/api/v2/lead/",
+                "label": "backend /api/v2/lead/ (ta sama domena)",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "favicon",
+            "values": [
+              {
+                "id": "favicon:mmh3:532167556",
+                "label": "favicon 532167556",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "hidden_fields",
+            "values": [
+              {
+                "id": "hidden_fields:lp_id,offer_hash",
+                "label": "ukryte pola: lp_id, offer_hash",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "host",
+            "values": [
+              {
+                "id": "host:baltycka-energia-inwestycje.example",
+                "label": "baltycka-energia-inwestycje.example",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 4
+              },
+              {
+                "id": "host:energia-dywidenda.test",
+                "label": "energia-dywidenda.test",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "imagehash",
+            "values": [
+              {
+                "id": "imagehash:040a9393a3a193a4",
+                "label": "obraz 040a9393a3a193a4",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:a52cec743e55694e98873e1e2cf67b1e56b51b1e27721285cf7e9aa758b8f0fe",
+                "label": "plik obrazu kreacji a52cec743e55…",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:040a9393a3a19398",
+                "label": "obraz 040a9393a3a19398",
+                "firstSeen": "2026-08-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:d607b309136cdbf2b13aea1f414294c29c365292d4d08ef2660e99fa89e991b6",
+                "label": "plik obrazu kreacji d607b309136c…",
+                "firstSeen": "2026-08-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:040a93932321b3a4",
+                "label": "obraz 040a93932321b3a4",
+                "firstSeen": "2026-09-01T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:f467cd6aa3220a96baa99c3217ff35b1b2f5f7bee049dd429e433cede6081ea1",
+                "label": "plik obrazu kreacji f467cd6aa322…",
+                "firstSeen": "2026-09-01T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:000013dcdc231b44",
+                "label": "obraz 000013dcdc231b44",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:7d5c323125bc7b9525aca31336fac60c2239f2b0b5b8c9d538fb12540993e968",
+                "label": "plik obrazu kreacji 7d5c323125bc…",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:000023dcdc233300",
+                "label": "obraz 000023dcdc233300",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:b5ff5591cba118b48d4effa4fcb49f396bb004ffdbd88c18e65e077df3cd69fa",
+                "label": "plik obrazu kreacji b5ff5591cba1…",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:050a9393a3a193a4",
+                "label": "obraz 050a9393a3a193a4",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:80f44b32bbc4c24c5149ae1d6e6ae088226f65e407e815451d31f07fb37082ad",
+                "label": "plik obrazu kreacji 80f44b32bbc4…",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:090016dcdc231b44",
+                "label": "obraz 090016dcdc231b44",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:52297207546f0b80de9ab74a77a6103898f411ad323f1a94e501a5127439c537",
+                "label": "plik obrazu kreacji 52297207546f…",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:040a9393a3a193b8",
+                "label": "obraz 040a9393a3a193b8",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:fddcf5ddcd62eb219da5a60f284f402d6ca8a507af52d9bce3d6f1a5892624b3",
+                "label": "plik obrazu kreacji fddcf5ddcd62…",
+                "firstSeen": "2026-09-25T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "ip",
+            "values": [
+              {
+                "id": "ip:104.21.32.15",
+                "label": "104.21.32.15",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              },
+              {
+                "id": "ip:172.67.141.88",
+                "label": "172.67.141.88",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "nameserver",
+            "values": [
+              {
+                "id": "nameserver:ada.ns.cloudflare.com + bob.ns.cloudflare.com",
+                "label": "ada.ns.cloudflare.com, bob.ns.cloudflare.com",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "phone",
+            "values": [
+              {
+                "id": "phone:+447700900123",
+                "label": "+447700900123",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "registrar",
+            "values": [
+              {
+                "id": "registrar:tucows domains inc.",
+                "label": "Tucows Domains Inc.",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "tracker",
+            "values": [
+              {
+                "id": "tracker:yandex_metrica:98765432",
+                "label": "Yandex Metrica 98765432",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "url",
+            "values": [
+              {
+                "id": "url:https://baltycka-energia-inwestycje.example/program",
+                "label": "baltycka-energia-inwestycje.example/program",
+                "firstSeen": "2026-08-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://baltycka-energia-inwestycje.example/program?ref=fb2",
+                "label": "baltycka-energia-inwestycje.example/program?ref=fb2",
+                "firstSeen": "2026-08-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://baltycka-energia-inwestycje.example/",
+                "label": "baltycka-energia-inwestycje.example/",
+                "firstSeen": "2026-09-01T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://energia-dywidenda.test/start",
+                "label": "energia-dywidenda.test/start",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://energia-dywidenda.test/",
+                "label": "energia-dywidenda.test/",
+                "firstSeen": "2026-09-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://baltycka-energia-inwestycje.example/wywiad",
+                "label": "baltycka-energia-inwestycje.example/wywiad",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://energia-dywidenda.test/start?src=ig",
+                "label": "energia-dywidenda.test/start?src=ig",
+                "firstSeen": "2026-09-18T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "K03",
@@ -289,7 +1139,475 @@
         "deepfakeScoreMax": 0.64,
         "basis": "infrastructure"
       },
-      "familyId": null
+      "familyId": null,
+      "evolution": {
+        "stable": [
+          {
+            "type": "asn",
+            "values": [
+              {
+                "id": "asn:AS64501",
+                "label": "AS64501 DEMO-HOSTING-A",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "cert",
+            "values": [
+              {
+                "id": "cert:6f685d44ef9fdfb4abbca903e08622f8",
+                "label": "cert Let's Encrypt 2026-10-02 (3 domen)",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "comment",
+            "values": [
+              {
+                "id": "comment:czas czytania i wypełniania",
+                "label": "„czas czytania i wypełniania”",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "comment:end google tag manager",
+                "label": "„end google tag manager”",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "comment:google tag manager",
+                "label": "„google tag manager”",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "comment:syntetyczna strona testowa (starter hacknation) — fikcyjne osoby i marki",
+                "label": "„syntetyczna strona testowa (starter hacknation) — fikcyjne …”",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "endpoint",
+            "values": [
+              {
+                "id": "endpoint:*/api/lead",
+                "label": "backend /api/lead (ta sama domena)",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "hidden_fields",
+            "values": [
+              {
+                "id": "hidden_fields:device_id,fill_time,read_time",
+                "label": "ukryte pola: device_id, fill_time, read_time",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "nameserver",
+            "values": [
+              {
+                "id": "nameserver:ns1.dns-ukryty.test + ns2.dns-ukryty.test",
+                "label": "ns1.dns-ukryty.test, ns2.dns-ukryty.test",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "persona",
+            "values": [
+              {
+                "id": "persona:marek-fikcyjny",
+                "label": "Marek Fikcyjny",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "registrar",
+            "values": [
+              {
+                "id": "registrar:registrar demo ltd.",
+                "label": "Registrar Demo Ltd.",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              },
+              {
+                "id": "registrar:registrar demo ltd.|2026-10-01",
+                "label": "seria rejestracji: Registrar Demo Ltd., 2026-10-01 (4 domen w 30 h)",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          },
+          {
+            "type": "tracker",
+            "values": [
+              {
+                "id": "tracker:gtm:GTM-ABC12DE",
+                "label": "Google Tag Manager GTM-ABC12DE",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 8
+              }
+            ]
+          }
+        ],
+        "changing": [
+          {
+            "type": "advertiser",
+            "values": [
+              {
+                "id": "advertiser:wiadomości 24 demo",
+                "label": "Wiadomości 24 Demo",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:fakty i opinie demo",
+                "label": "Fakty i Opinie Demo",
+                "firstSeen": "2026-10-04T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:kanał newsowy demo",
+                "label": "Kanał Newsowy Demo",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:zysk teraz demo",
+                "label": "Zysk Teraz Demo",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "campaign_param",
+            "values": [
+              {
+                "id": "campaign_param:offer_id=771304",
+                "label": "offer_id=771304",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "campaign_param:sub1=mb_kowal",
+                "label": "sub1=mb_kowal",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "cname_target",
+            "values": [
+              {
+                "id": "cname_target:tds-cname.test",
+                "label": "CNAME → tds-cname.test",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 4
+              }
+            ]
+          },
+          {
+            "type": "domain",
+            "values": [
+              {
+                "id": "domain:oferta-fikcyjna.example",
+                "label": "oferta-fikcyjna.example",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "domain:wiadomosci-demo.test",
+                "label": "wiadomosci-demo.test",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 4
+              },
+              {
+                "id": "domain:fakt-dnia-demo.example",
+                "label": "fakt-dnia-demo.example",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "domain:szybki-zysk-teraz.example",
+                "label": "szybki-zysk-teraz.example",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "favicon",
+            "values": [
+              {
+                "id": "favicon:mmh3:-1972218801",
+                "label": "favicon -1972218801",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "favicon:mmh3:-1467472741",
+                "label": "favicon -1467472741",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "host",
+            "values": [
+              {
+                "id": "host:lp.oferta-fikcyjna.example",
+                "label": "lp.oferta-fikcyjna.example",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "host:wiadomosci-demo.test",
+                "label": "wiadomosci-demo.test",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 4
+              },
+              {
+                "id": "host:fakt-dnia-demo.example",
+                "label": "fakt-dnia-demo.example",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "host:szybki-zysk-teraz.example",
+                "label": "szybki-zysk-teraz.example",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "imagehash",
+            "values": [
+              {
+                "id": "imagehash:801931313a3b5818",
+                "label": "obraz 801931313a3b5818",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:08e138be972e1cb038040e012a8a76bc8e4afbb6624c84911abcad745c3ea491",
+                "label": "plik obrazu kreacji 08e138be972e…",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:801931313a3b5850",
+                "label": "obraz 801931313a3b5850",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:e6a4ddb6569a198aab0d45cd081e1bf87a9d480b9567b078a143ee4705ebf9d7",
+                "label": "plik obrazu kreacji e6a4ddb6569a…",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:885131313a3b5818",
+                "label": "obraz 885131313a3b5818",
+                "firstSeen": "2026-10-04T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:2e3ab406648ef350172fc4949c6fa863f9847aca79ad149db2b3d2ea0c59ff1e",
+                "label": "plik obrazu kreacji 2e3ab406648e…",
+                "firstSeen": "2026-10-04T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:885031313a3b5a58",
+                "label": "obraz 885031313a3b5a58",
+                "firstSeen": "2026-10-06T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:ab1301008da01f4609f62772eb16866d91f1238bd163a461bae2420b7d0994da",
+                "label": "plik obrazu kreacji ab1301008da0…",
+                "firstSeen": "2026-10-06T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:885931393a3b5a10",
+                "label": "obraz 885931393a3b5a10",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:2f0a080aa50950c827cafafdbf12c5fb3b23e6a7f173f38fb932bc2a963be16c",
+                "label": "plik obrazu kreacji 2f0a080aa509…",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:861731313a3b5818",
+                "label": "obraz 861731313a3b5818",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:bd98be59c4665fae9216816821b2bf71bbcdb6d7347c0c3e1d30f9181bb2bf31",
+                "label": "plik obrazu kreacji bd98be59c466…",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:801931313a3b5838",
+                "label": "obraz 801931313a3b5838",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:e85835382bcdba48076a72236fc004d20a83690abe1e17f248aaae15c20976f9",
+                "label": "plik obrazu kreacji e85835382bcd…",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:801931313a3b4d2c",
+                "label": "obraz 801931313a3b4d2c",
+                "firstSeen": "2026-10-15T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:7cf65b6dde0a45b39dd3a8bd4d979cecc5bd8cc91999000a82594a8985f4d353",
+                "label": "plik obrazu kreacji 7cf65b6dde0a…",
+                "firstSeen": "2026-10-15T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "ip",
+            "values": [
+              {
+                "id": "ip:198.51.100.23",
+                "label": "198.51.100.23",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "ip:198.51.100.24",
+                "label": "198.51.100.24",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 4
+              }
+            ]
+          },
+          {
+            "type": "url",
+            "values": [
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb1&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb1&…",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb1",
+                "label": "wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb1",
+                "firstSeen": "2026-10-02T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb2&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb2&…",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb2",
+                "label": "wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb2",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=ig1&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=ig1&…",
+                "firstSeen": "2026-10-04T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wiadomosci-demo.test/artykul/skandal-w-studiu?src=ig1",
+                "label": "wiadomosci-demo.test/artykul/skandal-w-studiu?src=ig1",
+                "firstSeen": "2026-10-04T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb3&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb3&…",
+                "firstSeen": "2026-10-06T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wiadomosci-demo.test/artykul/skandal-w-studiu?src=fb3",
+                "label": "wiadomosci-demo.test/artykul/skandal-w-studiu?src=fb3",
+                "firstSeen": "2026-10-06T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://fakt-dnia-demo.example/news/marek-fikcyjny?src=yt1",
+                "label": "fakt-dnia-demo.example/news/marek-fikcyjny?src=yt1",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=yt1&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=yt1&…",
+                "firstSeen": "2026-10-08T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://fakt-dnia-demo.example/news/wywiad?src=fb4",
+                "label": "fakt-dnia-demo.example/news/wywiad?src=fb4",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb4&sub1=mb_kowal",
+                "label": "lp.oferta-fikcyjna.example/rejestracja?offer_id=771304&src=fb4&…",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://szybki-zysk-teraz.example/",
+                "label": "szybki-zysk-teraz.example/",
+                "firstSeen": "2026-10-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://szybki-zysk-teraz.example/start",
+                "label": "szybki-zysk-teraz.example/start",
+                "firstSeen": "2026-10-15T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "K04",
@@ -380,7 +1698,435 @@
         "deepfakeScoreMax": 0.12,
         "basis": "infrastructure"
       },
-      "familyId": null
+      "familyId": null,
+      "evolution": {
+        "stable": [
+          {
+            "type": "asn",
+            "values": [
+              {
+                "id": "asn:AS64502",
+                "label": "AS64502 DEMO-VPS-B",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "comment",
+            "values": [
+              {
+                "id": "comment:syntetyczna strona testowa (starter hacknation) — fikcyjne osoby i marki",
+                "label": "„syntetyczna strona testowa (starter hacknation) — fikcyjne …”",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "endpoint",
+            "values": [
+              {
+                "id": "endpoint:*/weryfikacja/krok-2",
+                "label": "backend /weryfikacja/krok-2 (ta sama domena)",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "favicon",
+            "values": [
+              {
+                "id": "favicon:mmh3:-738053317",
+                "label": "favicon -738053317",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "persona",
+            "values": [
+              {
+                "id": "persona:zofia-wymyslona",
+                "label": "Zofia Wymyślona",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          },
+          {
+            "type": "registrar",
+            "values": [
+              {
+                "id": "registrar:namesilo, llc",
+                "label": "NameSilo, LLC",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 7
+              }
+            ]
+          }
+        ],
+        "changing": [
+          {
+            "type": "advertiser",
+            "values": [
+              {
+                "id": "advertiser:pomoc obywatelska demo",
+                "label": "Pomoc Obywatelska Demo",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:zwroty info demo",
+                "label": "Zwroty Info Demo",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:doradca finansowy demo",
+                "label": "Doradca Finansowy Demo",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "advertiser:twoje pieniądze demo",
+                "label": "Twoje Pieniądze Demo",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "advertiser:informacje dla ciebie demo",
+                "label": "Informacje Dla Ciebie Demo",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "cert",
+            "values": [
+              {
+                "id": "cert:fd8b449265b798d4ba9e59e0045e9fc7",
+                "label": "cert ZeroSSL 2026-09-13 (4 domen)",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 4
+              }
+            ]
+          },
+          {
+            "type": "domain",
+            "values": [
+              {
+                "id": "domain:doplata-gov-pl.example",
+                "label": "doplata-gov-pl.example",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:zwrot-nadplaty.example",
+                "label": "zwrot-nadplaty.example",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:epodatki-zwrot.test",
+                "label": "epodatki-zwrot.test",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:bank-przyklad-zwrot.example",
+                "label": "bank-przyklad-zwrot.example",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:zwrot24-dolorem51.test",
+                "label": "zwrot24-dolorem51.test",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:zwrot37-voluptas12.example",
+                "label": "zwrot37-voluptas12.example",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "domain:zwrot88-praesentium40.example",
+                "label": "zwrot88-praesentium40.example",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "domain_pattern",
+            "values": [
+              {
+                "id": "domain_pattern:zwrot<n>-<lorem><n>.*",
+                "label": "wzorzec zwrot<n>-<lorem><n>.*",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "domain_pattern:zwrot<n>-<lorem><n>.example",
+                "label": "wzorzec zwrot<n>-<lorem><n>.example",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "host",
+            "values": [
+              {
+                "id": "host:doplata-gov-pl.example",
+                "label": "doplata-gov-pl.example",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:zwrot-nadplaty.example",
+                "label": "zwrot-nadplaty.example",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:epodatki-zwrot.test",
+                "label": "epodatki-zwrot.test",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:bank-przyklad-zwrot.example",
+                "label": "bank-przyklad-zwrot.example",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:zwrot24-dolorem51.test",
+                "label": "zwrot24-dolorem51.test",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:zwrot37-voluptas12.example",
+                "label": "zwrot37-voluptas12.example",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "host:zwrot88-praesentium40.example",
+                "label": "zwrot88-praesentium40.example",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "imagehash",
+            "values": [
+              {
+                "id": "imagehash:0080016119190716",
+                "label": "obraz 0080016119190716",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:37a2f42e60efafa1adc671072aa28f21f11196db869023ef939ea848ebf57959",
+                "label": "plik obrazu kreacji 37a2f42e60ef…",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0080016119193333",
+                "label": "obraz 0080016119193333",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:75e9e12b9de42ac1ed0cc14a795020a4dd4d4e05279c513bc04008bbc61f05d8",
+                "label": "plik obrazu kreacji 75e9e12b9de4…",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0000414119190716",
+                "label": "obraz 0000414119190716",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:0b44af0854478370d3e51c5e11278a060f5908cefffc3a3ba7259ef4e8954c18",
+                "label": "plik obrazu kreacji 0b44af085447…",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0080414159192f16",
+                "label": "obraz 0080414159192f16",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:326082ffbb6bb1fca0091347dcec4a557ca9a69adfe5622810777b1db0df0c10",
+                "label": "plik obrazu kreacji 326082ffbb6b…",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0080136119190716",
+                "label": "obraz 0080136119190716",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:5574b16c5741ebb477c051cbcbe8e8b4cb3f2c901bba3c83bd20f96ed60171d6",
+                "label": "plik obrazu kreacji 5574b16c5741…",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0180056119190716",
+                "label": "obraz 0180056119190716",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:6e586791c9d312b008d049711d781d0ad7e2b222c17306ee0f9e9bba1440c815",
+                "label": "plik obrazu kreacji 6e586791c9d3…",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:0080016119191716",
+                "label": "obraz 0080016119191716",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:b3afa7d86f552fcb7c3ef65ff6d26d1702a79105f73b4943ecf654a5bdbdbc58",
+                "label": "plik obrazu kreacji b3afa7d86f55…",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "ip",
+            "values": [
+              {
+                "id": "ip:203.0.113.77",
+                "label": "203.0.113.77",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 3
+              },
+              {
+                "id": "ip:203.0.113.78",
+                "label": "203.0.113.78",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "ip:203.0.113.79",
+                "label": "203.0.113.79",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "ip:203.0.113.80",
+                "label": "203.0.113.80",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "ip:203.0.113.81",
+                "label": "203.0.113.81",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "nameserver",
+            "values": [
+              {
+                "id": "nameserver:ns1.tani-dns.test + ns2.tani-dns.test",
+                "label": "ns1.tani-dns.test, ns2.tani-dns.test",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 4
+              },
+              {
+                "id": "nameserver:ns1.vps-demo.test + ns2.vps-demo.test",
+                "label": "ns1.vps-demo.test, ns2.vps-demo.test",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 3
+              }
+            ]
+          },
+          {
+            "type": "phone",
+            "values": [
+              {
+                "id": "phone:+447700900456",
+                "label": "+447700900456",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 5
+              }
+            ]
+          },
+          {
+            "type": "url",
+            "values": [
+              {
+                "id": "url:https://doplata-gov-pl.example/sprawdz",
+                "label": "doplata-gov-pl.example/sprawdz",
+                "firstSeen": "2026-09-05T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zwrot-nadplaty.example/",
+                "label": "zwrot-nadplaty.example/",
+                "firstSeen": "2026-09-12T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://epodatki-zwrot.test/formularz",
+                "label": "epodatki-zwrot.test/formularz",
+                "firstSeen": "2026-09-19T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://bank-przyklad-zwrot.example/zwrot",
+                "label": "bank-przyklad-zwrot.example/zwrot",
+                "firstSeen": "2026-09-26T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zwrot24-dolorem51.test/",
+                "label": "zwrot24-dolorem51.test/",
+                "firstSeen": "2026-10-03T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zwrot37-voluptas12.example/sprawdz",
+                "label": "zwrot37-voluptas12.example/sprawdz",
+                "firstSeen": "2026-10-10T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://zwrot88-praesentium40.example/",
+                "label": "zwrot88-praesentium40.example/",
+                "firstSeen": "2026-10-17T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "K05",
@@ -464,7 +2210,374 @@
         "deepfakeScoreMax": 0.83,
         "basis": "infrastructure"
       },
-      "familyId": null
+      "familyId": null,
+      "evolution": {
+        "stable": [
+          {
+            "type": "asn",
+            "values": [
+              {
+                "id": "asn:AS64502",
+                "label": "AS64502 DEMO-VPS-B",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "campaign_param",
+            "values": [
+              {
+                "id": "campaign_param:aff_id=kd_partner_19",
+                "label": "aff_id=kd_partner_19",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "cname_target",
+            "values": [
+              {
+                "id": "cname_target:fastly.net",
+                "label": "CNAME → fastly.net",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "comment",
+            "values": [
+              {
+                "id": "comment:syntetyczna strona testowa (starter hacknation) — fikcyjne osoby i marki",
+                "label": "„syntetyczna strona testowa (starter hacknation) — fikcyjne …”",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "domain",
+            "values": [
+              {
+                "id": "domain:krotki.test",
+                "label": "krotki.test",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "domain:wygrana-demo.example",
+                "label": "wygrana-demo.example",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "email",
+            "values": [
+              {
+                "id": "email:nagrody@wygrana-demo.example",
+                "label": "nagrody@wygrana-demo.example",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "endpoint",
+            "values": [
+              {
+                "id": "endpoint:api.web3forms.com/submit#klient=00000000-0000-4000-8000-0000000000c5",
+                "label": "backend api.web3forms.com/submit (klient 00000000-0000-4…)",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "favicon",
+            "values": [
+              {
+                "id": "favicon:mmh3:-230835831",
+                "label": "favicon -230835831",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "host",
+            "values": [
+              {
+                "id": "host:krotki.test",
+                "label": "krotki.test",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "host:wygrana-demo.example",
+                "label": "wygrana-demo.example",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "ip",
+            "values": [
+              {
+                "id": "ip:203.0.113.140",
+                "label": "203.0.113.140",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "nameserver",
+            "values": [
+              {
+                "id": "nameserver:ns1.vps-demo.test + ns2.vps-demo.test",
+                "label": "ns1.vps-demo.test, ns2.vps-demo.test",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "persona",
+            "values": [
+              {
+                "id": "persona:kamil-demonstracyjny",
+                "label": "Kamil Demonstracyjny",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "registrar",
+            "values": [
+              {
+                "id": "registrar:dynadot inc",
+                "label": "Dynadot Inc",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          },
+          {
+            "type": "wallet",
+            "values": [
+              {
+                "id": "wallet:btc:1G4b4u4dk769EYYwUNYhTrw29ttSXB67TZ",
+                "label": "BTC 1G4b4u4d…XB67TZ",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              },
+              {
+                "id": "wallet:eth:0x15f31a31a803b14290bbf69a5dfc327852e4b26c",
+                "label": "ETH 0x15f31a…e4b26c",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 6
+              }
+            ]
+          }
+        ],
+        "changing": [
+          {
+            "type": "advertiser",
+            "values": [
+              {
+                "id": "advertiser:kamil demonstracyjny fan",
+                "label": "Kamil Demonstracyjny Fan",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:kamil demo bonusy",
+                "label": "Kamil Demo Bonusy",
+                "firstSeen": "2026-10-21T00:00:00.000Z",
+                "items": 2
+              },
+              {
+                "id": "advertiser:urodziny kanału demo",
+                "label": "Urodziny Kanału Demo",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 2
+              }
+            ]
+          },
+          {
+            "type": "imagehash",
+            "values": [
+              {
+                "id": "imagehash:00c4687130320600",
+                "label": "obraz 00c4687130320600",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:89fabfa99a6853482eb011b69a1b090b7040d32a89a057adff8dc7f73e47fecc",
+                "label": "plik obrazu kreacji 89fabfa99a68…",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:bbe757a3c5cc16286f5eeba930bb10c128942a5bf400873a9596476acaafe5e8",
+                "label": "plik wideo kreacji bbe757a3c5cc…",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:02e8687030320600",
+                "label": "obraz 02e8687030320600",
+                "firstSeen": "2026-10-21T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:7f0b64b49856bd2f8cff70a788d9f7f7150d90a86043b49b46c0d09aeb28670c",
+                "label": "plik obrazu kreacji 7f0b64b49856…",
+                "firstSeen": "2026-10-21T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:00c4687130300600",
+                "label": "obraz 00c4687130300600",
+                "firstSeen": "2026-10-23T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:9790ab51de8d46b4330bf80fd5e7efad7d55d8b6d0b45fd93bf0b875c012e959",
+                "label": "plik obrazu kreacji 9790ab51de8d…",
+                "firstSeen": "2026-10-23T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:00c4687170718e00",
+                "label": "obraz 00c4687170718e00",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:4a4568044a3b3d4da97e6a00e9e81f8ded41c2d441d26d3e7f5f7043ad327b0e",
+                "label": "plik obrazu kreacji 4a4568044a3b…",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:521982a5a0ec8b46fea860ebb3d29f21a66c2a41e22d76b76af017bac21b1a82",
+                "label": "plik wideo kreacji 521982a5a0ec…",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:00c4607130300600",
+                "label": "obraz 00c4607130300600",
+                "firstSeen": "2026-10-28T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:2c38c2e42a479580b4af6244c90616b349f3ee8a6a5005bbba062694408440f4",
+                "label": "plik obrazu kreacji 2c38c2e42a47…",
+                "firstSeen": "2026-10-28T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:06c4687130320600",
+                "label": "obraz 06c4687130320600",
+                "firstSeen": "2026-10-30T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "imagehash:sha256:7a718cf681667e4f6469852ae3b679fbce96e94dfd855cf45d458fc419b909b6",
+                "label": "plik obrazu kreacji 7a718cf68166…",
+                "firstSeen": "2026-10-30T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          },
+          {
+            "type": "url",
+            "values": [
+              {
+                "id": "url:https://krotki.test/k5Ab12",
+                "label": "krotki.test/k5Ab12",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ab12",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ab12",
+                "firstSeen": "2026-10-20T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://krotki.test/k5Cd34",
+                "label": "krotki.test/k5Cd34",
+                "firstSeen": "2026-10-21T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Cd34",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Cd34",
+                "firstSeen": "2026-10-21T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://krotki.test/k5Ef56",
+                "label": "krotki.test/k5Ef56",
+                "firstSeen": "2026-10-23T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ef56",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ef56",
+                "firstSeen": "2026-10-23T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://krotki.test/k5Gh78",
+                "label": "krotki.test/k5Gh78",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Gh78",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Gh78",
+                "firstSeen": "2026-10-25T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://krotki.test/k5Ij90",
+                "label": "krotki.test/k5Ij90",
+                "firstSeen": "2026-10-28T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ij90",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Ij90",
+                "firstSeen": "2026-10-28T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://krotki.test/k5Kl11",
+                "label": "krotki.test/k5Kl11",
+                "firstSeen": "2026-10-30T00:00:00.000Z",
+                "items": 1
+              },
+              {
+                "id": "url:https://wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Kl11",
+                "label": "wygrana-demo.example/odbierz?aff_id=kd_partner_19&ref=k5Kl11",
+                "firstSeen": "2026-10-30T00:00:00.000Z",
+                "items": 1
+              }
+            ]
+          }
+        ]
+      }
     },
     {
       "id": "K06",

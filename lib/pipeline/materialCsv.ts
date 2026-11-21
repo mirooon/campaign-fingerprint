@@ -35,8 +35,17 @@ export function bestCampaignLink(item: MaterialItemResult): MaterialLink | null 
 /**
  * certain: the best link to the campaign has a premise of high strength (a duplicate counts as one:
  * it is the same ad); likely: that link scores at least 0.5; uncertain: the rest (also no campaign).
+ * A record placed in its campaign as a creative variant (`campaignBasis: "content_variant"`, also a
+ * duplicate of such a record) is at most likely: it has no infrastructure of its own, so the
+ * campaign rests on the creative alone, however strong that premise is.
  */
 export function materialConfidence(item: MaterialItemResult): MaterialConfidence {
+  const raw = rawConfidence(item);
+  return item.campaignBasis === "content_variant" && raw === "certain" ? "likely" : raw;
+}
+
+/** Confidence from the verdict and the best link alone (see materialConfidence). */
+function rawConfidence(item: MaterialItemResult): MaterialConfidence {
   if (item.verdict === "duplicate" && (item.campaign || item.newCampaign)) return "certain";
   const best = bestCampaignLink(item);
   if (!best) return "uncertain";

@@ -9,6 +9,7 @@ import { createCache, TTL } from "../cache";
 import { clusterCampaigns } from "../graph/cluster";
 import { mergeConfig, type LinkConfig, type LinkConfigOverride } from "../graph/config";
 import { evaluateClustering, type EvalResult } from "../graph/eval";
+import { campaignEvolution } from "../graph/evolution";
 import { buildEvidenceGraph, textOf } from "../graph/link";
 import type { CampaignsFile, EvidenceGraph } from "../graph/model";
 import { pruneGraphForOutput } from "../graph/prune";
@@ -16,7 +17,7 @@ import { embed, getProvider } from "../llm";
 import { compileWatchlist, loadWatchlist } from "../text/persona";
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords } from "./ingest";
-import { datasetDuplicates, duplicateTraits } from "./materialVerdicts";
+import { datasetDuplicates, duplicateMedia, duplicateTraits } from "./materialVerdicts";
 import { fixtureSources, liveSources } from "./sources";
 import type { EnrichedDataset, ItemsFile } from "./types";
 
@@ -184,7 +185,7 @@ async function computeEmbeddings(ds: EnrichedDataset): Promise<Record<string, nu
 }
 
 /**
- * Copies of one ad inside the dataset (same picture, ad ID or page, see materialVerdicts.ts): item
+ * Copies of one ad inside the dataset (same picture, video, ad ID, page or page body, see materialVerdicts.ts): item
  * nodes of the copies get `duplicateOf: { id, reason }`, so the viewer can stack them. Returns the count.
  */
 export async function markDuplicates(graph: EvidenceGraph, ds: EnrichedDataset, enrichedDir: string): Promise<number> {
@@ -192,7 +193,7 @@ export async function markDuplicates(graph: EvidenceGraph, ds: EnrichedDataset, 
   const nodes = new Map(graph.nodes.filter((n) => n.type === "item").map((n) => [n.key, n]));
   const traits = ds.items.map((it) => {
     const img = it.imagePath ? (path.isAbsolute(it.imagePath) ? it.imagePath : path.join(baseDir, it.imagePath)) : null;
-    return { ...duplicateTraits(it.id, nodes.get(it.id)?.data ?? {}, it.landingUrl ?? ds.perItem[it.id]?.landing?.url ?? null, img), firstSeen: it.firstSeen };
+    return { ...duplicateTraits(it.id, nodes.get(it.id)?.data ?? {}, it.landingUrl ?? ds.perItem[it.id]?.landing?.url ?? null, img, duplicateMedia(ds, it.id)), firstSeen: it.firstSeen };
   });
   const dups = await datasetDuplicates(traits);
   for (const [id, d] of dups) {
@@ -216,13 +217,17 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
       textMethod = "tfidf";
     }
   }
-  const raw = buildEvidenceGraph(ds, { config, embeddings, textMethod });
+  // item pivots feed campaign evolution only; they stay out of graph.json
+  const { itemPivots, ...raw } = buildEvidenceGraph(ds, { config, embeddings, textMethod, includeItemPivots: true });
   const clustered = clusterCampaigns(raw, { config });
   const dups = await markDuplicates(clustered.graph, ds, path.dirname(o.enriched));
   if (dups) console.log(`[graph] duplikaty (ta sama reklama zebrana ponownie): ${dups}`);
   const campaigns = clustered.campaigns;
-  // Clustering used every pair; the written graph keeps each item's strongest links.
-  const graph = pruneGraphForOutput(clustered.graph);
+  const labelOf = new Map(raw.nodes.map((n) => [n.id, n.label]));
+  const firstSeen = Object.fromEntries(ds.items.map((it) => [it.id, it.firstSeen]));
+  for (const c of campaigns.campaigns) if (c.size > 1) c.evolution = campaignEvolution(c.members, itemPivots ?? {}, firstSeen, (id) => labelOf.get(id) ?? id);
+  // Clustering used every pair; the written graph keeps each item's strongest links and every link inside a campaign.
+  const graph = pruneGraphForOutput(clustered.graph, config.output);
   writeJson(o.graph, graph, false);
   writeJson(o.campaigns, campaigns);
   const multi = campaigns.campaigns.filter((c) => c.size > 1);

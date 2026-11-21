@@ -84,9 +84,9 @@ Wynik ma dwa poziomy:
 
 ## 5. Duplikaty i „za mało danych”
 
-**Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym identyfikatorze reklamy albo tym samym adresie strony z identycznym szablonem. Ten sam tekst nie wystarcza. Duplikat dostaje kampanię oryginału.
+**Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym wideo (ten sam plik po SHA-256 albo klatki CLIP ≥ 0,97 razem z tym samym dźwiękiem na całej długości), tym samym identyfikatorze reklamy, tym samym adresie strony z identycznym szablonem albo identycznej treści strony (SHA-256 zapisanego HTML). Sprawa, której wszystkie pliki (HAR, HTML, zrzuty, wideo) są już we wcześniejszej sprawie tej samej paczki z tym samym SHA-256, też jest duplikatem, nawet gdy tamta ma pliki dodatkowe. Ten sam tekst nie wystarcza, a to samo wideo z innym wstępem to wariant, nie duplikat. Duplikat dostaje kampanię oryginału.
 
-**„Za mało danych”** (`insufficient`, w CSV pole `missing_data`) pojawia się, gdy materiał nie ma adresu, identyfikatora, co najmniej 5 słów treści ani powiązania ponad progiem. Wynik wymienia, co dorzucić (np. „zrzut z widocznym paskiem adresu”). Lepiej odmówić oceny, niż zgadywać.
+**„Za mało danych”** (`insufficient`, w CSV pole `missing_data`) pojawia się, gdy materiał nie ma adresu, identyfikatora, co najmniej 5 słów treści ani powiązania ponad progiem. Wynik wymienia, co dorzucić (np. „zrzut z widocznym paskiem adresu”). Reklama z formularzem platformy (Lead Ads, napisy „Formularz”, „Wyślij”, „Instant Form” w tekście lub OCR) nie ma strony docelowej, więc zamiast linku dostaje prośbę o identyfikator z Biblioteki Reklam albo link do strony reklamodawcy i zrzut formularza. Lepiej odmówić oceny, niż zgadywać.
 
 ## 6. Przypisanie nowego materiału i progi
 

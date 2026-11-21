@@ -10,6 +10,7 @@ import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeMaterial, type MaterialProgress, type MaterialResult } from "../lib/pipeline/analyzeMaterial";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
+import { batchSummary } from "../lib/viewer/materialView";
 import { runSample, SAMPLE, sampleItems } from "./sampleRun";
 
 const IMAGES = path.join(SAMPLE, "images");
@@ -161,8 +162,51 @@ describe("analyzeMaterial: batch of cases", () => {
     const res = await analyzeMaterial({ caseDirs: [caseWith("zapis-a", { "Strona.html": html }), caseWith("zapis-b", { "Strona.html": html })] }, ctx("w-same-page"));
     const b = res.items.find((i) => i.id === "zapis-b")!;
     expect(b.verdict).toBe("duplicate");
-    expect(b.duplicateOf).toEqual({ id: "zapis-a", reason: "ten sam adres strony z identyczną strukturą (simhash DOM)" });
+    expect(b.duplicateOf).toEqual({ id: "zapis-a", reason: "ten sam adres strony z identyczną strukturą (simhash DOM) i identyczna treść strony (SHA-256)" });
     expect(b.newCampaign).toBe("N1");
+  }, 60_000);
+
+  it("treats an identical page body in another folder as a copy, also without a DOM simhash", async () => {
+    // too few tags for a DOM simhash: only the SHA-256 of the body ties the two
+    const html = page("https://maly-lejek.example/lp", "Oferta", "<p>Lokata na 9% w skali roku, zapisz się dziś.</p>");
+    const res = await analyzeMaterial({ caseDirs: [caseWith("tresc-a", { "page.html": html }), caseWith(path.join("inny-katalog", "tresc-b"), { "page.html": html })] }, ctx("w-same-body"));
+    const b = res.items.find((i) => i.id === "tresc-b")!;
+    expect(b.verdict).toBe("duplicate");
+    expect(b.duplicateOf?.id).toBe("tresc-a");
+    expect(b.duplicateOf?.reason).toContain("identyczna treść strony (SHA-256)");
+  }, 60_000);
+
+  it("takes the same report submitted 47 times as one material and 46 duplicates, and the funnel adds up", async () => {
+    const html = page("https://zgloszenie.example/lp", "Zgłoszenie", "<p>Inwestuj z Janem Przykładowym, zysk 30% miesięcznie.</p>");
+    const dirs = Array.from({ length: 47 }, (_, i) => caseWith(`kopia-${String(i + 1).padStart(2, "0")}`, { "page.html": html }));
+    const res = await analyzeMaterial({ caseDirs: dirs }, ctx("w-47"));
+    const s = batchSummary(res, 47);
+    expect(s.materials).toBe(47);
+    expect(s.duplicates).toBe(46);
+    expect(s.duplicates + s.known + s.fresh + s.insufficient).toBe(47);
+    expect(new Set(res.items.filter((i) => i.verdict === "duplicate").map((i) => i.duplicateOf?.id))).toEqual(new Set(["kopia-01"]));
+  }, 120_000);
+
+  it("takes a case whose files are all in an earlier case, even when that one has more files", async () => {
+    const html = page("https://podzbior.example/lp", "Oferta", "<p>Kurs walut bez prowizji przez cały rok.</p>");
+    const shot = readFileSync(path.join(IMAGES, "c2_E.png"));
+    const res = await analyzeMaterial(
+      { caseDirs: [caseWith("pelna", { "page.html": html, "zrzut.png": shot, "notatka.txt": "zgłoszenie od Jana" }), caseWith("podzbior", { "page.html": html, "notatka.txt": "inna notatka" })] },
+      ctx("w-subset"),
+    );
+    const b = res.items.find((i) => i.caseId === "podzbior")!;
+    expect(b.verdict).toBe("duplicate");
+    expect(b.duplicateOf?.id).toBe(res.items.find((i) => i.caseId === "pelna")!.id);
+  }, 60_000);
+
+  it("takes the same video file in two cases as one ad collected twice", async () => {
+    // the bytes are never decoded (no ASR, CLIP or audio here): only their SHA-256 counts
+    const mp4 = Buffer.from(Array.from({ length: 4096 }, (_, i) => (i * 37) % 256));
+    const res = await analyzeMaterial({ caseDirs: [caseWith("wideo-a", { "reklama.mp4": mp4 }), caseWith("wideo-b", { "nagranie.mp4": mp4 })] }, ctx("w-video"));
+    const b = res.items.find((i) => i.id === "wideo-b")!;
+    expect(b.verdict).toBe("duplicate");
+    expect(b.duplicateOf?.id).toBe("wideo-a");
+    expect(b.duplicateOf?.reason).toContain("ten sam plik wideo (SHA-256)");
   }, 60_000);
 });
 
@@ -174,6 +218,14 @@ describe("analyzeMaterial: not enough to compare", () => {
     expect(it.campaign).toBeNull();
     expect(it.missing).toEqual(expect.arrayContaining(["link do reklamy albo strony docelowej", "zrzut z widocznym paskiem adresu"]));
     expect(it.verdictText).toContain("Za mało danych");
+  });
+
+  it("asks a lead-form ad without a landing page for the ad-library ID", async () => {
+    const res = await analyzeMaterial({ text: "Sponsorowane · Wyślij formularz" }, ctx("w-lead-form"));
+    const [it] = res.items;
+    expect(it.verdict).toBe("insufficient");
+    expect(it.features.leadAd).toBe(true);
+    expect(it.missing?.join("; ")).toContain("identyfikator biblioteki reklam");
   });
 
   it("lets a link over the threshold decide even for a material without an address", async () => {

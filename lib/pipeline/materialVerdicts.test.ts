@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 import { contentWords } from "../text/uiChrome";
-import { DuplicateFinder, duplicateTraits, isInsufficient, missingData, type Sufficiency } from "./materialVerdicts";
+import { caseFileDuplicates, DuplicateFinder, duplicateTraits, isInsufficient, isLeadAd, missingData, type DuplicateMedia, type Sufficiency } from "./materialVerdicts";
 
 const H = "8084ac1a1e0ca1a4";
-const t = (id: string, data: Record<string, unknown>, url: string | null = null) => duplicateTraits(id, data, url, null);
+const t = (id: string, data: Record<string, unknown>, url: string | null = null, media: DuplicateMedia = {}) => duplicateTraits(id, data, url, null, media);
+const SHA_A = "a".repeat(64);
+const SHA_B = "b".repeat(64);
+/** Unit vector at an angle (radians) from the first axis: the cosine of two of them is cos(difference). */
+const vec = (angle: number) => [Math.cos(angle), Math.sin(angle), 0];
+/** Synthetic audio fingerprint of n values (deterministic, no structure). */
+const fp = (n: number, seed: number) =>
+  Array.from({ length: n }, (_, i) => {
+    let x = Math.imul(i + 1 + seed * 100003, 2654435761);
+    x ^= x >>> 15;
+    x = Math.imul(x, 2246822519);
+    return (x ^ (x >>> 13)) >>> 0;
+  });
 
 describe("DuplicateFinder (no picture files: only an identical dHash counts)", () => {
   const f = new DuplicateFinder();
@@ -54,11 +66,102 @@ describe("DuplicateFinder (no picture files: only an identical dHash counts)", (
   });
 });
 
+describe("DuplicateFinder: identical page content", () => {
+  const f = new DuplicateFinder();
+
+  it("takes the same page body (SHA-256) even without a DOM simhash", async () => {
+    const m = await f.compare(t("a", {}, "https://oferta.example/lp", { pageSha256: SHA_A }), t("b", {}, "https://oferta.example/lp", { pageSha256: SHA_A }));
+    expect(m?.reasons).toEqual(["identyczna treść strony (SHA-256)", "ten sam adres strony"]);
+    expect(f.candidate(t("a", {}, null, { pageSha256: SHA_A }), t("b", {}, null, { pageSha256: SHA_A }))).toBe(true);
+  });
+
+  it("does not take a different body, the same body under two different pages, or two different pictures", async () => {
+    expect(await f.compare(t("a", {}, null, { pageSha256: SHA_A }), t("b", {}, null, { pageSha256: SHA_B }))).toBeNull();
+    expect(await f.compare(t("a", {}, "https://oferta.example/a", { pageSha256: SHA_A }), t("b", {}, "https://inna.test/b", { pageSha256: SHA_A }))).toBeNull();
+    expect(await f.compare(t("a", { dhash: H }, null, { pageSha256: SHA_A }), t("b", { dhash: "7f7b53e5e1f35e5b" }, null, { pageSha256: SHA_A }))).toBeNull();
+  });
+});
+
+describe("DuplicateFinder: video", () => {
+  const f = new DuplicateFinder();
+  const audio = fp(240, 1);
+
+  it("takes the same video file (SHA-256)", async () => {
+    const m = await f.compare(t("a", {}, null, { videoSha256: SHA_A }), t("b", {}, null, { videoSha256: SHA_A }));
+    expect(m?.reasons).toEqual(["ten sam plik wideo (SHA-256)"]);
+    expect(await f.compare(t("a", {}, null, { videoSha256: SHA_A }), t("b", {}, null, { videoSha256: SHA_B }))).toBeNull();
+  });
+
+  it("takes video frames with CLIP >= 0.97 together with the same audio fingerprint", async () => {
+    const a = t("a", {}, null, { videoSha256: SHA_A, videoEmbedding: vec(0), audioFingerprint: audio, audioDuration: 30 });
+    const b = t("b", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.1), audioFingerprint: [...audio], audioDuration: 30.2 });
+    expect(f.candidate(a, b)).toBe(true);
+    expect((await f.compare(a, b))?.reasons).toEqual(["to samo wideo (klatki CLIP 0,995, ten sam odcisk audio)"]);
+  });
+
+  it("does not take the same video with another intro (a variant), nor near frames without the audio", async () => {
+    // a new 3-second intro: other sound at the start and a longer recording, frames still close
+    const intro = [...fp(24, 7), ...audio];
+    const a = t("a", {}, null, { videoSha256: SHA_A, videoEmbedding: vec(0), audioFingerprint: audio, audioDuration: 30 });
+    const b = t("b", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.15), audioFingerprint: intro, audioDuration: 33 });
+    expect(await f.compare(a, b)).toBeNull();
+    // the same length, the intro over the first seconds
+    const over = [...fp(24, 7), ...audio.slice(24)];
+    expect(await f.compare(a, t("c", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.15), audioFingerprint: over, audioDuration: 30 }))).toBeNull();
+    expect(await f.compare(a, t("d", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.05) }))).toBeNull();
+    // frames below the threshold, the same sound
+    expect(await f.compare(a, t("e", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.3), audioFingerprint: audio, audioDuration: 30 }))).toBeNull();
+  });
+});
+
+describe("caseFileDuplicates", () => {
+  const files = (...shas: string[]) => shas.map((sha256, i) => ({ name: `plik-${i}`, sha256 }));
+
+  it("takes a later case whose files are all in an earlier case, even when that one has more", () => {
+    const out = caseFileDuplicates([
+      { caseId: "a", files: files("1", "2", "3") },
+      { caseId: "b", files: files("2", "3") },
+      { caseId: "c", files: files("1", "2", "3") },
+      { caseId: "d", files: files("3", "4") },
+      { caseId: "e", files: [] },
+    ]);
+    expect(out.get("b")).toEqual({ caseId: "a", files: 2 });
+    expect(out.get("c")).toEqual({ caseId: "a", files: 3 });
+    expect(out.has("d")).toBe(false);
+    expect(out.has("e")).toBe(false);
+    expect(out.has("a")).toBe(false);
+  });
+
+  it("never points an earlier case at a later one", () => {
+    const out = caseFileDuplicates([
+      { caseId: "a", files: files("1") },
+      { caseId: "b", files: files("1", "2") },
+    ]);
+    expect(out.size).toBe(0);
+  });
+});
+
 describe("contentWords", () => {
   it("drops the labels and buttons of a post", () => {
     expect(contentWords("Sponsorowane · Lubię to! · Komentarz · Udostępnij")).toEqual([]);
     expect(contentWords("Sponsored · Like · Comment · Share · Learn more")).toEqual([]);
     expect(contentWords("Sponsorowane\nJan Przykładowy poleca nową lokatę 9% rocznie. Dowiedz się więcej")).toEqual(["Jan", "Przykładowy", "poleca", "nową", "lokatę", "rocznie"]);
+  });
+});
+
+describe("isLeadAd", () => {
+  it("recognises a lead form of the platform in the ad text or OCR", () => {
+    expect(isLeadAd("Sponsorowane · Wyślij formularz")).toBe(true);
+    expect(isLeadAd("Lead form · Get quote")).toBe(true);
+    expect(isLeadAd("Instant Form: podaj numer telefonu")).toBe(true);
+    expect(isLeadAd("Wypełnij formularz, oddzwonimy")).toBe(true);
+    expect(isLeadAd("Wyślij")).toBe(true);
+  });
+  it("does not take a Messenger button or an ordinary post", () => {
+    expect(isLeadAd("Sponsorowane · Wyślij wiadomość")).toBe(false);
+    expect(isLeadAd("Send message")).toBe(false);
+    expect(isLeadAd("Jan Przykładowy poleca lokatę")).toBe(false);
+    expect(isLeadAd(null)).toBe(false);
   });
 });
 
@@ -82,4 +185,13 @@ describe("insufficient", () => {
     ]);
     expect(missingData({ ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9 })).toEqual([]);
   });
+  it("asks a platform lead form without a landing page for the ad-library ID or a screenshot of the form", () => {
+    const m = missingData({ ...empty, hasImage: true, leadAd: true });
+    expect(m[0]).toBe("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy");
+    expect(m).toContain("zrzut formularza reklamy");
+    expect(m).not.toContain("plik HAR z wizyty na stronie");
+    // with an address the form is not the problem
+    expect(missingData({ ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9, leadAd: true })).toEqual([]);
+  });
+
 });

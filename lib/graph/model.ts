@@ -253,6 +253,40 @@ export interface Campaign {
    * member with the nearest creative, `evidence` the premise of that link, `weight` its weight.
    */
   variants?: ContentVariant[];
+  /**
+   * Optional, for the "campaign evolution" view (campaigns of two or more members): per trait type,
+   * the values every member shares (`stable`) and the types whose values differ between members
+   * (`changing`, every value with the date of the first member holding it). The viewer can derive the
+   * same from graph.json and must work without this field.
+   */
+  evolution?: CampaignEvolution;
+}
+
+/** One value of a trait of a campaign: a graph pivot (node id and label). */
+export interface CampaignTraitValue {
+  id: string;
+  label: string;
+  /** firstSeen of the earliest member holding the value (null: no member with a date). */
+  firstSeen: string | null;
+  /** Members holding the value. */
+  items: number;
+}
+
+/** Values of one trait type in a campaign, ordered by first appearance. */
+export interface CampaignTraitGroup {
+  type: EntityType;
+  values: CampaignTraitValue[];
+}
+
+/**
+ * Stable and changing traits of a campaign. A type is stable when it has values held by every member
+ * (only those values are listed); it is changing when some value is not held by every member (all its
+ * values are listed, the first is where the campaign started, each next one a change). A type with a
+ * shared value and a further one is in both lists.
+ */
+export interface CampaignEvolution {
+  stable: CampaignTraitGroup[];
+  changing: CampaignTraitGroup[];
 }
 
 /** A member attached to its campaign as a variant of a creative (`Campaign.variants`). */

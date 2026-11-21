@@ -30,6 +30,22 @@ describe("commentBlock", () => {
     expect(commentBlock(`<form><span class="name">Polska</span><span class="name">Czechy</span><span class="name">Niemcy</span></form>`)).toBeNull();
   });
 
+  it("does not tie two pages by one or two shared common names", () => {
+    const one = commentBlock(page([comment("Piotr Fikcyjny", "a"), comment("Ewa Zmyślona", "b"), comment("Adam Wymyślony", "c")].join("")))!;
+    const two = commentBlock(page([comment("Piotr Fikcyjny", "a"), comment("Anna Testowa", "b"), comment("Marek Nieistniejący", "c")].join("")))!;
+    const three = commentBlock(page([comment("Piotr Fikcyjny", "a"), comment("Anna Testowa", "b"), comment("Olga Przykładowa", "c")].join("")))!;
+    expect(new Set([commentBlock(page(BLOCK))!.key, one.key, two.key, three.key]).size).toBe(4);
+  });
+
+  it("does not read a country list of a form (select/option) as a comment block", () => {
+    const countries = Array.from({ length: 30 }, (_, i) => `<option value="k${i}">Kraj Testowy ${String.fromCharCode(65 + (i % 26))}${i}</option>`).join("");
+    expect(commentBlock(`<html><body><form action="/zapis"><label>Imię<input name="name"></label><select name="country">${countries}</select><button>Wyślij</button></form></body></html>`)).toBeNull();
+    // the same list as the author field of reply forms under comments
+    const named = ["Polska", "Czechy", "Niemcy", "Słowacja", "Litwa", "Łotwa"].map((c) => `<option class="user-name">${c}</option>`).join("");
+    const replyForm = `<div class="comment-item"><form><select class="user-name" name="country">${named}</select><textarea class="comment-text"></textarea></form></div>`;
+    expect(commentBlock(page(replyForm.repeat(3)))).toBeNull();
+  });
+
   it("normalises author names", () => {
     expect(normaliseAuthor("  Jan  Przykładowy · Łódź ")).toBe("jan przykładowy");
     expect(normaliseAuthor("Zespół Marki Testowej")).toBe("zespół marki testowej");

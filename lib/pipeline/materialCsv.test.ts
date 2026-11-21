@@ -38,6 +38,14 @@ describe("materialConfidence", () => {
     expect(materialConfidence(item({ verdict: "duplicate", duplicateOf: { id: "a1", reason: "identyczny obraz" } }))).toBe("certain");
   });
 
+  it("caps a creative variant at likely: the assignment rests on the creative alone", () => {
+    const variant = { campaignBasis: "content_variant" as const };
+    expect(materialConfidence(item({ ...variant, links: [link({ weight: 0.9, score: 0.9 })] }))).toBe("likely");
+    expect(materialConfidence(item({ ...variant, links: [link({ strong: true, score: 0.95 })] }))).toBe("likely");
+    expect(materialConfidence(item({ ...variant, links: [link({ score: 0.3 })] }))).toBe("uncertain");
+    expect(materialConfidence(item({ ...variant, verdict: "duplicate", duplicateOf: { id: "a1", reason: "identyczny obraz" } }))).toBe("likely");
+  });
+
   it("uses the similar campaigns for a record of a new campaign in a group", () => {
     expect(materialConfidence(item({ verdict: "similar_campaigns", campaign: null, similarCampaigns: ["K03"], links: [link({ otherCampaign: "K03", score: 0.6 })] }))).toBe("likely");
   });

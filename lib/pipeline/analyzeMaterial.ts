@@ -10,6 +10,7 @@
  * A record without infrastructure whose creative nearly repeats the creatives of one campaign joins it
  * as a variant (campaignRules.contentVariant, `campaignBasis: "content_variant"`), with lower confidence.
  */
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import path from "node:path";
 import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict } from "../graph/cluster";
@@ -17,11 +18,11 @@ import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { buildEvidenceGraph } from "../graph/link";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
 import type { CompiledWatchlist } from "../text/persona";
-import { importCases } from "./caseImport";
+import { importCases, isMaterialFile, walkCase } from "./caseImport";
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
-import { DuplicateFinder, duplicateTraits, isInsufficient, missingData, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
+import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
 import type { EnrichedDataset, Item } from "./types";
 import { contentWords } from "../text/uiChrome";
 
@@ -283,6 +284,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const importDir = path.join(ctx.workDir, "import");
   /** Case of each new record (folder name; the record id for a bare link or text). */
   const caseOf = new Map<string, string>();
+  /** Folder of each case of the batch (by case name). */
+  const caseDirOf = new Map<string, string>();
   const caseDirs = [...(input.caseDir ? [input.caseDir] : []), ...(input.caseDirs ?? [])];
   if (caseDirs.length) {
     // the importer reads every case of a folder: give it a folder with only these cases
@@ -295,6 +298,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       let name = folder;
       for (let k = 2; names.has(name); k++) name = `${folder}-${k}`;
       names.add(name);
+      caseDirOf.set(name, path.resolve(dir));
       symlinkSync(path.resolve(dir), path.join(casesDir, name), "dir");
     }
     for (const n of names) progress(n, "import", "start");
@@ -551,13 +555,24 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const it = itemById.get(id);
     const dir = newIds.has(id) ? importDir : baseDir;
     const img = it?.imagePath ? (path.isAbsolute(it.imagePath) ? it.imagePath : path.join(dir, it.imagePath)) : null;
-    return duplicateTraits(id, nodeData.get(id) ?? {}, it?.landingUrl ?? merged.perItem[id]?.landing?.url ?? null, img);
+    return duplicateTraits(id, nodeData.get(id) ?? {}, it?.landingUrl ?? merged.perItem[id]?.landing?.url ?? null, img, duplicateMedia(merged, id));
   };
   const dups = await new DuplicateFinder().find(
     [...newIds].map(traitsOf),
     base.items.map((it) => traitsOf(it.id)),
   );
   const byId = new Map(results.map((r) => [r.id, r]));
+  // a case whose every file is in an earlier case of the batch (the order the records are compared in)
+  const filesOf = caseIds.filter((c) => caseDirOf.has(c)).map((c) => readCaseFiles(c, caseDirOf.get(c)!, notes));
+  for (const [caseId, orig] of caseFileDuplicates(filesOf)) {
+    const origRecords = results.filter((r) => r.caseId === orig.caseId);
+    for (const r of results.filter((x) => x.caseId === caseId && !dups.has(x.id))) {
+      const page = traitsOf(r.id).pageSha256;
+      const match = origRecords.find((o) => page && traitsOf(o.id).pageSha256 === page) ?? origRecords[0];
+      if (!match) continue;
+      dups.set(r.id, { id: dups.get(match.id)?.id ?? match.id, reason: `wszystkie pliki sprawy (${orig.files}) są w sprawie ${orig.caseId} z tym samym SHA-256` });
+    }
+  }
   for (const r of results) {
     const d = dups.get(r.id);
     if (!d) continue;
@@ -584,7 +599,10 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const data = nodeData.get(r.id) ?? {};
     const camp = campaigns.campaigns.find((c) => c.id === campaigns.assignments[r.id]);
     const t = enr?.text;
-    const words = contentWords([it?.text, enr?.ocrText, enr?.extraOcrText, enr?.asrText].filter(Boolean).join("\n")).length;
+    const allText = [it?.text, enr?.ocrText, enr?.extraOcrText, enr?.asrText].filter(Boolean).join("\n");
+    const words = contentWords(allText).length;
+    const leadAd = isLeadAd(allText);
+    if (leadAd) r.features.leadAd = true;
     const s: Sufficiency = {
       hasAddress: !!(r.features.landingUrl || data.finalUrl || enr?.landing || enr?.pageKey || enr?.observedUrls?.length || t?.urls.length),
       hasIdentifier: !!(t?.emails.length || t?.phones.length || t?.telegram.length || t?.whatsapp.length || t?.wallets.length || data.metaAdId || (data.adLibraryIds as unknown[] | undefined)?.length || data.platformAccount),
@@ -593,6 +611,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       hasVideo: !!it?.videoPath,
       hasPage: !!enr?.pageKey,
       linked: (camp?.members.length ?? 1) > 1 || !!camp?.familyId,
+      leadAd,
     };
     if (isInsufficient(s)) {
       r.verdict = "insufficient";
@@ -608,6 +627,22 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     progress(c, "group", "done", [...new Set(v)].join(", "));
   }
   return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, steps, notes };
+}
+
+/**
+ * Material files of one case folder (see isMaterialFile) with the SHA-256 of their bytes. A file that
+ * cannot be read is left out with a note, so the case can still match on the files that remain.
+ */
+function readCaseFiles(caseId: string, dir: string, notes: string[]): CaseFiles {
+  const files: CaseFiles["files"] = [];
+  for (const f of walkCase(dir).filter((x) => isMaterialFile(x.name))) {
+    try {
+      files.push({ name: f.rel, sha256: createHash("sha256").update(readFileSync(path.join(dir, f.rel))).digest("hex") });
+    } catch (e) {
+      notes.push(`[${caseId}] plik ${f.rel} nieczytelny, pominięty przy porównaniu plików spraw: ${(e as Error).message}`);
+    }
+  }
+  return { caseId, files };
 }
 
 /** Outcome of the media and lookup steps per case, from what the enrichment produced. */

@@ -110,6 +110,14 @@ const IMAGE_EXT = /\.(ico|png|jpe?g|gif|webp|svg|avif)$/i;
 const SCREENSHOT_EXT = /\.(png|jpe?g|webp)$/i;
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
 const HTML_EXT = /\.html?$/i;
+/**
+ * A file the importer takes as material (HAR, saved page, MHTML snapshot, screenshot, video), as
+ * opposed to notes, manifests and page assets: what two copies of one case must share.
+ */
+export function isMaterialFile(name: string): boolean {
+  return /\.har$/i.test(name) || /\.mhtml?$/i.test(name) || (HTML_EXT.test(name) && !SAVED_FRAME.test(name)) || SCREENSHOT_EXT.test(name) || VIDEO_EXT.test(name);
+}
+
 /** Frames a browser saves next to the page ("saved_resource.html"). */
 const SAVED_FRAME = /^saved_resource(\(\d+\))?\.html?$/i;
 const MAX_DEPTH = 4;
@@ -194,7 +202,7 @@ function earliest(entries: HarEntry[]): string | null {
   return times.length ? new Date(Math.min(...times)).toISOString() : null;
 }
 
-interface CaseFile {
+export interface CaseFile {
   /** Path relative to the case folder, "/"-separated. */
   rel: string;
   /** Folder relative to the case folder ("" = the case folder). */
@@ -203,7 +211,7 @@ interface CaseFile {
 }
 
 /** Files of a case, the case folder first. Asset folders of saved pages and of capture bundles are not entered. */
-function walkCase(root: string): CaseFile[] {
+export function walkCase(root: string): CaseFile[] {
   const out: CaseFile[] = [];
   const visit = (dir: string, depth: number) => {
     const subdirs: string[] = [];

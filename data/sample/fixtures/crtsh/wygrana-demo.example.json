@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "wygrana-demo.example",
+    "name_value": "wygrana-demo.example\nwww.wygrana-demo.example",
+    "id": 15257162526,
+    "entry_timestamp": "2026-10-18T17:10:00.000",
+    "not_before": "2026-10-18T17:00:00",
+    "not_after": "2027-01-16T17:00:00",
+    "serial_number": "30f7a5ad3d83868867d7f71f5d2b99b7",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "wygrana-demo.example",
+    "name_value": "wygrana-demo.example\nwww.wygrana-demo.example",
+    "id": 15257162527,
+    "entry_timestamp": "2026-10-18T17:20:00.000",
+    "not_before": "2026-10-18T17:00:00",
+    "not_after": "2027-01-16T17:00:00",
+    "serial_number": "30f7a5ad3d83868867d7f71f5d2b99b7",
+    "result_count": 2
+  }
+]

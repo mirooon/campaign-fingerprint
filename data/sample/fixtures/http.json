@@ -1,0 +1,599 @@
+{
+  "https://baltycka-energia-inwestycje.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/baltycka-energia-inwestycje.example-3d4a162c.html"
+  },
+  "https://baltycka-energia-inwestycje.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c2.png"
+  },
+  "https://baltycka-energia-inwestycje.example/program": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/baltycka-energia-inwestycje.example-3d4a162c.html"
+  },
+  "https://baltycka-energia-inwestycje.example/program?ref=fb2": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/baltycka-energia-inwestycje.example-3d4a162c.html"
+  },
+  "https://baltycka-energia-inwestycje.example/wywiad": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/baltycka-energia-inwestycje.example-3d4a162c.html"
+  },
+  "https://bank-przyklad-zwrot.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://bank-przyklad-zwrot.example/zwrot": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://doplata-gov-pl.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://doplata-gov-pl.example/sprawdz": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://energia-dywidenda.test/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/energia-dywidenda.test-571510f0.html"
+  },
+  "https://energia-dywidenda.test/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c2.png"
+  },
+  "https://energia-dywidenda.test/start": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/energia-dywidenda.test-571510f0.html"
+  },
+  "https://energia-dywidenda.test/start?src=ig": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/energia-dywidenda.test-571510f0.html"
+  },
+  "https://epodatki-zwrot.test/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://epodatki-zwrot.test/formularz": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://fakt-dnia-demo.example/news/marek-fikcyjny?src=yt1": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=yt1&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://fakt-dnia-demo.example/news/wywiad?src=fb4": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=fb4&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://inwestycje-premium.test/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/inwestycje-premium.test-9c4de532.html"
+  },
+  "https://inwestycje-premium.test/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/park.png"
+  },
+  "https://krotki.test/k5Ab12": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Ab12&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/k5Cd34": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Cd34&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/k5Ef56": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Ef56&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/k5Gh78": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Gh78&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/k5Ij90": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Ij90&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/k5Kl11": {
+    "status": 301,
+    "headers": {
+      "location": "https://wygrana-demo.example/odbierz?ref=k5Kl11&aff_id=kd_partner_19"
+    }
+  },
+  "https://krotki.test/n2Kurs": {
+    "status": 301,
+    "headers": {
+      "location": "https://kurs-jezykowy.test/?ref=krotki"
+    }
+  },
+  "https://kryptozysk-ai.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c1a.png"
+  },
+  "https://kryptozysk-ai.example/oferta": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/kryptozysk-ai.example-1488debf.html"
+  },
+  "https://kryptozysk-ai.example/start": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/kryptozysk-ai.example-1488debf.html"
+  },
+  "https://kryptozysk-ai.example/start?src=kz": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/kryptozysk-ai.example-1488debf.html"
+  },
+  "https://kryptozysk-ai.example/wywiad": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/kryptozysk-ai.example-1488debf.html"
+  },
+  "https://kurs-jezykowy.test/?ref=krotki": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/kurs-jezykowy.test-7b75b2e9.html"
+  },
+  "https://kurs-jezykowy.test/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/n2.png"
+  },
+  "https://kz-ai-start.test/": {
+    "status": 302,
+    "headers": {
+      "location": "https://kryptozysk-ai.example/start?src=kz"
+    }
+  },
+  "https://lp.oferta-fikcyjna.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c3.png"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=fb1&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=fb2&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=fb3&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=fb4&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=ig1&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://lp.oferta-fikcyjna.example/rejestracja?src=yt1&sub1=mb_kowal&offer_id=771304": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/lp.oferta-fikcyjna.example-cad19d96.html"
+  },
+  "https://robot-btc-solo.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/robot-btc-solo.example-a4812eaf.html"
+  },
+  "https://robot-btc-solo.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/n5.png"
+  },
+  "https://sklep-rowerowy.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/n1.png"
+  },
+  "https://sklep-rowerowy.example/promocja": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/sklep-rowerowy.example-65d04d49.html"
+  },
+  "https://szybki-zysk-teraz.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/szybki-zysk-teraz.example-864b1565.html"
+  },
+  "https://szybki-zysk-teraz.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c3b.png"
+  },
+  "https://szybki-zysk-teraz.example/start": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/szybki-zysk-teraz.example-864b1565.html"
+  },
+  "https://wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb1": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=fb1&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb2": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=fb2&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://wiadomosci-demo.test/artykul/skandal-w-studiu?src=fb3": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=fb3&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://wiadomosci-demo.test/artykul/skandal-w-studiu?src=ig1": {
+    "status": 302,
+    "headers": {
+      "location": "https://lp.oferta-fikcyjna.example/rejestracja?src=ig1&sub1=mb_kowal&offer_id=771304"
+    },
+    "variants": [
+      {
+        "uaContains": "facebookexternalhit",
+        "status": 200,
+        "headers": {
+          "content-type": "text/html; charset=utf-8"
+        },
+        "bodyFile": "pages/benign-recipe.html"
+      }
+    ]
+  },
+  "https://wygrana-demo.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c5.png"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Ab12&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Cd34&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Ef56&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Gh78&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Ij90&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://wygrana-demo.example/odbierz?ref=k5Kl11&aff_id=kd_partner_19": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/wygrana-demo.example-5be1e1cf.html"
+  },
+  "https://zwrot-nadplaty.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://zwrot-nadplaty.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://zwrot24-dolorem51.test/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://zwrot24-dolorem51.test/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://zwrot37-voluptas12.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://zwrot37-voluptas12.example/sprawdz": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://zwrot88-praesentium40.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/doplata-gov-pl.example-058a373c.html"
+  },
+  "https://zwrot88-praesentium40.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c4.png"
+  },
+  "https://zysk-ai-platforma.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/zysk-ai-platforma.example-6d7113b3.html"
+  },
+  "https://zysk-ai-platforma.example/?ref=ig": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/zysk-ai-platforma.example-6d7113b3.html"
+  },
+  "https://zysk-ai-platforma.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/c1b.png"
+  },
+  "https://zysk-ai-platforma.example/rejestracja": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/zysk-ai-platforma.example-6d7113b3.html"
+  },
+  "https://zysk-szybki.example/": {
+    "status": 200,
+    "headers": {
+      "content-type": "text/html; charset=utf-8",
+      "server": "nginx"
+    },
+    "bodyFile": "pages/zysk-szybki.example-9bfce743.html"
+  },
+  "https://zysk-szybki.example/favicon.png": {
+    "status": 200,
+    "headers": {
+      "content-type": "image/png"
+    },
+    "bodyFile": "favicons/park.png"
+  }
+}

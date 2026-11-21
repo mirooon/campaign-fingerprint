@@ -1,0 +1,59 @@
+import type { EntityType } from "@/lib/graph/model";
+
+export const TYPE_COLORS: Record<EntityType, string> = {
+  item: "#2563eb",
+  url: "#64748b",
+  host: "#0ea5e9",
+  domain: "#0891b2",
+  ip: "#d97706",
+  asn: "#a16207",
+  nameserver: "#65a30d",
+  registrar: "#4d7c0f",
+  cert: "#7c3aed",
+  tracker: "#dc2626",
+  favicon: "#db2777",
+  imagehash: "#0d9488",
+  wallet: "#ea580c",
+  email: "#059669",
+  phone: "#16a34a",
+  telegram: "#0284c7",
+  advertiser: "#4f46e5",
+  endpoint: "#be123c",
+  hidden_fields: "#9333ea",
+  asset: "#0369a1",
+  comment: "#78716c",
+  domain_pattern: "#0e7490",
+  cname_target: "#c2410c",
+  campaign_param: "#b45309",
+  persona: "#a21caf",
+  path_id: "#9f1239",
+  param_schema: "#92400e",
+  platform_account: "#be123c",
+  platform_campaign: "#e11d48",
+  page_template: "#a16207",
+  click_server: "#0f766e",
+  meta_ad: "#1d4ed8",
+  ad_payer: "#0f766e",
+};
+
+const CAMPAIGN_COLORS = [
+  "#2563eb",
+  "#dc2626",
+  "#059669",
+  "#d97706",
+  "#7c3aed",
+  "#db2777",
+  "#0891b2",
+  "#65a30d",
+  "#ea580c",
+  "#4f46e5",
+  "#0d9488",
+  "#a16207",
+];
+
+export const SINGLETON_COLOR = "#94a3b8";
+
+export function campaignColor(index: number, size: number): string {
+  if (size < 2) return SINGLETON_COLOR;
+  return CAMPAIGN_COLORS[index % CAMPAIGN_COLORS.length];
+}

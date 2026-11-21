@@ -1,0 +1,66 @@
+{
+  "name": "starter",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "import-cases": "bun scripts/import-cases.ts",
+    "ingest": "bun scripts/ingest.ts",
+    "enrich": "bun scripts/enrich.ts",
+    "build-graph": "bun scripts/build-graph.ts",
+    "evaluate": "bun scripts/evaluate.ts",
+    "pipeline": "bun scripts/pipeline.ts",
+    "summarize": "bun scripts/summarize.ts",
+    "evidence": "bun scripts/evidence.ts",
+    "sample:generate": "bun scripts/gen-sample.ts",
+    "llm:smoke": "bun scripts/llm-smoke.ts",
+    "media:smoke": "bun scripts/media-smoke.ts",
+    "ct:watch": "bun scripts/ct-watch.ts",
+    "ct:backfill": "bun scripts/ct-backfill.ts",
+    "analyze-material": "bun scripts/analyze-material.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.10.0",
+    "@huggingface/transformers": "3.7.6",
+    "@noble/hashes": "^2.4.0",
+    "csv-parse": "^7.0.3",
+    "cytoscape": "^3.35.0",
+    "cytoscape-fcose": "^2.2.0",
+    "graphology": "^0.26.0",
+    "graphology-communities-louvain": "^2.0.2",
+    "graphology-types": "^0.24.8",
+    "next": "16.4.6",
+    "p-limit": "^7.3.3",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "sharp": "^0.35.5",
+    "tldts": "^7.5.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@tailwindcss/turbopack": "4.3.3",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.4.6",
+    "tailwindcss": "4.3.3",
+    "typescript": "^5",
+    "vitest": "^5.1.1"
+  },
+  "packageManager": "bun@1.4.4",
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}

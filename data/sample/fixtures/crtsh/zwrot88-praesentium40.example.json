@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 105487,
+    "issuer_name": "C=AT, O=ZeroSSL, CN=ZeroSSL RSA Domain Secure Site CA",
+    "common_name": "zwrot-nadplaty.example",
+    "name_value": "zwrot-nadplaty.example\nepodatki-zwrot.test\nzwrot37-voluptas12.example\nzwrot88-praesentium40.example",
+    "id": 15150210375,
+    "entry_timestamp": "2026-09-13T00:10:00.000",
+    "not_before": "2026-09-13T00:00:00",
+    "not_after": "2026-12-12T00:00:00",
+    "serial_number": "fd8b449265b798d4ba9e59e0045e9fc7",
+    "result_count": 4
+  },
+  {
+    "issuer_ca_id": 105487,
+    "issuer_name": "C=AT, O=ZeroSSL, CN=ZeroSSL RSA Domain Secure Site CA",
+    "common_name": "zwrot-nadplaty.example",
+    "name_value": "zwrot-nadplaty.example\nepodatki-zwrot.test\nzwrot37-voluptas12.example\nzwrot88-praesentium40.example",
+    "id": 15150210376,
+    "entry_timestamp": "2026-09-13T00:20:00.000",
+    "not_before": "2026-09-13T00:00:00",
+    "not_after": "2026-12-12T00:00:00",
+    "serial_number": "fd8b449265b798d4ba9e59e0045e9fc7",
+    "result_count": 4
+  }
+]

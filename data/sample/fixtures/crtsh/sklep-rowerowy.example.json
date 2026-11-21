@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "sklep-rowerowy.example",
+    "name_value": "sklep-rowerowy.example\nwww.sklep-rowerowy.example",
+    "id": 15007988285,
+    "entry_timestamp": "2026-08-20T00:10:00.000",
+    "not_before": "2026-08-20T00:00:00",
+    "not_after": "2026-11-18T00:00:00",
+    "serial_number": "773fe8ff848ada4a655dbb62c4f26e78",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "sklep-rowerowy.example",
+    "name_value": "sklep-rowerowy.example\nwww.sklep-rowerowy.example",
+    "id": 15007988286,
+    "entry_timestamp": "2026-08-20T00:20:00.000",
+    "not_before": "2026-08-20T00:00:00",
+    "not_after": "2026-11-18T00:00:00",
+    "serial_number": "773fe8ff848ada4a655dbb62c4f26e78",
+    "result_count": 2
+  }
+]

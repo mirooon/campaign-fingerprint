@@ -1,0 +1,75 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "ZYSK-SZYBKI.EXAMPLE",
+  "handle": "D45cde8773d-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-05-14T10:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-05-14T10:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-05-14T10:00:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS1.PARKINGCREW.NET"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS2.PARKINGCREW.NET"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Dynadot Inc"
+          ]
+        ]
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/zysk-szybki.example",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

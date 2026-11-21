@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "doplata-gov-pl.example",
+    "name_value": "doplata-gov-pl.example\nwww.doplata-gov-pl.example",
+    "id": 15072975186,
+    "entry_timestamp": "2026-09-05T10:10:00.000",
+    "not_before": "2026-09-05T10:00:00",
+    "not_after": "2026-12-04T10:00:00",
+    "serial_number": "d07ea0bb45c231a85810c91b2e20e164",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "doplata-gov-pl.example",
+    "name_value": "doplata-gov-pl.example\nwww.doplata-gov-pl.example",
+    "id": 15072975187,
+    "entry_timestamp": "2026-09-05T10:20:00.000",
+    "not_before": "2026-09-05T10:00:00",
+    "not_after": "2026-12-04T10:00:00",
+    "serial_number": "d07ea0bb45c231a85810c91b2e20e164",
+    "result_count": 2
+  }
+]

@@ -1,0 +1,10 @@
+node_modules
+.next
+.cache
+data/work
+.git
+.env*
+!.env.example
+*.log
+coverage
+.venv-speaker

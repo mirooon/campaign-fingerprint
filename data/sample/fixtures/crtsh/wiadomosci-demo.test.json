@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "wiadomosci-demo.test",
+    "name_value": "wiadomosci-demo.test\nwww.wiadomosci-demo.test",
+    "id": 15047039256,
+    "entry_timestamp": "2026-10-01T07:10:00.000",
+    "not_before": "2026-10-01T07:00:00",
+    "not_after": "2026-12-30T07:00:00",
+    "serial_number": "ec9be2c5985368c2318df51099dd0434",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "wiadomosci-demo.test",
+    "name_value": "wiadomosci-demo.test\nwww.wiadomosci-demo.test",
+    "id": 15047039257,
+    "entry_timestamp": "2026-10-01T07:20:00.000",
+    "not_before": "2026-10-01T07:00:00",
+    "not_after": "2026-12-30T07:00:00",
+    "serial_number": "ec9be2c5985368c2318df51099dd0434",
+    "result_count": 2
+  }
+]

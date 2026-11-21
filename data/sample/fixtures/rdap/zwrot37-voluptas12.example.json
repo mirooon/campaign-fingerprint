@@ -1,0 +1,75 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "ZWROT37-VOLUPTAS12.EXAMPLE",
+  "handle": "D5d5e77382c-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-10-10T09:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-10-10T09:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-10-10T09:00:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS1.VPS-DEMO.TEST"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS2.VPS-DEMO.TEST"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "NameSilo, LLC"
+          ]
+        ]
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/zwrot37-voluptas12.example",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

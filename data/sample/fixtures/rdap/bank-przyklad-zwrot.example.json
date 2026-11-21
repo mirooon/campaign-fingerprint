@@ -1,0 +1,75 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "BANK-PRZYKLAD-ZWROT.EXAMPLE",
+  "handle": "D0d168ae4e5-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-09-26T09:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-09-26T09:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-09-26T09:00:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS1.TANI-DNS.TEST"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS2.TANI-DNS.TEST"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "NameSilo, LLC"
+          ]
+        ]
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/bank-przyklad-zwrot.example",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

@@ -1,0 +1,57 @@
+{
+  "generatedAt": "2026-11-18T21:57:19.552Z",
+  "provider": "ollama",
+  "model": "hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+  "summaries": {
+    "K01": {
+      "persona": "Adam Testowy",
+      "narrative": "KryptoZysk AI zarabia nawet 4 800 zł dziennie. Zarejestruj się dziś, liczba miejsc ograniczona!",
+      "infrastructure": "Google Analytics 4 G-K7Z9QX41LM, Meta Pixel 812345678901234, t.me/kryptozysk_vip, kryptozysk-ai.example",
+      "timeSpan": "2026-09-05 – 2026-10-20",
+      "riskNotes": "Sprawdź domeny i konta reklamowe pod kątem oszustw finansowych. Blokada Telegrama t.me/kryptozysk_vip może ograniczyć straty.",
+      "campaignId": "K01",
+      "model": "ollama:hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+      "generatedAt": "2026-11-18T21:56:50.502Z"
+    },
+    "K02": {
+      "persona": "Ewa Przykładowa (znana osoba)",
+      "narrative": "Inwestycja w Bałtycką Energię gwarantuje stały miesięczny dochód od 1000 zł w programie dla Polaków.",
+      "infrastructure": "baltycka-energia-inwestycje.example, energia-dywidenda.test; Yandex Metrica 98765432; +447700900123; kontakt@baltycka-energia-inwestycje.example",
+      "timeSpan": "2026-08-20 – 2026-10-10",
+      "riskNotes": "Sprawdź wszystkie domeny i konta pod kątem oszustwa. Blokada numeru +447700900123 i adresu e-mail. Weryfikacja prawdziwości programu inwestycyjnego.",
+      "campaignId": "K02",
+      "model": "ollama:hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+      "generatedAt": "2026-11-18T21:56:57.333Z"
+    },
+    "K03": {
+      "persona": "Marek Fikcyjny",
+      "narrative": "Skandal w studiu: Marek Fikcyjny przypadkiem zdradził na antenie, jak zarabia miliony. Bank chciał to ukryć! Przeczytaj, zanim usuną artykuł!",
+      "infrastructure": "Domeny: oferta-fikcyjna.example, wiadomosci-demo.test. Tracker: Google Tag Manager GTM-ABC12DE. IP: 198.51.100.23.",
+      "timeSpan": "2026-10-02 – 2026-10-30",
+      "riskNotes": "Sprawdź wszystkie domeny i konta reklamowe pod kątem oszustwa. Blokada IP 198.51.100.23 i GTM-ABC12DE w pierwszej kolejności.",
+      "campaignId": "K03",
+      "model": "ollama:hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+      "generatedAt": "2026-11-18T21:57:03.907Z"
+    },
+    "K04": {
+      "persona": "Zofia Wymyślona (znana osoba)",
+      "narrative": "Każdy obywatel może otrzymać zwrot do 2 400 zł, sprawdzając uprawnienia w 2 minuty. Kontakt przez WhatsApp: +447700900456.",
+      "infrastructure": "Wspólne elementy: podobne kreacje (×21), telefon +447700900456 (×5), podobna treść (×11), favicon -738053317 (×7), IP 203.0.113.77 (×3), cert ZeroSSL (×4).",
+      "timeSpan": "2026-09-05 – 2026-10-25",
+      "riskNotes": "Sprawdź wszystkie domeny pod kątem phishingu (fałszywe zwroty podatkowe). Blokada numeru WhatsApp +447700900456 jako znanego oszusta.",
+      "campaignId": "K04",
+      "model": "ollama:hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+      "generatedAt": "2026-11-18T21:57:12.421Z"
+    },
+    "K05": {
+      "persona": "Kamil Demonstracyjny (lub inna znana osoba/fikcyjna postać)",
+      "narrative": "Kamil Demonstracyjny rozdaje 1 000 zł z okazji urodzin kanału – kliknij, wypełnij formularz i odbierz nagrodę.",
+      "infrastructure": "BTC 1G4b4u4d…XB67TZ, ETH 0x15f31a…e4b26c, wygrana-demo.example, nagrody@wygrana-demo.example, podobne kreacje i teksty reklam",
+      "timeSpan": "2026-10-20 – 2026-11-10",
+      "riskNotes": "Sprawdź wszystkie domeny i adresy e-mail pod kątem podejrzanej aktywności. Zablokuj znane schematy oszustw (np. fałszywe nagrody).",
+      "campaignId": "K05",
+      "model": "ollama:hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M",
+      "generatedAt": "2026-11-18T21:57:19.552Z"
+    }
+  }
+}

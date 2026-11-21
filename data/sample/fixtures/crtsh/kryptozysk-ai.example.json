@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "kryptozysk-ai.example",
+    "name_value": "kryptozysk-ai.example\nwww.kryptozysk-ai.example",
+    "id": 15258756812,
+    "entry_timestamp": "2026-09-02T09:10:00.000",
+    "not_before": "2026-09-02T09:00:00",
+    "not_after": "2026-12-01T09:00:00",
+    "serial_number": "c8a0cca3576fe8fd0dbacdb25cba1f77",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "kryptozysk-ai.example",
+    "name_value": "kryptozysk-ai.example\nwww.kryptozysk-ai.example",
+    "id": 15258756813,
+    "entry_timestamp": "2026-09-02T09:20:00.000",
+    "not_before": "2026-09-02T09:00:00",
+    "not_after": "2026-12-01T09:00:00",
+    "serial_number": "c8a0cca3576fe8fd0dbacdb25cba1f77",
+    "result_count": 2
+  }
+]

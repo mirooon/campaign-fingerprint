@@ -1,0 +1,13 @@
+{
+  "_comment": "Leksykon watchera CT dla danych przykładowych (fikcyjne marki i media). Listy rozszerzają domyślne z lib/ct/config.ts.",
+  "lexicon": {
+    "brands": [
+      "KryptoZysk",
+      "Bałtycka Energia"
+    ],
+    "media": [
+      "fakt",
+      "wiadomosci"
+    ]
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "ZWROT-NADPLATY.EXAMPLE",
+  "handle": "D7c2fd8fc07-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-09-12T09:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-09-12T09:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-09-12T09:00:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS1.TANI-DNS.TEST"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS2.TANI-DNS.TEST"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "NameSilo, LLC"
+          ]
+        ]
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/zwrot-nadplaty.example",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

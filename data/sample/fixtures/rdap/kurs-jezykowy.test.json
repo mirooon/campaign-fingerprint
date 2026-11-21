@@ -1,0 +1,75 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "KURS-JEZYKOWY.TEST",
+  "handle": "D825e3d5cb7-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2024-06-01T10:00:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2025-06-01T10:00:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2024-06-01T10:00:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "ADA.NS.CLOUDFLARE.COM"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "BOB.NS.CLOUDFLARE.COM"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Tucows Domains Inc."
+          ]
+        ]
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/kurs-jezykowy.test",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

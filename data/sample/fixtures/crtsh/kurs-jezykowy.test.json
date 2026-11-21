@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "kurs-jezykowy.test",
+    "name_value": "kurs-jezykowy.test\nwww.kurs-jezykowy.test",
+    "id": 15241422105,
+    "entry_timestamp": "2026-09-01T00:10:00.000",
+    "not_before": "2026-09-01T00:00:00",
+    "not_after": "2026-11-30T00:00:00",
+    "serial_number": "6ae45c03b92a755819a97faaeec4d114",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "kurs-jezykowy.test",
+    "name_value": "kurs-jezykowy.test\nwww.kurs-jezykowy.test",
+    "id": 15241422106,
+    "entry_timestamp": "2026-09-01T00:20:00.000",
+    "not_before": "2026-09-01T00:00:00",
+    "not_after": "2026-11-30T00:00:00",
+    "serial_number": "6ae45c03b92a755819a97faaeec4d114",
+    "result_count": 2
+  }
+]

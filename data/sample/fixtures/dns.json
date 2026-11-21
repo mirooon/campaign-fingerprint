@@ -1,0 +1,373 @@
+{
+  "baltycka-energia-inwestycje.example": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [
+      "mx.baltycka-energia-inwestycje.example"
+    ],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "bank-przyklad-zwrot.example": {
+    "A": [
+      "203.0.113.77"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.tani-dns.test",
+      "ns2.tani-dns.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "doplata-gov-pl.example": {
+    "A": [
+      "203.0.113.77"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.tani-dns.test",
+      "ns2.tani-dns.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "energia-dywidenda.test": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "epodatki-zwrot.test": {
+    "A": [
+      "203.0.113.79"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.tani-dns.test",
+      "ns2.tani-dns.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "fakt-dnia-demo.example": {
+    "A": [
+      "198.51.100.24"
+    ],
+    "AAAA": [],
+    "CNAME": [
+      "land2.tds-cname.test"
+    ],
+    "NS": [
+      "ns1.dns-ukryty.test",
+      "ns2.dns-ukryty.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "inwestycje-premium.test": {
+    "A": [
+      "192.0.2.80"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.parkingcrew.net",
+      "ns2.parkingcrew.net"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "krotki.test": {
+    "A": [
+      "198.51.100.200"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.krotki.test",
+      "ns2.krotki.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "kryptozysk-ai.example": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "kurs-jezykowy.test": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "kz-ai-start.test": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "lp.oferta-fikcyjna.example": {
+    "A": [
+      "198.51.100.23"
+    ],
+    "AAAA": [],
+    "CNAME": []
+  },
+  "oferta-fikcyjna.example": {
+    "A": [
+      "198.51.100.23"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.dns-ukryty.test",
+      "ns2.dns-ukryty.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "robot-btc-solo.example": {
+    "A": [
+      "192.0.2.10"
+    ],
+    "AAAA": [],
+    "CNAME": [
+      "dualstack.j.sni.global.fastly.net"
+    ],
+    "NS": [
+      "ns1.solo-host.test",
+      "ns2.solo-host.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "sklep-rowerowy.example": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [
+      "mx.sklep-rowerowy.example"
+    ],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "szybki-zysk-teraz.example": {
+    "A": [
+      "198.51.100.24"
+    ],
+    "AAAA": [],
+    "CNAME": [
+      "prx7.tds-cname.test"
+    ],
+    "NS": [
+      "ns1.dns-ukryty.test",
+      "ns2.dns-ukryty.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "wiadomosci-demo.test": {
+    "A": [
+      "198.51.100.23"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.dns-ukryty.test",
+      "ns2.dns-ukryty.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "wygrana-demo.example": {
+    "A": [
+      "203.0.113.140"
+    ],
+    "AAAA": [],
+    "CNAME": [
+      "dualstack.j.sni.global.fastly.net"
+    ],
+    "NS": [
+      "ns1.vps-demo.test",
+      "ns2.vps-demo.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zwrot-nadplaty.example": {
+    "A": [
+      "203.0.113.78"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.tani-dns.test",
+      "ns2.tani-dns.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zwrot24-dolorem51.test": {
+    "A": [
+      "203.0.113.80"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.vps-demo.test",
+      "ns2.vps-demo.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zwrot37-voluptas12.example": {
+    "A": [
+      "203.0.113.77"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.vps-demo.test",
+      "ns2.vps-demo.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zwrot88-praesentium40.example": {
+    "A": [
+      "203.0.113.81"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.vps-demo.test",
+      "ns2.vps-demo.test"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zysk-ai-platforma.example": {
+    "A": [
+      "104.21.32.15",
+      "172.67.141.88"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ada.ns.cloudflare.com",
+      "bob.ns.cloudflare.com"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  },
+  "zysk-szybki.example": {
+    "A": [
+      "192.0.2.80"
+    ],
+    "AAAA": [],
+    "CNAME": [],
+    "NS": [
+      "ns1.parkingcrew.net",
+      "ns2.parkingcrew.net"
+    ],
+    "MX": [],
+    "TXT": [
+      "v=spf1 -all"
+    ]
+  }
+}

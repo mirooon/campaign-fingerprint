@@ -1,0 +1,106 @@
+{
+  "objectClassName": "domain",
+  "ldhName": "OFERTA-FIKCYJNA.EXAMPLE",
+  "handle": "De0d8eb7116-DEMO",
+  "status": [
+    "client transfer prohibited"
+  ],
+  "events": [
+    {
+      "eventAction": "registration",
+      "eventDate": "2026-10-01T14:30:00Z"
+    },
+    {
+      "eventAction": "expiration",
+      "eventDate": "2027-10-01T14:30:00Z"
+    },
+    {
+      "eventAction": "last changed",
+      "eventDate": "2026-10-01T14:30:00Z"
+    }
+  ],
+  "nameservers": [
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS1.DNS-UKRYTY.TEST"
+    },
+    {
+      "objectClassName": "nameserver",
+      "ldhName": "NS2.DNS-UKRYTY.TEST"
+    }
+  ],
+  "secureDNS": {
+    "delegationSigned": false
+  },
+  "entities": [
+    {
+      "objectClassName": "entity",
+      "roles": [
+        "registrar"
+      ],
+      "vcardArray": [
+        "vcard",
+        [
+          [
+            "version",
+            {},
+            "text",
+            "4.0"
+          ],
+          [
+            "fn",
+            {},
+            "text",
+            "Registrar Demo Ltd."
+          ]
+        ]
+      ],
+      "entities": [
+        {
+          "objectClassName": "entity",
+          "roles": [
+            "abuse"
+          ],
+          "vcardArray": [
+            "vcard",
+            [
+              [
+                "version",
+                {},
+                "text",
+                "4.0"
+              ],
+              [
+                "fn",
+                {},
+                "text",
+                "Abuse Contact"
+              ],
+              [
+                "email",
+                {},
+                "text",
+                "abuse@registrar-demo.example"
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "links": [
+    {
+      "rel": "self",
+      "href": "https://rdap.registry.example/domain/oferta-fikcyjna.example",
+      "type": "application/rdap+json"
+    }
+  ],
+  "notices": [
+    {
+      "title": "SYNTETYCZNE DANE",
+      "description": [
+        "Fikcyjny rekord RDAP dla danych przykładowych startera."
+      ]
+    }
+  ]
+}

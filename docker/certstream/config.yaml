@@ -1,0 +1,38 @@
+# certstream-server-go v1.10.1: a local Certificate Transparency stream for `bun run ct:watch`.
+# It reads new entries from the public CT logs (Google's log list) and re-streams them over a
+# local WebSocket. Passive: it only downloads CT log entries and serves them on 127.0.0.1.
+#   docker compose --profile ct up -d certstream
+webserver:
+  listen_addr: "0.0.0.0"
+  listen_port: 8080
+  real_ip: false
+  # Empty whitelist = any client; docker-compose.yml publishes the port on 127.0.0.1 only.
+  whitelist: []
+  full_url: "/full-stream"
+  lite_url: "/"
+  domains_only_url: "/domains-only"
+  cert_path: ""
+  cert_key_path: ""
+  compression_enabled: false
+
+prometheus:
+  enabled: false
+  listen_addr: "0.0.0.0"
+  listen_port: 8080
+  metrics_url: "/metrics"
+  expose_system_metrics: false
+  real_ip: false
+  whitelist: []
+
+general:
+  disable_default_logs: false
+  buffer_sizes:
+    websocket: 300
+    ctlog: 1000
+    dispatcher: 10000
+  drop_old_logs: true
+  # Live tail only. With recovery on and no index file the server would replay every log from
+  # index 0 (millions of certificates).
+  recovery:
+    enabled: false
+    ct_index_file: "/tmp/ct_index.json"

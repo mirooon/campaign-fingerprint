@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "kz-ai-start.test",
+    "name_value": "kz-ai-start.test\nwww.kz-ai-start.test",
+    "id": 15184283579,
+    "entry_timestamp": "2026-09-03T05:10:00.000",
+    "not_before": "2026-09-03T05:00:00",
+    "not_after": "2026-12-02T05:00:00",
+    "serial_number": "02513223ba0c3d5f8b91d92b7ac5d506",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 183283,
+    "issuer_name": "C=US, O=Google Trust Services, CN=WE1",
+    "common_name": "kz-ai-start.test",
+    "name_value": "kz-ai-start.test\nwww.kz-ai-start.test",
+    "id": 15184283580,
+    "entry_timestamp": "2026-09-03T05:20:00.000",
+    "not_before": "2026-09-03T05:00:00",
+    "not_after": "2026-12-02T05:00:00",
+    "serial_number": "02513223ba0c3d5f8b91d92b7ac5d506",
+    "result_count": 2
+  }
+]

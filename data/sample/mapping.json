@@ -1,0 +1,14 @@
+{
+  "id": "ad_id",
+  "platform": "platforma",
+  "advertiser": "reklamodawca",
+  "text": "tresc",
+  "imagePath": "obraz",
+  "landingUrl": "link",
+  "firstSeen": "pierwsze_wyswietlenie",
+  "lastSeen": "ostatnie_wyswietlenie",
+  "label": "kampania_prawda",
+  "persona": "osoba_drozd",
+  "deepfakeScore": "wynik_deepfake",
+  "videoPath": "wideo"
+}

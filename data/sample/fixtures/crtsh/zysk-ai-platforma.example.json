@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "zysk-ai-platforma.example",
+    "name_value": "zysk-ai-platforma.example\nwww.zysk-ai-platforma.example",
+    "id": 15219692359,
+    "entry_timestamp": "2026-09-03T10:10:00.000",
+    "not_before": "2026-09-03T10:00:00",
+    "not_after": "2026-12-02T10:00:00",
+    "serial_number": "bcf2f46037565e7aa751b5e5eea9ebc0",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "zysk-ai-platforma.example",
+    "name_value": "zysk-ai-platforma.example\nwww.zysk-ai-platforma.example",
+    "id": 15219692360,
+    "entry_timestamp": "2026-09-03T10:20:00.000",
+    "not_before": "2026-09-03T10:00:00",
+    "not_after": "2026-12-02T10:00:00",
+    "serial_number": "bcf2f46037565e7aa751b5e5eea9ebc0",
+    "result_count": 2
+  }
+]

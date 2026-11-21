@@ -1,0 +1,635 @@
+/**
+ * Enrichment: items -> pages (redirect chain, extraction, page kit, favicon, archive),
+ * hosts (A/AAAA + CNAME chain), domains (NS/MX/TXT, RDAP, CT), IPs (ASN), image hashes,
+ * campaign parameters and personas (from text, input columns, optional NER).
+ * Opt-in: cloaking check (two extra GETs), OCR, ASR, audio fingerprints, speaker embeddings
+ * (SpeechBrain) and Meta Ad Library details (MetaAdsCollector) (skipped
+ * quietly when the tools are missing). Concurrency-limited, cached (live mode) and
+ * failure-tolerant: errors are recorded, never thrown.
+ */
+import { createHash } from "node:crypto";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import pLimit from "p-limit";
+import { createCache, TTL, type FileCache } from "../cache";
+import type { LlmProvider } from "../llm/types";
+import { detectAsr, transcribe } from "../media/asr";
+import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
+import { hashFavicon, hashImage } from "../media/imageHash";
+import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo } from "../media/imageEmbed";
+import { detectOcr, ocrImage } from "../media/ocr";
+import { detectSpeaker, embedSpeakers } from "../media/speaker";
+import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
+import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
+import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../media/addressBar";
+import { extractCampaignParams } from "../osint/campaignParams";
+import { extractFromHtml, extractFromText } from "../osint/extract";
+import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
+import { domSimhash, extractPageKit, simhashDistance } from "../osint/pagekit";
+import { normalizeUrl, registrableDomain } from "../osint/urls";
+import {
+  extractPersonsNer,
+  matchPersonas,
+  personasFromIngest,
+  personaSlug,
+  type CompiledWatchlist,
+  type PersonaMatch,
+} from "../text/persona";
+import type { EnrichmentSources } from "./sources";
+import type {
+  CloakingCheck,
+  CloakingVariant,
+  DomainInfo,
+  EnrichedDataset,
+  HostInfo,
+  ImageInfo,
+  Item,
+  ItemEnrichment,
+  PageInfo,
+} from "./types";
+
+/** User-Agents of the opt-in cloaking check: an ad-platform link crawler and a mobile browser. */
+export const CRAWLER_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
+export const MOBILE_UA =
+  "Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1";
+
+export interface EnrichOptions {
+  sources: EnrichmentSources;
+  /** Directory against which relative imagePath/videoPath values are resolved. */
+  baseDir: string;
+  concurrency?: number;
+  skip?: Partial<Record<"page" | "favicon" | "image" | "dns" | "rdap" | "ct" | "asn", boolean>>;
+  onProgress?: (stage: string, done: number, total: number) => void;
+  log?: (message: string) => void;
+  imageCache?: FileCache | false;
+  /** Persona watchlist (public figures) matched in ad text, page text and OCR/ASR text. */
+  personas?: CompiledWatchlist | null;
+  /** Opt-in person-name NER through the configured LLM (PLLuM/Bielik/Claude). */
+  ner?: { provider: LlmProvider; cache?: FileCache | false } | null;
+  /** Opt-in cloaking check: two extra GETs (crawler UA, mobile UA) per landing page. */
+  cloaking?: boolean;
+  /** DOM simhash distance above which the two variants count as different pages. */
+  cloakingDomThreshold?: number;
+  /** Opt-in media adapters; each is skipped quietly when its tool is unavailable. */
+  ocr?: boolean;
+  asr?: boolean;
+  audio?: boolean;
+  /** Opt-in CLIP embedding of creative images (semantic similarity: same template, different variant). */
+  clip?: boolean;
+  /** Opt-in SpeechBrain speaker embedding of video/audio creatives (same voice across ads). */
+  speaker?: boolean;
+  /** Opt-in Meta Ad Library lookup of ad-library IDs via MetaAdsCollector (live mode only). */
+  adLibrary?: boolean;
+  /** Archive decoded HTML of fetched pages here (content-addressed by raw-body SHA-256). */
+  archiveDir?: string | null;
+}
+
+function errMsg(e: unknown): string {
+  return e instanceof Error ? e.message : String(e);
+}
+
+function sha256(s: string): string {
+  return createHash("sha256").update(s).digest("hex");
+}
+
+function dedupePersonas(list: PersonaMatch[]): PersonaMatch[] {
+  const seen = new Set<string>();
+  const out: PersonaMatch[] = [];
+  for (const p of list) {
+    const key = `${p.id}|${p.source}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
+export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<EnrichedDataset> {
+  const { sources } = opts;
+  const skip = opts.skip ?? {};
+  const log = opts.log ?? (() => {});
+  const limit = pLimit(opts.concurrency ?? 4);
+  const dnsLimit = pLimit(8);
+  const rdapLimit = pLimit(2);
+  const ctLimit = pLimit(1);
+  const llmLimit = pLimit(1);
+  const mediaLimit = pLimit(2);
+  const progress = opts.onProgress ?? (() => {});
+  const imageCache =
+    opts.imageCache === false || sources.mode === "offline"
+      ? null
+      : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: TTL.week }));
+  const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: TTL.week * 4 })) : null;
+  const cloakThreshold = opts.cloakingDomThreshold ?? 12;
+  if (opts.archiveDir) mkdirSync(opts.archiveDir, { recursive: true });
+
+  // Opt-in media adapters: detect once, skip quietly when unavailable.
+  let ocrOn = false;
+  let asrOn = false;
+  let audioOn = false;
+  if (opts.ocr) {
+    const st = await detectOcr();
+    ocrOn = st.available;
+    log(ocrOn ? `OCR: tesseract ${st.version ?? ""} (pol)` : `OCR pominięty: ${st.reason ?? "tesseract niedostępny"}`);
+  }
+  if (opts.asr) {
+    const st = await detectAsr();
+    asrOn = st.available;
+    log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
+  }
+  let clipOn = false;
+  const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: TTL.week * 4 }) : null;
+  if (opts.clip) {
+    const st = await detectClip();
+    clipOn = st.available;
+    log(clipOn ? `CLIP: ${st.model}` : `CLIP pominięty: ${st.reason ?? "model niedostępny"}`);
+  }
+  if (opts.audio) {
+    const st = await detectFpcalc();
+    audioOn = st.available;
+    log(audioOn ? `odcisk audio: fpcalc ${st.version ?? ""}` : "odcisk audio pominięty: fpcalc niedostępny");
+  }
+
+  const pages: Record<string, PageInfo> = {};
+  const pagePromises = new Map<string, Promise<PageInfo>>();
+  const perItem: Record<string, ItemEnrichment> = {};
+
+  const cloakingVariant = async (url: string, userAgent: string): Promise<CloakingVariant> => {
+    try {
+      const r = await sources.fetchPage(url, { userAgent });
+      const isHtml = !!r.body && /html|xml|^$/i.test(r.contentType ?? "");
+      return {
+        userAgent,
+        finalUrl: r.finalUrl,
+        status: r.status,
+        domSimhash: isHtml ? domSimhash(r.body!).simhash : null,
+        bodySha256: r.bodySha256,
+        error: r.error,
+      };
+    } catch (e) {
+      return { userAgent, finalUrl: null, status: null, domSimhash: null, bodySha256: null, error: errMsg(e) };
+    }
+  };
+
+  const checkCloaking = async (url: string): Promise<CloakingCheck> => {
+    const [crawler, mobile] = await Promise.all([cloakingVariant(url, CRAWLER_UA), cloakingVariant(url, MOBILE_UA)]);
+    const norm = (u: string | null) => (u ? (normalizeUrl(u)?.url ?? u) : null);
+    const finalUrlDiffers = !!crawler.finalUrl && !!mobile.finalUrl && norm(crawler.finalUrl) !== norm(mobile.finalUrl);
+    const domDistance = crawler.domSimhash && mobile.domSimhash ? simhashDistance(crawler.domSimhash, mobile.domSimhash) : null;
+    const ok = (v: CloakingVariant) => !v.error && v.status !== null && v.status >= 200 && v.status < 300;
+    const reasons: string[] = [];
+    if (finalUrlDiffers) reasons.push(`inny adres końcowy: crawler → ${crawler.finalUrl}, przeglądarka mobilna → ${mobile.finalUrl}`);
+    if (domDistance !== null && domDistance > cloakThreshold) reasons.push(`inna struktura strony (simhash DOM, odległość ${domDistance}/64)`);
+    if (ok(crawler) !== ok(mobile)) reasons.push(`różny wynik pobrania: crawler ${crawler.status ?? crawler.error}, mobilna ${mobile.status ?? mobile.error}`);
+    return { crawler, mobile, finalUrlDiffers, domDistance, suspected: reasons.length > 0, reasons };
+  };
+
+  const loadPage = (url: string): Promise<PageInfo> => {
+    const existing = pagePromises.get(url);
+    if (existing) return existing;
+    const p = (async (): Promise<PageInfo> => {
+      const res = await sources.fetchPage(url);
+      const { body, ...fetchMeta } = res;
+      let extract = null;
+      let kit = null;
+      let archiveFile: string | null = null;
+      if (body && /html|xml|^$/i.test(res.contentType ?? "")) {
+        try {
+          extract = extractFromHtml(body, res.finalUrl);
+          kit = extractPageKit(body, res.finalUrl);
+        } catch (e) {
+          fetchMeta.error = `extract failed: ${errMsg(e)}`;
+        }
+        if (opts.archiveDir && res.bodySha256) {
+          const file = path.join(opts.archiveDir, `${res.bodySha256}.html`);
+          try {
+            writeFileSync(file, body, "utf8");
+            archiveFile = path.relative(process.cwd(), file);
+          } catch (e) {
+            fetchMeta.error = `archive failed: ${errMsg(e)}`;
+          }
+        }
+      }
+      let favicon: PageInfo["favicon"] = null;
+      if (!skip.favicon && extract?.faviconUrl) {
+        try {
+          const data = await sources.fetchBinary(extract.faviconUrl);
+          favicon = data
+            ? { url: extract.faviconUrl, hashes: await hashFavicon(data), error: null }
+            : { url: extract.faviconUrl, hashes: null, error: "favicon not available" };
+        } catch (e) {
+          favicon = { url: extract.faviconUrl, hashes: null, error: errMsg(e) };
+        }
+      }
+      const cloaking = opts.cloaking ? await checkCloaking(url) : null;
+      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking };
+      pages[url] = info;
+      return info;
+    })();
+    pagePromises.set(url, p);
+    return p;
+  };
+
+  /** Image hashes (+ the bytes when OCR needs them). */
+  const loadImage = async (item: Item): Promise<{ info: ImageInfo | null; file: string | null; bytes: Buffer | null }> => {
+    if (item.imagePath) {
+      const file = path.isAbsolute(item.imagePath) ? item.imagePath : path.join(opts.baseDir, item.imagePath);
+      const data = await readFile(file);
+      return { info: { ...(await hashImage(data)), source: item.imagePath }, file, bytes: data };
+    }
+    if (item.imageUrl) {
+      const url = item.imageUrl;
+      if (ocrOn || clipOn) {
+        const data = await sources.fetchBinary(url);
+        return data ? { info: { ...(await hashImage(data)), source: url }, file: null, bytes: data } : { info: null, file: null, bytes: null };
+      }
+      const compute = async () => {
+        const data = await sources.fetchBinary(url);
+        return data ? hashImage(data) : null;
+      };
+      const hashes = imageCache ? await imageCache.wrap(`img:${url}`, compute) : await compute();
+      return { info: hashes ? { ...hashes, source: url } : null, file: null, bytes: null };
+    }
+    return { info: null, file: null, bytes: null };
+  };
+
+  const runClip = async (bytes: Buffer): Promise<number[]> => {
+    const key = embeddingKey(bytes);
+    const compute = async () => compactEmbedding(await embedImage(bytes));
+    return clipCache ? clipCache.wrap(key, compute) : compute();
+  };
+
+  const runClipVideo = async (file: string): Promise<number[] | null> => {
+    const key = `video:${embeddingKey(await readFile(file))}`;
+    const compute = async () => {
+      const v = await mediaLimit(() => embedVideo(file));
+      return v ? compactEmbedding(v) : null;
+    };
+    return clipCache ? clipCache.wrap(key, compute) : compute();
+  };
+
+  const runOcr = async (file: string | null, bytes: Buffer | null): Promise<string | null> => {
+    if (file) return mediaLimit(() => ocrImage(file, { lines: true }));
+    if (!bytes) return null;
+    const dir = await mkdtemp(path.join(os.tmpdir(), "starter-ocr-"));
+    try {
+      const tmp = path.join(dir, "creative.img");
+      await writeFile(tmp, bytes);
+      return await mediaLimit(() => ocrImage(tmp, { lines: true }));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  };
+
+  const runNer = async (text: string): Promise<PersonaMatch[]> => {
+    if (!opts.ner || text.trim().length < 20) return [];
+    const { provider } = opts.ner;
+    const compute = () => llmLimit(() => extractPersonsNer(text, provider));
+    const key = `${provider.name}:${provider.model}:${sha256(text)}`;
+    const persons = nerCache ? await nerCache.wrap(key, compute) : await compute();
+    return persons.map((p) => ({ id: personaSlug(p.name), name: p.name, matched: p.name, source: "ner" as const, role: p.role }));
+  };
+
+  // 1. Items: image (+OCR), video (+ASR, audio fingerprint), text, landing page, personas, campaign params
+  let done = 0;
+  await Promise.all(
+    items.map((item) =>
+      limit(async () => {
+        const errors: string[] = [];
+        let image: ImageInfo | null = null;
+        let ocrText: string | null = null;
+        let imageEmbedding: number[] | null = null;
+        let advertiserOcr: string | null = null;
+        let extraOcrText: string | null = null;
+        // the address bar is read from the top strip of every screenshot, before the OCR text is cut down to the post
+        const observed: ObservedAddress[] = [];
+        if (ocrOn && !skip.image && item.extraImagePaths?.length) {
+          // further screenshots of the case (ad-library details, the page on a phone): text only
+          const parts: string[] = [];
+          for (const rel of item.extraImagePaths) {
+            const file = path.isAbsolute(rel) ? rel : path.join(opts.baseDir, rel);
+            const t = await runOcr(file, null);
+            if (t) parts.push(t.replace(/\s+/g, " ").trim());
+            observed.push(...(await mediaLimit(() => readAddressBar(file))));
+          }
+          extraOcrText = parts.length ? parts.join("\n") : null;
+        }
+        if (!skip.image) {
+          try {
+            const img = await loadImage(item);
+            image = img.info;
+            if (ocrOn && (img.file || img.bytes)) {
+              observed.unshift(...(await mediaLimit(() => readAddressBar(img.file ?? item.imagePath ?? item.imageUrl ?? "creative", { bytes: img.bytes ?? undefined }))));
+              // a feed screenshot also shows the neighbouring post: keep the sponsored one, read the page name
+              const post = sponsoredPost(await runOcr(img.file, img.bytes));
+              ocrText = post.text.replace(/\s+/g, " ").trim() || null;
+              advertiserOcr = post.advertiser;
+            }
+            if (clipOn && img.bytes) {
+              try {
+                imageEmbedding = await runClip(img.bytes);
+              } catch (e) {
+                errors.push(`clip: ${errMsg(e)}`);
+              }
+            }
+          } catch (e) {
+            errors.push(`image: ${errMsg(e)}`);
+          }
+        }
+        let asrText: string | null = null;
+        let audioFp: AudioFingerprint | null = null;
+        let videoEmbedding: number[] | null = null;
+        if (item.videoPath && (asrOn || audioOn || clipOn)) {
+          const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
+          if (asrOn) asrText = await mediaLimit(() => transcribe(file));
+          if (audioOn) audioFp = await mediaLimit(() => fingerprintAudio(file));
+          if (clipOn) {
+            try {
+              videoEmbedding = await runClipVideo(file);
+            } catch (e) {
+              errors.push(`clip-video: ${errMsg(e)}`);
+            }
+          }
+        }
+        if (ocrOn && item.videoPath) {
+          // a screen recording shows the address bar change from the ad to the landing page and back
+          const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
+          observed.push(...(await mediaLimit(() => readAddressBarVideo(file))));
+        }
+        const combined = [item.text, ocrText, asrText].filter((t): t is string => !!t && t.trim().length > 0).join("\n");
+        const text = combined ? extractFromText(combined) : null;
+        const fromInput = normalizeUrl(item.landingUrl ?? "");
+        const fromText = text?.urls[0] ? normalizeUrl(text.urls[0]) : null;
+        const bar = observed.find((o) => o.confidence === "high" && !o.platform);
+        const fromBar = bar ? normalizeUrl(bar.url) : null;
+        const landing = fromInput ?? fromText ?? fromBar;
+        const landingSource = fromInput ? "input" : fromText ? "ad_text" : fromBar ? "address_bar" : null;
+        if (item.landingUrl && !normalizeUrl(item.landingUrl)) errors.push(`invalid landing URL: ${item.landingUrl}`);
+        let pageKey: string | null = null;
+        let page: PageInfo | null = null;
+        if (landing && !skip.page) {
+          // "#capture=<id>" marks one of several saved copies of the same address (cloaking, a funnel behind one URL)
+          pageKey = landing.url + (/#capture=[\w.-]+$/.exec(item.landingUrl ?? "")?.[0] ?? "");
+          try {
+            page = await loadPage(pageKey);
+            if (page.fetch.error) errors.push(`page: ${page.fetch.error}`);
+          } catch (e) {
+            errors.push(`page: ${errMsg(e)}`);
+            pageKey = null;
+          }
+        }
+
+        // Personas: watchlist (exact on ad/page text, fuzzy on OCR/ASR), input column, optional NER
+        const personas: PersonaMatch[] = [...personasFromIngest(item.persona)];
+        if (opts.personas) {
+          const pageText = [page?.extract?.title, page?.extract?.description, page?.extract?.visibleText].filter(Boolean).join("\n");
+          personas.push(...matchPersonas([item.text ?? "", pageText].join("\n"), opts.personas));
+          // not the further screenshots: a feed view also shows the posts around the ad, and their authors are not in it
+          const machineText = [ocrText, asrText].filter(Boolean).join("\n");
+          if (machineText) personas.push(...matchPersonas(machineText, opts.personas, { fuzzy: true }));
+        }
+        if (opts.ner) {
+          try {
+            personas.push(...(await runNer(combined)));
+          } catch (e) {
+            errors.push(`ner: ${errMsg(e)}`);
+          }
+        }
+
+        const campaignParams = extractCampaignParams([
+          item.landingUrl,
+          ...(page?.fetch.redirectChain.map((h) => h.url) ?? []),
+          page?.fetch.finalUrl,
+          ...(text?.urls ?? []),
+        ]);
+
+        perItem[item.id] = {
+          itemId: item.id,
+          landing,
+          pageKey,
+          text,
+          image,
+          personas: dedupePersonas(personas),
+          campaignParams,
+          ocrText,
+          ...(extraOcrText ? { extraOcrText } : {}),
+          ...(observed.length ? { observedUrls: observed } : {}),
+          landingSource,
+          ...(advertiserOcr ? { advertiserOcr } : {}),
+          asrText,
+          audioFp,
+          ...(imageEmbedding ? { imageEmbedding } : {}),
+          ...(videoEmbedding ? { videoEmbedding } : {}),
+          errors,
+        };
+        progress("items", ++done, items.length);
+      }),
+    ),
+  );
+
+  // 1b. Speaker embeddings (SpeechBrain, one batch so the model loads once)
+  if (opts.speaker) {
+    const st = await detectSpeaker();
+    if (!st.available) log(`głos mówcy pominięty: ${st.reason ?? "brak SpeechBrain"}`);
+    else {
+      const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: TTL.week * 4 });
+      const fileOf = (it: Item) => (path.isAbsolute(it.videoPath!) ? it.videoPath! : path.join(opts.baseDir, it.videoPath!));
+      const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
+      const keyOf = new Map<string, string>();
+      const todo: string[] = [];
+      for (const it of withVideo) {
+        const file = fileOf(it);
+        try {
+          const key = `ecapa:${createHash("sha256").update(await readFile(file)).digest("hex")}`;
+          keyOf.set(it.id, key);
+          const hit = await speakerCache.get<number[] | null>(key);
+          if (hit) perItem[it.id].speakerEmbedding = hit;
+          else if (!todo.includes(file)) todo.push(file);
+        } catch (e) {
+          perItem[it.id].errors.push(`speaker: ${errMsg(e)}`);
+        }
+      }
+      if (todo.length) {
+        log(`głos mówcy: SpeechBrain ECAPA, ${todo.length} nagrań${todo.length === withVideo.length ? "" : " (reszta z cache)"}`);
+        const emb = await embedSpeakers(todo, { python: st.python!, modelDir: st.modelDir });
+        for (const it of withVideo) {
+          const v = emb[fileOf(it)];
+          if (!v) continue;
+          perItem[it.id].speakerEmbedding = v;
+          const key = keyOf.get(it.id);
+          if (key) await speakerCache.set(key, v);
+        }
+      }
+    }
+  }
+
+  // 1c. Meta Ad Library details for ad-library IDs (input column, OCR of the screenshots)
+  if (opts.adLibrary) {
+    const idsOf = (it: Item): string[] => {
+      const enr = perItem[it.id];
+      return [
+        ...new Set([
+          ...(AD_LIBRARY_ID_RE.test(it.extra.ad_library_id ?? "") ? [it.extra.ad_library_id] : []),
+          ...(enr?.ocrText ? stripUiChrome(enr.ocrText).adLibraryIds : []),
+          ...(enr?.extraOcrText ? stripUiChrome(enr.extraOcrText).adLibraryIds : []),
+        ]),
+      ];
+    };
+    const allIds = [...new Set(items.flatMap(idsOf))];
+    if (sources.mode === "offline") log("biblioteka reklam pominięta: tryb offline");
+    else if (!allIds.length) log("biblioteka reklam: brak identyfikatorów biblioteki w materiałach");
+    else {
+      const st = await detectAdLibrary();
+      if (!st.available) log(`biblioteka reklam pominięta: ${st.reason ?? "brak MetaAdsCollector"}`);
+      else {
+        const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: TTL.day });
+        const info: Record<string, AdLibraryInfo> = {};
+        const todo: string[] = [];
+        for (const id of allIds) {
+          const hit = await libCache.get<AdLibraryInfo>(id);
+          if (hit) info[id] = hit;
+          else todo.push(id);
+        }
+        if (todo.length) {
+          log(`biblioteka reklam: MetaAdsCollector, ${todo.length} identyfikatorów`);
+          const fresh = await lookupAdLibrary(todo, { python: st.python! });
+          for (const [id, rec] of Object.entries(fresh)) {
+            info[id] = rec;
+            if (!rec.error) await libCache.set(id, rec);
+          }
+        }
+        for (const it of items) {
+          const recs = idsOf(it).map((id) => info[id]).filter((r): r is AdLibraryInfo => !!r);
+          if (!recs.length || !perItem[it.id]) continue;
+          perItem[it.id].adLibrary = recs;
+          for (const r of recs) if (r.error) perItem[it.id].errors.push(`ad-library ${r.id}: ${r.error}`);
+        }
+      }
+    }
+  }
+
+  // 2. Hosts from landing URLs, redirect chains, final URLs and URLs in ad copy (+ CNAME chains)
+  const hostSet = new Set<string>();
+  const addUrlHost = (u: string | null | undefined) => {
+    const n = u ? normalizeUrl(u) : null;
+    if (n) hostSet.add(n.host);
+  };
+  for (const enr of Object.values(perItem)) {
+    addUrlHost(enr.landing?.url);
+    for (const u of enr.text?.urls ?? []) addUrlHost(u);
+    for (const o of enr.observedUrls ?? []) if (!o.platform) addUrlHost(o.url);
+  }
+  for (const page of Object.values(pages)) {
+    for (const hop of page.fetch.redirectChain) addUrlHost(hop.url);
+    addUrlHost(page.fetch.finalUrl);
+  }
+  const hosts: Record<string, HostInfo> = {};
+  done = 0;
+  await Promise.all(
+    [...hostSet].map((host) =>
+      dnsLimit(async () => {
+        const domain = registrableDomain(host);
+        if (isIpAddress(host)) {
+          hosts[host] = { host, registrableDomain: null, dns: null, ips: [canonicalIp(host)!], cnameChain: [] };
+        } else if (skip.dns) {
+          hosts[host] = { host, registrableDomain: domain, dns: null, ips: [], cnameChain: [] };
+        } else {
+          const rec = await sources.dns(host, ["A", "AAAA", "CNAME"]);
+          const ips = [...new Set([...rec.a, ...rec.aaaa].map((ip) => canonicalIp(ip)).filter((x): x is string => !!x))].sort();
+          // Follow the CNAME chain (max 4 hops). Called without the limiter to avoid nested waits.
+          const cnameChain: string[] = [];
+          let next = rec.cname[0];
+          while (next && cnameChain.length < 4 && !cnameChain.includes(next) && next !== host) {
+            cnameChain.push(next);
+            const hop = await sources.dns(next, ["CNAME"]);
+            next = hop.cname[0];
+          }
+          hosts[host] = { host, registrableDomain: domain, dns: rec, ips, cnameChain };
+        }
+        progress("dns", ++done, hostSet.size);
+      }),
+    ),
+  );
+
+  // 3. Registrable domains: NS/MX/TXT, RDAP, CT
+  const domainSet = new Set(Object.values(hosts).map((h) => h.registrableDomain).filter((d): d is string => !!d));
+  const domains: Record<string, DomainInfo> = {};
+  done = 0;
+  await Promise.all(
+    [...domainSet].map(async (domain) => {
+      const info: DomainInfo = { domain, ns: [], mx: [], txt: [], rdap: null, ct: null };
+      const tasks: Array<Promise<void>> = [];
+      if (!skip.dns) {
+        tasks.push(
+          dnsLimit(async () => {
+            const rec = await sources.dns(domain, ["NS", "MX", "TXT"]);
+            info.ns = rec.ns;
+            info.mx = rec.mx;
+            info.txt = rec.txt;
+          }),
+        );
+      }
+      if (!skip.rdap) {
+        tasks.push(
+          rdapLimit(async () => {
+            try {
+              info.rdap = await sources.rdap(domain);
+            } catch {
+              info.rdap = null;
+            }
+          }),
+        );
+      }
+      if (!skip.ct) {
+        tasks.push(
+          ctLimit(async () => {
+            try {
+              info.ct = await sources.ct(domain);
+            } catch {
+              info.ct = null;
+            }
+          }),
+        );
+      }
+      await Promise.all(tasks);
+      domains[domain] = info;
+      progress("domains", ++done, domainSet.size);
+    }),
+  );
+
+  // 4. IPs -> ASN
+  const ipSet = new Set(Object.values(hosts).flatMap((h) => h.ips));
+  const ips: EnrichedDataset["ips"] = {};
+  done = 0;
+  await Promise.all(
+    [...ipSet].map((ip) =>
+      dnsLimit(async () => {
+        try {
+          // Never send private/reserved addresses to a third-party lookup.
+          ips[ip] = skip.asn || (sources.mode === "live" && !isPublicIp(ip)) ? null : await sources.asn(ip);
+        } catch {
+          ips[ip] = null;
+        }
+        progress("asn", ++done, ipSet.size);
+      }),
+    ),
+  );
+
+  const sortRecord = <T>(r: Record<string, T>): Record<string, T> =>
+    Object.fromEntries(Object.entries(r).sort(([a], [b]) => a.localeCompare(b)));
+
+  return {
+    version: 1,
+    generatedAt: new Date().toISOString(),
+    mode: sources.mode,
+    baseDir: opts.baseDir,
+    items,
+    perItem: Object.fromEntries(items.map((it) => [it.id, perItem[it.id]])),
+    pages: sortRecord(pages),
+    hosts: sortRecord(hosts),
+    domains: sortRecord(domains),
+    ips: sortRecord(ips),
+  };
+}

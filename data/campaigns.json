@@ -1,0 +1,631 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-21T12:30:37.909Z",
+  "method": {
+    "unionFind": "silne dowody (waga typu × lista ≥ 0.7)",
+    "louvain": {
+      "resolution": 1,
+      "seed": 42,
+      "modularity": 0.7849
+    },
+    "minLinkScore": 0.15,
+    "rules": [
+      "kampania: silny dowód albo wynik pary ≥ 0.15; sama cecha zestawu stron lub persona (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, persona) wymaga drugiego rodzaju dowodu albo wyniku ≥ 0.5; dowody zdyskontowane się nie liczą",
+      "różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu",
+      "grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ 0.3"
+    ]
+  },
+  "campaigns": [
+    {
+      "id": "K01",
+      "size": 9,
+      "members": [
+        "c1-01",
+        "c1-02",
+        "c1-03",
+        "c1-04",
+        "c1-05",
+        "c1-06",
+        "c1-07",
+        "c1-08",
+        "c1-09"
+      ],
+      "firstSeen": "2026-09-05T00:00:00.000Z",
+      "lastSeen": "2026-10-20T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "tracker:ga4:G-K7Z9QX41LM",
+          "type": "tracker",
+          "label": "Google Analytics 4 G-K7Z9QX41LM",
+          "count": 8,
+          "weight": 0.6592
+        },
+        {
+          "key": "tracker:meta_pixel:812345678901234",
+          "type": "tracker",
+          "label": "Meta Pixel 812345678901234",
+          "count": 8,
+          "weight": 0.6592
+        },
+        {
+          "key": "telegram:t.me/kryptozysk_vip",
+          "type": "telegram",
+          "label": "t.me/kryptozysk_vip",
+          "count": 9,
+          "weight": 0.5672
+        },
+        {
+          "key": "endpoint:leads-gate.test/api/v1/submit/<uuid>/",
+          "type": "endpoint",
+          "label": "backend leads-gate.test/api/v1/submit/<uuid>/",
+          "count": 8,
+          "weight": 0.6263
+        },
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 8,
+          "weight": 0.57
+        },
+        {
+          "key": "similar_text",
+          "type": "similar_text",
+          "label": "podobna treść reklam",
+          "count": 14,
+          "weight": 0.4816
+        }
+      ],
+      "domains": [
+        "kryptozysk-ai.example",
+        "kz-ai-start.test",
+        "leads-gate.test",
+        "zysk-ai-platforma.example"
+      ],
+      "advertisers": [
+        "Finanse Dziś Demo",
+        "Inwestor PL Test",
+        "Kryptowaluty 24 Demo",
+        "Nowe Technologie Demo",
+        "Rynek i Ty Demo"
+      ],
+      "cohesion": 0.9334,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "adam-testowy",
+            "name": "Adam Testowy",
+            "count": 9
+          }
+        ],
+        "cyrillic": 8,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.93
+      },
+      "familyId": null
+    },
+    {
+      "id": "K02",
+      "size": 8,
+      "members": [
+        "c2-01",
+        "c2-02",
+        "c2-03",
+        "c2-04",
+        "c2-05",
+        "c2-06",
+        "c2-07",
+        "c2-08"
+      ],
+      "firstSeen": "2026-08-20T00:00:00.000Z",
+      "lastSeen": "2026-10-10T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "tracker:yandex_metrica:98765432",
+          "type": "tracker",
+          "label": "Yandex Metrica 98765432",
+          "count": 7,
+          "weight": 0.692
+        },
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 13,
+          "weight": 0.57
+        },
+        {
+          "key": "phone:+447700900123",
+          "type": "phone",
+          "label": "+447700900123",
+          "count": 7,
+          "weight": 0.6228
+        },
+        {
+          "key": "similar_dom",
+          "type": "similar_dom",
+          "label": "ta sama struktura strony (simhash DOM)",
+          "count": 21,
+          "weight": 0.45
+        },
+        {
+          "key": "domain:baltycka-energia-inwestycje.example",
+          "type": "domain",
+          "label": "baltycka-energia-inwestycje.example",
+          "count": 4,
+          "weight": 0.7881
+        },
+        {
+          "key": "email:kontakt@baltycka-energia-inwestycje.example",
+          "type": "email",
+          "label": "kontakt@baltycka-energia-inwestycje.example",
+          "count": 4,
+          "weight": 0.7467
+        }
+      ],
+      "domains": [
+        "baltycka-energia-inwestycje.example",
+        "energia-dywidenda.test"
+      ],
+      "advertisers": [
+        "Dywidenda Info Test",
+        "Energia Polska Demo",
+        "Oszczędzaj Mądrze Demo",
+        "Wiadomości Gospodarcze Demo"
+      ],
+      "cohesion": 0.8476,
+      "strongComponents": 2,
+      "attributes": {
+        "personas": [
+          {
+            "id": "ewa-przykladowa",
+            "name": "Ewa Przykładowa",
+            "count": 8
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.91
+      },
+      "familyId": null
+    },
+    {
+      "id": "K03",
+      "size": 8,
+      "members": [
+        "c3-01",
+        "c3-02",
+        "c3-03",
+        "c3-04",
+        "c3-05",
+        "c3-06",
+        "c3-07",
+        "c3-08"
+      ],
+      "firstSeen": "2026-10-02T00:00:00.000Z",
+      "lastSeen": "2026-10-30T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "tracker:gtm:GTM-ABC12DE",
+          "type": "tracker",
+          "label": "Google Tag Manager GTM-ABC12DE",
+          "count": 8,
+          "weight": 0.6592
+        },
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 25,
+          "weight": 0.57
+        },
+        {
+          "key": "host:lp.oferta-fikcyjna.example",
+          "type": "host",
+          "label": "lp.oferta-fikcyjna.example",
+          "count": 6,
+          "weight": 0.6934
+        },
+        {
+          "key": "domain:oferta-fikcyjna.example",
+          "type": "domain",
+          "label": "oferta-fikcyjna.example",
+          "count": 6,
+          "weight": 0.6934
+        },
+        {
+          "key": "similar_dom",
+          "type": "similar_dom",
+          "label": "ta sama struktura strony (simhash DOM)",
+          "count": 28,
+          "weight": 0.45
+        },
+        {
+          "key": "campaign_param:offer_id=771304",
+          "type": "campaign_param",
+          "label": "offer_id=771304",
+          "count": 6,
+          "weight": 0.584
+        }
+      ],
+      "domains": [
+        "fakt-dnia-demo.example",
+        "oferta-fikcyjna.example",
+        "szybki-zysk-teraz.example",
+        "wiadomosci-demo.test"
+      ],
+      "advertisers": [
+        "Fakty i Opinie Demo",
+        "Kanał Newsowy Demo",
+        "Wiadomości 24 Demo",
+        "Zysk Teraz Demo"
+      ],
+      "cohesion": 0.9952,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "marek-fikcyjny",
+            "name": "Marek Fikcyjny",
+            "count": 8
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.64
+      },
+      "familyId": null
+    },
+    {
+      "id": "K04",
+      "size": 7,
+      "members": [
+        "c4-01",
+        "c4-02",
+        "c4-03",
+        "c4-04",
+        "c4-05",
+        "c4-06",
+        "c4-07"
+      ],
+      "firstSeen": "2026-09-05T00:00:00.000Z",
+      "lastSeen": "2026-10-25T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 21,
+          "weight": 0.57
+        },
+        {
+          "key": "phone:+447700900456",
+          "type": "phone",
+          "label": "+447700900456",
+          "count": 5,
+          "weight": 0.6973
+        },
+        {
+          "key": "similar_dom",
+          "type": "similar_dom",
+          "label": "ta sama struktura strony (simhash DOM)",
+          "count": 21,
+          "weight": 0.45
+        },
+        {
+          "key": "similar_text",
+          "type": "similar_text",
+          "label": "podobna treść reklam",
+          "count": 11,
+          "weight": 0.4103
+        },
+        {
+          "key": "endpoint:*/weryfikacja/krok-2",
+          "type": "endpoint",
+          "label": "backend /weryfikacja/krok-2 (ta sama domena)",
+          "count": 7,
+          "weight": 0.263
+        },
+        {
+          "key": "ip:203.0.113.77",
+          "type": "ip",
+          "label": "203.0.113.77",
+          "count": 3,
+          "weight": 0.5402
+        }
+      ],
+      "domains": [
+        "bank-przyklad-zwrot.example",
+        "doplata-gov-pl.example",
+        "epodatki-zwrot.test",
+        "zwrot-nadplaty.example",
+        "zwrot24-dolorem51.test",
+        "zwrot37-voluptas12.example",
+        "zwrot88-praesentium40.example"
+      ],
+      "advertisers": [
+        "Doradca Finansowy Demo",
+        "Informacje Dla Ciebie Demo",
+        "Pomoc Obywatelska Demo",
+        "Twoje Pieniądze Demo",
+        "Zwroty Info Demo"
+      ],
+      "cohesion": 0.9335,
+      "strongComponents": 3,
+      "attributes": {
+        "personas": [
+          {
+            "id": "zofia-wymyslona",
+            "name": "Zofia Wymyślona",
+            "count": 7
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.12
+      },
+      "familyId": null
+    },
+    {
+      "id": "K05",
+      "size": 6,
+      "members": [
+        "c5-01",
+        "c5-02",
+        "c5-03",
+        "c5-04",
+        "c5-05",
+        "c5-06"
+      ],
+      "firstSeen": "2026-10-20T00:00:00.000Z",
+      "lastSeen": "2026-11-10T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "wallet:btc:1G4b4u4dk769EYYwUNYhTrw29ttSXB67TZ",
+          "type": "wallet",
+          "label": "BTC 1G4b4u4d…XB67TZ",
+          "count": 6,
+          "weight": 0.7299
+        },
+        {
+          "key": "wallet:eth:0x15f31a31a803b14290bbf69a5dfc327852e4b26c",
+          "type": "wallet",
+          "label": "ETH 0x15f31a…e4b26c",
+          "count": 6,
+          "weight": 0.7299
+        },
+        {
+          "key": "domain:wygrana-demo.example",
+          "type": "domain",
+          "label": "wygrana-demo.example",
+          "count": 6,
+          "weight": 0.6934
+        },
+        {
+          "key": "email:nagrody@wygrana-demo.example",
+          "type": "email",
+          "label": "nagrody@wygrana-demo.example",
+          "count": 6,
+          "weight": 0.6569
+        },
+        {
+          "key": "campaign_param:aff_id=kd_partner_19",
+          "type": "campaign_param",
+          "label": "aff_id=kd_partner_19",
+          "count": 6,
+          "weight": 0.584
+        },
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 14,
+          "weight": 0.57
+        }
+      ],
+      "domains": [
+        "krotki.test",
+        "web3forms.com",
+        "wygrana-demo.example"
+      ],
+      "advertisers": [
+        "Kamil Demo Bonusy",
+        "Kamil Demonstracyjny Fan",
+        "Urodziny Kanału Demo"
+      ],
+      "cohesion": 0.9999,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "kamil-demonstracyjny",
+            "name": "Kamil Demonstracyjny",
+            "count": 6
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.83
+      },
+      "familyId": null
+    },
+    {
+      "id": "K06",
+      "size": 1,
+      "members": [
+        "n-01"
+      ],
+      "firstSeen": "2026-09-01T00:00:00.000Z",
+      "lastSeen": "2026-11-01T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [
+        "sklep-rowerowy.example"
+      ],
+      "advertisers": [
+        "Sklep Rowerowy Demo"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": null
+      },
+      "familyId": null
+    },
+    {
+      "id": "K07",
+      "size": 1,
+      "members": [
+        "n-02"
+      ],
+      "firstSeen": "2026-09-15T00:00:00.000Z",
+      "lastSeen": "2026-10-30T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [
+        "krotki.test"
+      ],
+      "advertisers": [
+        "Kurs Językowy Test"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": null
+      },
+      "familyId": null
+    },
+    {
+      "id": "K08",
+      "size": 1,
+      "members": [
+        "n-03"
+      ],
+      "firstSeen": "2026-10-05T00:00:00.000Z",
+      "lastSeen": "2026-10-08T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [
+        "zysk-szybki.example"
+      ],
+      "advertisers": [
+        "Okazje Dnia Demo"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": null
+      },
+      "familyId": null
+    },
+    {
+      "id": "K09",
+      "size": 1,
+      "members": [
+        "n-04"
+      ],
+      "firstSeen": "2026-10-06T00:00:00.000Z",
+      "lastSeen": "2026-10-09T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [
+        "inwestycje-premium.test"
+      ],
+      "advertisers": [
+        "Premium Oferty Demo"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": null
+      },
+      "familyId": null
+    },
+    {
+      "id": "K10",
+      "size": 1,
+      "members": [
+        "n-05"
+      ],
+      "firstSeen": "2026-10-10T00:00:00.000Z",
+      "lastSeen": "2026-10-25T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [
+        "robot-btc-solo.example"
+      ],
+      "advertisers": [
+        "Robot BTC Solo Demo"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "adam-testowy",
+            "name": "Adam Testowy",
+            "count": 1
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": null
+      },
+      "familyId": null
+    }
+  ],
+  "families": [],
+  "assignments": {
+    "c1-01": "K01",
+    "c1-02": "K01",
+    "c1-03": "K01",
+    "c1-04": "K01",
+    "c1-05": "K01",
+    "c1-06": "K01",
+    "c1-07": "K01",
+    "c1-08": "K01",
+    "c1-09": "K01",
+    "c2-01": "K02",
+    "c2-02": "K02",
+    "c2-03": "K02",
+    "c2-04": "K02",
+    "c2-05": "K02",
+    "c2-06": "K02",
+    "c2-07": "K02",
+    "c2-08": "K02",
+    "c3-01": "K03",
+    "c3-02": "K03",
+    "c3-03": "K03",
+    "c3-04": "K03",
+    "c3-05": "K03",
+    "c3-06": "K03",
+    "c3-07": "K03",
+    "c3-08": "K03",
+    "c4-01": "K04",
+    "c4-02": "K04",
+    "c4-03": "K04",
+    "c4-04": "K04",
+    "c4-05": "K04",
+    "c4-06": "K04",
+    "c4-07": "K04",
+    "c5-01": "K05",
+    "c5-02": "K05",
+    "c5-03": "K05",
+    "c5-04": "K05",
+    "c5-05": "K05",
+    "c5-06": "K05",
+    "n-01": "K06",
+    "n-02": "K07",
+    "n-03": "K08",
+    "n-04": "K09",
+    "n-05": "K10"
+  }
+}

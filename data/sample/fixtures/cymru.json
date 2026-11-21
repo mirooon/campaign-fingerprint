@@ -1,0 +1,59 @@
+{
+  "10.2.0.192.origin.asn.cymru.com": [
+    "64504 | 192.0.2.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "140.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "15.32.21.104.origin.asn.cymru.com": [
+    "13335 | 104.16.0.0/13 | US | arin | 2014-03-28"
+  ],
+  "200.100.51.198.origin.asn.cymru.com": [
+    "64505 | 198.51.100.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "23.100.51.198.origin.asn.cymru.com": [
+    "64501 | 198.51.100.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "24.100.51.198.origin.asn.cymru.com": [
+    "64501 | 198.51.100.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "77.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "78.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "79.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "80.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "80.2.0.192.origin.asn.cymru.com": [
+    "64503 | 192.0.2.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "81.113.0.203.origin.asn.cymru.com": [
+    "64502 | 203.0.113.0/24 | ZZ | other | 2026-01-01"
+  ],
+  "88.141.67.172.origin.asn.cymru.com": [
+    "13335 | 172.64.0.0/13 | US | arin | 2015-02-25"
+  ],
+  "AS13335.asn.cymru.com": [
+    "13335 | US | arin | 2010-07-14 | CLOUDFLARENET - Cloudflare, Inc., US"
+  ],
+  "AS64501.asn.cymru.com": [
+    "64501 | ZZ | other | 2026-01-01 | DEMO-HOSTING-A - fikcyjny hosting (AS do dokumentacji), ZZ"
+  ],
+  "AS64502.asn.cymru.com": [
+    "64502 | ZZ | other | 2026-01-01 | DEMO-VPS-B - fikcyjny dostawca VPS, ZZ"
+  ],
+  "AS64503.asn.cymru.com": [
+    "64503 | ZZ | other | 2026-01-01 | DEMO-PARKING - fikcyjny parking domen, ZZ"
+  ],
+  "AS64504.asn.cymru.com": [
+    "64504 | ZZ | other | 2026-01-01 | DEMO-CLOUD-C - fikcyjna chmura, ZZ"
+  ],
+  "AS64505.asn.cymru.com": [
+    "64505 | ZZ | other | 2026-01-01 | DEMO-SHORT - fikcyjny skracacz linków, ZZ"
+  ]
+}

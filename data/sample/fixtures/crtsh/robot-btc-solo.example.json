@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "robot-btc-solo.example",
+    "name_value": "robot-btc-solo.example\nwww.robot-btc-solo.example",
+    "id": 15006802825,
+    "entry_timestamp": "2026-08-01T11:10:00.000",
+    "not_before": "2026-08-01T11:00:00",
+    "not_after": "2026-10-30T11:00:00",
+    "serial_number": "a6cc35a112a5bcf1862b973a74c2e48c",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "robot-btc-solo.example",
+    "name_value": "robot-btc-solo.example\nwww.robot-btc-solo.example",
+    "id": 15006802826,
+    "entry_timestamp": "2026-08-01T11:20:00.000",
+    "not_before": "2026-08-01T11:00:00",
+    "not_after": "2026-10-30T11:00:00",
+    "serial_number": "a6cc35a112a5bcf1862b973a74c2e48c",
+    "result_count": 2
+  }
+]

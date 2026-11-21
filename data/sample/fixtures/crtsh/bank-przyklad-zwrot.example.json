@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "bank-przyklad-zwrot.example",
+    "name_value": "bank-przyklad-zwrot.example\nwww.bank-przyklad-zwrot.example",
+    "id": 15261991326,
+    "entry_timestamp": "2026-09-26T10:10:00.000",
+    "not_before": "2026-09-26T10:00:00",
+    "not_after": "2026-12-25T10:00:00",
+    "serial_number": "1acb9abe3c8d9174890935bc3dbeee26",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "bank-przyklad-zwrot.example",
+    "name_value": "bank-przyklad-zwrot.example\nwww.bank-przyklad-zwrot.example",
+    "id": 15261991327,
+    "entry_timestamp": "2026-09-26T10:20:00.000",
+    "not_before": "2026-09-26T10:00:00",
+    "not_after": "2026-12-25T10:00:00",
+    "serial_number": "1acb9abe3c8d9174890935bc3dbeee26",
+    "result_count": 2
+  }
+]

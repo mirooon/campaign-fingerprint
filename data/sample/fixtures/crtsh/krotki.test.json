@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "krotki.test",
+    "name_value": "krotki.test\nwww.krotki.test",
+    "id": 15101298287,
+    "entry_timestamp": "2026-08-01T00:10:00.000",
+    "not_before": "2026-08-01T00:00:00",
+    "not_after": "2026-10-30T00:00:00",
+    "serial_number": "4c96c5e7649c87c96b5a35c38b473082",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "krotki.test",
+    "name_value": "krotki.test\nwww.krotki.test",
+    "id": 15101298288,
+    "entry_timestamp": "2026-08-01T00:20:00.000",
+    "not_before": "2026-08-01T00:00:00",
+    "not_after": "2026-10-30T00:00:00",
+    "serial_number": "4c96c5e7649c87c96b5a35c38b473082",
+    "result_count": 2
+  }
+]

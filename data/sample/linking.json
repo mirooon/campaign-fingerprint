@@ -1,0 +1,25 @@
+{
+  "lists": {
+    "domains": [
+      {
+        "match": "krotki.test",
+        "factor": 0,
+        "reason": "skracacz linków (fikcyjny — przykład wpisu w konfiguracji)"
+      }
+    ],
+    "nameserverSuffixes": [
+      {
+        "match": "vps-demo.test",
+        "factor": 0.1,
+        "reason": "domyślne NS dostawcy VPS (fikcyjny — przykład wpisu w konfiguracji)"
+      }
+    ],
+    "commentPatterns": [
+      {
+        "match": "syntetyczna strona testowa",
+        "factor": 0,
+        "reason": "znacznik generatora danych przykładowych"
+      }
+    ]
+  }
+}

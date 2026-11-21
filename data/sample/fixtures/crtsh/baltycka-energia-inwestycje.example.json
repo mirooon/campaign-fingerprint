@@ -1,0 +1,26 @@
+[
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "baltycka-energia-inwestycje.example",
+    "name_value": "baltycka-energia-inwestycje.example\nwww.baltycka-energia-inwestycje.example",
+    "id": 15099411095,
+    "entry_timestamp": "2026-08-12T00:10:00.000",
+    "not_before": "2026-08-12T00:00:00",
+    "not_after": "2026-11-10T00:00:00",
+    "serial_number": "ef5d5f2d941759045ffb372263a48e7c",
+    "result_count": 2
+  },
+  {
+    "issuer_ca_id": 295815,
+    "issuer_name": "C=US, O=Let's Encrypt, CN=R11",
+    "common_name": "baltycka-energia-inwestycje.example",
+    "name_value": "baltycka-energia-inwestycje.example\nwww.baltycka-energia-inwestycje.example",
+    "id": 15099411096,
+    "entry_timestamp": "2026-08-12T00:20:00.000",
+    "not_before": "2026-08-12T00:00:00",
+    "not_after": "2026-11-10T00:00:00",
+    "serial_number": "ef5d5f2d941759045ffb372263a48e7c",
+    "result_count": 2
+  }
+]

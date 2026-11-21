@@ -28,8 +28,10 @@ describe("Meta Ad Library payer pivot", () => {
     const itemA = graph.nodes.find((n) => n.id === "item:a")!;
     expect(itemA.data.adTakenDown).toBe(true);
     expect((itemA.data.adLibrary as Array<{ euReach: number }>)[0].euReach).toBe(123456);
+    // the payer alone does not merge (rented or stolen ad accounts): a group of similar campaigns at most
     const { campaigns } = clusterCampaigns(graph);
-    expect(campaigns.assignments.a).toBe(campaigns.assignments.b);
+    expect(campaigns.assignments.a).not.toBe(campaigns.assignments.b);
+    expect(campaigns.families?.some((f) => f.members.includes("a") && f.members.includes("b"))).toBe(true);
   });
 
   it("ignores records that failed to load", () => {

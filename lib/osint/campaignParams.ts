@@ -29,7 +29,8 @@ export type CampaignParamName =
   | "adset_name"
   | "ad_id"
   | "ad_name"
-  | "pixel_id";
+  | "pixel_id"
+  | "tracker_campaign";
 
 export interface CampaignParam {
   /** Parameter name as it appeared in the URL. */
@@ -108,6 +109,17 @@ const ALIASES: Record<string, CampaignParamName> = {
   fbpixel: "pixel_id",
   fb_pixel: "pixel_id",
   px: "pixel_id",
+  // campaign key of a tracker product (Binom: "/click?key=<32 hex>", also under the renamed "f7nx2")
+  key: "tracker_campaign",
+  f7nx2: "tracker_campaign",
+};
+
+/**
+ * Value format a parameter must have to count, by canonical name. "key" is a common name (API keys,
+ * search keys): only the 32-hex value the tracker generates for one campaign names a tracker campaign.
+ */
+const VALUE_FORMAT: Partial<Record<CampaignParamName, RegExp>> = {
+  tracker_campaign: /^[0-9a-f]{32}$/i,
 };
 
 const CYRILLIC = /[Ѐ-ӿ]/;
@@ -136,7 +148,8 @@ function fragmentParams(hash: string): URLSearchParams | null {
 
 /**
  * Extracts campaign parameters from a list of URLs (landing URL, redirect hops,
- * final URL). Invalid URLs are skipped. Deduplicated by canonical name and
+ * final URL). Invalid URLs are skipped, and so are values outside the format of
+ * their parameter (VALUE_FORMAT). Deduplicated by canonical name and
  * case-insensitive value, keeping the first URL a value was seen in.
  */
 export function extractCampaignParams(urls: Array<string | null | undefined>): CampaignParam[] {
@@ -159,6 +172,7 @@ export function extractCampaignParams(urls: Array<string | null | undefined>): C
         if (!canonicalName) continue;
         const value = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_VALUE);
         if (!value) continue;
+        if (VALUE_FORMAT[canonicalName] && !VALUE_FORMAT[canonicalName].test(value)) continue;
         const key = `${canonicalName}\u0000${value.toLowerCase()}`;
         if (seen.has(key)) continue;
         seen.add(key);

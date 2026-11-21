@@ -101,3 +101,17 @@ describe("paramSchema (template of a machine-generated tracking link)", () => {
   });
 });
 
+describe("campaign key of a tracker product (tracker_campaign)", () => {
+  const HEX = "0123456789abcdef0123456789abcdef";
+
+  it("reads key= and its variant name f7nx2= with a 32-hex value", () => {
+    const [a] = extractCampaignParams([`https://alfa.example/click?key=${HEX}&clickid=x1`]);
+    expect(a).toMatchObject({ name: "key", canonicalName: "tracker_campaign", value: HEX });
+    const [b] = extractCampaignParams([`https://beta.test/?f7nx2=${HEX.toUpperCase()}`]);
+    expect(b).toMatchObject({ name: "f7nx2", canonicalName: "tracker_campaign" });
+  });
+
+  it("ignores key= with any other value (an API key, a short word)", () => {
+    expect(extractCampaignParams(["https://alfa.example/?key=abc123", `https://alfa.example/?key=${HEX}ff`])).toEqual([]);
+  });
+});

@@ -71,8 +71,8 @@ export interface TestInfra {
   asns?: Record<string, { asn: number; asName: string }>;
   /** domain -> NS list */
   ns?: Record<string, string[]>;
-  /** domain -> registrar/created */
-  rdap?: Record<string, { registrar: string; created: string; ianaId?: string }>;
+  /** domain -> registrar/created, RDAP status (e.g. "client hold") */
+  rdap?: Record<string, { registrar: string; created: string; ianaId?: string; status?: string[] }>;
   /** domain -> certs */
   certs?: Record<string, Array<{ id: string; issuer: string; sanDomains: string[] }>>;
   /** host -> CNAME chain */
@@ -105,6 +105,10 @@ export function emptyExtract(over: Partial<PageExtract> = {}): PageExtract {
   };
 }
 
+/**
+ * Builds an enriched dataset from test specs without network: one item (and page, when it has a URL) per
+ * spec, plus hosts, IPs, NS, RDAP (registrar, creation date, status) and certificates from `infra`.
+ */
 export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): EnrichedDataset {
   const ds: EnrichedDataset = {
     version: 1,
@@ -199,7 +203,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
             mx: [],
             txt: [],
             rdap: r
-              ? { domain: d, registrar: r.registrar, registrarIanaId: r.ianaId ?? null, created: r.created, expires: null, updated: null, status: [], nameservers: [], abuseEmail: null, source: null }
+              ? { domain: d, registrar: r.registrar, registrarIanaId: r.ianaId ?? null, created: r.created, expires: null, updated: null, status: r.status ?? [], nameservers: [], abuseEmail: null, source: null }
               : null,
             ct: infra.certs?.[d]
               ? {

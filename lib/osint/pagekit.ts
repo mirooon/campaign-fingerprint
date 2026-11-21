@@ -13,7 +13,7 @@
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
 import { detectPageTechniques, type CommentBlock, type PageTechnique } from "./pageTechniques";
-import { extractLanderConfig, landingCdnTenants, type LanderConfig } from "./landerConfig";
+import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformLinkIds, type LanderConfig, type PlatformLinkIds } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
 import { toAsciiHost } from "./urls";
@@ -83,6 +83,8 @@ export interface PageKit {
    * and in the requests recorded with it (HAR, scan request list). Sorted, unique.
    */
   platformTenants?: string[];
+  /** Campaign, source and account of the landing-page platform in its links (cuuid, suuid, launcher) in the page code or requests. */
+  platformLinks?: PlatformLinkIds;
   /** Block of comments written into the page (no real comments plugin), when present. */
   commentBlock?: CommentBlock | null;
   /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
@@ -929,6 +931,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
         .slice(0, MAX_PATH_IDS),
       lander: extractLanderConfig(html),
       ...tenantsOf(resourceUrls),
+      ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
     };
   } catch {
@@ -941,12 +944,19 @@ function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {
   return t.length ? { platformTenants: t } : {};
 }
 
+/** The `platformLinks` field of a page kit, omitted when there are no platform link identifiers. */
+function linksOf(ids: PlatformLinkIds | null): Pick<PageKit, "platformLinks"> {
+  return ids ? { platformLinks: ids } : {};
+}
+
 /**
  * Adds what the requests recorded with a page (HAR entries, the request list of a scan) say about the
- * page kit: tenants of the landing-page platform. Works without the page code (pass an empty kit).
+ * page kit: tenants of the landing-page platform and the identifiers in its links (cuuid, suuid,
+ * launcher). Works without the page code (pass an empty kit).
  */
 export function withRequestUrls(kit: PageKit | null, requests: string[]): PageKit {
   const k = kit ?? emptyKit();
   const tenants = landingCdnTenants([...(k.platformTenants ?? []).map((t) => `/landing-cdn/${t}/`), ...requests]);
-  return tenants.length ? { ...k, platformTenants: tenants } : k;
+  const links = mergePlatformLinkIds(k.platformLinks, platformLinkIds(requests));
+  return { ...k, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links) };
 }

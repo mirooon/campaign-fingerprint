@@ -215,7 +215,7 @@ export class Discounter {
       case "domain_pattern": {
         if (Number(p.data.literalChars ?? Number.POSITIVE_INFINITY) < this.config.kit.domainPatternMinLiteralChars) {
           out.push({
-            reason: "wzorzec bez rdzenia literowego (np. <lorem><n>) — łatwo o przypadkową zbieżność",
+            reason: "wzorzec bez rdzenia literowego (np. <lorem>-<lorem>.top): generator nazw platformy stron, wspólny dla jej najemców, i łatwa przypadkowa zbieżność",
             factor: this.config.kit.domainPatternNoAnchorFactor,
             rule: "kit.domainPatternMinLiteralChars",
           });
@@ -249,11 +249,13 @@ export class Discounter {
       case "campaign_param": {
         const name = String(p.data.canonicalName ?? "");
         const value = String(p.data.value ?? "").trim().toLowerCase();
+        // a number scoped by the tracker server (kit.machineScopedParams) is no coincidence, however short
+        const byMachine = typeof p.data.machine === "string";
         if (lists.campaignParamGenericValues.includes(value)) {
           out.push({ reason: `ogólna wartość parametru („${value}”)`, factor: 0.05, rule: "campaignParamGenericValues" });
-        } else if (value.length < 3) {
+        } else if (value.length < 3 && !byMachine) {
           out.push({ reason: "zbyt krótka wartość parametru", factor: 0.05, rule: "campaignParam:short" });
-        } else if (/^\d{1,4}$/.test(value)) {
+        } else if (/^\d{1,4}$/.test(value) && !byMachine) {
           out.push({ reason: "krótka wartość liczbowa (np. 1, 42)", factor: 0.1, rule: "campaignParam:smallNumber" });
         } else if (p.data.macro === true) {
           out.push({ reason: "nierozwinięte makro szablonu (wspólne dla wielu reklamodawców)", factor: 0.1, rule: "campaignParam:macro" });

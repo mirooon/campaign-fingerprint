@@ -14,6 +14,8 @@ import { speakerSimilarity } from "../media/speaker";
 import { hammingDistance } from "../media/imageHash";
 import { paramSchema } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
+import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+import { rdapSuspended } from "../osint/rdap";
 import { stripUiChrome } from "../text/uiChrome";
 import { domainTemplate, type DomainTemplate } from "../osint/domainPattern";
 import { simhashDistance } from "../osint/pagekit";
@@ -383,6 +385,8 @@ export function buildEvidenceGraph(
           nameservers: di?.ns ?? [],
           mx: di?.mx ?? [],
           certCount: di?.ct?.certs.length ?? null,
+          // off the air: its live NS and A belong to the registrar's suspension service, not the operator
+          ...(rdapSuspended(di?.rdap?.status, config.lists.suspendedRdapStatuses ?? []) ? { suspended: true } : {}),
         });
         g.edge(hostNode, domainNode, "in_domain", "domena rejestrowalna (eTLD+1)");
         const domainPath = [...hostPath, domainNode];
@@ -653,26 +657,70 @@ export function buildEvidenceGraph(
       if (page) itemData.finalUrl = page.fetch.finalUrl;
     }
 
-    // Campaign parameters leaking into URLs (UTM, sub1-5, click/offer/campaign/ad/pixel IDs)
-    for (const cp of enr?.campaignParams ?? []) {
-      const value = cp.value.trim();
-      const key = `${cp.canonicalName}=${value.toLowerCase()}`;
-      const id = g.node("campaign_param", key, `${cp.canonicalName}=${value.length > 40 ? `${value.slice(0, 39)}…` : value}`, {
-        canonicalName: cp.canonicalName,
-        name: cp.name,
-        value,
-        cyrillic: cp.cyrillic,
-        macro: cp.macro,
-        sourceUrl: cp.sourceUrl,
-      });
-      g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w URL ${cp.sourceUrl}`);
-      add(id, "campaign_param", [itemNode, id], 1, `ten sam parametr kampanii ${cp.canonicalName}=${value}`);
-      if (cp.cyrillic) itemData.cyrillic = true;
-    }
-
     // Click IDs that carry more than a token: the tracker server (xid) and the clicked Meta ad (fbclid)
     const landingPage = enr?.pageKey ? dataset.pages[enr.pageKey] : undefined;
     const clickIds = clickIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl]);
+    const machines = [...new Set(clickIds.xids.map((x) => x.machine))];
+    const scopedParams = new Set(config.kit.machineScopedParams ?? []);
+
+    // Campaign parameters leaking into URLs (UTM, sub1-5, click/offer/campaign/ad/pixel IDs)
+    for (const cp of enr?.campaignParams ?? []) {
+      const value = cp.value.trim();
+      // An internal number of a tracker (campaign_id=319) names a campaign only on one tracker server:
+      // every installation counts from 1, so with an xid the machine goes into the key.
+      const scope = scopedParams.has(cp.canonicalName) && /^\d+$/.test(value) && machines.length ? machines : [null];
+      for (const machine of scope) {
+        const scoped = machine ? `${machine}/${value}` : value;
+        const key = `${cp.canonicalName}=${scoped.toLowerCase()}`;
+        const trackerCampaign = cp.canonicalName === "tracker_campaign" || machine !== null;
+        const id = g.node("campaign_param", key, `${cp.canonicalName}=${scoped.length > 40 ? `${scoped.slice(0, 39)}…` : scoped}`, {
+          canonicalName: cp.canonicalName,
+          name: cp.name,
+          value,
+          cyrillic: cp.cyrillic,
+          macro: cp.macro,
+          sourceUrl: cp.sourceUrl,
+          ...(machine ? { machine } : {}),
+          ...(trackerCampaign ? { trackerCampaign: true } : {}),
+        });
+        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w URL ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
+        const what =
+          cp.canonicalName === "tracker_campaign"
+            ? `ten sam klucz kampanii w trackerze (${cp.name}=${value})`
+            : machine
+              ? `ta sama kampania na tym samym serwerze trackera (${cp.canonicalName}=${value}, maszyna ${machine})`
+              : `ten sam parametr kampanii ${cp.canonicalName}=${value}`;
+        add(id, "campaign_param", [itemNode, id], 1, what);
+      }
+      if (cp.cyrillic) itemData.cyrillic = true;
+    }
+
+    // Links of the landing-page platform (?cuuid=…&suuid=…&launcher=…) in the ad's own link, the address
+    // bar (OCR), the page code or its requests: the same account and campaign nodes as window.aio, also
+    // without the page code. launcher is owner_uuid, so it lands in the account space, not the tenant's.
+    const linkIds = mergePlatformLinkIds(
+      landingPage?.kit?.platformLinks,
+      platformLinkIds([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...(enr?.observedUrls ?? []).map((o) => o.url)]),
+    );
+    if (linkIds) {
+      for (const owner of linkIds.ownerIds) {
+        const id = g.node("platform_account", owner, `konto ${owner.slice(0, 8)}… na platformie stron`, { ownerId: owner, platform: "aio" });
+        g.edge(itemNode, id, "built_on", `link platformy stron wskazuje konto (launcher=${owner}, ta sama wartość co owner_uuid)`);
+        add(id, "platform_account", [itemNode, id], 1, `to samo konto na platformie stron (launcher = owner_uuid ${owner})`);
+      }
+      for (const c of linkIds.campaignIds) {
+        const id = g.node("platform_campaign", c, `kampania ${c.slice(0, 8)}`, { campaignId: c });
+        g.edge(itemNode, id, "built_on", `link platformy stron wskazuje kampanię (cuuid=${c})`);
+        add(id, "platform_campaign", [itemNode, id], 1, `ta sama kampania na platformie stron (cuuid ${c})`);
+      }
+      if (linkIds.sourceIds.length) itemData.platformSourceIds = linkIds.sourceIds;
+      if (linkIds.ownerIds.length && !itemData.platformAccount) {
+        itemData.platformAccount = linkIds.ownerIds[0];
+        itemData.platformAccountSource = "launcher";
+      }
+      itemData.landerPlatform ??= "aio";
+    }
+
     for (const x of clickIds.xids) {
       // Keyed by the machine only: the "process ID" of this tracker product is one constant on many
       // installations (a trait of the platform, not of one server), so it stays a detail of the node.
@@ -762,7 +810,13 @@ export function buildEvidenceGraph(
     if (node.type === "item") continue;
     node.df = pivotItems.get(node.id)?.length ?? 0;
     node.discounts = discounter.discountsFor({ type: node.type, key: node.key, id: node.id, data: node.data });
-    const base = node.data.burst ? config.registrationBurstWeight : node.data.exactFile ? (config.creativeFileWeight ?? 0.95) : undefined;
+    const base = node.data.burst
+      ? config.registrationBurstWeight
+      : node.data.exactFile
+        ? (config.creativeFileWeight ?? 0.95)
+        : node.data.trackerCampaign
+          ? (config.trackerCampaignWeight ?? config.typeWeights.campaign_param)
+          : undefined;
     const w = pivotWeight(node.type, node.discounts, node.df, n, config, base);
     node.weight = round(w.weight);
     // the same creative file joins by the campaign rules, not by union-find: a platform-account conflict wins over it

@@ -125,3 +125,39 @@ export function landingCdnTenants(urls: Iterable<string | null | undefined>): st
   }
   return [...out].sort();
 }
+
+/** Identifiers of the landing-page platform carried by its own links (`?cuuid=…&suuid=…&launcher=…`). */
+export interface PlatformLinkIds {
+  /** `cuuid`: the campaign inside the account (the `campaign.uuid` of `window.aio`). */
+  campaignIds: string[];
+  /** `suuid`: the traffic source the buyer set up (the `source.uuid` of `window.aio`). */
+  sourceIds: string[];
+  /** `launcher`: the account, the same value as `owner_uuid` (not a landing-cdn tenant). */
+  ownerIds: string[];
+}
+
+const LINK_ID = /(?:[?&]|&amp;)(cuuid|suuid|launcher)=([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?![0-9a-f])/gi;
+
+/**
+ * Platform identifiers in query strings found anywhere in the given texts: link addresses (the ad's own
+ * link, an address read by OCR, HAR requests) or whole page code, where scripts build such links. They
+ * name the account and the campaign without the `window.aio` record. Lower-case UUIDs, sorted, unique;
+ * null when there are none.
+ */
+export function platformLinkIds(texts: Iterable<string | null | undefined>): PlatformLinkIds | null {
+  const found = { cuuid: new Set<string>(), suuid: new Set<string>(), launcher: new Set<string>() };
+  for (const t of texts) {
+    if (!t) continue;
+    for (const m of t.matchAll(LINK_ID)) found[m[1].toLowerCase() as keyof typeof found].add(m[2].toLowerCase());
+  }
+  if (!found.cuuid.size && !found.suuid.size && !found.launcher.size) return null;
+  return { campaignIds: [...found.cuuid].sort(), sourceIds: [...found.suuid].sort(), ownerIds: [...found.launcher].sort() };
+}
+
+/** Union of several sets of platform link identifiers (null entries skipped); null when all are empty. */
+export function mergePlatformLinkIds(...sets: Array<PlatformLinkIds | null | undefined>): PlatformLinkIds | null {
+  const list = sets.filter((x): x is PlatformLinkIds => !!x);
+  if (!list.length) return null;
+  const union = (pick: (x: PlatformLinkIds) => string[]) => [...new Set(list.flatMap(pick))].sort();
+  return { campaignIds: union((x) => x.campaignIds), sourceIds: union((x) => x.sourceIds), ownerIds: union((x) => x.ownerIds) };
+}

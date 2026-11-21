@@ -62,6 +62,11 @@ function itemIdOf(node: GraphNode): string {
   return node.key;
 }
 
+/**
+ * Groups the ads of an evidence graph into campaigns (steps in the header of this file) and campaigns into
+ * groups of similar campaigns. Returns the campaigns file (with the method's rules spelled out) and a copy
+ * of the graph with `campaignId` on item nodes. Deterministic except the `generatedAt` stamp (`now`).
+ */
 export function clusterCampaigns(
   graph: EvidenceGraph,
   options: { config?: LinkConfig; now?: () => Date } = {},
@@ -205,7 +210,7 @@ export function clusterCampaigns(
         louvain: { resolution: config.louvain.resolution, seed: config.louvain.seed, modularity },
         minLinkScore: config.minLinkScore,
         rules: [
-          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; cechy zestawu stron (${config.campaignRules.notAloneKinds.join(", ")}) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą`,
+          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; cechy zestawu stron i płatnik z biblioteki reklam (${config.campaignRules.notAloneKinds.join(", ")}) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą`,
           `treść (${(config.campaignRules.contentKinds ?? []).join(", ")}): bez infrastruktury po obu stronach kampanię tworzą co najmniej ${config.campaignRules.minContentKinds ?? 2} różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} z tym samym dźwiękiem) łączy sam`,
           ...(config.campaignRules.contentVariant
             ? [`wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ ${config.campaignRules.contentVariant.imageHamming}, CLIP ≥ ${config.campaignRules.contentVariant.clipMinCosine}); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza`]

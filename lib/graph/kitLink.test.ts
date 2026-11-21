@@ -252,13 +252,14 @@ describe("campaign_param pivot", () => {
 
 describe("param_schema pivot (template of a tracking link)", () => {
   it("is recorded for clicks through the same template but does not merge on its own", () => {
+    // utm_ref, not utm_visit: utm_visit=<uuid> is the default link of a page platform (lists.paramSchemaPlatformParts)
     const res = run([
-      { id: "a", url: "https://alpha.example/?utm_id=aB4dE6gH8jK0mN2pQ4rS&utm_medium=Qw3rTy7UiO&utm_visit=0195c2aa-1111-7222-8333-444455556666" },
-      { id: "b", url: "https://beta.test/?utm_id=zY8xW6vU4tS2rQ0pN8mL&utm_medium=zX9cV8bN1m&utm_visit=0195c2bb-9999-7888-8777-666655554444" },
+      { id: "a", url: "https://alpha.example/?utm_id=aB4dE6gH8jK0mN2pQ4rS&utm_medium=Qw3rTy7UiO&utm_ref=0195c2aa-1111-7222-8333-444455556666" },
+      { id: "b", url: "https://beta.test/?utm_id=zY8xW6vU4tS2rQ0pN8mL&utm_medium=zX9cV8bN1m&utm_ref=0195c2bb-9999-7888-8777-666655554444" },
       { id: "c", url: "https://gamma.example/?utm_source=facebook&utm_medium=cpc&utm_campaign=wiosna" },
     ]);
     const nodes = res.graph.nodes.filter((n) => n.type === "param_schema");
-    expect(nodes.map((n) => [n.key, n.df, n.strong])).toEqual([["utm_id:tok|utm_medium:tok|utm_visit:uuid", 2, false]]);
+    expect(nodes.map((n) => [n.key, n.df, n.strong])).toEqual([["utm_id:tok|utm_medium:tok|utm_ref:uuid", 2, false]]);
     expect(link(res, "a", "b")!.evidence.map((e) => e.pivotType)).toEqual(["param_schema"]);
     expect(same(res, "a", "b")).toBe(false);
   });

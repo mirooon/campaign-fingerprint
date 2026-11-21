@@ -186,6 +186,17 @@ export function parseRdap(json: unknown, domain: string): RdapInfo {
   return info;
 }
 
+/**
+ * Whether RDAP statuses say the domain is off the air (registrar or registry hold). `holds` are the
+ * statuses that count, lower case without spaces ("clienthold"); RDAP writes "client hold", EPP
+ * "clientHold", so spaces and case are ignored. Empty statuses → false.
+ */
+export function rdapSuspended(status: string[] | null | undefined, holds: string[]): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[\s_-]+/g, "");
+  const want = new Set(holds.map(norm));
+  return (status ?? []).some((s) => want.has(norm(s)));
+}
+
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
   if (!defaultCache) defaultCache = createCache({ namespace: "rdap", defaultTtlMs: TTL.week });

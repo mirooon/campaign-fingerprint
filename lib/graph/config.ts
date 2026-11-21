@@ -46,7 +46,8 @@ export interface LinkConfig {
   minLinkScore: number;
   /**
    * Which non-strong links may join two ads into one campaign (first level). Traces of a page kit
-   * (`notAloneKinds`: template, shop theme, cloned portal), sold and reused across operators, count
+   * (`notAloneKinds`: template, shop theme, cloned portal), sold and reused across operators, and the
+   * payer of the ad library (ad accounts are rented out or stolen), count
    * together as one kind and never join on their own, with each other or with content: a link needs
    * at least one kind of evidence outside the kit and the content. Then `minEvidenceKinds` different
    * kinds, or that one kind alone. Discounted evidence counts only when its weight after the discount
@@ -106,6 +107,12 @@ export interface LinkConfig {
   };
   /** Base weight of the "same creative file" pivot (SHA-256 of the image or video file). */
   creativeFileWeight?: number;
+  /**
+   * Base weight of a campaign inside a tracker: its key (tracker_campaign, 32 hex) or an internal number
+   * scoped by the tracker server (`kit.machineScopedParams`). It joins, but below strongThreshold: one
+   * tracker installation can serve several buyers.
+   */
+  trackerCampaignWeight?: number;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -138,6 +145,10 @@ export interface LinkConfig {
     domainPatternMinDomains: number;
     /** Templates with fewer literal letters than this are weakly anchored. */
     domainPatternMinLiteralChars: number;
+    /**
+     * Multiplier for a template without a literal core ("<lorem>-<lorem>-<lorem>.top"): the default domain
+     * generator of a landing-page platform, shared by its tenants. Kept below minLinkScore on its own.
+     */
     domainPatternNoAnchorFactor: number;
     /** Multiplier for the TLD-agnostic template (e.g. "finance<n>-<lorem><n>.*"). */
     domainPatternAgnosticFactor: number;
@@ -145,6 +156,12 @@ export interface LinkConfig {
     campaignParamWordFactor: number;
     /** Multiplier for a favicon of a brand the page impersonates (title names a brand its domain does not carry). */
     brandAssetFactor: number;
+    /**
+     * Canonical parameters whose numeric values are internal numbers of a tracker (campaign_id=319): with an
+     * xid click ID the key gets the tracker machine ("campaign_id=<machine>/319"), because the same small
+     * number is reused by every installation.
+     */
+    machineScopedParams?: string[];
   };
   /** Multiplier for pivots reached through an outbound link rather than hosting. */
   outboundLinkFactor: number;
@@ -159,6 +176,12 @@ export interface LinkConfig {
     ipCidrs: CidrRule[];
     /** Suffix match on each nameserver host. */
     nameserverSuffixes: ListRule[];
+    /**
+     * RDAP statuses (lower case, spaces ignored: "client hold" = "clientHold") of a domain taken off the
+     * air by its registrar or registry. Such a domain gets `suspended: true`; its live DNS then points at
+     * the registrar's suspension service, not at the operator (the A record captured with the page wins).
+     */
+    suspendedRdapStatuses?: string[];
     /** Case-insensitive substring match on the issuer. */
     certIssuers: ListRule[];
     /** Suffix match on SAN names: marks CDN-shared certificates. */
@@ -253,8 +276,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Same clicked ad (ad ID inside fbclid).
     meta_ad: 0.95,
     // The payer declared to Meta under the DSA (one paying account behind several ads);
-    // a free-text name, so generic names are damped by IDF like any other pivot.
-    ad_payer: 0.7,
+    // a free-text name, so generic names are damped by IDF like any other pivot. Below strongThreshold
+    // and in campaignRules.notAloneKinds: ad accounts are rented out or stolen (the payer may be a victim
+    // of identity theft), so the name alone does not merge campaigns.
+    ad_payer: 0.65,
     // The same set of comment authors written into pages on different domains: one page template.
     // A template trace like page_template: it joins a campaign only with evidence of the operator (campaignRules.notAloneKinds).
     comment_block: 0.45,
@@ -269,7 +294,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   minLinkScore: 0.15,
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators
     familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
@@ -302,6 +327,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     contentVariant: { imageHamming: 6, clipMinCosine: 0.95 },
   },
   creativeFileWeight: 0.95,
+  trackerCampaignWeight: 0.6,
   familyMinScore: 0.3,
   similarity: {
     imageHamming: 10,
@@ -319,10 +345,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     minHiddenFields: 2,
     domainPatternMinDomains: 2,
     domainPatternMinLiteralChars: 3,
-    domainPatternNoAnchorFactor: 0.3,
+    domainPatternNoAnchorFactor: 0.1,
     domainPatternAgnosticFactor: 0.85,
     campaignParamWordFactor: 0.75,
     brandAssetFactor: 0.1,
+    machineScopedParams: ["campaign_id", "offer_id"],
   },
   outboundLinkFactor: 0.4,
   registrationBurstHours: 48,
@@ -380,6 +407,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { cidr: "75.2.60.5/32", factor: 0.05, reason: "Netlify (load balancer platformy)" },
       { cidr: "185.199.108.0/22", factor: 0.05, reason: "GitHub Pages" },
       { cidr: "199.36.158.100/32", factor: 0.05, reason: "Firebase Hosting" },
+      // registrars point suspended domains at a public resolver address: a trait of the suspension, not of an operator
+      { cidr: "1.1.1.0/24", factor: 0.02, reason: "adres zastępczy zawieszonej domeny (publiczny resolver, wpisywany przez rejestratora)" },
     ],
     nameserverSuffixes: [
       { match: "ns.cloudflare.com", factor: 0.1, reason: "NS Cloudflare (masowo współdzielone)" },
@@ -410,7 +439,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { match: "dns-parking.com", factor: 0.05, reason: "NS parkingu/hostingu (Hostinger)" },
       { match: "afternic.com", factor: 0.05, reason: "NS parkingu domen (Afternic)" },
       { match: "dan.com", factor: 0.05, reason: "NS parkingu domen (Dan.com)" },
+      { match: "dyna-ns.net", factor: 0.02, reason: "NS zawieszenia domen rejestratora (Dynadot): cecha usługi rejestratora, nie operatora" },
     ],
+    suspendedRdapStatuses: ["clienthold", "serverhold"],
     certIssuers: [
       { match: "let's encrypt", factor: 0.6, reason: "darmowy CA (Let's Encrypt)" },
       { match: "zerossl", factor: 0.6, reason: "darmowy CA (ZeroSSL)" },
@@ -591,8 +622,13 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       })),
     ],
     endpointPlatformPaths: [
-      { match: "/api/v1/trigger/", factor: 0.1, reason: "ścieżka SDK platformy stron (window.aio), wspólna dla wszystkich jej kont" },
-      { match: "/api/v1/agent/", factor: 0.1, reason: "ścieżka SDK platformy stron (window.aio), wspólna dla wszystkich jej kont" },
+      // SDK of the landing-page platform (window.aio): the same files and API paths on every tenant's domain,
+      // so they say nothing about the operator (public scans: one SDK under many unrelated accounts)
+      ...["/api/v1/trigger/", "/api/v1/agent/", "/api/v1/pwa/manifest/", "/aio-static/", "/aio-sw.js"].map((match) => ({
+        match,
+        factor: 0.01,
+        reason: "plik lub ścieżka SDK platformy stron (window.aio), wspólne dla wszystkich jej kont",
+      })),
       // public scans: the same script on landers of many unrelated operators in many countries
       { match: "/include/events-stat.js", factor: 0.1, reason: "skrypt zdarzeń platformy trackera (Binom), wspólny dla wszystkich jej instalacji" },
       { match: "/click", factor: 0.1, reason: "ścieżka linku kampanii platformy trackera (/click?key=…), wspólna dla wszystkich jej instalacji" },
@@ -640,6 +676,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     ],
     paramSchemaPlatformParts: [
       { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora" },
+      { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora" },
     ],
     endpointGenericPaths: [
       "/",

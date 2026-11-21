@@ -133,12 +133,27 @@ const IMAGE_EXT = /\.(ico|png|jpe?g|gif|webp|svg|avif)$/i;
 const SCREENSHOT_EXT = /\.(png|jpe?g|webp)$/i;
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
 const HTML_EXT = /\.html?$/i;
+/** Image formats that phones and browsers save but the importer does not read as a screenshot (see SCREENSHOT_EXT). */
+const UNREAD_IMAGE_EXT = /\.(heic|heif|tiff?|bmp|gif|avif)$/i;
 /**
  * A file the importer takes as material (HAR, saved page, MHTML snapshot, screenshot, video), as
  * opposed to notes, manifests and page assets: what two copies of one case must share.
  */
 export function isMaterialFile(name: string): boolean {
   return /\.har$/i.test(name) || /\.mhtml?$/i.test(name) || (HTML_EXT.test(name) && !SAVED_FRAME.test(name)) || SCREENSHOT_EXT.test(name) || VIDEO_EXT.test(name);
+}
+
+/**
+ * Upper-case extensions (e.g. "HEIC") of the images in a case folder that the importer leaves out
+ * because it does not read their format, in alphabetical order. Empty when there are none. It lets a
+ * case with nothing else say why it was skipped, instead of "no page, screenshot or video".
+ */
+export function unreadImageFormats(root: string): string[] {
+  const found = walkCase(root)
+    .map((f) => UNREAD_IMAGE_EXT.exec(f.name)?.[1])
+    .filter((e): e is string => !!e)
+    .map((e) => e.toUpperCase());
+  return [...new Set(found)].sort();
 }
 
 /** Frames a browser saves next to the page ("saved_resource.html"). */

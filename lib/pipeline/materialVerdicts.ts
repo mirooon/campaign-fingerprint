@@ -286,8 +286,13 @@ export interface Sufficiency {
   contentWords: number;
   hasImage: boolean;
   hasVideo: boolean;
-  /** Captured landing page (HAR or saved page). */
+  /** Landing page actually captured (HAR or saved page), not just an address of it. */
   hasPage: boolean;
+  /**
+   * A HAR (the request log of the visit) came with the case. Only for cases read from a folder:
+   * undefined for a bare link, a text or a dataset row, where nobody was asked for a file.
+   */
+  hasHar?: boolean;
   /** A link passed the campaign or family threshold (campaign with other members, or a group of similar campaigns). */
   linked: boolean;
   /** The ad is a lead form of the platform (isLeadAd): it has no landing page to capture. */
@@ -329,14 +334,17 @@ export function caseFileDuplicates(cases: CaseFiles[]): Map<string, { caseId: st
 /**
  * What to add to the material so that it can be compared (Polish, most useful first). A lead-form ad
  * without an address has no landing page to link or record, so it is asked for the ad-library ID (it
- * names the ad and its advertiser) or the advertiser's page, and a screenshot of the form.
+ * names the ad and its advertiser) or the advertiser's page, and a screenshot of the form. The HAR is
+ * asked for when no page was captured, and also when the page came without one (`hasHar` false): a
+ * saved page does not show the servers, scripts and trackers the visit contacted, and those often
+ * are the only link to a campaign. Not asked when it is unknown whether a HAR came (`hasHar` undefined).
  */
 export function missingData(s: Sufficiency): string[] {
   const out: string[] = [];
   const leadForm = !!s.leadAd && !s.hasAddress;
   if (leadForm) out.push("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy", "zrzut formularza reklamy");
   else if (!s.hasAddress) out.push("link do reklamy albo strony docelowej", "zrzut z widocznym paskiem adresu");
-  if (!s.hasPage && !leadForm) out.push("plik HAR z wizyty na stronie");
+  if ((!s.hasPage || s.hasHar === false) && !leadForm) out.push("plik HAR z wizyty na stronie");
   if (!s.hasImage && !s.hasVideo) out.push("zrzut ekranu reklamy");
   if (s.contentWords < MIN_CONTENT_WORDS) out.push("pełna treść reklamy (tekst posta albo czytelny zrzut)");
   return out;

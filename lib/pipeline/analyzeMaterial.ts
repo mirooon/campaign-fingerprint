@@ -18,7 +18,7 @@ import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { buildEvidenceGraph } from "../graph/link";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
 import type { CompiledWatchlist } from "../text/persona";
-import { importCases, isMaterialFile, walkCase } from "./caseImport";
+import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./caseImport";
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
@@ -247,6 +247,12 @@ const FEATURE_KEYS = [
   "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques",
 ];
 
+/** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */
+function unreadFormatsHint(caseDir: string | undefined): string {
+  const formats = caseDir ? unreadImageFormats(caseDir) : [];
+  return formats.length ? `; obrazy w formacie ${formats.join(", ")} nie są czytane, zapisz je jako PNG, JPEG albo WEBP` : "";
+}
+
 /**
  * Compares new material (case folders, a link, a text or a dataset file) with an existing run: imports and
  * enriches only the new records, builds one graph with the run, and gives each record a verdict, its links and
@@ -321,7 +327,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const imported = new Set(records.map((r) => String(r.case ?? r.id)));
     for (const n of names) {
       if (imported.has(n)) progress(n, "import", "done", `${records.filter((r) => String(r.case ?? r.id) === n).length} rekord(y)`);
-      else progress(n, "import", "skipped", skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`))?.reason ?? "brak strony, zrzutu ani wideo w katalogu");
+      else progress(n, "import", "skipped", skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`))?.reason ?? `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`);
     }
   }
   if (input.datasetFile) {
@@ -340,7 +346,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     items.push(...rows);
   }
   if (!items.length && (input.url || input.text)) items = [bareRecord(input)];
-  if (!items.length) throw new Error("materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu");
+  if (!items.length) throw new Error(`materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu${[...caseDirOf.values()].map(unreadFormatsHint).join("")}`);
   const existingIds = new Set(base.items.map((i) => i.id));
   const taken = new Set<string>();
   for (const it of items) {
@@ -564,6 +570,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const byId = new Map(results.map((r) => [r.id, r]));
   // a case whose every file is in an earlier case of the batch (the order the records are compared in)
   const filesOf = caseIds.filter((c) => caseDirOf.has(c)).map((c) => readCaseFiles(c, caseDirOf.get(c)!, notes));
+  const harCases = new Set(filesOf.filter((f) => f.files.some((x) => /\.har$/i.test(x.name))).map((f) => f.caseId));
   for (const [caseId, orig] of caseFileDuplicates(filesOf)) {
     const origRecords = results.filter((r) => r.caseId === orig.caseId);
     for (const r of results.filter((x) => x.caseId === caseId && !dups.has(x.id))) {
@@ -609,7 +616,9 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       contentWords: words,
       hasImage: !!enr?.image,
       hasVideo: !!it?.videoPath,
-      hasPage: !!enr?.pageKey,
+      // an address alone (typed in, or read from a screenshot) is not a captured page: the fetch of it may have failed
+      hasPage: !!(enr?.pageKey && merged.pages[enr.pageKey]?.fetch.ok),
+      hasHar: harCases.has(r.caseId ?? r.id) ? true : caseDirOf.has(r.caseId ?? r.id) ? false : undefined,
       linked: (camp?.members.length ?? 1) > 1 || !!camp?.familyId,
       leadAd,
     };
@@ -617,7 +626,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       r.verdict = "insufficient";
       r.missing = missingData(s);
       r.verdictText = `Za mało danych do porównania: brak adresu strony, identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`;
-    } else if (r.verdict === "new_campaign") {
+    } else if (r.verdict === "new_campaign" || r.verdict === "similar_campaigns") {
       const m = missingData(s);
       if (m.length) r.missing = m;
     }

@@ -185,6 +185,14 @@ describe("insufficient", () => {
     ]);
     expect(missingData({ ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9 })).toEqual([]);
   });
+  it("asks for the HAR when the page was saved without one, but not when it is not known whether one came", () => {
+    const withPage: Sufficiency = { ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9 };
+    expect(missingData({ ...withPage, hasHar: false })).toEqual(["plik HAR z wizyty na stronie"]);
+    expect(missingData({ ...withPage, hasHar: true })).toEqual([]);
+    expect(missingData(withPage)).toEqual([]);
+    // without the page the HAR is asked for once, whatever is known about the case files
+    expect(missingData({ ...withPage, hasPage: false, hasHar: false }).filter((m) => m.includes("HAR"))).toEqual(["plik HAR z wizyty na stronie"]);
+  });
   it("asks a platform lead form without a landing page for the ad-library ID or a screenshot of the form", () => {
     const m = missingData({ ...empty, hasImage: true, leadAd: true });
     expect(m[0]).toBe("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy");

@@ -72,6 +72,8 @@ Ocena partii na własnych etykietach (plik `{"kampania": ["sprawa", …]}` albo 
 bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wynik jako JSON
 ```
 
+Minimum plików (pomiar na 111 wariantach 25 spraw, [docs/METODYKA.md](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)): zapisana strona (HTML albo HAR) wystarcza do przypisania do znanej kampanii; sam zrzut albo samo wideo bez strony zwykle nie, i wtedy narzędzie zgłasza brak danych (`insufficient`, „podobne kampanie” albo „nowa kampania”) z listą braków w `missing_data` (link do strony, plik HAR, zrzut reklamy) zamiast zgadywać; żaden wariant nie trafił do cudzej kampanii. Obrazy w formacie HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
+
 Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
 
 ### Jak zebrać materiał

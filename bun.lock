@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "starter",
+      "name": "odcisk-kampanii",
       "dependencies": {
         "@anthropic-ai/sdk": "^1.10.0",
         "@huggingface/transformers": "3.7.6",

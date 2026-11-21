@@ -1,6 +1,6 @@
-# Dokumentacja techniczna startera
+# Dokumentacja techniczna: Odcisk kampanii
 
-Opisuje to, co kod robi **teraz**. Numery linii (`plik:linia`) dotyczą kodu z commitu `e132a5d` (19.11.2026). Commit z tym dokumentem zmienia tylko `docs/TECHNICAL.md` i `README.md`. Jeśli edytujesz pliki, numery się przesuną: szukaj wtedy po nazwie funkcji.
+Opisuje to, co kod robi w wersji oddanej (stan po zadaniach z 21.11.2026). Odwołania do kodu wskazują plik; funkcję lub stałą znajdziesz wyszukiwaniem po nazwie z tekstu, bo numery linii szybko się przesuwają. Osobne dokumenty: [../README.md](../README.md) (uruchomienie), [METODYKA.md](METODYKA.md) (metodyka dla osoby oceniającej), [../LICENCJE.md](../LICENCJE.md) (licencje), [GUI.md](GUI.md) (interfejs), [ZGODNOSC.md](ZGODNOSC.md) (AI Act, RODO, DSA). Sekcje o uruchomieniu, trybie live, bibliotekach i pochodzeniu danych, które stały w README do 21.11.2026, są w §17.
 
 ## Spis treści
 
@@ -16,10 +16,11 @@ Opisuje to, co kod robi **teraz**. Numery linii (`plik:linia`) dotyczą kodu z c
 10. [Konfiguracja](#10-konfiguracja)
 11. [Bezpieczeństwo](#11-bezpieczeństwo)
 12. [Testy](#12-testy)
-13. [Jak dostosować w sobotę do danych NASK](#13-jak-dostosować-w-sobotę-do-danych-nask)
+13. [Dostosowanie do nowego zbioru](#13-dostosowanie-do-nowego-zbioru)
 14. [Znane ograniczenia](#14-znane-ograniczenia)
 15. [Paczka dowodów](#15-paczka-dowodów)
 16. [Watcher Certificate Transparency (wczesne ostrzeganie)](#16-watcher-certificate-transparency-wczesne-ostrzeganie)
+17. [Treści przeniesione z README](#17-treści-przeniesione-z-readme-21112026-zadanie-i8)
 
 ---
 
@@ -57,22 +58,22 @@ Pary reklam dostają wagę z ważenia wspólnych encji i podobieństwa obrazu, t
         └── /api/analyze (lib/pipeline/analyze.ts)        dopasowuje nową reklamę do graph.json
 ```
 
-Domyślne ścieżki są w `lib/pipeline/steps.ts:22-37` (także lista person, archiwum, katalog paczek dowodów, feed, leksykon i plik demo watchera CT). `.cache/`, `data/work/`, `data/evidence/` i `data/ct-watch.jsonl` są w `.gitignore` (`.gitignore:47-52`). `data/graph.json`, `data/campaigns.json` i `data/summaries.json` są commitowane, żeby przeglądarka budowała się bez uruchamiania pipeline'u.
+Domyślne ścieżki są w `lib/pipeline/steps.ts` (także lista person, archiwum, katalog paczek dowodów, feed, leksykon i plik demo watchera CT). `.cache/`, `data/work/`, `data/evidence/` i `data/ct-watch.jsonl` są w `.gitignore` (`.gitignore:47-52`). `data/graph.json`, `data/campaigns.json` i `data/summaries.json` są commitowane, żeby przeglądarka budowała się bez uruchamiania pipeline'u.
 
-### 2.1 `items.json` — `ItemsFile` (`lib/pipeline/types.ts:43`)
+### 2.1 `items.json` — `ItemsFile` (`lib/pipeline/types.ts`)
 
 | Pole | Typ | Uwagi |
 |---|---|---|
 | `version` | `1` | |
 | `generatedAt` | ISO | |
 | `source` | string | ścieżka wejścia |
-| `baseDir` | string | katalog, względem którego rozwiązywane są `imagePath` i `videoPath` (domyślnie katalog pliku wejściowego, `steps.ts:68`) |
+| `baseDir` | string | katalog, względem którego rozwiązywane są `imagePath` i `videoPath` (domyślnie katalog pliku wejściowego, `steps.ts`) |
 | `items` | `Item[]` | niżej |
 | `warnings` | string[] | brakujące kolumny, duplikaty id, nieparsowalne daty i wyniki deepfake, puste wiersze |
 
-`Item` (`types.ts:19`): `id`, `platform`, `advertiser`, `text`, `imageUrl` (tylko http(s)), `imagePath`, `landingUrl`, `firstSeen`, `lastSeen` (ISO 8601 UTC), `label` (prawda do ewaluacji), `persona` (osoba z danych wejściowych, np. z DROZD; kilka rozdzielonych `;` lub `|`, `types.ts:34`), `deepfakeScore` (0..1, wynik modelu z danych wejściowych, nie fakt, `:36`), `videoPath` (plik wideo/audio dla opcjonalnego ASR i odcisku audio, `:38`), `extra` (niezmapowane kolumny, wartości ucięte do 500 znaków, `ingest.ts:246`). Pola tekstowe poza `id` i `extra` są `string | null`.
+`Item` (`types.ts`): `id`, `platform`, `advertiser`, `text`, `imageUrl` (tylko http(s)), `imagePath`, `landingUrl`, `firstSeen`, `lastSeen` (ISO 8601 UTC), `label` (prawda do ewaluacji), `persona` (osoba z danych wejściowych, np. z DROZD; kilka rozdzielonych `;` lub `|`, `types.ts`), `deepfakeScore` (0..1, wynik modelu z danych wejściowych, nie fakt), `videoPath` (plik wideo/audio dla opcjonalnego ASR i odcisku audio), `extra` (niezmapowane kolumny, wartości ucięte do 500 znaków, `ingest.ts`). Pola tekstowe poza `id` i `extra` są `string | null`.
 
-### 2.2 `enriched.json` — `EnrichedDataset` (`types.ts:134`)
+### 2.2 `enriched.json` — `EnrichedDataset` (`types.ts`)
 
 | Pole | Typ | Klucz |
 |---|---|---|
@@ -84,49 +85,49 @@ Domyślne ścieżki są w `lib/pipeline/steps.ts:22-37` (także lista person, ar
 | `domains` | `Record<domena, DomainInfo>` | domena rejestrowalna (eTLD+1) |
 | `ips` | `Record<ip, AsnInfo \| null>` | IP kanoniczny (IPv6 w pełnej postaci) |
 
-- `ItemEnrichment` (`types.ts:113`): `itemId`, `landing: NormalizedUrl|null`, `pageKey` (klucz do `pages`), `text: TextExtract|null` (kontakty/portfele/URL-e z treści reklamy, OCR i ASR), `image: ImageInfo|null`, `personas: PersonaMatch[]` (`:122`), `campaignParams: CampaignParam[]` (`:124`), `ocrText` (`:126`), `asrText` (`:128`), `audioFp: AudioFingerprint|null` (`:130`), `errors: string[]`.
-- `PageInfo` (`types.ts:78`): `requestedUrl`, `fetch` (= `FetchPageResult` bez `body`), `extract: PageExtract|null`, `favicon: {url, hashes: FaviconHashes|null, error}|null`, `kit: PageKit|null` (`:84`), `archiveFile` (ścieżka zdekodowanego HTML w archiwum, `:86`), `cloaking: CloakingCheck|null` (`:88`).
-- `CloakingCheck` (`types.ts:100`): `crawler` i `mobile` (`CloakingVariant`, `:91`: `userAgent`, `finalUrl`, `status`, `domSimhash`, `bodySha256`, `error`), `finalUrlDiffers`, `domDistance`, `suspected`, `reasons[]`.
-- `HostInfo` (`types.ts:53`): `host`, `registrableDomain`, `dns: DnsRecords|null`, `ips: string[]`, `cnameChain: string[]` (cele CNAME po kolei, maks. 4 skoki, `:60`).
-- `DomainInfo` (`types.ts:63`): `domain`, `ns[]`, `mx[]`, `txt[]`, `rdap: RdapInfo|null`, `ct: CtResult|null`.
-- `NormalizedUrl` (`lib/osint/urls.ts:16`): `input`, `url`, `scheme`, `host`, `hostUnicode`, `port`, `path`, `query`, `registrableDomain`, `publicSuffix`, `subdomain`, `isIp`, `isIdn`, `removedParams`.
-- `FetchPageResult` (`lib/osint/fetchPage.ts:41`): `requestedUrl`, `finalUrl`, `status`, `ok`, `redirectChain[{url,status,location,kind:"http"|"meta-refresh"}]`, `contentType`, `headers` (tylko wybrane, `fetchPage.ts:119`), `bytes`, `truncated`, `body`, `bodySha256` (SHA-256 surowych bajtów odpowiedzi po dekompresji, `:54`), `userAgent` (`:56`), `remoteAddress`, `error`, `errorCode` (`invalid-url|blocked|timeout|too-many-redirects|network|tls`), `fetchedAt`, `durationMs`.
-- `PageExtract` (`lib/osint/extract.ts:33`): `title`, `description`, `canonical`, `ogTitle`, `ogDescription`, `ogImage`, `ogSiteName`, `trackers[{kind,id}]`, `faviconUrl`, `outboundDomains[]`, `outboundUrls[]`, `emails[]`, `phones[]`, `telegram[]`, `whatsapp[]`, `wallets[{kind,address}]`, `metaRefresh`, `jsRedirects[]`, `visibleText` (≤ 5000 znaków), `generator`.
-- `PageKit` (`lib/osint/pagekit.ts:50`): `endpoints: EndpointRef[]` (`pagekit.ts:21`: `key`, `host`, `pathTemplate`, `sameOrigin`, `method`, `via` = `form|fetch|xhr|axios|jquery|literal`, `raw`), `domSimhash`, `tagCount`, `hiddenFields[]`, `assets: AssetRef[]` (`:36`), `comments[]`, `cyrillicComments`.
-- `TextExtract` (`extract.ts:56`): `urls`, `emails`, `phones`, `telegram`, `whatsapp`, `wallets`.
-- `CampaignParam` (`lib/osint/campaignParams.ts:34`): `name` (jak w URL), `canonicalName`, `value` (≤ 120 znaków), `sourceUrl`, `cyrillic`, `macro`.
-- `PersonaMatch` (`lib/text/persona.ts:29`): `id` (slug), `name`, `matched`, `source` (`watchlist|ingest|ner`), `role`, `fuzzy?`, `distance?`.
-- `AudioFingerprint` (`lib/media/audioFp.ts:11`): `duration`, `fingerprint` (surowe liczby Chromaprint).
-- `DnsRecords` (`lib/osint/dns.ts:17`): `name`, `a`, `aaaa`, `cname`, `ns`, `mx`, `txt`, `errors`.
-- `RdapInfo` (`lib/osint/rdap.ts:10`): `domain`, `registrar`, `registrarIanaId`, `created`, `expires`, `updated`, `status[]`, `nameservers[]`, `abuseEmail`, `source`.
-- `CtResult` / `CertInfo` (`lib/osint/ct.ts:27`, `:12`): `{domain, certs, truncated}`; cert: `id`, `serial`, `issuer` (wartość O= lub CN=), `issuerName`, `commonName`, `sanDomains[]`, `notBefore`, `notAfter`, `entryTimestamp`.
-- `AsnInfo` (`lib/osint/asn.ts:11`): `ip`, `asn`, `asns[]`, `prefix`, `country`, `registry`, `allocated`, `asName`.
-- `ImageInfo` = `ImageHashes` (`lib/media/imageHash.ts:15`: `dhash`, `ahash` — 16 hex = 64 bity, `width`, `height`, `format`) + `source`.
-- `FaviconHashes` (`imageHash.ts:25`): `mmh3` (hash zgodny z Shodan `http.favicon.hash`), `sha256`, `dhash|null`, `ahash|null`, `format`.
+- `ItemEnrichment` (`types.ts`): `itemId`, `landing: NormalizedUrl|null`, `pageKey` (klucz do `pages`), `text: TextExtract|null` (kontakty/portfele/URL-e z treści reklamy, OCR i ASR), `image: ImageInfo|null`, `personas: PersonaMatch[]`, `campaignParams: CampaignParam[]`, `ocrText`, `asrText`, `audioFp: AudioFingerprint|null`, `errors: string[]`.
+- `PageInfo` (`types.ts`): `requestedUrl`, `fetch` (= `FetchPageResult` bez `body`), `extract: PageExtract|null`, `favicon: {url, hashes: FaviconHashes|null, error}|null`, `kit: PageKit|null`, `archiveFile` (ścieżka zdekodowanego HTML w archiwum), `cloaking: CloakingCheck|null`.
+- `CloakingCheck` (`types.ts`): `crawler` i `mobile` (`CloakingVariant`, : `userAgent`, `finalUrl`, `status`, `domSimhash`, `bodySha256`, `error`), `finalUrlDiffers`, `domDistance`, `suspected`, `reasons[]`.
+- `HostInfo` (`types.ts`): `host`, `registrableDomain`, `dns: DnsRecords|null`, `ips: string[]`, `cnameChain: string[]` (cele CNAME po kolei, maks. 4 skoki).
+- `DomainInfo` (`types.ts`): `domain`, `ns[]`, `mx[]`, `txt[]`, `rdap: RdapInfo|null`, `ct: CtResult|null`.
+- `NormalizedUrl` (`lib/osint/urls.ts`): `input`, `url`, `scheme`, `host`, `hostUnicode`, `port`, `path`, `query`, `registrableDomain`, `publicSuffix`, `subdomain`, `isIp`, `isIdn`, `removedParams`.
+- `FetchPageResult` (`lib/osint/fetchPage.ts`): `requestedUrl`, `finalUrl`, `status`, `ok`, `redirectChain[{url,status,location,kind:"http"|"meta-refresh"}]`, `contentType`, `headers` (tylko wybrane, `fetchPage.ts`), `bytes`, `truncated`, `body`, `bodySha256` (SHA-256 surowych bajtów odpowiedzi po dekompresji), `userAgent`, `remoteAddress`, `error`, `errorCode` (`invalid-url|blocked|timeout|too-many-redirects|network|tls`), `fetchedAt`, `durationMs`.
+- `PageExtract` (`lib/osint/extract.ts`): `title`, `description`, `canonical`, `ogTitle`, `ogDescription`, `ogImage`, `ogSiteName`, `trackers[{kind,id}]`, `faviconUrl`, `outboundDomains[]`, `outboundUrls[]`, `emails[]`, `phones[]`, `telegram[]`, `whatsapp[]`, `wallets[{kind,address}]`, `metaRefresh`, `jsRedirects[]`, `visibleText` (≤ 5000 znaków), `generator`.
+- `PageKit` (`lib/osint/pagekit.ts`): `endpoints: EndpointRef[]` (`pagekit.ts`: `key`, `host`, `pathTemplate`, `sameOrigin`, `method`, `via` = `form|fetch|xhr|axios|jquery|literal`, `raw`), `domSimhash`, `tagCount`, `hiddenFields[]`, `assets: AssetRef[]`, `comments[]`, `cyrillicComments`.
+- `TextExtract` (`extract.ts`): `urls`, `emails`, `phones`, `telegram`, `whatsapp`, `wallets`.
+- `CampaignParam` (`lib/osint/campaignParams.ts`): `name` (jak w URL), `canonicalName`, `value` (≤ 120 znaków), `sourceUrl`, `cyrillic`, `macro`.
+- `PersonaMatch` (`lib/text/persona.ts`): `id` (slug), `name`, `matched`, `source` (`watchlist|ingest|ner`), `role`, `fuzzy?`, `distance?`.
+- `AudioFingerprint` (`lib/media/audioFp.ts`): `duration`, `fingerprint` (surowe liczby Chromaprint).
+- `DnsRecords` (`lib/osint/dns.ts`): `name`, `a`, `aaaa`, `cname`, `ns`, `mx`, `txt`, `errors`.
+- `RdapInfo` (`lib/osint/rdap.ts`): `domain`, `registrar`, `registrarIanaId`, `created`, `expires`, `updated`, `status[]`, `nameservers[]`, `abuseEmail`, `source`.
+- `CtResult` / `CertInfo` (`lib/osint/ct.ts`): `{domain, certs, truncated}`; cert: `id`, `serial`, `issuer` (wartość O= lub CN=), `issuerName`, `commonName`, `sanDomains[]`, `notBefore`, `notAfter`, `entryTimestamp`.
+- `AsnInfo` (`lib/osint/asn.ts`): `ip`, `asn`, `asns[]`, `prefix`, `country`, `registry`, `allocated`, `asName`.
+- `ImageInfo` = `ImageHashes` (`lib/media/imageHash.ts`: `dhash`, `ahash` — 16 hex = 64 bity, `width`, `height`, `format`) + `source`.
+- `FaviconHashes` (`imageHash.ts`): `mmh3` (hash zgodny z Shodan `http.favicon.hash`), `sha256`, `dhash|null`, `ahash|null`, `format`.
 
-### 2.3 `graph.json` — `EvidenceGraph` (`lib/graph/model.ts:173`)
+### 2.3 `graph.json` — `EvidenceGraph` (`lib/graph/model.ts`)
 
 | Pole | Opis |
 |---|---|
 | `version`, `generatedAt`, `mode`, `baseDir` | `baseDir` służy `/api/image` do rozwiązywania obrazów |
 | `textMethod` | `tfidf` / `embedding` / `none` |
-| `stats` | `items`, `nodes`, `edges`, `links`, `strongLinks`, `byType` (`model.ts:164`); po przycięciu wartości `edges`/`links` dotyczą zapisanego pliku |
-| `nodes: GraphNode[]` | `id` (`<typ>:<klucz>`), `type`, `key`, `label`, `df`, `weight`, `strong`, `discounts[{reason,factor,rule}]`, `data` (szczegóły zależne od typu, w tym `weightParts {base, listFactor, idf, ubiquity}`), `campaignId` (tylko reklamy) — `model.ts:111` |
-| `edges: GraphEdge[]` | `id`, `source`, `target`, `type`, `weight` (1 dla krawędzi strukturalnych, waga podobieństwa dla `similar_*`), `evidence` (tekst PL) — `model.ts:129` |
-| `links: ItemLink[]` | `a`, `b`, `score` (noisy-OR), `strong`, `evidence: PairEvidence[]` — `model.ts:155` |
+| `stats` | `items`, `nodes`, `edges`, `links`, `strongLinks`, `byType` (`model.ts`); po przycięciu wartości `edges`/`links` dotyczą zapisanego pliku |
+| `nodes: GraphNode[]` | `id` (`<typ>:<klucz>`), `type`, `key`, `label`, `df`, `weight`, `strong`, `discounts[{reason,factor,rule}]`, `data` (szczegóły zależne od typu, w tym `weightParts {base, listFactor, idf, ubiquity}`), `campaignId` (tylko reklamy) — `model.ts` |
+| `edges: GraphEdge[]` | `id`, `source`, `target`, `type`, `weight` (1 dla krawędzi strukturalnych, waga podobieństwa dla `similar_*`), `evidence` (tekst PL) — `model.ts` |
+| `links: ItemLink[]` | `a`, `b`, `score` (noisy-OR), `strong`, `evidence: PairEvidence[]` — `model.ts` |
 
-`PairEvidence` (`model.ts:139`): `kind` (`pivot`/`similarity`), `pivot` (id węzła), `pivotType`, `edgeType` (`similar_image`/`similar_text`/`similar_dom`/`similar_audio`, lista w `model.ts:97`), `weight`, `strong`, `discounted`, `evidence`, `pathA`, `pathB` (ścieżki id węzłów od reklamy do encji).
+`PairEvidence` (`model.ts`): `kind` (`pivot`/`similarity`), `pivot` (id węzła), `pivotType`, `edgeType` (`similar_image`/`similar_text`/`similar_dom`/`similar_audio`, lista w `model.ts`), `weight`, `strong`, `discounted`, `evidence`, `pathA`, `pathB` (ścieżki id węzłów od reklamy do encji).
 
-Dane węzła reklamy (`lib/graph/link.ts:135-150`) zawierają oprócz pól `Item` także `deepfakeScore`, `personas` (imiona i nazwiska), `ocrText` i `asrText` (≤ 600 znaków), a po przetworzeniu strony `domSimhash`, `cyrillic`, `cloakingSuspected`, `cloakingReasons` i `finalUrl` (`link.ts:446-453`, `:470`).
+Dane węzła reklamy (`lib/graph/link.ts`) zawierają oprócz pól `Item` także `deepfakeScore`, `personas` (imiona i nazwiska), `ocrText` i `asrText` (≤ 600 znaków), a po przetworzeniu strony `domSimhash`, `cyrillic`, `cloakingSuspected`, `cloakingReasons` i `finalUrl` (`link.ts`).
 
-### 2.4 `campaigns.json` — `CampaignsFile` (`model.ts:224`)
+### 2.4 `campaigns.json` — `CampaignsFile` (`model.ts`)
 
 - `method`: `unionFind` (opis progu), `louvain {resolution, seed, modularity}`, `minLinkScore`.
-- `campaigns: Campaign[]` (`model.ts:196`): `id` (`K01`…), `size`, `members[]`, `firstSeen`, `lastSeen`, `topEvidence[{key,type,label,count,weight}]` (≤ 6), `domains[]`, `advertisers[]`, `cohesion`, `strongComponents`, `attributes`.
-- `attributes` (`CampaignAttributes`, `model.ts:213`): `personas[{id,name,count}]`, `cyrillic` (reklamy z cyrylicą w komentarzach strony lub parametrach kampanii), `cloakingSuspected` (reklamy z podejrzeniem cloakingu), `deepfakeScoreMax` (najwyższy wynik deepfake z danych wejściowych). To atrybuty do filtrowania i priorytetów, nie dowody łączące.
+- `campaigns: Campaign[]` (`model.ts`): `id` (`K01`…), `size`, `members[]`, `firstSeen`, `lastSeen`, `topEvidence[{key,type,label,count,weight}]` (≤ 6), `domains[]`, `advertisers[]`, `cohesion`, `strongComponents`, `attributes`.
+- `attributes` (`CampaignAttributes`, `model.ts`): `personas[{id,name,count}]`, `cyrillic` (reklamy z cyrylicą w komentarzach strony lub parametrach kampanii), `cloakingSuspected` (reklamy z podejrzeniem cloakingu), `deepfakeScoreMax` (najwyższy wynik deepfake z danych wejściowych). To atrybuty do filtrowania i priorytetów, nie dowody łączące.
 - `assignments: Record<itemId, campaignId>` — wszystkie reklamy, również pojedyncze (kampania 1-elementowa).
 
-`data/summaries.json` (`scripts/summarize.ts:75`): `{generatedAt, provider, model, summaries: Record<campaignId, CampaignSummary>}`; schemat w `lib/pipeline/summary.ts:7`: `persona`, `narrative`, `infrastructure`, `timeSpan`, `riskNotes` oraz `campaignId`, `model`, `generatedAt`.
+`data/summaries.json` (`scripts/summarize.ts`): `{generatedAt, provider, model, summaries: Record<campaignId, CampaignSummary>}`; schemat w `lib/pipeline/summary.ts`: `persona`, `narrative`, `infrastructure`, `timeSpan`, `riskNotes` oraz `campaignId`, `model`, `generatedAt`.
 
 ---
 
@@ -136,74 +137,74 @@ Dane węzła reklamy (`lib/graph/link.ts:135-150`) zawierają oprócz pól `Item
 
 | Moduł | Co robi | Wejście → wyjście | Decyzje i limity |
 |---|---|---|---|
-| `ip.ts` | parsowanie IPv4/IPv6, CIDR, klasyfikacja publiczne/niepubliczne | string → `{public, reason}` | zakresy niepubliczne `ip.ts:179` (v4) i `:197` (v6); IPv4 osadzone w IPv6 (mapped, NAT64, 6to4) sprawdzane rekurencyjnie (`ip.ts:234`); IPv4 z wiodącymi zerami odrzucane (`ip.ts:22`) |
-| `urls.ts` | normalizacja URL, refang, IDN, eTLD+1 | string → `NormalizedUrl \| null` | domyślny schemat `https` (`urls.ts:158`); usuwa parametry kliknięć (`utm_*`, `fbclid`, `gclid`…, lista `urls.ts:44`), sortuje pozostałe (`:191`); `tldts` z `allowPrivateDomains: true` (`:204`), więc `x.github.io`, `x.pages.dev` to osobne domeny; brak obsługi schematów innych niż http(s). Parametry kampanii są czytane z surowych URL-i przed normalizacją (`campaignParams.ts`) |
-| `fetchPage.ts` | jeden GET na skok, ręczne przekierowania, ochrona SSRF | URL (+ opcjonalny `userAgent`) → `FetchPageResult` (nigdy nie rzuca dla błędów sieci) | budżet czasu 8 s na cały łańcuch (`fetchPage.ts:347`), limit 2 MiB **po dekompresji** (`:348`, `:248`), maks. 8 przekierowań i wykrywanie pętli (`:349`, `:441`), meta refresh śledzony przy opóźnieniu ≤ 10 s (`:433`), gzip/deflate/br (`:240-242`), wykrywanie kodowania znaków: nagłówek → BOM → `<meta charset>` w pierwszych 4 KB (`:283`), UA przeglądarki (`:23`) albo podany (`:355`), `accept-language` pl (`:357`); SHA-256 surowej odpowiedzi do dowodów (`:455`); `fetchBinary` bez meta refresh, limit 5 MiB (`:476`); szczegóły SSRF w §11 |
-| `extract.ts` | ekstrakcja z HTML i tekstu, bez parsera HTML (tokenizer regex) | HTML + baseUrl → `PageExtract`; tekst → `TextExtract` | trackery `extract.ts:295-345` (GA4 w kontekście 4–15 znaków albo goły `G-` + 10 znaków z cyfrą i literą, UA, GTM 4–9, AW 9–11 cyfr, piksel Meta 10–20 cyfr, TikTok 15–25, Yandex 5–10 cyfr); e-maile bez TLD plikowych (`:350`); telefony PL: z `+48/0048`, bez prefiksu tylko w formacie 3-3-3 lub stacjonarnym z poprawnym prefiksem (`:372-387`, regexy `:426-430`), odrzuca końcówki `000000` i liczby przed walutą (`:381`, `:423`); inne kraje tylko z `tel:`; Telegram, WhatsApp (`:475-530`); `visibleText` ≤ 5000 (`:65`), `outboundUrls` ≤ 300 (`:66`); `jsRedirects` wyciągane statycznie (`:608`), **niewykorzystywane w grafie** |
-| `pagekit.ts` | odcisk kitu strony, statycznie (JS nie jest wykonywany) | HTML + URL strony → `PageKit` (`pagekit.ts:683`) | backendy: `<form action>` (z `<base href>`), `fetch`, `XMLHttpRequest.open`, axios, `$.ajax/$.post/$.get` i literały wyglądające na API (`/api/`, `submit`, `lead`, `register`, `postback`…, `pagekit.ts:375`) w skryptach inline; ścieżka normalizowana (`normalizeEndpointPath`, `:401`): UUID → `<uuid>`, liczby → `<n>`, ≥ 16 hex → `<hex>`, ≥ 16 znaków litery+cyfry → `<id>`; klucz `host+ścieżka` albo `*ścieżka` dla tej samej domeny (`:436-438`); simhash DOM: nazwy tagów otwierających w kolejności, shingle po 4, md5, 64 bity, `null` poniżej 25 tagów (`:583-628`); komentarze HTML i JS normalizowane (`normalizeComment`, `:643`: ≥ 12 znaków, z literą, bez komentarzy warunkowych); flaga cyrylicy (`:82`); limity: 50 backendów, 100 plików, 100 ukrytych pól, 50 komentarzy (`:66-69`) |
-| `domainPattern.ts` | szablon nazwy domeny | domena → `DomainTemplate \| null` (`domainPattern.ts:70`) | etykieta dzielona na litery, cyfry i separatory; cyfry → `<n>`, słowa Lorem Ipsum ≥ 4 znaki (ok. 330 słów, `domainPattern.ts:43`) → `<lorem>`; dwa warianty: z TLD (`finance<n>-<lorem><n>.sbs`) i bez (`finance<n>-<lorem><n>.*`); `null` bez placeholdera, dla IP i etykiet punycode |
-| `campaignParams.ts` | parametry kampanii z URL-i | lista URL-i → `CampaignParam[]` (`campaignParams.ts:142`) | nazwy kanoniczne: `utm_*`, `sub1`–`sub5`, `aff_id`, `click_id`, `offer_id`, `campaign_id/name`, `adset_id/name`, `ad_id/name`, `pixel_id` z aliasami (`subid`, `aff_sub3`, `ClickID`, `cmp`, `crid`, `fb_pixel`…, `campaignParams.ts:50`); czyta też fragment `#…` (`:127`); flagi cyrylicy (`:113`) i nierozwiniętych makr `{{…}}` (`:114`); deduplikacja po nazwie i wartości bez rozróżniania wielkości liter; wartość ≤ 120 znaków (`:48`) |
-| `crypto.ts` | portfele z walidacją sum kontrolnych | tekst → `WalletMatch[]` | BTC Base58Check (wersja 0x00/0x05), bech32/bech32m (BIP-173/350), ETH (EIP-55 dla mieszanej wielkości liter, keccak z `@noble/hashes`), TRON (Base58Check, 0x41); regexy z granicami `crypto.ts:213-217`; adresy-zaślepki ETH odrzucane (`:220`) |
-| `dns.ts` | A/AAAA/CNAME/NS/MX/TXT przez `node:dns/promises` | nazwa → `DnsRecords` | limit 5000 ms na zapytanie (`dns.ts:50`), `tries: 1` (`:74`), ENODATA/NXDOMAIN → pusta lista (`:53`), resolvery z `DNS_SERVERS` (`:62`); cache 1 dzień (`:57`), nie zapisuje wyniku, gdy wszystkie zapytania padły (`:213`) |
-| `rdap.ts` | RDAP przez bootstrap `https://rdap.org/domain/` (`rdap.ts:43`) | domena → `RdapInfo \| null` | limit 10 s (`:203`), 404 → `null` (`:211`), parsowanie rejestratora/zdarzeń/NS/abuse (`:115-180`); cache 7 dni (`:191`) |
-| `ct.ts` | crt.sh JSON: wyszukiwanie domeny (`lookupCt`, `ct.ts:197`) i wzorca z `%` (`searchCt`, `:223`) | domena lub wzorzec → `CtResult \| null` | wspólna pętla zapytań `queryCrtSh` (`:232`): limit 30 s (`:235`), 3 ponowienia (`:236`), backoff `2 s·2^próba + jitter ≤ 0,5 s`, `Retry-After` ≤ 60 s (`:52`); ponawia przy 429/5xx, błędzie sieci i odpowiedzi nie-JSON; inne 4xx → `null`; scala precert/leaf po numerze seryjnym; ≤ 200 certyfikatów (`:238`), dla wzorca ≤ 1000 i `exclude=expired` (`:229`); wzorzec: `%` tylko na początku lub końcu (`:213`), strona crt.sh „Unsupported use of '%'” kończy zapytanie bez ponowień (`CrtShQueryError`, `:216`, `:259`); cache 1 dzień, tylko wyniki nie-null |
-| `asn.ts` | Team Cymru przez DNS TXT | IP → `AsnInfo \| null` | zapytania `<odwrócone IP>.origin.asn.cymru.com` / `origin6` i `AS<n>.asn.cymru.com` (`asn.ts:49-61`); nazwa AS w osobnym wpisie cache (`:160`); cache 7 dni (`:133`) |
+| `ip.ts` | parsowanie IPv4/IPv6, CIDR, klasyfikacja publiczne/niepubliczne | string → `{public, reason}` | zakresy niepubliczne `ip.ts` (v4) i  (v6); IPv4 osadzone w IPv6 (mapped, NAT64, 6to4) sprawdzane rekurencyjnie (`ip.ts`); IPv4 z wiodącymi zerami odrzucane (`ip.ts`) |
+| `urls.ts` | normalizacja URL, refang, IDN, eTLD+1 | string → `NormalizedUrl \| null` | domyślny schemat `https` (`urls.ts`); usuwa parametry kliknięć (`utm_*`, `fbclid`, `gclid`…, lista `urls.ts`), sortuje pozostałe; `tldts` z `allowPrivateDomains: true`, więc `x.github.io`, `x.pages.dev` to osobne domeny; brak obsługi schematów innych niż http(s). Parametry kampanii są czytane z surowych URL-i przed normalizacją (`campaignParams.ts`) |
+| `fetchPage.ts` | jeden GET na skok, ręczne przekierowania, ochrona SSRF | URL (+ opcjonalny `userAgent`) → `FetchPageResult` (nigdy nie rzuca dla błędów sieci) | budżet czasu 8 s na cały łańcuch (`fetchPage.ts`), limit 2 MiB **po dekompresji**, maks. 8 przekierowań i wykrywanie pętli, meta refresh śledzony przy opóźnieniu ≤ 10 s, gzip/deflate/br, wykrywanie kodowania znaków: nagłówek → BOM → `<meta charset>` w pierwszych 4 KB, UA przeglądarki albo podany, `accept-language` pl; SHA-256 surowej odpowiedzi do dowodów; `fetchBinary` bez meta refresh, limit 5 MiB; szczegóły SSRF w §11 |
+| `extract.ts` | ekstrakcja z HTML i tekstu, bez parsera HTML (tokenizer regex) | HTML + baseUrl → `PageExtract`; tekst → `TextExtract` | trackery `extract.ts` (GA4 w kontekście 4–15 znaków albo goły `G-` + 10 znaków z cyfrą i literą, UA, GTM 4–9, AW 9–11 cyfr, piksel Meta 10–20 cyfr, TikTok 15–25, Yandex 5–10 cyfr); e-maile bez TLD plikowych; telefony PL: z `+48/0048`, bez prefiksu tylko w formacie 3-3-3 lub stacjonarnym z poprawnym prefiksem (regexy ), odrzuca końcówki `000000` i liczby przed walutą; inne kraje tylko z `tel:`; Telegram, WhatsApp; `visibleText` ≤ 5000, `outboundUrls` ≤ 300; `jsRedirects` wyciągane statycznie, **niewykorzystywane w grafie** |
+| `pagekit.ts` | odcisk kitu strony, statycznie (JS nie jest wykonywany) | HTML + URL strony → `PageKit` (`pagekit.ts`) | backendy: `<form action>` (z `<base href>`), `fetch`, `XMLHttpRequest.open`, axios, `$.ajax/$.post/$.get` i literały wyglądające na API (`/api/`, `submit`, `lead`, `register`, `postback`…, `pagekit.ts`) w skryptach inline; ścieżka normalizowana (`normalizeEndpointPath`): UUID → `<uuid>`, liczby → `<n>`, ≥ 16 hex → `<hex>`, ≥ 16 znaków litery+cyfry → `<id>`; klucz `host+ścieżka` albo `*ścieżka` dla tej samej domeny; simhash DOM: nazwy tagów otwierających w kolejności, shingle po 4, md5, 64 bity, `null` poniżej 25 tagów; komentarze HTML i JS normalizowane (`normalizeComment`, : ≥ 12 znaków, z literą, bez komentarzy warunkowych); flaga cyrylicy; limity: 50 backendów, 100 plików, 100 ukrytych pól, 50 komentarzy |
+| `domainPattern.ts` | szablon nazwy domeny | domena → `DomainTemplate \| null` (`domainPattern.ts`) | etykieta dzielona na litery, cyfry i separatory; cyfry → `<n>`, słowa Lorem Ipsum ≥ 4 znaki (ok. 330 słów, `domainPattern.ts`) → `<lorem>`; dwa warianty: z TLD (`finance<n>-<lorem><n>.sbs`) i bez (`finance<n>-<lorem><n>.*`); `null` bez placeholdera, dla IP i etykiet punycode |
+| `campaignParams.ts` | parametry kampanii z URL-i | lista URL-i → `CampaignParam[]` (`campaignParams.ts`) | nazwy kanoniczne: `utm_*`, `sub1`–`sub5`, `aff_id`, `click_id`, `offer_id`, `campaign_id/name`, `adset_id/name`, `ad_id/name`, `pixel_id` z aliasami (`subid`, `aff_sub3`, `ClickID`, `cmp`, `crid`, `fb_pixel`…, `campaignParams.ts`); czyta też fragment `#…`; flagi cyrylicy i nierozwiniętych makr `{{…}}`; deduplikacja po nazwie i wartości bez rozróżniania wielkości liter; wartość ≤ 120 znaków |
+| `crypto.ts` | portfele z walidacją sum kontrolnych | tekst → `WalletMatch[]` | BTC Base58Check (wersja 0x00/0x05), bech32/bech32m (BIP-173/350), ETH (EIP-55 dla mieszanej wielkości liter, keccak z `@noble/hashes`), TRON (Base58Check, 0x41); regexy z granicami `crypto.ts`; adresy-zaślepki ETH odrzucane |
+| `dns.ts` | A/AAAA/CNAME/NS/MX/TXT przez `node:dns/promises` | nazwa → `DnsRecords` | limit 5000 ms na zapytanie (`dns.ts`), `tries: 1`, ENODATA/NXDOMAIN → pusta lista, resolvery z `DNS_SERVERS`; cache 1 dzień, nie zapisuje wyniku, gdy wszystkie zapytania padły |
+| `rdap.ts` | RDAP przez bootstrap `https://rdap.org/domain/` (`rdap.ts`) | domena → `RdapInfo \| null` | limit 10 s, 404 → `null`, parsowanie rejestratora/zdarzeń/NS/abuse; cache 7 dni |
+| `ct.ts` | crt.sh JSON: wyszukiwanie domeny (`lookupCt`, `ct.ts`) i wzorca z `%` (`searchCt`) | domena lub wzorzec → `CtResult \| null` | wspólna pętla zapytań `queryCrtSh`: limit 30 s, 3 ponowienia, backoff `2 s·2^próba + jitter ≤ 0,5 s`, `Retry-After` ≤ 60 s; ponawia przy 429/5xx, błędzie sieci i odpowiedzi nie-JSON; inne 4xx → `null`; scala precert/leaf po numerze seryjnym; ≤ 200 certyfikatów, dla wzorca ≤ 1000 i `exclude=expired`; wzorzec: `%` tylko na początku lub końcu, strona crt.sh „Unsupported use of '%'” kończy zapytanie bez ponowień (`CrtShQueryError`); cache 1 dzień, tylko wyniki nie-null |
+| `asn.ts` | Team Cymru przez DNS TXT | IP → `AsnInfo \| null` | zapytania `<odwrócone IP>.origin.asn.cymru.com` / `origin6` i `AS<n>.asn.cymru.com` (`asn.ts`); nazwa AS w osobnym wpisie cache; cache 7 dni |
 
 ### 3.2 `lib/media/*`
 
 `imageHash.ts`:
-- dHash: skala szarości, miniatura 9×8 (`fit: fill`), bit = `piksel[x] < piksel[x+1]`, 64 bity (`imageHash.ts:64`). aHash: 8×8, bit = `piksel > średnia` (`imageHash.ts:76`).
-- Przed hashowaniem: `autoOrient` (EXIF), tło białe pod przezroczystością (`imageHash.ts:38`, `:52`). Limit `limitInputPixels` 50 Mpx chroni przed bombą dekompresyjną (`imageHash.ts:35`).
-- `hammingDistance` porównuje ciągi hex (`imageHash.ts:97`). `shodanFaviconHash` liczy MurmurHash3 x86_32 z base64 w liniach po 76 znaków, jak Python `base64.encodebytes` (`imageHash.ts:149-160`).
-- Favicon ICO: brany jest największy osadzony PNG (`imageHash.ts:178`). ICO zawierający tylko BMP daje `dhash = null`, ale `mmh3` i `sha256` są liczone. `hashFavicon` nie rzuca wyjątków (`imageHash.ts:211`).
+- dHash: skala szarości, miniatura 9×8 (`fit: fill`), bit = `piksel[x] < piksel[x+1]`, 64 bity (`imageHash.ts`). aHash: 8×8, bit = `piksel > średnia` (`imageHash.ts`).
+- Przed hashowaniem: `autoOrient` (EXIF), tło białe pod przezroczystością (`imageHash.ts`). Limit `limitInputPixels` 50 Mpx chroni przed bombą dekompresyjną (`imageHash.ts`).
+- `hammingDistance` porównuje ciągi hex (`imageHash.ts`). `shodanFaviconHash` liczy MurmurHash3 x86_32 z base64 w liniach po 76 znaków, jak Python `base64.encodebytes` (`imageHash.ts`).
+- Favicon ICO: brany jest największy osadzony PNG (`imageHash.ts`). ICO zawierający tylko BMP daje `dhash = null`, ale `mmh3` i `sha256` są liczone. `hashFavicon` nie rzuca wyjątków (`imageHash.ts`).
 
-Adaptery narzędzi zewnętrznych (opcjonalne, domyślnie wyłączone). Każde narzędzie jest wykrywane raz na przebieg; gdy go brakuje, krok jest cicho pomijany z jedną linią w logu (`lib/pipeline/enrich.ts:116-133`). Procesy uruchamia `execFile` bez powłoki, z limitem czasu i `SIGKILL` (`lib/media/tools.ts:29`). Nic nie jest pobierane z sieci.
+Adaptery narzędzi zewnętrznych (opcjonalne, domyślnie wyłączone). Każde narzędzie jest wykrywane raz na przebieg; gdy go brakuje, krok jest cicho pomijany z jedną linią w logu (`lib/pipeline/enrich.ts`). Procesy uruchamia `execFile` bez powłoki, z limitem czasu i `SIGKILL` (`lib/media/tools.ts`). Nic nie jest pobierane z sieci.
 
 | Plik | Narzędzie i wywołanie | Wynik | Limity |
 |---|---|---|---|
-| `ocr.ts` | `tesseract <plik> stdout -l pol --psm 3` (`ocr.ts:46`); wykrycie wersji i pakietu `pol` (`ocr.ts:18`) | tekst z kreacji, białe znaki scalone | 60 s na obraz |
-| `asr.ts` | `whisper-cli` (whisper.cpp) z modelem `WHISPER_MODEL`, domyślnie `~/models/whisper/ggml-large-v3-turbo.bin` (`asr.ts:26`); wejście inne niż WAV 16 kHz mono jest najpierw konwertowane przez `ffmpeg -ac 1 -ar 16000 -c:a pcm_s16le` (`asr.ts:75-87`); bez whisper-cli `mlx_whisper`, ale tylko z modelem już lokalnym, żeby nie było pobierania (`asr.ts:42-49`) | transkrypcja po polsku, bez znaczników czasu (`asr.ts:119`) | 10 min na plik (`asr.ts:151`), pliki tymczasowe w katalogu systemowym, sprzątane |
-| `audioFp.ts` | `fpcalc -raw -json -length 120` (Chromaprint, `audioFp.ts:26`) | surowy odcisk; podobieństwo = najlepsze `1 − błąd bitowy` po przesunięciach ±40, przy nakładce ≥ 20 wartości (`audioFp.ts:60-75`) | 60 s na plik |
+| `ocr.ts` | `tesseract <plik> stdout -l pol --psm 3` (`ocr.ts`); wykrycie wersji i pakietu `pol` (`ocr.ts`) | tekst z kreacji, białe znaki scalone | 60 s na obraz |
+| `asr.ts` | `whisper-cli` (whisper.cpp) z modelem `WHISPER_MODEL`, domyślnie `~/models/whisper/ggml-large-v3-turbo.bin` (`asr.ts`); wejście inne niż WAV 16 kHz mono jest najpierw konwertowane przez `ffmpeg -ac 1 -ar 16000 -c:a pcm_s16le` (`asr.ts`); bez whisper-cli `mlx_whisper`, ale tylko z modelem już lokalnym, żeby nie było pobierania (`asr.ts`) | transkrypcja po polsku, bez znaczników czasu (`asr.ts`) | 10 min na plik (`asr.ts`), pliki tymczasowe w katalogu systemowym, sprzątane |
+| `audioFp.ts` | `fpcalc -raw -json -length 120` (Chromaprint, `audioFp.ts`) | surowy odcisk; podobieństwo = najlepsze `1 − błąd bitowy` po przesunięciach ±40, przy nakładce ≥ 20 wartości (`audioFp.ts`) | 60 s na plik |
 
-Teksty z OCR i ASR trafiają do ekstrakcji kontaktów i URL-i, do dopasowania person w trybie przybliżonym (§4.8) i do podobieństwa tekstu (`textOf`, `lib/graph/link.ts:706`). `scripts/media-smoke.ts` uruchamia każdy adapter na syntetycznym wejściu (§9).
+Teksty z OCR i ASR trafiają do ekstrakcji kontaktów i URL-i, do dopasowania person w trybie przybliżonym (§4.8) i do podobieństwa tekstu (`textOf`, `lib/graph/link.ts`). `scripts/media-smoke.ts` uruchamia każdy adapter na syntetycznym wejściu (§9).
 
 ### 3.3 `lib/cache.ts`
 
 Plik `<CACHE_DIR>/<namespace>/<h[0:2]>/<sha256(klucz)>.json` z zawartością `{key, createdAt, expiresAt, value}`.
-- Ochrona przed kolizją hashy (`cache.ts:81`) i sprawdzanie TTL (`cache.ts:82`).
-- Zapis atomowy przez plik tymczasowy i `rename` (`cache.ts:94`). Równoległe wywołania tego samego klucza są deduplikowane (`cache.ts:102-115`).
+- Ochrona przed kolizją hashy (`cache.ts`) i sprawdzanie TTL (`cache.ts`).
+- Zapis atomowy przez plik tymczasowy i `rename` (`cache.ts`). Równoległe wywołania tego samego klucza są deduplikowane (`cache.ts`).
 - `null` jest cache'owany jako poprawna wartość (wynik negatywny), `undefined` nie jest.
-- `CACHE=off|0|false|no` wyłącza cache (`cache.ts:59`).
+- `CACHE=off|0|false|no` wyłącza cache (`cache.ts`).
 
 | Przestrzeń nazw | TTL | Gdzie |
 |---|---|---|
-| `page` | 1 dzień, bez błędów `timeout`/`network`; klucz zawiera User-Agent (test cloakingu) | `lib/pipeline/sources.ts:46`, `:52` |
-| `dns` | 1 dzień | `dns.ts:57` |
-| `rdap` | 7 dni | `rdap.ts:191` |
-| `ct` | 1 dzień | `ct.ts:179` |
-| `ct-search` | 1 godzina (backfill watchera CT) | `scripts/ct-backfill.ts:48` |
-| `asn` | 7 dni | `asn.ts:133` |
-| `imagehash` | 7 dni (tylko live, obrazy z URL) | `lib/pipeline/enrich.ts:111` |
-| `ner` | 28 dni (klucz: dostawca, model, sha256 tekstu) | `lib/pipeline/enrich.ts:112` |
-| `embed` | 28 dni | `lib/pipeline/steps.ts:155` |
+| `page` | 1 dzień, bez błędów `timeout`/`network`; klucz zawiera User-Agent (test cloakingu) | `lib/pipeline/sources.ts`,  |
+| `dns` | 1 dzień | `dns.ts` |
+| `rdap` | 7 dni | `rdap.ts` |
+| `ct` | 1 dzień | `ct.ts` |
+| `ct-search` | 1 godzina (backfill watchera CT) | `scripts/ct-backfill.ts` |
+| `asn` | 7 dni | `asn.ts` |
+| `imagehash` | 7 dni (tylko live, obrazy z URL) | `lib/pipeline/enrich.ts` |
+| `ner` | 28 dni (klucz: dostawca, model, sha256 tekstu) | `lib/pipeline/enrich.ts` |
+| `embed` | 28 dni | `lib/pipeline/steps.ts` |
 
 ### 3.4 `lib/text/*`
 
-- `normalize.ts:37` `normalizeForMatching`, kolejne kroki:
+- `normalize.ts` `normalizeForMatching`, kolejne kroki:
   1. NFKC i małe litery.
   2. Usunięcie URL-i (też `hxxp`) i e-maili.
-  3. Zdjęcie diakrytyków i zamiana homoglifów cyrylica/greka (`normalize.ts:9`).
-  4. De-leet (`normalize.ts:20`) tylko w tokenach mieszających litery z cyframi, `@` lub `$`, z wyjątkiem wzorca `^\d+[a-z]{1,3}$` (np. `100zl`, `24h`, `normalize.ts:32`).
+  3. Zdjęcie diakrytyków i zamiana homoglifów cyrylica/greka (`normalize.ts`).
+  4. De-leet (`normalize.ts`) tylko w tokenach mieszających litery z cyframi, `@` lub `$`, z wyjątkiem wzorca `^\d+[a-z]{1,3}$` (np. `100zl`, `24h`, `normalize.ts`).
   5. Wycięcie znaków innych niż litery i cyfry.
-- `similarity.ts`: n-gramy znakowe 3–5 w granicach słów (`similarity.ts:18`). `idf = ln((1+n)/(1+df)) + 1` (`similarity.ts:58`), `tf = 1 + ln(count)` (`similarity.ts:69`), wektory normalizowane L2, cosinus przycięty do [0,1] (`similarity.ts:81`). N-gram nieznany modelowi dostaje maksymalne idf. Domyślnie `maxDf = 1`, czyli bez odcinania częstych n-gramów (`similarity.ts:48`).
+- `similarity.ts`: n-gramy znakowe 3–5 w granicach słów (`similarity.ts`). `idf = ln((1+n)/(1+df)) + 1` (`similarity.ts`), `tf = 1 + ln(count)` (`similarity.ts`), wektory normalizowane L2, cosinus przycięty do [0,1] (`similarity.ts`). N-gram nieznany modelowi dostaje maksymalne idf. Domyślnie `maxDf = 1`, czyli bez odcinania częstych n-gramów (`similarity.ts`).
 - `persona.ts`: persona z tekstu, bez biometrii (§4.8).
 
 ### 3.5 `lib/graph/*`
 
 | Plik | Rola |
 |---|---|
-| `model.ts` | typy grafu, `ENTITY_TYPES` (`model.ts:7`), etykiety PL (`model.ts:38`), `nodeId = "<typ>:<klucz>"`, typy podobieństwa (`model.ts:97`) |
-| `config.ts` | wagi, progi, ustawienia kitu, listy infrastruktury współdzielonej, `mergeConfig` (`lib/graph/config.ts:698`) — §4, §10 |
+| `model.ts` | typy grafu, `ENTITY_TYPES` (`model.ts`), etykiety PL (`model.ts`), `nodeId = "<typ>:<klucz>"`, typy podobieństwa (`model.ts`) |
+| `config.ts` | wagi, progi, ustawienia kitu, listy infrastruktury współdzielonej, `mergeConfig` (`lib/graph/config.ts`) — §4, §10 |
 | `weights.ts` | zniżki z list (`Discounter`), IDF, kara za powszechność, waga encji, noisy-OR — §4.3 |
 | `link.ts` | budowa grafu, pivoty, pary, podobieństwo — §4 |
 | `cluster.ts` | union-find + Louvain, kampanie i ich atrybuty — §5 |
@@ -221,31 +222,31 @@ Plik `<CACHE_DIR>/<namespace>/<h[0:2]>/<sha256(klucz)>.json` z zawartością `{k
 
 | Plik | Rola i limity |
 |---|---|
-| `ingest.ts` | CSV/TSV/JSON/JSONL → `Item[]`. Separator wykrywany z `, ; \t \|` (`ingest.ts:94`). JSON: tablica albo obiekt z `items/data/ads/records/results` (`ingest.ts:121`). Mapowanie jawne ma pierwszeństwo, a automatyczne uzupełnia tylko niezmapowane pola kolumnami, których jawne nie zajęło (`ingest.ts:183-192`); synonimy w `ingest.ts:51`, w tym kolumny w stylu DROZD: persona, wynik deepfake i plik wideo (`ingest.ts:62-64`). Wynik deepfake: `0,91`, `0.91`, `91` i `91%` dają 0.91 (`normalizeScore`, `ingest.ts:166`); wartość nieczytelna daje ostrzeżenie (`ingest.ts:241`). Brak id → `h` + 12 znaków sha256 (`ingest.ts:220`). Duplikat id → `id__2` z ostrzeżeniem (`ingest.ts:228`). Wartość z kolumny obrazu bez `http(s)` trafia do `imagePath` (`ingest.ts:215`). Daty (`ingest.ts:149`): epoch s/ms, `dd.mm.rrrr[ hh:mm[:ss]]` (też z `/` i `-`, traktowane jako UTC), sama data ISO (UTC); wynik zawsze jako ISO UTC, ale ISO z godziną bez strefy (`2026-09-05 10:00`) jest interpretowane w czasie lokalnym maszyny. |
-| `sources.ts` | `liveSources()` (`sources.ts:45`) i `fixtureSources(dir)` (`sources.ts:85`) za wspólnym interfejsem. Offline: `http.json` (URL → status/nagłówki/plik, opcjonalne warianty zależne od User-Agent, `sources.ts:97`), `dns.json`, `cymru.json`, `rdap/<domena>.json`, `crtsh/<domena>.json`. Nieznany URL → 404 „not in fixtures” (`sources.ts:94`). W trybie offline działają prawdziwe parsery i logika przekierowań. |
-| `enrich.ts` | (1) dla każdej reklamy, współbieżnie po 4 (`enrich.ts:101`): obraz i opcjonalnie OCR, wideo z ASR i odciskiem audio, ekstrakcja z treści reklamy, OCR i ASR, landing (`landingUrl` albo pierwszy URL z treści), strona deduplikowana po URL z ekstrakcją, kitem, archiwum HTML, faviconem i opcjonalnym testem cloakingu (`enrich.ts:170-212`), persony (`enrich.ts:302-316`), parametry kampanii z linku, łańcucha, strony końcowej i URL-i z treści (`enrich.ts:318-323`); (2) DNS A/AAAA/CNAME hostów z linku, łańcucha, strony końcowej i URL-i z treści (limit 8, `enrich.ts:102`) i łańcuch CNAME do 4 skoków (`enrich.ts:370-378`); (3) dla domen NS/MX/TXT, RDAP (limit 2, `enrich.ts:103`), CT (limit 1, `enrich.ts:104`); (4) ASN dla IP (limit 8), w trybie live pomijane dla IP niepublicznych (`enrich.ts:440`). NER przez LLM po jednym wywołaniu naraz (`enrich.ts:105`), adaptery mediów po dwa (`enrich.ts:106`). Flagi `skip`: `page, favicon, image, dns, rdap, ct, asn`. Błędy trafiają do `errors`, nic nie przerywa przebiegu. |
-| `steps.ts` | kroki CLI i zapis JSON. `runEnrich` wczytuje listę person i NER (`steps.ts:105-121`). `graph.json` jest zapisywany bez wcięć (`steps.ts:196`). Embeddingi z cache i powrotem do TF-IDF przy błędzie (`steps.ts:154-193`). Ewaluacja czyta etykiety z węzłów reklam (`steps.ts:229`). |
+| `ingest.ts` | CSV/TSV/JSON/JSONL → `Item[]`. Separator wykrywany z `, ; \t \|` (`ingest.ts`). JSON: tablica albo obiekt z `items/data/ads/records/results` (`ingest.ts`). Mapowanie jawne ma pierwszeństwo, a automatyczne uzupełnia tylko niezmapowane pola kolumnami, których jawne nie zajęło (`ingest.ts`); synonimy w `ingest.ts`, w tym kolumny w stylu DROZD: persona, wynik deepfake i plik wideo (`ingest.ts`). Wynik deepfake: `0,91`, `0.91`, `91` i `91%` dają 0.91 (`normalizeScore`, `ingest.ts`); wartość nieczytelna daje ostrzeżenie (`ingest.ts`). Brak id → `h` + 12 znaków sha256 (`ingest.ts`). Duplikat id → `id__2` z ostrzeżeniem (`ingest.ts`). Wartość z kolumny obrazu bez `http(s)` trafia do `imagePath` (`ingest.ts`). Daty (`ingest.ts`): epoch s/ms, `dd.mm.rrrr[ hh:mm[:ss]]` (też z `/` i `-`, traktowane jako UTC), sama data ISO (UTC); wynik zawsze jako ISO UTC, ale ISO z godziną bez strefy (`2026-09-05 10:00`) jest interpretowane w czasie lokalnym maszyny. |
+| `sources.ts` | `liveSources()` i `fixtureSources(dir)` za wspólnym interfejsem. Offline: `http.json` (URL → status/nagłówki/plik, opcjonalne warianty zależne od User-Agent, `sources.ts`), `dns.json`, `cymru.json`, `rdap/<domena>.json`, `crtsh/<domena>.json`. Nieznany URL → 404 „not in fixtures” (`sources.ts`). W trybie offline działają prawdziwe parsery i logika przekierowań. |
+| `enrich.ts` | (1) dla każdej reklamy, współbieżnie po 4 (`enrich.ts`): obraz i opcjonalnie OCR, wideo z ASR i odciskiem audio, ekstrakcja z treści reklamy, OCR i ASR, landing (`landingUrl` albo pierwszy URL z treści), strona deduplikowana po URL z ekstrakcją, kitem, archiwum HTML, faviconem i opcjonalnym testem cloakingu (`enrich.ts`), persony (`enrich.ts`), parametry kampanii z linku, łańcucha, strony końcowej i URL-i z treści (`enrich.ts`); (2) DNS A/AAAA/CNAME hostów z linku, łańcucha, strony końcowej i URL-i z treści (limit 8, `enrich.ts`) i łańcuch CNAME do 4 skoków (`enrich.ts`); (3) dla domen NS/MX/TXT, RDAP (limit 2, `enrich.ts`), CT (limit 1, `enrich.ts`); (4) ASN dla IP (limit 8), w trybie live pomijane dla IP niepublicznych (`enrich.ts`). NER przez LLM po jednym wywołaniu naraz (`enrich.ts`), adaptery mediów po dwa (`enrich.ts`). Flagi `skip`: `page, favicon, image, dns, rdap, ct, asn`. Błędy trafiają do `errors`, nic nie przerywa przebiegu. |
+| `steps.ts` | kroki CLI i zapis JSON. `runEnrich` wczytuje listę person i NER (`steps.ts`). `graph.json` jest zapisywany bez wcięć (`steps.ts`). Embeddingi z cache i powrotem do TF-IDF przy błędzie (`steps.ts`). Ewaluacja czyta etykiety z węzłów reklam (`steps.ts`). |
 | `analyze.ts` | dopasowanie nowej reklamy (§8.1) |
 | `summary.ts` | schemat zod streszczenia (§7) |
 | `types.ts` | typy plików pośrednich (§2) |
 
 ### 3.8 `scripts/*`
 
-Cienkie nakładki CLI na `steps.ts` i moduły (§9). `_cli.ts` używa `node:util parseArgs` w trybie `strict`: nieznana flaga kończy się kodem 2. `gen-sample.ts` generuje syntetyczną próbkę, a na starcie **usuwa cały `data/sample/`** (`scripts/gen-sample.ts:844`). Oprócz reklam, obrazów i fixtures zapisuje listę person (`personas.json`), syntetyczne dżingle WAV bez mowy (`media/`), leksykon i plik demo watchera CT (`ct-lexicon.json`, `ct-stream.jsonl`). `llm-smoke.ts` i `summarize.ts` korzystają z LLM. `evidence.ts` eksportuje paczkę dowodów (§15). `ct-watch.ts`, `ct-backfill.ts` i wspólny `_ct.ts` obsługują watcher CT (§16). `media-smoke.ts` sprawdza adaptery mediów na żywo.
+Cienkie nakładki CLI na `steps.ts` i moduły (§9). `_cli.ts` używa `node:util parseArgs` w trybie `strict`: nieznana flaga kończy się kodem 2. `gen-sample.ts` generuje syntetyczną próbkę, a na starcie **usuwa cały `data/sample/`** (`scripts/gen-sample.ts`). Oprócz reklam, obrazów i fixtures zapisuje listę person (`personas.json`), syntetyczne dżingle WAV bez mowy (`media/`), leksykon i plik demo watchera CT (`ct-lexicon.json`, `ct-stream.jsonl`). `llm-smoke.ts` i `summarize.ts` korzystają z LLM. `evidence.ts` eksportuje paczkę dowodów (§15). `ct-watch.ts`, `ct-backfill.ts` i wspólny `_ct.ts` obsługują watcher CT (§16). `media-smoke.ts` sprawdza adaptery mediów na żywo.
 
 ### 3.9 `app/*`, `components/viewer/*`
 
-- `app/page.tsx` renderuje się statycznie. Dane czyta `lib/viewer/data.ts:21` przez `readFileSync`. Produkcyjny build wkleja `data/*.json` w czasie budowania, więc po ponownym pipeline trzeba zrobić `bun run build`. `bun run dev` czyta pliki przy każdym żądaniu (sprawdzone).
-- `components/viewer/Viewer.tsx`: stan filtrów i zaznaczenia oraz linki przez `useSearchParams` w `Suspense` (`Viewer.tsx:48`): `?k=K01&n=item:c1-08` (kampania i węzeł), `?a=c1-01&b=c1-04` (porównanie), `?p=adam-testowy` (persona), `?panel=ct` (nowe domeny z watchera CT, `Viewer.tsx:64`). Wybór użytkownika ma pierwszeństwo przed linkiem (stan pochodny, bez efektów).
-- Domyślne ustawienia widoku (`Viewer.tsx:68-70`): kolor wg kampanii, „tylko współdzielone encje”, „ukryj niepowiązane reklamy”.
-- Panel boczny ma zakładki „Szczegóły | Porównaj reklamy | Nowa reklama | Nowe domeny” (`Viewer.tsx:26-31`).
-- `graphView.ts:44` definiuje encję „użyteczną”: `df ≥ 2` albo leżącą na ścieżce do takiej encji. Filtr persony pokazuje tylko kampanie z daną personą (`graphView.ts:80-81`).
-- `GraphCanvas.tsx`: Cytoscape i fcose, ładowane dynamicznie w przeglądarce; Shift+klik w reklamę dodaje ją do porównania (`GraphCanvas.tsx:97-98`).
-- `DetailsPanel.tsx`: rozkład wagi z czynnikiem powszechności (`DetailsPanel.tsx:283-285`), zniżki, ≤ 12 powiązań reklamy z ≤ 4 dowodami każde, ścieżki dowodu (`DetailsPanel.tsx:217`, `:318`, `:339`). Dla reklamy sekcja „Atrybuty (do filtrowania, nie dowody łączące)” (`DetailsPanel.tsx:115-128`): persony ze źródłem, wynik deepfake opisany jako wynik modelu, cyrylica, werdykt cloakingu z powodami, URL końcowy, simhash DOM, fragmenty OCR i ASR. Dla nowych typów encji polskie etykiety pól i krótkie objaśnienie (`DetailsPanel.tsx:67`, `:88`).
-- `ComparePanel.tsx`: dwie reklamy (wyszukiwarki pogrupowane po kampaniach, Shift+klik, przyciski w szczegółach), wynik `explain(a, b)` (`ComparePanel.tsx:117`): ta sama kampania czy nie, zapisane powiązanie z wagami i zniżkami, najsilniejszy łańcuch przez inne reklamy oraz „Wspólne encje” (`compare.ts:73`), także zdyskontowane. Wyjaśnia to brak scalenia, którego `graph.json` nie pokazuje, bo powiązania < 0.05 są odrzucane. Przycisk „Kopiuj link”.
-- `CampaignList.tsx`: na kampanii chipy person, liczby reklam z cyrylicą i z podejrzeniem cloakingu, najwyższy wynik deepfake; filtr persony (`CampaignList.tsx:74-79`). Starszy `campaigns.json` bez `attributes` też się renderuje (`compare.ts:140`).
+- `app/page.tsx` **nie jest statyczny**: dane (`graph.json`, `campaigns.json`, katalog `VIEWER_DATA_DIR`) czyta przy każdym żądaniu przez `lib/viewer/data.ts`, więc po `bun run base` albo `pipeline` wystarczy odświeżyć stronę (bez ponownego `bun run build`). Bez bazy strona działa i podpowiada uruchomienie `bun run base`. Interfejs ma zakładki „Analizuj materiał”, „Kampanie”, „Graf powiązań”, „Porównaj”, „Jak to działa” i „Tryb eksperta” (`components/viewer/Shell.tsx`, opis: [GUI.md](GUI.md)); API zadań to `POST /api/material`, `GET /api/material/[job]` i `.../image`.
+- `components/viewer/Shell.tsx` trzyma stan w adresie: `?tab=analyze|campaigns|graph|compare|how|expert|ct`, `?job=<id>` (wynik analizy), `?a=<id>&b=<id>` (porównanie dwóch materiałów), `?k=K01` (kampania), `?panel=ct` (nowe domeny z watchera CT). Starsze linki z `?n=` i `?p=` otwierają graf. Widok eksperta (`Viewer.tsx`, `?tab=expert`) zachowuje stary układ z filtrami i grafem Cytoscape.
+- Domyślne ustawienia widoku (`Viewer.tsx`): kolor wg kampanii, „tylko współdzielone encje”, „ukryj niepowiązane reklamy”.
+- Panel boczny ma zakładki „Szczegóły | Porównaj reklamy | Nowa reklama | Nowe domeny” (`Viewer.tsx`).
+- `graphView.ts` definiuje encję „użyteczną”: `df ≥ 2` albo leżącą na ścieżce do takiej encji. Filtr persony pokazuje tylko kampanie z daną personą (`graphView.ts`).
+- `GraphCanvas.tsx`: Cytoscape i fcose, ładowane dynamicznie w przeglądarce; Shift+klik w reklamę dodaje ją do porównania (`GraphCanvas.tsx`).
+- `DetailsPanel.tsx`: rozkład wagi z czynnikiem powszechności (`DetailsPanel.tsx`), zniżki, ≤ 12 powiązań reklamy z ≤ 4 dowodami każde, ścieżki dowodu (`DetailsPanel.tsx`). Dla reklamy sekcja „Atrybuty (do filtrowania, nie dowody łączące)” (`DetailsPanel.tsx`): persony ze źródłem, wynik deepfake opisany jako wynik modelu, cyrylica, werdykt cloakingu z powodami, URL końcowy, simhash DOM, fragmenty OCR i ASR. Dla nowych typów encji polskie etykiety pól i krótkie objaśnienie (`DetailsPanel.tsx`).
+- `ComparePanel.tsx`: dwie reklamy (wyszukiwarki pogrupowane po kampaniach, Shift+klik, przyciski w szczegółach), wynik `explain(a, b)` (`ComparePanel.tsx`): ta sama kampania czy nie, zapisane powiązanie z wagami i zniżkami, najsilniejszy łańcuch przez inne reklamy oraz „Wspólne encje” (`compare.ts`), także zdyskontowane. Wyjaśnia to brak scalenia, którego `graph.json` nie pokazuje, bo powiązania < 0.05 są odrzucane. Przycisk „Kopiuj link”.
+- `CampaignList.tsx`: na kampanii chipy person, liczby reklam z cyrylicą i z podejrzeniem cloakingu, najwyższy wynik deepfake; filtr persony (`CampaignList.tsx`). Starszy `campaigns.json` bez `attributes` też się renderuje (`compare.ts`).
 - `CtFeedPanel.tsx`: zakładka „Nowe domeny” (§16.7).
-- `next.config.ts`: `cacheComponents` (`next.config.ts:4`), `output: "standalone"` (`next.config.ts:7`), `outputFileTracingIncludes` dla `data/` (`next.config.ts:9`), `serverExternalPackages: ["sharp"]` (`next.config.ts:15`). Fonty systemowe, więc build działa bez sieci.
+- `next.config.ts`: `cacheComponents` (`next.config.ts`), `output: "standalone"` (`next.config.ts`), `outputFileTracingIncludes` dla `data/` (`next.config.ts`), `serverExternalPackages: ["sharp"]` (`next.config.ts`). Fonty systemowe, więc build działa bez sieci.
 
 ### 3.10 Opcjonalne kroki wzbogacania
 
@@ -253,11 +254,11 @@ Wszystkie są domyślnie wyłączone i włączane flagami `enrich`/`pipeline` (�
 
 | Krok | Co robi | Gdzie |
 |---|---|---|
-| test cloakingu (`--cloaking`) | Dla każdej strony docelowej **dwa zwykłe GET-y** tym samym pobieraczem co reszta (ochrona SSRF, limity czasu, bajtów i przekierowań bez zmian): z User-Agentem crawlera platformy reklamowej (`facebookexternalhit/1.1`) i przeglądarki mobilnej (iPhone Safari) (`enrich.ts:48-50`). Podejrzenie, gdy różnią się adresy końcowe, simhash DOM różni się o więcej niż 12 bitów albo tylko jeden wariant kończy się kodem 2xx (`enrich.ts:157-168`). Wynik w `PageInfo.cloaking` i atrybucie `cloakingSuspected`; nie jest dowodem łączącym. Nie wykrywa cloakingu po IP, geolokalizacji ani JS. | `enrich.ts:140-168`, `:207` |
-| archiwum HTML (domyślnie włączone w CLI, `--no-archive` wyłącza) | zdekodowany HTML (UTF-8) każdej pobranej strony w `data/work/archive/<sha256 surowej odpowiedzi>.html`; ścieżka trafia do `PageInfo.archiveFile`, a paczka dowodów kopiuje plik i liczy jego SHA-256 | `enrich.ts:186-193` |
-| lista person (`--personas plik.json`; z próbką domyślnie `data/sample/personas.json`) | dopasowanie nazwisk z odmianą w treści reklamy i strony, przybliżone w tekście z OCR/ASR | `enrich.ts:302-309`, §4.8 |
-| NER (`--ner`) | imiona i nazwiska osób z tekstu przez skonfigurowany LLM, wynik w cache `ner` | `enrich.ts:252-259`, `persona.ts:303` |
-| OCR (`--ocr`), ASR (`--asr`), odcisk audio (`--audio`) | adaptery z §3.2; ASR i odcisk tylko dla reklam z `videoPath` | `enrich.ts:269-284` |
+| test cloakingu (`--cloaking`) | Dla każdej strony docelowej **dwa zwykłe GET-y** tym samym pobieraczem co reszta (ochrona SSRF, limity czasu, bajtów i przekierowań bez zmian): z User-Agentem crawlera platformy reklamowej (`facebookexternalhit/1.1`) i przeglądarki mobilnej (iPhone Safari) (`enrich.ts`). Podejrzenie, gdy różnią się adresy końcowe, simhash DOM różni się o więcej niż 12 bitów albo tylko jeden wariant kończy się kodem 2xx (`enrich.ts`). Wynik w `PageInfo.cloaking` i atrybucie `cloakingSuspected`; nie jest dowodem łączącym. Nie wykrywa cloakingu po IP, geolokalizacji ani JS. | `enrich.ts`,  |
+| archiwum HTML (domyślnie włączone w CLI, `--no-archive` wyłącza) | zdekodowany HTML (UTF-8) każdej pobranej strony w `data/work/archive/<sha256 surowej odpowiedzi>.html`; ścieżka trafia do `PageInfo.archiveFile`, a paczka dowodów kopiuje plik i liczy jego SHA-256 | `enrich.ts` |
+| lista person (`--personas plik.json`; z próbką domyślnie `data/sample/personas.json`) | dopasowanie nazwisk z odmianą w treści reklamy i strony, przybliżone w tekście z OCR/ASR | `enrich.ts`, §4.8 |
+| NER (`--ner`) | imiona i nazwiska osób z tekstu przez skonfigurowany LLM, wynik w cache `ner` | `enrich.ts`, `persona.ts` |
+| OCR (`--ocr`), ASR (`--asr`), odcisk audio (`--audio`) | adaptery z §3.2; ASR i odcisk tylko dla reklam z `videoPath` | `enrich.ts` |
 | Głos mówcy (`--speaker`) | SpeechBrain ECAPA-TDNN (VoxCeleb) przez `scripts/py/speaker_embed.py` w venv `.venv-speaker` (`scripts/py/setup-speaker.sh`, env `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`); jeden proces na całą partię, cache `.cache/speaker`. Krawędź `similar_voice` przy cosinusie ≥ 0,6 (ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych); para z tą samą ścieżką (Chromaprint) jest pomijana. Rodzaj treści (`campaignRules.contentKinds`, §5.3a pkt 5): sklonowany głos jednej osoby publicznej pasuje między niezależnymi operatorami, więc sam nie łączy | `lib/media/speaker.ts`, `adLibraryVoice.test.ts` |
 | Biblioteka reklam Mety (`--ad-library`, tylko live) | MetaAdsCollector (`uv tool install meta-ads-collector`, env `META_ADS_PYTHON`) przez `scripts/py/ad_library.py`: zapytanie „Zobacz szczegóły reklamy” po samym identyfikatorze biblioteki, bez klucza API, działa też dla zdjętych reklam. Identyfikatory z kolumny `ad_library_id` i z OCR zrzutów. Zwraca płatnika i beneficjenta (DSA), `is_ad_taken_down`, naruszone zasady, zasięg w UE i grupę docelową; cache `.cache/adlibrary` (1 dzień). Płatnik to pivot `ad_payer` (waga 0,7, krawędź `paid_by`); dane trafiają do węzła reklamy (`adLibrary`, `adTakenDown`). Endpoint publicznej strony biblioteki: może przestać działać po zmianach u Mety | `lib/osint/adLibrary.ts`, `adLibraryVoice.test.ts` |
 
@@ -267,91 +268,91 @@ Wszystkie są domyślnie wyłączone i włączane flagami `enrich`/`pipeline` (�
 
 ### 4.1 Encje
 
-Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts:127-155`. „Może być silny” oznacza, że `waga typu × czynnik listy ≥ strongThreshold (0.7)` przy czynniku 1.
+Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może być silny” oznacza, że `waga typu × czynnik listy ≥ strongThreshold (0.7)` przy czynniku 1.
 
 | Typ | Klucz | Skąd (`link.ts`) | Waga typu | Może być silny |
 |---|---|---|---|---|
-| `item` | id reklamy | `:135` | — | — |
+| `item` | id reklamy |  | — | — |
 | `url` | znormalizowany URL (link, każdy skok, strona końcowa, URL-e z treści) | `addUrlInfra :212` | 1.0 | tak |
-| `host` | host ASCII | `:212` | 0.95 | tak |
-| `domain` | eTLD+1 (też domeny z linków wychodzących) | `:212`, `:390` | 0.95 | tak |
-| `tracker` | `<rodzaj>:<id>` | `:374` | 1.0 | tak |
+| `host` | host ASCII |  | 0.95 | tak |
+| `domain` | eTLD+1 (też domeny z linków wychodzących) | ,  | 0.95 | tak |
+| `tracker` | `<rodzaj>:<id>` |  | 1.0 | tak |
 | `wallet` | `<btc\|eth\|tron>:<adres>` | `addContacts :170` | 1.0 | tak |
-| `email` | e-mail małymi literami | `:170` | 0.9 | tak |
-| `phone` | E.164 (też WhatsApp `wa.me`) | `:170` | 0.9 | tak |
-| `telegram` | `t.me/<nazwa>` lub zaproszenie; **zaproszenia do grup WhatsApp też trafiają tu** (`:190`) | `:170` | 0.9 | tak |
-| `endpoint` | backend formularza: `host+szablon ścieżki` (`leads-gate.test/api/v1/submit/<uuid>/`) albo `*szablon` dla ścieżki na tej samej domenie (`*/api/lead`) | `:406` | 0.95 | tak dla innej domeny bez zniżki; ścieżka na tej samej domenie dostaje ×0.4, więc nigdy |
-| `campaign_param` | `nazwa_kanoniczna=wartość` (wartość małymi literami) | `:460` | 0.8 | tak, gdy wartość nie jest zdyskontowana |
-| `cert` | numer seryjny (lub id crt.sh), tylko certyfikaty, których SAN obejmuje ≥ 2 różne eTLD+1 (`:318`) | `:320` | 0.8 | tak, ale darmowy CA daje ×0.6 → 0.48 |
-| `imagehash` | dHash hex (identyczny obraz) | `:159` | 0.65 | nie |
-| `cname_target` | domena rejestrowalna celu CNAME; cel na sufiksie prywatnym PSL (np. `d123.cloudfront.net`) daje osobny węzeł na klienta, ale lista `cnameTargets` i tak go dyskontuje | `:236` | 0.65 | nie |
-| `advertiser` | nazwa reklamodawcy (NFKC, małe litery) | `:153` | 0.6 | nie |
-| `ip` | IP kanoniczny | `:246` | 0.6 | nie |
-| `hidden_fields` | posortowane nazwy ukrytych pól po odrzuceniu ogólnych, tylko gdy zostają ≥ 2 | `:420` | 0.6 | nie |
-| `comment` | znormalizowany komentarz HTML/JS | `:442` | 0.6 | nie |
-| `domain_pattern` | szablon nazwy domeny (`zwrot<n>-<lorem><n>.example`) i wariant bez TLD (`….*`), tylko gdy obejmuje ≥ 2 domeny | `:291` | 0.6; wariant `.*` ×0.85 | nie |
-| `asset` | własny plik JS/CSS: ścieżka (ta sama domena) albo host+ścieżka | `:429` | 0.55 | nie |
-| `favicon` | `mmh3:<int>` | `:380` | 0.5 | nie |
-| `nameserver` | **zbiór** NS domeny, posortowany i złączony ` + ` | `:306` | 0.35 | nie |
-| `persona` | slug imienia i nazwiska (`adam-testowy`) | `:484` | 0.1 | nie (zawsze poniżej `minLinkScore`, §4.8) |
-| `registrar` | nazwa małymi literami; seria rejestracji: `<rejestrator>\|<data pierwszej>` | `:312`, `:724-785` | 0.05; seria 0.3 (`config.ts:180`) | nie |
-| `asn` | `AS<n>` | `link.ts:256` | 0.05 | nie |
+| `email` | e-mail małymi literami |  | 0.9 | tak |
+| `phone` | E.164 (też WhatsApp `wa.me`) |  | 0.9 | tak |
+| `telegram` | `t.me/<nazwa>` lub zaproszenie; **zaproszenia do grup WhatsApp też trafiają tu** |  | 0.9 | tak |
+| `endpoint` | backend formularza: `host+szablon ścieżki` (`leads-gate.test/api/v1/submit/<uuid>/`) albo `*szablon` dla ścieżki na tej samej domenie (`*/api/lead`) |  | 0.95 | tak dla innej domeny bez zniżki; ścieżka na tej samej domenie dostaje ×0.4, więc nigdy |
+| `campaign_param` | `nazwa_kanoniczna=wartość` (wartość małymi literami) |  | 0.8 | tak, gdy wartość nie jest zdyskontowana |
+| `cert` | numer seryjny (lub id crt.sh), tylko certyfikaty, których SAN obejmuje ≥ 2 różne eTLD+1 |  | 0.8 | tak, ale darmowy CA daje ×0.6 → 0.48 |
+| `imagehash` | dHash hex (identyczny obraz) |  | 0.65 | nie |
+| `cname_target` | domena rejestrowalna celu CNAME; cel na sufiksie prywatnym PSL (np. `d123.cloudfront.net`) daje osobny węzeł na klienta, ale lista `cnameTargets` i tak go dyskontuje |  | 0.65 | nie |
+| `advertiser` | nazwa reklamodawcy (NFKC, małe litery) |  | 0.6 | nie |
+| `ip` | IP kanoniczny |  | 0.6 | nie |
+| `hidden_fields` | posortowane nazwy ukrytych pól po odrzuceniu ogólnych, tylko gdy zostają ≥ 2 |  | 0.6 | nie |
+| `comment` | znormalizowany komentarz HTML/JS |  | 0.6 | nie |
+| `domain_pattern` | szablon nazwy domeny (`zwrot<n>-<lorem><n>.example`) i wariant bez TLD (`….*`), tylko gdy obejmuje ≥ 2 domeny |  | 0.6; wariant `.*` ×0.85 | nie |
+| `asset` | własny plik JS/CSS: ścieżka (ta sama domena) albo host+ścieżka |  | 0.55 | nie |
+| `favicon` | `mmh3:<int>` |  | 0.5 | nie |
+| `nameserver` | **zbiór** NS domeny, posortowany i złączony ` + ` |  | 0.35 | nie |
+| `persona` | slug imienia i nazwiska (`adam-testowy`) |  | 0.1 | nie (zawsze poniżej `minLinkScore`, §4.8) |
+| `registrar` | nazwa małymi literami; seria rejestracji: `<rejestrator>\|<data pierwszej>` | ,  | 0.05; seria 0.3 (`config.ts`) | nie |
+| `asn` | `AS<n>` | `link.ts` | 0.05 | nie |
 
-### 4.2 Krawędzie (`model.ts:66`)
+### 4.2 Krawędzie (`model.ts`)
 
 | Typ | Od → do | Kiedy |
 |---|---|---|
-| `landing` | reklama → pierwszy URL | `link.ts:358` |
-| `redirect` | URL → URL | kolejne skoki `redirectChain`, z opisem „HTTP 30x” albo „meta refresh” (`link.ts:360`) |
+| `landing` | reklama → pierwszy URL | `link.ts` |
+| `redirect` | URL → URL | kolejne skoki `redirectChain`, z opisem „HTTP 30x” albo „meta refresh” (`link.ts`) |
 | `on_host`, `in_domain` | URL → host → domena | zawsze |
-| `cname_to` | host → cel CNAME | z łańcucha CNAME hosta (`link.ts:241`) |
+| `cname_to` | host → cel CNAME | z łańcucha CNAME hosta (`link.ts`) |
 | `resolves_to`, `announced_by` | host → IP → ASN | z DNS A/AAAA i Team Cymru |
-| `uses_ns`, `registered_with`, `has_cert`, `registration_burst`, `matches_pattern` | domena → NS / rejestrator / cert / seria / wzorzec nazwy | z DNS, RDAP, CT i szablonu nazwy (`link.ts:298`) |
+| `uses_ns`, `registered_with`, `has_cert`, `registration_burst`, `matches_pattern` | domena → NS / rejestrator / cert / seria / wzorzec nazwy | z DNS, RDAP, CT i szablonu nazwy (`link.ts`) |
 | `uses_tracker`, `has_favicon`, `links_to` | URL końcowy → tracker / favicon / domena | z `PageExtract` strony końcowej |
-| `posts_to`, `has_hidden_fields`, `loads_asset`, `has_comment` | URL końcowy → backend / ukryte pola / plik / komentarz | z `PageKit` strony końcowej (`link.ts:414`, `:421`, `:437`, `:443`) |
+| `posts_to`, `has_hidden_fields`, `loads_asset`, `has_comment` | URL końcowy → backend / ukryte pola / plik / komentarz | z `PageKit` strony końcowej (`link.ts`) |
 | `mentions` | reklama lub URL końcowy → kontakt/portfel; reklama → URL z treści | treść reklamy lub strony |
-| `carries_param` | reklama → parametr kampanii | `link.ts:468` |
-| `mentions_persona` | reklama → persona | jedna krawędź na personę; wszystkie źródła w `evidence`, rozdzielone „; ” (`link.ts:475-487`) |
+| `carries_param` | reklama → parametr kampanii | `link.ts` |
+| `mentions_persona` | reklama → persona | jedna krawędź na personę; wszystkie źródła w `evidence`, rozdzielone „; ” (`link.ts`) |
 | `posted_by`, `has_image` | reklama → reklamodawca / hash obrazu | |
 | `similar_image`, `similar_text`, `similar_dom`, `similar_audio`, `similar_voice` | reklama → reklama | §4.5 |
 
 ### 4.3 Pivot i waga
 
-**Pivot** to każda encja (nie reklama), do której prowadzi ścieżka od reklamy. Funkcja `add` w `link.ts:131` zapisuje `{pivot, type, path, relation, how}`. Fakty z relacją 0 są odrzucane (`link.ts:132`), a duplikaty łączone przez zachowanie najwyższej relacji i najkrótszej ścieżki (`link.ts:714`). `df(e)` to liczba reklam z danym pivotem (`link.ts:512`).
+**Pivot** to każda encja (nie reklama), do której prowadzi ścieżka od reklamy. Funkcja `add` w `link.ts` zapisuje `{pivot, type, path, relation, how}`. Fakty z relacją 0 są odrzucane (`link.ts`), a duplikaty łączone przez zachowanie najwyższej relacji i najkrótszej ścieżki (`link.ts`). `df(e)` to liczba reklam z danym pivotem (`link.ts`).
 
-Waga encji (`weights.ts:279-295`):
+Waga encji (`weights.ts`):
 
 ```
 waga(e)   = waga_typu(typ) × czynnik_listy(e) × idf(df, N) × powszechność(df, N)
 silny(e)  = waga_typu × czynnik_listy ≥ 0.7   ORAZ   df ≤ max(2, floor(0.5 · N))
 idf(df,N) = 1                                   gdy N ≤ 2 lub df ≤ 2
-          = clamp( (1 + ln(N/df)) / (1 + ln(N/2)), 0.2, 1 )   w pozostałych przypadkach   (weights.ts:253-257)
+          = clamp( (1 + ln(N/df)) / (1 + ln(N/2)), 0.2, 1 )   w pozostałych przypadkach   (weights.ts)
 powszechność(df,N) = 1                          gdy N < 10 lub df/N ≤ 0.5
-          = max(0.1, (1 − df/N) / 0.5)          w pozostałych przypadkach   (weights.ts:263-268)
-czynnik_listy(e) = min(factor) ze wszystkich pasujących reguł, 1 gdy brak   (weights.ts:245)
+          = max(0.1, (1 − df/N) / 0.5)          w pozostałych przypadkach   (weights.ts)
+czynnik_listy(e) = min(factor) ze wszystkich pasujących reguł, 1 gdy brak   (weights.ts)
 ```
 
 Przykłady z próbki (N = 43):
 - IP Cloudflare współdzielone przez 17 reklam: idf = (1+ln(43/17))/(1+ln(21,5)) = 0,4739, powszechność 1, waga = 0,6 × 0,02 × 0,4739 = 0,0057.
 - Komentarz-znacznik generatora próbki jest na 41 stronach: idf 0,2575, powszechność 0,1. Nawet bez reguły w `data/sample/linking.json` (która daje ×0) waga wyniosłaby 0,6 × 0,2575 × 0,1 = 0,015. Kara za powszechność tłumi encje obecne niemal wszędzie, których nie ma na żadnej liście.
 
-**Waga pary** dla wspólnego pivotu `e` (`link.ts:532-568`):
-- pary są tworzone tylko gdy `2 ≤ df ≤ maxPivotDf (400)` i `waga > 0` (`link.ts:532`);
-- wariant szablonu bez TLD (`….*`) nie dodaje dowodu parze, która ma już wspólny wariant z TLD tego samego szablonu (`link.ts:537-551`), więc ten sam wzorzec nie liczy się dwa razy;
-- `w = waga(e) × min(relacja_A, relacja_B)` (`link.ts:553`);
-- dowód jest silny, gdy `silny(e)` i `min(relacja) ≥ 1` (`link.ts:562`).
+**Waga pary** dla wspólnego pivotu `e` (`link.ts`):
+- pary są tworzone tylko gdy `2 ≤ df ≤ maxPivotDf (400)` i `waga > 0` (`link.ts`);
+- wariant szablonu bez TLD (`….*`) nie dodaje dowodu parze, która ma już wspólny wariant z TLD tego samego szablonu (`link.ts`), więc ten sam wzorzec nie liczy się dwa razy;
+- `w = waga(e) × min(relacja_A, relacja_B)` (`link.ts`);
+- dowód jest silny, gdy `silny(e)` i `min(relacja) ≥ 1` (`link.ts`).
 
 **Relacje** (mnożniki ścieżki):
 
 | Sytuacja | Relacja | Gdzie |
 |---|---|---|
-| zwykła ścieżka (hosting, treść, parametry kampanii, persona) | 1 | `link.ts:469`, `:486` |
-| domena z linku wychodzącego strony | 0.4 (`outboundLinkFactor`) | `link.ts:395`, `config.ts:178` |
-| strona końcowa zaparkowana: jej trackery, favicon, kontakty, linki, **kit strony oraz IP/ASN/NS hosta końcowego** | ×0.05 (`parkingFactor`) | `link.ts:343-344`, `:356`, `:402`, `config.ts:389` |
-| URL na domenie z listy `domains` lub `endpointHosts` (platforma, skracacz, CDN, publiczny serwis): IP/ASN/NS/rejestrator/cert/cel CNAME tej domeny | × czynnik reguły (0 = całkowicie pomijane) | `link.ts:217-219`, `:242` |
-| domena wychodząca albo plik JS/CSS z innej domeny, której czynnik listy to 0 | węzeł w ogóle nie powstaje | `link.ts:392`, `:427` |
+| zwykła ścieżka (hosting, treść, parametry kampanii, persona) | 1 | `link.ts`,  |
+| domena z linku wychodzącego strony | 0.4 (`outboundLinkFactor`) | `link.ts`, `config.ts` |
+| strona końcowa zaparkowana: jej trackery, favicon, kontakty, linki, **kit strony oraz IP/ASN/NS hosta końcowego** | ×0.05 (`parkingFactor`) | `link.ts`, `config.ts` |
+| URL na domenie z listy `domains` lub `endpointHosts` (platforma, skracacz, CDN, publiczny serwis): IP/ASN/NS/rejestrator/cert/cel CNAME tej domeny | × czynnik reguły (0 = całkowicie pomijane) | `link.ts`,  |
+| domena wychodząca albo plik JS/CSS z innej domeny, której czynnik listy to 0 | węzeł w ogóle nie powstaje | `link.ts`,  |
 
-Strona jest uznawana za zaparkowaną, gdy regex z `parkingPatterns` (`config.ts:377`) pasuje do pierwszych 4000 znaków tytułu, opisu i `visibleText` (`weights.ts:88`).
+Strona jest uznawana za zaparkowaną, gdy regex z `parkingPatterns` (`config.ts`) pasuje do pierwszych 4000 znaków tytułu, opisu i `visibleText` (`weights.ts`).
 
 ### 4.4 Listy infrastruktury współdzielonej (`lib/graph/config.ts`)
 
@@ -359,51 +360,51 @@ Kolumna „Linie” wskazuje `lib/graph/config.ts`, kolumna „Dopasowanie” �
 
 | Lista | Linie | Dopasowanie | Domyślnie |
 |---|---|---|---|
-| `asns` | `config.ts:184-203` | numer ASN; `factor` dla węzła ASN, `ipFactor` dla IP ogłaszanych przez ten AS (`weights.ts:77-86`) | Cloudflare 13335/209242 (0.02/0.02), Akamai, Fastly, Imperva, Sucuri (0.05), CDN77, G-Core (0.1), Google/Amazon/Microsoft/Meta (IP 0.1–0.5), hostingi współdzielone (IP 0.3) |
-| `ipCidrs` | `config.ts:204-234` | najbardziej szczegółowy CIDR (`weights.ts:79`) | opublikowane zakresy Cloudflare v4/v6 (0.02), Fastly 151.101/16, Vercel 76.76.21/24, Netlify 75.2.60.5, GitHub Pages 185.199.108/22, Firebase 199.36.158.100 (0.05) |
-| `nameserverSuffixes` | `config.ts:235-264` | sufiks; zniżka tylko gdy **każdy** NS ze zbioru pasuje, brany najłagodniejszy czynnik (`weights.ts:117-126`) | Cloudflare, Route 53, GoDaddy, Namecheap, Google, Azure, NS1… (0.1); parkingi Sedo, ParkingCrew, Bodis, Above, Hostinger, Afternic, Dan (0.05) |
-| `certIssuers` | `config.ts:265-272` | podciąg w `issuer` | Let's Encrypt, ZeroSSL, Google Trust Services, cPanel, Buypass (0.6), Cloudflare (0.5) |
-| `certSanMarkers` | `config.ts:273-277` | sufiks dowolnej nazwy z SAN | `cloudflaressl.com`, `incapsula.com` (0.02), `edgecastcdn.net` (0.05) |
-| (reguła wbudowana) | — | SAN obejmuje > `maxCertDomains` (25) różnych eTLD+1 (`weights.ts:141-147`) | 0.05 |
-| `registrars` | `config.ts:278-303` | podciąg w nazwie | 24 popularnych rejestratorów (0.6) |
-| `domains` | `config.ts:304-375` | eTLD+1 równe regule lub jej subdomena; reguła bez kropki działa jako podciąg (`weights.ts:22-26`) | duże platformy, skracacze, CDN/biblioteki, popularne portale PL (0) |
-| `pivots` | `config.ts:376` | dokładne id lub klucz węzła | pusta |
-| `parkingPatterns`, `parkingFactor` | `config.ts:377-389` | regex (bez rozróżniania wielkości liter) | „domain for sale”, „buy this domain”, „domena na sprzedaż”…; relacja 0.05 |
-| `endpointHosts` | `config.ts:390-443` | host backendu (sufiks); **ta sama lista dyskontuje domenę z linku wychodzącego i cel zasobu** (`domainDiscount`, `weights.ts:64-75`) | publiczne serwisy formularzy (web3forms, Formspree, FormSubmit, Getform, Jotform, Typeform, HubSpot, Mailchimp, EmailJS…), analityka i antyspam (Google Analytics/GTM, Meta, TikTok, Yandex, Clarity, Hotjar, reCAPTCHA, hCaptcha…), geolokalizacja IP (ipinfo.io, ip-api.com, ipify…), wszystkie 0.05 |
-| `endpointGenericPaths` | `config.ts:444-488` | dokładny szablon ścieżki na tej samej domenie (`weights.ts:162-164`) | `/`, `/submit`, `/send`, `/api/lead`, `/contact.php`, `/register.php`, `/handler.php`… (0.05) |
-| `hiddenFieldGeneric` | `config.ts:489-523` | nazwa pola (odrzucana przed złożeniem klucza, `weights.ts:60-62`) | tokeny CSRF i `__VIEWSTATE`, `_wpnonce`, `redirect`, `lang`, pola serwisów formularzy (`access_key`, `subject`, `_next`, `_honey`), `g-recaptcha-response`… |
-| `assetLibraries` | `config.ts:524-536` | regex na nazwie pliku (`weights.ts:175-183`) | jQuery, Bootstrap, Popper, Swiper, GSAP, Vue, React, Font Awesome, intl-tel-input, Inputmask… (0.05); nazwy ogólne `style.css`, `main.js`, `app.js`, `bundle.js`… (0.1) |
-| `commentPatterns` | `config.ts:537-554` | regex na komentarzu (`weights.ts:184-188`) | snippety trackerów (GTM, gtag, Meta Pixel, Yandex Metrika, Hotjar), WordPress/Yoast, „end of …”, banery cookies, nazwy sekcji szablonu (0.05) |
-| `cnameTargets` | `config.ts:555-607` | sufiks celu (`weights.ts:202-209`) | CDN: CloudFront, Akamai, Fastly, Cloudflare, Azure CDN/Front Door, Bunny, CDN77, KeyCDN, StackPath, Imperva, Sucuri, Edgecast (0.02); hostingi: Azure Websites, Heroku, GitHub Pages, Netlify, Vercel, Cloudflare Pages/Workers, Firebase, Google, WP Engine, Shopify, Squarespace, Wix, Webflow, HubSpot, Zendesk, Elastic Beanstalk, AWS, GoDaddy Sites, Weebly, Blogspot (0.05) |
-| `campaignParamGenericValues` | `config.ts:608-668` | dokładna wartość (`weights.ts:213-215`) | nazwy platform i kanałów (`facebook`, `fb`, `ig`, `google`, `tiktok`, `cpc`, `paid_social`, `email`…), wartości puste (`none`, `null`, `(not set)`) i makra Meta (`{{campaign.name}}`, `{{ad.id}}`…), czynnik 0.05 |
-| `campaignParamWeakNames` | `config.ts:669-672` | nazwa parametru (`weights.ts:228-229`) | `utm_source`, `utm_medium` (0.2) |
+| `asns` | `config.ts` | numer ASN; `factor` dla węzła ASN, `ipFactor` dla IP ogłaszanych przez ten AS (`weights.ts`) | Cloudflare 13335/209242 (0.02/0.02), Akamai, Fastly, Imperva, Sucuri (0.05), CDN77, G-Core (0.1), Google/Amazon/Microsoft/Meta (IP 0.1–0.5), hostingi współdzielone (IP 0.3) |
+| `ipCidrs` | `config.ts` | najbardziej szczegółowy CIDR (`weights.ts`) | opublikowane zakresy Cloudflare v4/v6 (0.02), Fastly 151.101/16, Vercel 76.76.21/24, Netlify 75.2.60.5, GitHub Pages 185.199.108/22, Firebase 199.36.158.100 (0.05) |
+| `nameserverSuffixes` | `config.ts` | sufiks; zniżka tylko gdy **każdy** NS ze zbioru pasuje, brany najłagodniejszy czynnik (`weights.ts`) | Cloudflare, Route 53, GoDaddy, Namecheap, Google, Azure, NS1… (0.1); parkingi Sedo, ParkingCrew, Bodis, Above, Hostinger, Afternic, Dan (0.05) |
+| `certIssuers` | `config.ts` | podciąg w `issuer` | Let's Encrypt, ZeroSSL, Google Trust Services, cPanel, Buypass (0.6), Cloudflare (0.5) |
+| `certSanMarkers` | `config.ts` | sufiks dowolnej nazwy z SAN | `cloudflaressl.com`, `incapsula.com` (0.02), `edgecastcdn.net` (0.05) |
+| (reguła wbudowana) | — | SAN obejmuje > `maxCertDomains` (25) różnych eTLD+1 (`weights.ts`) | 0.05 |
+| `registrars` | `config.ts` | podciąg w nazwie | 24 popularnych rejestratorów (0.6) |
+| `domains` | `config.ts` | eTLD+1 równe regule lub jej subdomena; reguła bez kropki działa jako podciąg (`weights.ts`) | duże platformy, skracacze, CDN/biblioteki, popularne portale PL (0) |
+| `pivots` | `config.ts` | dokładne id lub klucz węzła | pusta |
+| `parkingPatterns`, `parkingFactor` | `config.ts` | regex (bez rozróżniania wielkości liter) | „domain for sale”, „buy this domain”, „domena na sprzedaż”…; relacja 0.05 |
+| `endpointHosts` | `config.ts` | host backendu (sufiks); **ta sama lista dyskontuje domenę z linku wychodzącego i cel zasobu** (`domainDiscount`, `weights.ts`) | publiczne serwisy formularzy (web3forms, Formspree, FormSubmit, Getform, Jotform, Typeform, HubSpot, Mailchimp, EmailJS…), analityka i antyspam (Google Analytics/GTM, Meta, TikTok, Yandex, Clarity, Hotjar, reCAPTCHA, hCaptcha…), geolokalizacja IP (ipinfo.io, ip-api.com, ipify…), wszystkie 0.05 |
+| `endpointGenericPaths` | `config.ts` | dokładny szablon ścieżki na tej samej domenie (`weights.ts`) | `/`, `/submit`, `/send`, `/api/lead`, `/contact.php`, `/register.php`, `/handler.php`… (0.05) |
+| `hiddenFieldGeneric` | `config.ts` | nazwa pola (odrzucana przed złożeniem klucza, `weights.ts`) | tokeny CSRF i `__VIEWSTATE`, `_wpnonce`, `redirect`, `lang`, pola serwisów formularzy (`access_key`, `subject`, `_next`, `_honey`), `g-recaptcha-response`… |
+| `assetLibraries` | `config.ts` | regex na nazwie pliku (`weights.ts`) | jQuery, Bootstrap, Popper, Swiper, GSAP, Vue, React, Font Awesome, intl-tel-input, Inputmask… (0.05); nazwy ogólne `style.css`, `main.js`, `app.js`, `bundle.js`… (0.1) |
+| `commentPatterns` | `config.ts` | regex na komentarzu (`weights.ts`) | snippety trackerów (GTM, gtag, Meta Pixel, Yandex Metrika, Hotjar), WordPress/Yoast, „end of …”, banery cookies, nazwy sekcji szablonu (0.05) |
+| `cnameTargets` | `config.ts` | sufiks celu (`weights.ts`) | CDN: CloudFront, Akamai, Fastly, Cloudflare, Azure CDN/Front Door, Bunny, CDN77, KeyCDN, StackPath, Imperva, Sucuri, Edgecast (0.02); hostingi: Azure Websites, Heroku, GitHub Pages, Netlify, Vercel, Cloudflare Pages/Workers, Firebase, Google, WP Engine, Shopify, Squarespace, Wix, Webflow, HubSpot, Zendesk, Elastic Beanstalk, AWS, GoDaddy Sites, Weebly, Blogspot (0.05) |
+| `campaignParamGenericValues` | `config.ts` | dokładna wartość (`weights.ts`) | nazwy platform i kanałów (`facebook`, `fb`, `ig`, `google`, `tiktok`, `cpc`, `paid_social`, `email`…), wartości puste (`none`, `null`, `(not set)`) i makra Meta (`{{campaign.name}}`, `{{ad.id}}`…), czynnik 0.05 |
+| `campaignParamWeakNames` | `config.ts` | nazwa parametru (`weights.ts`) | `utm_source`, `utm_medium` (0.2) |
 
-Parametry kampanii mają też reguły wbudowane (`weights.ts:213-227`): wartość krótsza niż 3 znaki ×0.05, liczba 1–4 cyfrowa ×0.1, nierozwinięte makro ×0.1, wartość słowna (same litery, 3–25 znaków) ×0.75 (`kit.campaignParamWordFactor`). Wzorce nazw domen: szablon bez rdzenia literowego (< 3 litery, np. `<lorem><n>`) ×0.3, wariant bez TLD ×0.85 (`weights.ts:189-201`). Backend na tej samej domenie co strona: ×0.4, a krótka ścieżka (≤ 2 segmenty) dodatkowo ×0.5 (`weights.ts:150-173`).
+Parametry kampanii mają też reguły wbudowane (`weights.ts`): wartość krótsza niż 3 znaki ×0.05, liczba 1–4 cyfrowa ×0.1, nierozwinięte makro ×0.1, wartość słowna (same litery, 3–25 znaków) ×0.75 (`kit.campaignParamWordFactor`). Wzorce nazw domen: szablon bez rdzenia literowego (< 3 litery, np. `<lorem><n>`) ×0.3, wariant bez TLD ×0.85 (`weights.ts`). Backend na tej samej domenie co strona: ×0.4, a krótka ścieżka (≤ 2 segmenty) dodatkowo ×0.5 (`weights.ts`).
 
-Gdy kilka reguł podaje ten sam powód (np. Cloudflare przez CIDR i przez ASN), zostaje jedna zniżka (`weights.ts:236-241`).
+Gdy kilka reguł podaje ten sam powód (np. Cloudflare przez CIDR i przez ASN), zostaje jedna zniżka (`weights.ts`).
 
 ### 4.5 Podobieństwo
 
 | Sygnał | Warunek | Waga dowodu | Gdzie |
 |---|---|---|---|
-| obraz (dHash) | `1 ≤ Hamming ≤ imageHamming (10)`; `d = 0` jest pomijane, bo pokrywa je pivot `imagehash` | `0.6 × (1 − 0.5·d/10)`, czyli 0.57…0.30 | `link.ts:572-586`, `config.ts:162-163` |
-| struktura strony (simhash DOM) | `Hamming ≤ dom.hamming (6)`; pary z tym samym URL-em końcowym są pomijane, bo łączy je już URL/host | `0.45 × (1 − 0.5·d/6)`, czyli 0.45…0.225 | `link.ts:588-608`, `config.ts:165` |
-| ścieżka dźwiękowa (Chromaprint) | podobieństwo ≥ `audio.minSimilarity (0.85)` | `0.5 × (0.5 + 0.5·(sim−0.85)/0.15)`, czyli 0.25…0.50 | `link.ts:610-622`, `config.ts:166` |
-| tekst TF-IDF | cosinus ≥ 0.5; tekst ≥ 25 znaków | `0.5 × (0.5 + 0.5·(cos−próg)/(1−próg))`, czyli 0.25…0.50 | `link.ts:624-659`, `config.ts:164` |
-| tekst, embeddingi | cosinus ≥ 0.86 | jak wyżej | `link.ts:633-640` |
+| obraz (dHash) | `1 ≤ Hamming ≤ imageHamming (10)`; `d = 0` jest pomijane, bo pokrywa je pivot `imagehash` | `0.6 × (1 − 0.5·d/10)`, czyli 0.57…0.30 | `link.ts`, `config.ts` |
+| struktura strony (simhash DOM) | `Hamming ≤ dom.hamming (6)`; pary z tym samym URL-em końcowym są pomijane, bo łączy je już URL/host | `0.45 × (1 − 0.5·d/6)`, czyli 0.45…0.225 | `link.ts`, `config.ts` |
+| ścieżka dźwiękowa (Chromaprint) | podobieństwo ≥ `audio.minSimilarity (0.85)` | `0.5 × (0.5 + 0.5·(sim−0.85)/0.15)`, czyli 0.25…0.50 | `link.ts`, `config.ts` |
+| tekst TF-IDF | cosinus ≥ 0.5; tekst ≥ 25 znaków | `0.5 × (0.5 + 0.5·(cos−próg)/(1−próg))`, czyli 0.25…0.50 | `link.ts`, `config.ts` |
+| tekst, embeddingi | cosinus ≥ 0.86 | jak wyżej | `link.ts` |
 
-Tekst do porównania to treść reklamy z tekstem z OCR i ASR, a gdy ich brak, tytuł i opis strony docelowej (`textOf`, `link.ts:706`). Porównywane są wszystkie pary, czyli O(n²). Na próbce simhash DOM różni się w obrębie kampanii o ≤ 5 bitów, a między kampaniami o ≥ 22 (pomiar `gen-sample`). Niezwiązane nagrania mają podobieństwo ok. 0,5–0,7, więc próg 0,85 jest z zapasem (`lib/media/audioFp.test.ts`).
+Tekst do porównania to treść reklamy z tekstem z OCR i ASR, a gdy ich brak, tytuł i opis strony docelowej (`textOf`, `link.ts`). Porównywane są wszystkie pary, czyli O(n²). Na próbce simhash DOM różni się w obrębie kampanii o ≤ 5 bitów, a między kampaniami o ≥ 22 (pomiar `gen-sample`). Niezwiązane nagrania mają podobieństwo ok. 0,5–0,7, więc próg 0,85 jest z zapasem (`lib/media/audioFp.test.ts`).
 
-**Powiązanie pary** (`link.ts:662-671`): `score = 1 − Π(1 − w_i)` po wszystkich dowodach (noisy-OR, `weights.ts:298`). Silne, gdy którykolwiek dowód jest silny. Powiązania z `score < 0.05`, które nie są silne, są odrzucane (`link.ts:668`). Ich encje zostają w węzłach i krawędziach.
+**Powiązanie pary** (`link.ts`): `score = 1 − Π(1 − w_i)` po wszystkich dowodach (noisy-OR, `weights.ts`). Silne, gdy którykolwiek dowód jest silny. Powiązania z `score < 0.05`, które nie są silne, są odrzucane (`link.ts`). Ich encje zostają w węzłach i krawędziach.
 
-### 4.6 `explain(a, b)` (`lib/graph/explain.ts:32`)
+### 4.6 `explain(a, b)` (`lib/graph/explain.ts`)
 
 1. `sameCampaign`: oba węzły mają ten sam `campaignId`.
 2. Dowody bezpośrednie: `evidence` powiązania (a, b), jeśli istnieje. Każdy dowód typu pivot ma `pathA` i `pathB`, czyli listy id węzłów od reklamy do wspólnej encji (np. `item:c1-01 → url:… → host:… → ip:…`).
-3. Gdy powiązania nie ma albo `score < minLinkScore`, Dijkstra na wagach `−ln(score)` po powiązaniach z `score ≥ minLinkScore` lub silnych (`strongestPath`, `explain.ts:53-91`). Maksymalizuje to iloczyn wyników. Każdy krok zawiera ≤ 3 najsilniejsze dowody.
+3. Gdy powiązania nie ma albo `score < minLinkScore`, Dijkstra na wagach `−ln(score)` po powiązaniach z `score ≥ minLinkScore` lub silnych (`strongestPath`, `explain.ts`). Maksymalizuje to iloczyn wyników. Każdy krok zawiera ≤ 3 najsilniejsze dowody.
 4. `summary`: tekst PL.
 
-`explain` działa na grafie, który dostanie. Po przycięciu (§5.4) może nie znaleźć słabszych par bezpośrednio. Przeglądarka używa go w panelu porównania (`ComparePanel.tsx:117`) i uzupełnia listą wszystkich wspólnych encji, również tych, których para nie dostała w `graph.json` (§3.9). `lib/graph/cluster.ts:30` reeksportuje `explain` dla zgodności.
+`explain` działa na grafie, który dostanie. Po przycięciu (§5.4) może nie znaleźć słabszych par bezpośrednio. Przeglądarka używa go w panelu porównania (`ComparePanel.tsx`) i uzupełnia listą wszystkich wspólnych encji, również tych, których para nie dostała w `graph.json` (§3.9). `lib/graph/cluster.ts` reeksportuje `explain` dla zgodności.
 
 ### 4.7 Kit strony, wzorce nazw, CNAME i parametry kampanii
 
@@ -411,25 +412,25 @@ Te pivoty wynikają z notatek badawczych (ranking sygnałów: backend formularza
 
 | Pivot | Skąd | Zniżki i progi | Przykład z próbki |
 |---|---|---|---|
-| `endpoint` | `PageKit.endpoints` strony końcowej (`link.ts:404-416`) | publiczny serwis formularzy, analityka i geolokalizacja (`endpointHosts`) 0.05; ścieżka na tej samej domenie ×0.4; ścieżka ogólna 0.05; krótka ścieżka ×0.5 (`weights.ts:150-173`) | `leads-gate.test/api/v1/submit/<uuid>/` na dwóch domenach C1 (inne UUID) jest silny; `api.web3forms.com/submit` u C5, N1 i N2 ma wagę 0,031 i ich nie łączy |
-| `hidden_fields` | `PageKit.hiddenFields` bez nazw ogólnych, ≥ 2 pola (`kit.minHiddenFields`, `link.ts:417-423`) | lista `hiddenFieldGeneric` odrzuca pola przed złożeniem klucza | `device_id,fill_time,read_time` (C3) |
-| `asset` | `PageKit.assets`; pliki z domen o czynniku listy 0 (publiczne CDN) są pomijane (`link.ts:424-438`) | biblioteki 0.05, nazwy ogólne 0.1 | `/assets/js/kz-form.3fa9c1.js` (C1); `jquery-3.7.1.min.js` i `style.css` u C1 i N1 mają wagę < 0,05 |
-| `comment` | `PageKit.comments` (`link.ts:440-445`) | snippety trackerów i CMS 0.05; kara za powszechność | komentarz po rosyjsku w kodzie C1 (flaga cyrylicy) |
-| `domain_pattern` | szablony domen ze zbioru (bez domen z list), tylko szablony obecne w ≥ 2 różnych domenach (`kit.domainPatternMinDomains`, `link.ts:113-127`, `:283-301`) | bez rdzenia literowego ×0.3; wariant bez TLD ×0.85; brak podwójnego liczenia (§4.3) | `zwrot<n>-<lorem><n>.example` (2 domeny C4) i `zwrot<n>-<lorem><n>.*` (3 domeny w dwóch TLD) |
-| `cname_target` | łańcuch CNAME hosta (`HostInfo.cnameChain`, do 4 skoków), klucz = domena rejestrowalna celu (`link.ts:229-243`) | CDN 0.02, hostingi 0.05 (`cnameTargets`); relacja hostingu jak IP | `tds-cname.test` (dwie domeny C3, różne etykiety celu); `fastly.net` u C5 i N5 ma wagę 0,009 |
-| `campaign_param` | URL-e reklamy, łańcucha, strony końcowej i treści (`link.ts:456-471`) | wartości ogólne i makra, wartości krótkie i liczbowe, słowne, słabe nazwy (§4.4) | `sub1=mb_kowal`, `offer_id=771304` (C3), `aff_id=kd_partner_19` (C5), `utm_campaign=пл_инвест_лиды_07` (C1, cyrylica) są silne; `utm_source=facebook` u C1, C2 i N1 ma wagę 0,029 |
+| `endpoint` | `PageKit.endpoints` strony końcowej (`link.ts`) | publiczny serwis formularzy, analityka i geolokalizacja (`endpointHosts`) 0.05; ścieżka na tej samej domenie ×0.4; ścieżka ogólna 0.05; krótka ścieżka ×0.5 (`weights.ts`) | `leads-gate.test/api/v1/submit/<uuid>/` na dwóch domenach C1 (inne UUID) jest silny; `api.web3forms.com/submit` u C5, N1 i N2 ma wagę 0,031 i ich nie łączy |
+| `hidden_fields` | `PageKit.hiddenFields` bez nazw ogólnych, ≥ 2 pola (`kit.minHiddenFields`, `link.ts`) | lista `hiddenFieldGeneric` odrzuca pola przed złożeniem klucza | `device_id,fill_time,read_time` (C3) |
+| `asset` | `PageKit.assets`; pliki z domen o czynniku listy 0 (publiczne CDN) są pomijane (`link.ts`) | biblioteki 0.05, nazwy ogólne 0.1 | `/assets/js/kz-form.3fa9c1.js` (C1); `jquery-3.7.1.min.js` i `style.css` u C1 i N1 mają wagę < 0,05 |
+| `comment` | `PageKit.comments` (`link.ts`) | snippety trackerów i CMS 0.05; kara za powszechność | komentarz po rosyjsku w kodzie C1 (flaga cyrylicy) |
+| `domain_pattern` | szablony domen ze zbioru (bez domen z list), tylko szablony obecne w ≥ 2 różnych domenach (`kit.domainPatternMinDomains`, `link.ts`) | bez rdzenia literowego ×0.3; wariant bez TLD ×0.85; brak podwójnego liczenia (§4.3) | `zwrot<n>-<lorem><n>.example` (2 domeny C4) i `zwrot<n>-<lorem><n>.*` (3 domeny w dwóch TLD) |
+| `cname_target` | łańcuch CNAME hosta (`HostInfo.cnameChain`, do 4 skoków), klucz = domena rejestrowalna celu (`link.ts`) | CDN 0.02, hostingi 0.05 (`cnameTargets`); relacja hostingu jak IP | `tds-cname.test` (dwie domeny C3, różne etykiety celu); `fastly.net` u C5 i N5 ma wagę 0,009 |
+| `campaign_param` | URL-e reklamy, łańcucha, strony końcowej i treści (`link.ts`) | wartości ogólne i makra, wartości krótkie i liczbowe, słowne, słabe nazwy (§4.4) | `sub1=mb_kowal`, `offer_id=771304` (C3), `aff_id=kd_partner_19` (C5), `utm_campaign=пл_инвест_лиды_07` (C1, cyrylica) są silne; `utm_source=facebook` u C1, C2 i N1 ma wagę 0,029 |
 
-Cyrylica w komentarzach strony lub w wartości parametru ustawia atrybut `cyrillic` reklamy (`link.ts:447`, `:470`) i liczbę reklam z cyrylicą w kampanii. To atrybut, nie krawędź.
+Cyrylica w komentarzach strony lub w wartości parametru ustawia atrybut `cyrillic` reklamy (`link.ts`) i liczbę reklam z cyrylicą w kampanii. To atrybut, nie krawędź.
 
 ### 4.8 Persona (osoba, pod którą podszywa się reklama)
 
 Persona pochodzi wyłącznie z tekstu albo z danych wejściowych. Starter nie przetwarza twarzy ani głosu i nie przechowuje wzorców biometrycznych.
 
-- **Lista obserwowanych osób** (`lib/text/persona.ts`, plik JSON `[{name, role?, aliases?}]`, schemat `persona.ts:19`): każde słowo nazwiska dostaje wzorzec prostej odmiany polskiej (`inflectionPattern`, `persona.ts:90`), np. „Adama Testowego”, „Ewie Przykładowej”, na tekście po `normalizeForMatching` (diakrytyki, homoglify, wielkość liter). Dopasowanie w treści reklamy i strony docelowej (`matchPersonas`, `persona.ts:221`).
-- **Tryb przybliżony dla OCR/ASR** (`fuzzyMatch`, `persona.ts:195`): imię musi pasować dokładnie (z odmianą), a temat nazwiska po zdjęciu końcówki (`stemPolish`, `persona.ts:124`) może różnić się o odległość edycyjną zależną od długości: ≤ 4 znaki 0, 5–7 znaków 1, ≥ 8 znaków 2 (`maxSurnameDistance`, `persona.ts:149`). Przypadek z transkrypcji whispera „Inwestuj z Rafałem Brzosku” (powiedziano „Brzoską”) pasuje do „Rafał Brzoska” tylko w tym trybie (`lib/text/persona.test.ts:109-119`). Tryb przybliżony działa tylko na tekście z OCR i ASR (`lib/pipeline/enrich.ts:307-308`).
-- **Kolumna wejściowa** (np. identyfikator lub nazwisko z DROZD): `personasFromIngest` (`persona.ts:276`), kilka wartości rozdzielonych `;`, `|` lub `,`.
-- **NER przez LLM** (opcjonalnie, `--ner`): `extractPersonsNer` (`persona.ts:303`); prompt każe traktować tekst jako dane i nie opisywać wyglądu.
-- **W grafie** persona ma wagę typu 0.1 (`config.ts:154`), więc sama nigdy nie przekracza `minLinkScore` (0.15) i nie łączy kampanii (ta sama osoba występuje w wielu kampaniach). Na reklamę i personę jest jedna krawędź `mentions_persona` ze wszystkimi źródłami (§4.2). Kampania dostaje atrybut `personas[{id,name,count}]` (`cluster.ts:237`), a przeglądarka filtr persony.
+- **Lista obserwowanych osób** (`lib/text/persona.ts`, plik JSON `[{name, role?, aliases?}]`, schemat `persona.ts`): każde słowo nazwiska dostaje wzorzec prostej odmiany polskiej (`inflectionPattern`, `persona.ts`), np. „Adama Testowego”, „Ewie Przykładowej”, na tekście po `normalizeForMatching` (diakrytyki, homoglify, wielkość liter). Dopasowanie w treści reklamy i strony docelowej (`matchPersonas`, `persona.ts`).
+- **Tryb przybliżony dla OCR/ASR** (`fuzzyMatch`, `persona.ts`): imię musi pasować dokładnie (z odmianą), a temat nazwiska po zdjęciu końcówki (`stemPolish`, `persona.ts`) może różnić się o odległość edycyjną zależną od długości: ≤ 4 znaki 0, 5–7 znaków 1, ≥ 8 znaków 2 (`maxSurnameDistance`, `persona.ts`). Przypadek z transkrypcji whispera „Inwestuj z Rafałem Brzosku” (powiedziano „Brzoską”) pasuje do „Rafał Brzoska” tylko w tym trybie (`lib/text/persona.test.ts`). Tryb przybliżony działa tylko na tekście z OCR i ASR (`lib/pipeline/enrich.ts`).
+- **Kolumna wejściowa** (np. identyfikator lub nazwisko z DROZD): `personasFromIngest` (`persona.ts`), kilka wartości rozdzielonych `;`, `|` lub `,`.
+- **NER przez LLM** (opcjonalnie, `--ner`): `extractPersonsNer` (`persona.ts`); prompt każe traktować tekst jako dane i nie opisywać wyglądu.
+- **W grafie** persona ma wagę typu 0.1 (`config.ts`), więc sama nigdy nie przekracza `minLinkScore` (0.15) i nie łączy kampanii (ta sama osoba występuje w wielu kampaniach). Na reklamę i personę jest jedna krawędź `mentions_persona` ze wszystkimi źródłami (§4.2). Kampania dostaje atrybut `personas[{id,name,count}]` (`cluster.ts`), a przeglądarka filtr persony.
 
 ### 4.9 Pivoty i reguły dodane 20.11.2026 wieczorem
 
@@ -478,7 +479,7 @@ Badanie publicznych skanów (urlscan, RDAP; raport `10-rodzenstwo-w-sieci.md` po
 | `lists.multiTenantBackends` ×0,1 | `config.ts`, `weights.ts` (backendy i skrypty spoza domeny strony, bez identyfikatora klienta) | Usługi formularzy, zbierania leadów, webhooków i CRM z jednym hostem dla wszystkich klientów. Z raportu dopisany tylko host opisany tam jako usługa wielu klientów na podstawie publicznych skanów (skrypt na stronach wielu niezwiązanych branż) |
 | Reguły treści, ten sam plik kreacji, persona tylko w grupie, `attributes.basis` | `cluster.ts`, `config.ts` (`campaignRules`), §5.3a | Kopie tego samego landera i kreacji stawiają różni operatorzy; persona występuje w kampaniach wielu operatorów |
 
-**Najemca platformy stron.** Z adresów `…/landing-cdn/<uuid>/…` (tylko UUID; wspólna biblioteka landerów o krótkiej nazwie, np. liczbowej, jest używana przez wiele kont i nie liczy się) powstaje `PageKit.platformTenants`. Źródła: każdy `src`/`href` strony (także z innego hosta, np. CDN) oraz żądania zapisane w HAR. `importCases` zapisuje adresy żądań HAR (do 1000) w `http.json` jako `requests`, a HAR bez treści dokumentu (np. odtworzony z listy żądań skanu) daje teraz stronę z pustym kodem i samymi żądaniami (wcześniej był pomijany); `fixtureSources().requestsFor(url)` je zwraca, `enrich` scala je z kitem. W grafie: gdy strona ma `owner_uuid`, konto jest jak dotąd z `owner_uuid`, a najemcy trafiają do `data.tenants` węzła konta; gdy najemca różni się od `owner_uuid`, reklama dostaje ostrzeżenie `platformAccountWarning` (w danych i w `features` wyniku analizy materiału). Gdy strona nie ma `owner_uuid`, najemca tworzy węzeł `platform_account`: jeśli ten sam najemca wystąpił w zbiorze przy jednym `owner_uuid`, węzeł to konto tego `owner_uuid` (`platformAccountSource: "tenant→owner_uuid"`), w przeciwnym razie klucz to sam najemca (`platformAccountSource: "tenant"`). Konflikt kont (`accountConflict`) porównuje tylko identyfikatory z tej samej przestrzeni (dwa `owner_uuid` albo dwóch niezmapowanych najemców), bo w zebranych danych najemca i `owner_uuid` jednego konta mają różne wartości.
+**Najemca platformy stron.** Z adresów `…/landing-cdn/<uuid>/…` (tylko UUID; wspólna biblioteka landerów o krótkiej nazwie, np. liczbowej, jest używana przez wiele kont i nie liczy się) powstaje `PageKit.platformTenants`. Źródła: każdy `src`/`href` strony (także z innego hosta, np. CDN) oraz żądania zapisane w HAR. `importCases` zapisuje adresy żądań HAR (do 1000) w `http.json` jako `requests`, a HAR bez treści dokumentu (np. odtworzony z listy żądań skanu) daje teraz stronę z pustym kodem i samymi żądaniami (wcześniej był pomijany); `fixtureSources.requestsFor(url)` je zwraca, `enrich` scala je z kitem. W grafie: gdy strona ma `owner_uuid`, konto jest jak dotąd z `owner_uuid`, a najemcy trafiają do `data.tenants` węzła konta; gdy najemca różni się od `owner_uuid`, reklama dostaje ostrzeżenie `platformAccountWarning` (w danych i w `features` wyniku analizy materiału). Gdy strona nie ma `owner_uuid`, najemca tworzy węzeł `platform_account`: jeśli ten sam najemca wystąpił w zbiorze przy jednym `owner_uuid`, węzeł to konto tego `owner_uuid` (`platformAccountSource: "tenant→owner_uuid"`), w przeciwnym razie klucz to sam najemca (`platformAccountSource: "tenant"`). Konflikt kont (`accountConflict`) porównuje tylko identyfikatory z tej samej przestrzeni (dwa `owner_uuid` albo dwóch niezmapowanych najemców), bo w zebranych danych najemca i `owner_uuid` jednego konta mają różne wartości.
 
 **Backend formularza i identyfikator klienta.** Dla backendu z innej domeny niż strona `pagekit.ts` szuka identyfikatora klienta: pierwszy segment ścieżki będący UUID, ciągiem ≥ 16 znaków hex, liczbą ≥ 4 cyfr, losowym tokenem (≥ 16 znaków, ≥ 4 cyfry i ≥ 4 litery, najwyżej 2 separatory) albo identyfikatorem bota (`bot<cyfry>:…` → `bot<cyfry>`); potem wartość parametru zapytania (UUID i hex zawsze, liczba i token tylko pod nazwą typu `id`, `account`, `client`, `form`, `key`…); na końcu ukryte pole formularza `<form action>` o takiej wartości. Nazwy wartości jednorazowych (`click*`, `sub*`, `visit`, `session`, `csrf`, `nonce`, `captcha`, `utm_*`, `token`…) są pomijane. Identyfikator wchodzi do klucza (`#klient=<id>`) i do opisu przesłanki („ten sam backend formularza z tym samym identyfikatorem klienta”). Przy identyfikatorze nie działają zniżki hosta (`endpointHosts`, `lists.domains`, `multiTenantBackends`): ten sam klucz dostępu do usługi formularzy to ten sam klient; działa zniżka ścieżki platformy. Backend bez identyfikatora na hoście z `multiTenantBackends` dostaje ×0,1. Backend z tej samej domeny i krótkie ścieżki zostają jak dotąd (cecha szablonu, `notAloneKinds`). Uwaga: w próbce syntetycznej backend C1 ma inny UUID na każdej domenie, więc ten backend już ich nie łączy (C1 łączą inne dowody).
 
@@ -502,7 +503,7 @@ Przed = kod sprzed zadania (ten sam commit bez zmian z §4.12), po = obecny kod;
 
 ## 5. Klastrowanie
 
-`clusterCampaigns` (`cluster.ts:54`) działa na **pełnych** powiązaniach, przed przycięciem.
+`clusterCampaigns` (`cluster.ts`) działa na **pełnych** powiązaniach, przed przycięciem.
 
 ### 5.1 Silne dowody (union-find)
 
@@ -510,22 +511,22 @@ Każde powiązanie `strong` łączy obie reklamy (`clusterCampaigns` w `cluster.
 
 ### 5.2 Louvain
 
-- Graf nieskierowany, bez pętli (`cluster.ts:65`). Krawędź dostaje każde powiązanie z `score ≥ minLinkScore (0.15)` lub silne (`cluster.ts:67`). Waga to `score`, a dla silnych `max(score, 0.7)` (`cluster.ts:71`).
-- `graphology-communities-louvain.detailed` z `getEdgeWeight: "weight"`, `resolution: 1.0`, `rng: mulberry32(42)`, więc wynik jest deterministyczny (`cluster.ts:77-81`, `config.ts:182`).
+- Graf nieskierowany, bez pętli (`cluster.ts`). Krawędź dostaje każde powiązanie z `score ≥ minLinkScore (0.15)` lub silne (`cluster.ts`). Waga to `score`, a dla silnych `max(score, 0.7)` (`cluster.ts`).
+- `graphology-communities-louvain.detailed` z `getEdgeWeight: "weight"`, `resolution: 1.0`, `rng: mulberry32(42)`, więc wynik jest deterministyczny (`cluster.ts`, `config.ts`).
 - Pusty graf pomija Louvaina; `modularity` jest wtedy `null`.
 
 ### 5.3 Kampanie
 
-1. Każda składowa union-find trafia w całości do społeczności Louvaina, w której ma najwięcej członków (`cluster.ts:88-99`). Reklamy spoza grafu Louvaina tworzą własną grupę (`S<korzeń>`, `cluster.ts:91`).
-2. Grupy są sortowane: rozmiar malejąco, `firstSeen` rosnąco, pierwszy członek (`cluster.ts:121`). Id to `K` + numer co najmniej dwucyfrowy (`cluster.ts:130`).
+1. Każda składowa union-find trafia w całości do społeczności Louvaina, w której ma najwięcej członków (`cluster.ts`). Reklamy spoza grafu Louvaina tworzą własną grupę (`S<korzeń>`, `cluster.ts`).
+2. Grupy są sortowane: rozmiar malejąco, `firstSeen` rosnąco, pierwszy członek (`cluster.ts`). Id to `K` + numer co najmniej dwucyfrowy (`cluster.ts`).
 3. Atrybuty:
    - `firstSeen` = najmniejsza data, `lastSeen` = największa z `lastSeen ?? firstSeen` (porównanie ciągów ISO);
-   - `cohesion` = średni `score` powiązań wewnętrznych (`cluster.ts:154`);
-   - `strongComponents` = liczba składowych union-find (`cluster.ts:118`);
+   - `cohesion` = średni `score` powiązań wewnętrznych (`cluster.ts`);
+   - `strongComponents` = liczba składowych union-find (`cluster.ts`);
    - `domains` = eTLD+1 linków docelowych członków oraz domeny-pivoty z powiązań wewnętrznych;
    - `advertisers` z krawędzi `posted_by`;
-   - `topEvidence` (`cluster.ts:190-223`): ≤ 6 pozycji, ranking `pokrycie × waga`, gdzie pokrycie to `członkowie z pivotem / rozmiar`, a dla podobieństwa (każdego typu `similar_*`, etykiety w `cluster.ts:225`) `min(1, pary / rozmiar)`; host apex o tych samych członkach co jego domena jest pomijany (`cluster.ts:215`);
-   - `attributes` (`campaignAttributes`, `cluster.ts:237-260`): persony z liczbą reklam, liczba reklam z cyrylicą i z podejrzeniem cloakingu, najwyższy wynik deepfake.
+   - `topEvidence` (`cluster.ts`): ≤ 6 pozycji, ranking `pokrycie × waga`, gdzie pokrycie to `członkowie z pivotem / rozmiar`, a dla podobieństwa (każdego typu `similar_*`, etykiety w `cluster.ts`) `min(1, pary / rozmiar)`; host apex o tych samych członkach co jego domena jest pomijany (`cluster.ts`);
+   - `attributes` (`campaignAttributes`, `cluster.ts`): persony z liczbą reklam, liczba reklam z cyrylicą i z podejrzeniem cloakingu, najwyższy wynik deepfake.
 4. Reklama bez żadnych powiązań staje się kampanią 1-elementową i też ma przydział w `assignments`.
 
 ### 5.3a Reguły kampanii i grupy podobnych kampanii (od 21.11.2026)
@@ -579,10 +580,10 @@ Obraz sam nie chroni przed tym werdyktem, ale gdy połączy rekord z kampanią (
 
 ### 5.4 Przycięcie `graph.json` (`lib/graph/prune.ts`)
 
-Zapisywany jest graf przycięty (`steps.ts:195`):
-- dla każdej reklamy zostaje 12 najsilniejszych powiązań (`prune.ts:16`, `prune.ts:29`), a plik zawiera sumę tych zbiorów;
-- każde powiązanie ma ≤ 6 dowodów (`prune.ts:17`);
-- krawędzie podobieństwa (wszystkie typy `similar_*`) zostają tylko dla zachowanych par (`prune.ts:37`), krawędzie encji zawsze;
+Zapisywany jest graf przycięty (`steps.ts`):
+- dla każdej reklamy zostaje 12 najsilniejszych powiązań (`prune.ts`, `prune.ts`), a plik zawiera sumę tych zbiorów;
+- każde powiązanie ma ≤ 6 dowodów (`prune.ts`);
+- krawędzie podobieństwa (wszystkie typy `similar_*`) zostają tylko dla zachowanych par (`prune.ts`), krawędzie encji zawsze;
 - `stats.edges/links/strongLinks` są przeliczane.
 
 `campaigns.json` (przydziały, `topEvidence`, `cohesion`, `attributes`) powstaje z grafu nieprzyciętego.
@@ -591,17 +592,17 @@ Zapisywany jest graf przycięty (`steps.ts:195`):
 
 ## 6. Ewaluacja
 
-`evaluateClustering(predicted, truth)` (`lib/graph/eval.ts:51`) ocenia tylko reklamy obecne w obu mapach. Oznaczenia: n_ij to liczność przecięcia przewidzianej kampanii i i prawdziwej j, a_i to rozmiary kampanii przewidzianych, b_j prawdziwych, `C(k,2) = k(k−1)/2`.
+`evaluateClustering(predicted, truth)` (`lib/graph/eval.ts`) ocenia tylko reklamy obecne w obu mapach. Oznaczenia: n_ij to liczność przecięcia przewidzianej kampanii i i prawdziwej j, a_i to rozmiary kampanii przewidzianych, b_j prawdziwych, `C(k,2) = k(k−1)/2`.
 
 | Metryka | Wzór | Kod |
 |---|---|---|
-| Pairwise | `TP = Σ C(n_ij,2)`, `P = TP / Σ C(a_i,2)` (1 gdy brak par), `R = TP / Σ C(b_j,2)` (1 gdy brak par), `F1 = 2PR/(P+R)`; `FP = Σ C(a_i,2) − TP`, `FN = Σ C(b_j,2) − TP` | `eval.ts:80-88` |
-| B-cubed | `P = (1/n) Σ_x \|C(x)∩L(x)\| / \|C(x)\|`, `R = (1/n) Σ_x \|C(x)∩L(x)\| / \|L(x)\|`, F1 jak wyżej | `eval.ts:91-101` |
-| ARI (Hubert–Arabie) | `E = Σ C(a_i,2)·Σ C(b_j,2) / C(n,2)`, `M = (Σ C(a_i,2) + Σ C(b_j,2)) / 2`, `ARI = (TP − E)/(M − E)`; 1 gdy mianownik 0 lub n < 2 | `eval.ts:104-112` |
+| Pairwise | `TP = Σ C(n_ij,2)`, `P = TP / Σ C(a_i,2)` (1 gdy brak par), `R = TP / Σ C(b_j,2)` (1 gdy brak par), `F1 = 2PR/(P+R)`; `FP = Σ C(a_i,2) − TP`, `FN = Σ C(b_j,2) − TP` | `eval.ts` |
+| B-cubed | `P = (1/n) Σ_x \|C(x)∩L(x)\| / \|C(x)\|`, `R = (1/n) Σ_x \|C(x)∩L(x)\| / \|L(x)\|`, F1 jak wyżej | `eval.ts` |
+| ARI (Hubert–Arabie) | `E = Σ C(a_i,2)·Σ C(b_j,2) / C(n,2)`, `M = (Σ C(a_i,2) + Σ C(b_j,2)) / 2`, `ARI = (TP − E)/(M − E)`; 1 gdy mianownik 0 lub n < 2 | `eval.ts` |
 
 Wartości są sprawdzone na przykładzie liczonym ręcznie (`eval.test.ts`). ARI zgadza się ze scikit-learn: 1/6 dla tego przykładu i 0 dla przypadku „wszystko w jednej kampanii”.
 
-**Etykiety.** Kolumnę prawdy mapujesz na pole `label` w `ingest` (np. `"label": "kampania_prawda"`). Trafia do `item.data.label` w `graph.json`, skąd `runEvaluate` ją czyta (`steps.ts:229`). Reklamy z pustą etykietą **nie są oceniane**. Reklamy spoza kampanii muszą mieć **unikalne** etykiety (np. `N1`, `N2`), bo wspólna etykieta „brak” oznacza jedną dużą kampanię. `bun run evaluate` wypisuje też rozkład: prawdziwa kampania → kampanie przewidziane. Rozbicie jednej prawdziwej kampanii na kilka to FN, a scalenie różnych to FP.
+**Etykiety.** Kolumnę prawdy mapujesz na pole `label` w `ingest` (np. `"label": "kampania_prawda"`). Trafia do `item.data.label` w `graph.json`, skąd `runEvaluate` ją czyta (`steps.ts`). Reklamy z pustą etykietą **nie są oceniane**. Reklamy spoza kampanii muszą mieć **unikalne** etykiety (np. `N1`, `N2`), bo wspólna etykieta „brak” oznacza jedną dużą kampanię. `bun run evaluate` wypisuje też rozkład: prawdziwa kampania → kampanie przewidziane. Rozbicie jednej prawdziwej kampanii na kilka to FN, a scalenie różnych to FP.
 
 ---
 
@@ -611,16 +612,16 @@ LLM nie bierze udziału w wagach grafu ani w klastrowaniu. Korzystają z niego `
 
 | | Ollama (domyślnie) | Anthropic |
 |---|---|---|
-| Wybór | `LLM_PROVIDER=ollama` (`lib/llm/index.ts:17`) | `LLM_PROVIDER=anthropic` |
-| Model | `OLLAMA_MODEL`, domyślnie PLLuM `hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M` (`ollama.ts:8`); Bielik `SpeakLeash/bielik-11b-v3.0-instruct:Q5_K_M` (`ollama.ts:9`) | `ANTHROPIC_MODEL`, domyślnie `claude-opus-5-5` (`anthropic.ts:12`) |
-| Czat | `POST /api/chat`, `stream:false`, `temperature` 0.2, `num_predict` przy `maxTokens` (`ollama.ts:85-96`) | `client.beta.messages.create`, `max_tokens` 16000, `output_config.effort` z `ANTHROPIC_EFFORT` (domyślnie `medium`, `anthropic.ts:70`) |
-| Structured output | `format` = `z.toJSONSchema(schema)` bez `$schema`, schemat dodatkowo w wiadomości systemowej, `temperature` 0, walidacja zod, maks. 2 próby z informacją o błędzie (`ollama.ts:100-128`) | `client.beta.messages.parse` z `betaZodOutputFormat(schema)` (`anthropic.ts:104-129`); `parsed_output == null` → `LlmError` |
-| Fallbacki | brak | `betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"` (`anthropic.ts:13`, `:85`, `:112`); `stop_reason: "refusal"` → `LlmError` |
-| Timeout | `LLM_TIMEOUT_MS` (domyślnie 180000) przez `AbortSignal.timeout` (`ollama.ts:47`, `:58`) | `timeout` klienta = `LLM_TIMEOUT_MS`, `maxRetries: 2` (`anthropic.ts:74`) |
-| Błędy | `LlmError` z podpowiedzią: serwer nie odpowiada, model nie pobrany (`ollama pull …`), timeout (`ollama.ts:51-82`) | klasy SDK mapowane na `LlmError` (`anthropic.ts:34-60`) |
+| Wybór | `LLM_PROVIDER=ollama` (`lib/llm/index.ts`) | `LLM_PROVIDER=anthropic` |
+| Model | `OLLAMA_MODEL`, domyślnie PLLuM `hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M` (`ollama.ts`); Bielik `SpeakLeash/bielik-11b-v3.0-instruct:Q5_K_M` (`ollama.ts`) | `ANTHROPIC_MODEL`, domyślnie `claude-opus-5-5` (`anthropic.ts`) |
+| Czat | `POST /api/chat`, `stream:false`, `temperature` 0.2, `num_predict` przy `maxTokens` (`ollama.ts`) | `client.beta.messages.create`, `max_tokens` 16000, `output_config.effort` z `ANTHROPIC_EFFORT` (domyślnie `medium`, `anthropic.ts`) |
+| Structured output | `format` = `z.toJSONSchema(schema)` bez `$schema`, schemat dodatkowo w wiadomości systemowej, `temperature` 0, walidacja zod, maks. 2 próby z informacją o błędzie (`ollama.ts`) | `client.beta.messages.parse` z `betaZodOutputFormat(schema)` (`anthropic.ts`); `parsed_output == null` → `LlmError` |
+| Fallbacki | brak | `betas: ["server-side-fallback-2026-07-01"]`, `fallbacks: "default"` (`anthropic.ts`); `stop_reason: "refusal"` → `LlmError` |
+| Timeout | `LLM_TIMEOUT_MS` (domyślnie 180000) przez `AbortSignal.timeout` (`ollama.ts`) | `timeout` klienta = `LLM_TIMEOUT_MS`, `maxRetries: 2` (`anthropic.ts`) |
+| Błędy | `LlmError` z podpowiedzią: serwer nie odpowiada, model nie pobrany (`ollama pull …`), timeout (`ollama.ts`) | klasy SDK mapowane na `LlmError` (`anthropic.ts`) |
 | Testy | mock `fetch` + **przebieg na żywo** (18.11.2026: czat, structured, embed, `summarize` dla 5 kampanii) | **wyłącznie mock** (SDK z wstrzykniętym `fetch`, `llm.test.ts`); prawdziwego API nie wywołano |
 
-**Embeddingi.** `embed()` zawsze używa Ollamy, bo Anthropic nie ma endpointu embeddingów (`index.ts:42`). `POST /api/embed`, model `OLLAMA_EMBED_MODEL` (domyślnie `bge-m3`), partie po 32, `truncate:true`, limit 120 s na partię, sprawdzana liczba wektorów (`ollama.ts:131-148`). `build-graph --text embedding` liczy wektory raz i zapisuje je w cache (`embed`, 28 dni, klucz `model:sha256(tekst)`). Gdy embeddingi zawiodą, wraca do TF-IDF z ostrzeżeniem (`steps.ts:182-189`).
+**Embeddingi.** `embed()` zawsze używa Ollamy, bo Anthropic nie ma endpointu embeddingów (`index.ts`). `POST /api/embed`, model `OLLAMA_EMBED_MODEL` (domyślnie `bge-m3`), partie po 32, `truncate:true`, limit 120 s na partię, sprawdzana liczba wektorów (`ollama.ts`). `build-graph --text embedding` liczy wektory raz i zapisuje je w cache (`embed`, 28 dni, klucz `model:sha256(tekst)`). Gdy embeddingi zawiodą, wraca do TF-IDF z ostrzeżeniem (`steps.ts`).
 
 **Pomiar z 18.11.2026 na M4 Max** (pojedynczy przebieg, orientacyjnie):
 - PLLuM: czat 0,3 s, structured 1,3 s;
@@ -628,7 +629,7 @@ LLM nie bierze udziału w wagach grafu ani w klastrowaniu. Korzystają z niego `
 - bge-m3: wymiar 1024, cos(parafraza) = 0,953, cos(inny temat) = 0,362;
 - `summarize`: 5 kampanii w 41 s.
 
-**Streszczenia** (`scripts/summarize.ts`) dostają treści reklam w znacznikach `<reklamy>`, a prompt systemowy każe traktować je jako dane, nie polecenia. NER dostaje tekst w znacznikach `<tekst>` z tym samym zastrzeżeniem (`persona.ts:295`). To ogranicza prompt injection, ale go nie wyklucza.
+**Streszczenia** (`scripts/summarize.ts`) dostają treści reklam w znacznikach `<reklamy>`, a prompt systemowy każe traktować je jako dane, nie polecenia. NER dostaje tekst w znacznikach `<tekst>` z tym samym zastrzeżeniem (`persona.ts`). To ogranicza prompt injection, ale go nie wyklucza.
 
 ---
 
@@ -670,17 +671,17 @@ Wszystkie pola z tej listy są opcjonalne: przeglądarka działa także na wynik
 
 ### 8.1 `POST /api/analyze` (`app/api/analyze/route.ts`)
 
-Wejście (zod, `app/api/analyze/route.ts:13-20`): `{ url?: string ≤ 2048, text?: string ≤ 5000, imageUrl?: string ≤ 2048, offline?: boolean }`. Wymagane jest co najmniej jedno z `url`, `text`, `imageUrl`. Błąd walidacji → 400, brak `graph.json` → 503, wyjątek → 500.
+Wejście (zod, `app/api/analyze/route.ts`): `{ url?: string ≤ 2048, text?: string ≤ 5000, imageUrl?: string ≤ 2048, offline?: boolean }`. Wymagane jest co najmniej jedno z `url`, `text`, `imageUrl`. Błąd walidacji → 400, brak `graph.json` → 503, wyjątek → 500.
 
-Przebieg (`lib/pipeline/analyze.ts:91`):
-1. Źródła: `offline` (albo `ANALYZE_OFFLINE=1`) korzysta z `data/sample/fixtures`, w przeciwnym razie `liveSources({skipCt:true})`, czyli bez crt.sh (`app/api/analyze/route.ts:36-37`). Konfiguracja wag pochodzi z `LINK_CONFIG`, z `<VIEWER_DATA_DIR>/linking.json` albo `../linking-default.json`, a dla przebiegu próbki z `data/sample/linking.json` (`lib/pipeline/linkConfigFile.ts`); dla innych danych bez pliku są wagi wbudowane.
-2. `enrichItems` dla jednej reklamy o id `nowa-reklama`, potem `buildEvidenceGraph(..., includeItemPivots)` (`analyze.ts:114`). Nowe pivoty (backend, kit, parametry kampanii, CNAME) są porównywane tak samo jak pozostałe, po id węzła; listy person, OCR, ASR i test cloakingu nie są tu uruchamiane.
-3. Dla każdego pivotu, który istnieje w `graph.json` (to samo id węzła), wszystkie reklamy z tym węzłem dostają dowód o wadze `waga_zapisanego_węzła × relacja_nowej` (`analyze.ts:132`). Relacja drugiej reklamy jest ignorowana, a idf pochodzi z oryginalnego zbioru. To przybliżenie.
-4. Obraz: Hamming do `data.dhash` reklam, ten sam próg i wzór co w §4.5 (`analyze.ts:142-149`). Simhash DOM nie jest porównywany.
-5. Tekst: TF-IDF dopasowany do tekstów reklam z grafu (ucięte do 600 znaków, `link.ts:138`) plus nowy tekst (`analyze.ts:150-162`).
-6. Wynik pary to noisy-OR, wynik kampanii to najlepsza para, czyli najbliższy sąsiad (`analyze.ts:164-176`). Kandydaci z `score ≥ 0.05` lub silni, maks. 5 (`analyze.ts:194-196`). `best` to pierwszy silny kandydat albo pierwszy z `score ≥ minLinkScore` (`analyze.ts:197`).
+Przebieg (`lib/pipeline/analyze.ts`):
+1. Źródła: `offline` (albo `ANALYZE_OFFLINE=1`) korzysta z `data/sample/fixtures`, w przeciwnym razie `liveSources({skipCt:true})`, czyli bez crt.sh (`app/api/analyze/route.ts`). Konfiguracja wag pochodzi z `LINK_CONFIG`, z `<VIEWER_DATA_DIR>/linking.json` albo `../linking-default.json`, a dla przebiegu próbki z `data/sample/linking.json` (`lib/pipeline/linkConfigFile.ts`); dla innych danych bez pliku są wagi wbudowane.
+2. `enrichItems` dla jednej reklamy o id `nowa-reklama`, potem `buildEvidenceGraph(..., includeItemPivots)` (`analyze.ts`). Nowe pivoty (backend, kit, parametry kampanii, CNAME) są porównywane tak samo jak pozostałe, po id węzła; listy person, OCR, ASR i test cloakingu nie są tu uruchamiane.
+3. Dla każdego pivotu, który istnieje w `graph.json` (to samo id węzła), wszystkie reklamy z tym węzłem dostają dowód o wadze `waga_zapisanego_węzła × relacja_nowej` (`analyze.ts`). Relacja drugiej reklamy jest ignorowana, a idf pochodzi z oryginalnego zbioru. To przybliżenie.
+4. Obraz: Hamming do `data.dhash` reklam, ten sam próg i wzór co w §4.5 (`analyze.ts`). Simhash DOM nie jest porównywany.
+5. Tekst: TF-IDF dopasowany do tekstów reklam z grafu (ucięte do 600 znaków, `link.ts`) plus nowy tekst (`analyze.ts`).
+6. Wynik pary to noisy-OR, wynik kampanii to najlepsza para, czyli najbliższy sąsiad (`analyze.ts`). Kandydaci z `score ≥ 0.05` lub silni, maks. 5 (`analyze.ts`). `best` to pierwszy silny kandydat albo pierwszy z `score ≥ minLinkScore` (`analyze.ts`).
 
-Wyjście `AnalyzeResult` (`analyze.ts:41`):
+Wyjście `AnalyzeResult` (`analyze.ts`):
 - `input`, `mode`;
 - `enrichment {landingUrl, finalUrl, redirectChain[], status, title, trackers[], ips[], domains[], contacts[], wallets[], imageDhash, errors[]}`;
 - `best`, `candidates[{campaignId, size, score, strong, nearestItem, evidence[{evidence, weight, strong, discounted, items[]}] (≤ 8)}]`;
@@ -688,11 +689,11 @@ Wyjście `AnalyzeResult` (`analyze.ts:41`):
 
 ### 8.2 `GET /api/image?id=<itemId>` (`app/api/image/route.ts`)
 
-Szuka reklamy w `graph.json` i rozwiązuje `data.imagePath` względem `graph.baseDir`. Obsługuje tylko pliki wewnątrz `baseDir` (`app/api/image/route.ts:22`) z rozszerzeniami png/jpg/jpeg/gif/webp (`app/api/image/route.ts:9`). Odpowiedzi: 400 bez `id`, 404 dla nieznanej reklamy lub braku pliku, 403 poza katalogiem lub dla innego typu, `cache-control: public, max-age=3600`.
+Szuka reklamy w `graph.json` i rozwiązuje `data.imagePath` względem `graph.baseDir`. Obsługuje tylko pliki wewnątrz `baseDir` (`app/api/image/route.ts`) z rozszerzeniami png/jpg/jpeg/gif/webp (`app/api/image/route.ts`). Odpowiedzi: 400 bez `id`, 404 dla nieznanej reklamy lub braku pliku, 403 poza katalogiem lub dla innego typu, `cache-control: public, max-age=3600`.
 
 ### 8.3 `GET /api/ct-feed?limit=50` (`app/api/ct-feed/route.ts`)
 
-Zwraca `{feed, records, updatedAt}`: najnowsze wpisy feedu watchera CT (§16.6), najnowsze pierwsze. `limit` 1–500, domyślnie 50 (`app/api/ct-feed/route.ts:10`). Plik: `CT_FEED_FILE` albo `data/ct-watch.jsonl`, czytany przy każdym żądaniu (`app/api/ct-feed/route.ts:11-16`), z końca pliku, maks. 4 MiB (`lib/ct/feed.ts:81`). Brak pliku albo pusty plik daje `records: []`, błąd odczytu też `records: []` z polem `error`. `cache-control: no-store`.
+Zwraca `{feed, records, updatedAt}`: najnowsze wpisy feedu watchera CT (§16.6), najnowsze pierwsze. `limit` 1–500, domyślnie 50 (`app/api/ct-feed/route.ts`). Plik: `CT_FEED_FILE` albo `data/ct-watch.jsonl`, czytany przy każdym żądaniu (`app/api/ct-feed/route.ts`), z końca pliku, maks. 4 MiB (`lib/ct/feed.ts`). Brak pliku albo pusty plik daje `records: []`, błąd odczytu też `records: []` z polem `error`. `cache-control: no-store`.
 
 ### 8.4 Ochrona i jej braki
 
@@ -729,7 +730,7 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | `test` / `test:watch` | vitest | `bun run test` |
 | `lint`, `typecheck`, `build`, `dev`, `start` | standard Next.js | `PORT=3001 bun run start` |
 
-`pipeline` zawsze zapisuje do domyślnych ścieżek z `steps.ts:22-37`, więc nadpisuje `data/graph.json` i `data/campaigns.json`. Eksperymenty kieruj przez `build-graph --graph/--campaigns` do innych plików. `ct:watch` kończy się kodem 2, gdy żaden strumień CT nie przysłał danych (`scripts/ct-watch.ts:94`), a `ct:backfill`, gdy żaden wzorzec nie dał odpowiedzi (`scripts/ct-backfill.ts:69`).
+`pipeline` zawsze zapisuje do domyślnych ścieżek z `steps.ts`, więc nadpisuje `data/graph.json` i `data/campaigns.json`. Eksperymenty kieruj przez `build-graph --graph/--campaigns` do innych plików. `ct:watch` kończy się kodem 2, gdy żaden strumień CT nie przysłał danych (`scripts/ct-watch.ts`), a `ct:backfill`, gdy żaden wzorzec nie dał odpowiedzi (`scripts/ct-backfill.ts`).
 
 ---
 
@@ -762,61 +763,74 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 
 | Zmienna | Domyślnie | Odczyt | Działanie |
 |---|---|---|---|
-| `LLM_PROVIDER` | `ollama` | `lib/llm/index.ts:17` | `ollama` / `anthropic` (inna wartość → błąd) |
-| `OLLAMA_HOST` | `http://localhost:11434` | `ollama.ts:32` | |
-| `OLLAMA_MODEL` | PLLuM | `ollama.ts:45` | |
-| `OLLAMA_EMBED_MODEL` | `bge-m3` | `ollama.ts:46`, `steps.ts:156` | |
-| `LLM_TIMEOUT_MS` | 180000 | `ollama.ts:47`, `anthropic.ts:74` | |
-| `ANTHROPIC_MODEL` | `claude-opus-5-5` | `anthropic.ts:69` | |
-| `ANTHROPIC_EFFORT` | `medium` | `anthropic.ts:70` | `low`…`max` |
+| `LLM_PROVIDER` | `ollama` | `lib/llm/index.ts` | `ollama` / `anthropic` (inna wartość → błąd) |
+| `OLLAMA_HOST` | `http://localhost:11434` | `ollama.ts` | |
+| `OLLAMA_MODEL` | PLLuM | `ollama.ts` | |
+| `OLLAMA_EMBED_MODEL` | `bge-m3` | `ollama.ts`, `steps.ts` | |
+| `LLM_TIMEOUT_MS` | 180000 | `ollama.ts`, `anthropic.ts` | |
+| `ANTHROPIC_MODEL` | `claude-opus-5-5` | `anthropic.ts` | |
+| `ANTHROPIC_EFFORT` | `medium` | `anthropic.ts` | `low`…`max` |
 | `ANTHROPIC_API_KEY` | — | SDK | albo `ANTHROPIC_AUTH_TOKEN` / profil `ant auth login` |
-| `TEXT_SIMILARITY` | `tfidf` | `scripts/build-graph.ts:17`, `scripts/pipeline.ts:54` | gdy brak `--text` |
-| `CACHE_DIR` | `./.cache` | `cache.ts:56` | |
-| `CACHE` | włączony | `cache.ts:60` | `off/0/false/no` wyłącza |
-| `CT` | włączony | `sources.ts:47` | `off/0/false/no` pomija crt.sh |
-| `DNS_SERVERS` | systemowe | `dns.ts:62` | lista IP po przecinku |
-| `FETCH_INSECURE_TLS` | `0` | `fetchPage.ts:197` | `1` akceptuje nieważne certyfikaty TLS |
+| `TEXT_SIMILARITY` | `tfidf` | `scripts/build-graph.ts`, `scripts/pipeline.ts` | gdy brak `--text` |
+| `CACHE_DIR` | `./.cache` | `cache.ts` | |
+| `CACHE` | włączony | `cache.ts` | `off/0/false/no` wyłącza |
+| `CT` | włączony | `sources.ts` | `off/0/false/no` pomija crt.sh |
+| `DNS_SERVERS` | systemowe | `dns.ts` | lista IP po przecinku |
+| `FETCH_INSECURE_TLS` | `0` | `fetchPage.ts` | `1` akceptuje nieważne certyfikaty TLS |
 | `ANALYZE_OFFLINE` | `0` (w kontenerze `1`) | `app/api/analyze/route.ts`, `app/api/material/route.ts`, `scripts/base.ts` | `1` = `/api/analyze` tylko z fixtures, analiza z GUI bez zapytań sieciowych, `base` bez DNS/RDAP/ASN |
 | `ANALYZE_RATE_LIMIT`, `ANALYZE_RATE_WINDOW_S` | wyłączony, 60 s | `lib/viewer/rateLimit.ts` | limit zapytań na klienta (nagłówek `X-Forwarded-For`/`X-Real-IP`) do `/api/analyze`, `/api/analyze-material`, `/api/material`; po przekroczeniu 429 z `Retry-After`. Przy publicznym adresie ustaw też `ANALYZE_OFFLINE=1` (wtedy żądanie nie może włączyć pobierania stron) i `MATERIAL_MAX_MB` (413) |
 | `LINK_CONFIG` | `<VIEWER_DATA_DIR>/linking.json`, `<VIEWER_DATA_DIR>/../linking-default.json`; plik próbki tylko dla przebiegu próbki | `lib/pipeline/linkConfigFile.ts` | konfiguracja wag dla `/api/analyze` i analizy z GUI |
-| `WHISPER_MODEL` | `~/models/whisper/ggml-large-v3-turbo.bin` | `lib/media/asr.ts:26` | model whisper.cpp dla ASR |
-| `MLX_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | `asr.ts:30` | tylko gdy brak whisper-cli i model jest już lokalnie |
-| `HF_HUB_CACHE` / `HF_HOME` | `~/.cache/huggingface` | `asr.ts:45` | gdzie szukać lokalnego modelu mlx |
-| `CT_STREAM_URL` | `ws://127.0.0.1:8181/,wss://certstream.calidog.io/` | `scripts/ct-watch.ts:52` | strumienie CT w kolejności prób |
-| `CT_FEED_FILE` | `data/ct-watch.jsonl` | `scripts/ct-watch.ts:47`, `scripts/ct-backfill.ts:46`, `app/api/ct-feed/route.ts:11` | feed kandydatów |
+| `WHISPER_MODEL` | `~/models/whisper/ggml-large-v3-turbo.bin` | `lib/media/asr.ts` | model whisper.cpp dla ASR |
+| `MLX_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | `asr.ts` | tylko gdy brak whisper-cli i model jest już lokalnie |
+| `HF_HUB_CACHE` / `HF_HOME` | `~/.cache/huggingface` | `asr.ts` | gdzie szukać lokalnego modelu mlx |
+| `CT_STREAM_URL` | `ws://127.0.0.1:8181/,wss://certstream.calidog.io/` | `scripts/ct-watch.ts` | strumienie CT w kolejności prób |
+| `CT_FEED_FILE` | `data/ct-watch.jsonl` | `scripts/ct-watch.ts`, `scripts/ct-backfill.ts`, `app/api/ct-feed/route.ts` | feed kandydatów |
+| `VIEWER_DATA_DIR` | `data/` | `lib/viewer/data.ts` | katalog z `graph.json`, `campaigns.json`, `enriched.json` (przebieg pokazywany w GUI i porównywany w `analyze-material`); `bun run base` zapisuje tu bazę. W kontenerze `/dane/baza` |
+| `MATERIAL_WORK_DIR` | katalog tymczasowy systemu (`analiza-kampanii`) | `lib/viewer/jobs.ts` | pliki wgrane w GUI i wyniki zadań, poza repozytorium (w kontenerze `/dane/praca`) |
+| `MATERIAL_TIMEOUT_MS` | `1800000` (30 min) | `lib/viewer/jobs.ts` | po tym czasie zadanie analizy z GUI jest przerywane |
+| `MATERIAL_MAX_MB` | `500` | `lib/viewer/upload.ts`, `app/api/material/route.ts` | limit wgrywania; powyżej: 413 |
+| `PERSONAS` | `<katalog bazy>/personas.json`, potem katalog wyżej | `scripts/analyze-material.ts` | lista osób dla `analyze-material` (to samo co `--personas`) |
+| `PERSONAS_FILE` | – | `app/api/material/route.ts` | lista osób dla zadań z GUI |
+| `BUN_BIN` | `bun` z `PATH` | `lib/viewer/jobs.ts`, `app/api/analyze-material/route.ts` | binarium buna, którym GUI uruchamia analizę (w kontenerze `/usr/local/bin/bun`) |
+| `DEMO_OUT` | `dane/demo` | `scripts/demo.ts` | katalog wyniku `bun run demo` (w kontenerze `/dane/demo`) |
+| `CLIP_MODEL` | `Xenova/clip-vit-base-patch32` | `lib/media/imageEmbed.ts` | model CLIP dla `--clip` |
+| `HF_HUB_OFFLINE` | `0` (w kontenerze `1`) | `lib/media/imageEmbed.ts` | `1`: tylko model już na dysku, bez pobierania; bez modelu CLIP jest `skipped` z powodem |
+| `SPEAKER_PYTHON` | `.venv-speaker/bin/python` | `lib/media/speaker.ts` | interpreter z SpeechBrain dla `--speaker` |
+| `SPEAKER_MODEL_DIR` | `~/models/speechbrain/spkrec-ecapa-voxceleb` | `lib/media/speaker.ts` | katalog modelu ECAPA |
+| `META_ADS_PYTHON` | interpreter z shebangu `meta-ads-collector` w `PATH` | `lib/osint/adLibrary.ts` | Python z MetaAdsCollector dla `--ad-library` |
 
 `.env.example` opisuje zmienne LLM, grafu, wzbogacania, API, adapterów mediów (`WHISPER_MODEL`, `MLX_WHISPER_MODEL`) i watchera CT (`CT_STREAM_URL`, `CT_FEED_FILE`).
 
 ### 10.2 Plik konfiguracji linkowania (`--config plik.json`)
 
-`mergeConfig` (`lib/graph/config.ts:698`) łączy obiekty rekurencyjnie i podmienia wartości proste. Tablice w `lists` są **dopisywane** do domyślnych, chyba że ustawisz `"replaceLists": true` (`config.ts:700-702`). Inne tablice są podmieniane. Bez `--config` w `pipeline` z `--input` obowiązują same wartości domyślne.
+`mergeConfig` (`lib/graph/config.ts`) łączy obiekty rekurencyjnie i podmienia wartości proste. Tablice w `lists` są **dopisywane** do domyślnych, chyba że ustawisz `"replaceLists": true` (`config.ts`). Inne tablice są podmieniane. Bez `--config` w `pipeline` z `--input` obowiązują same wartości domyślne.
 
 | Parametr | Domyślnie | `config.ts` | Efekt podniesienia |
 |---|---|---|---|
-| `typeWeights.<typ>` | §4.1 | `config.ts:127-155` | większy wpływ typu; ≥ 0.7 robi typ silnym |
-| `strongThreshold` | 0.7 | `config.ts:156` | mniej silnych dowodów, mniej scaleń przez union-find |
-| `maxStrongDfRatio` | 0.5 | `config.ts:157` | encja w większym odsetku reklam nadal może być silna |
-| `maxPivotDf` | 400 | `config.ts:158` | encje o większym df nadal tworzą pary (koszt O(df²)) |
-| `idf.enabled` / `idf.floor` | true / 0.2 | `config.ts:159` | podłoga ogranicza karę za częstość; `enabled: false` wyłącza też karę za powszechność |
-| `idf.ubiquityStart` / `idf.ubiquityMinItems` | 0.5 / 10 | `config.ts:159` | od jakiego odsetka reklam i od jakiej wielkości zbioru działa kara za powszechność |
-| `minLinkScore` | 0.15 | `config.ts:160` | słabsze powiązania nie wchodzą do Louvaina: mniej FP, więcej FN |
-| `similarity.imageHamming` | 10 | `config.ts:162` | więcej par obrazów: więcej TP i FP |
-| `similarity.imageWeight` | 0.6 | `config.ts:163` | |
-| `similarity.text.tfidfThreshold` | 0.5 | `config.ts:164` | mniej par tekstów |
-| `similarity.text.embeddingThreshold` | 0.86 | `config.ts:164` | |
-| `similarity.text.weight` / `minChars` | 0.5 / 25 | `config.ts:164` | |
-| `similarity.dom.hamming` / `weight` | 6 / 0.45 | `config.ts:165` | więcej par stron o podobnym szablonie |
-| `similarity.audio.minSimilarity` / `weight` | 0.85 / 0.5 | `config.ts:166` | wyższy próg = tylko prawie identyczne nagrania |
-| `kit.sameOriginEndpointFactor` / `shortEndpointPathFactor` | 0.4 / 0.5 | `config.ts:169-170` | większy wpływ ścieżek backendu na tej samej domenie |
-| `kit.minHiddenFields` | 2 | `config.ts:171` | ile specyficznych ukrytych pól tworzy pivot |
-| `kit.domainPatternMinDomains` / `domainPatternMinLiteralChars` | 2 / 3 | `config.ts:172-173` | ile domen musi dzielić szablon; ile liter musi mieć rdzeń |
-| `kit.domainPatternNoAnchorFactor` / `domainPatternAgnosticFactor` | 0.3 / 0.85 | `config.ts:174-175` | |
-| `kit.campaignParamWordFactor` | 0.75 | `config.ts:176` | zniżka wartości słownych parametrów kampanii |
-| `outboundLinkFactor` | 0.4 | `config.ts:178` | |
-| `registrationBurstHours` / `registrationBurstWeight` | 48 / 0.3 | `config.ts:179-180` | |
-| `maxCertDomains` | 25 | `config.ts:181` | |
-| `louvain.resolution` / `seed` | 1.0 / 42 | `config.ts:182` | wyższa rozdzielczość = mniejsze kampanie |
-| `lists.*` | §4.4 | `config.ts:183-673` | |
+| `typeWeights.<typ>` | §4.1 | `config.ts` | większy wpływ typu; ≥ 0.7 robi typ silnym |
+| `strongThreshold` | 0.7 | `config.ts` | mniej silnych dowodów, mniej scaleń przez union-find |
+| `maxStrongDfRatio` | 0.5 | `config.ts` | encja w większym odsetku reklam nadal może być silna |
+| `maxPivotDf` | 400 | `config.ts` | encje o większym df nadal tworzą pary (koszt O(df²)) |
+| `idf.enabled` / `idf.floor` | true / 0.2 | `config.ts` | podłoga ogranicza karę za częstość; `enabled: false` wyłącza też karę za powszechność |
+| `idf.ubiquityStart` / `idf.ubiquityMinItems` | 0.5 / 10 | `config.ts` | od jakiego odsetka reklam i od jakiej wielkości zbioru działa kara za powszechność |
+| `minLinkScore` | 0.15 | `config.ts` | słabsze powiązania nie wchodzą do Louvaina: mniej FP, więcej FN |
+| `similarity.imageHamming` | 10 | `config.ts` | więcej par obrazów: więcej TP i FP |
+| `similarity.imageWeight` | 0.6 | `config.ts` | |
+| `similarity.text.tfidfThreshold` | 0.5 | `config.ts` | mniej par tekstów |
+| `similarity.text.embeddingThreshold` | 0.86 | `config.ts` | |
+| `similarity.text.weight` / `minChars` | 0.5 / 25 | `config.ts` | |
+| `similarity.dom.hamming` / `weight` | 6 / 0.45 | `config.ts` | więcej par stron o podobnym szablonie |
+| `similarity.audio.minSimilarity` / `weight` | 0.85 / 0.5 | `config.ts` | wyższy próg = tylko prawie identyczne nagrania |
+| `kit.sameOriginEndpointFactor` / `shortEndpointPathFactor` | 0.4 / 0.5 | `config.ts` | większy wpływ ścieżek backendu na tej samej domenie |
+| `kit.minHiddenFields` | 2 | `config.ts` | ile specyficznych ukrytych pól tworzy pivot |
+| `kit.domainPatternMinDomains` / `domainPatternMinLiteralChars` | 2 / 3 | `config.ts` | ile domen musi dzielić szablon; ile liter musi mieć rdzeń |
+| `kit.domainPatternNoAnchorFactor` / `domainPatternAgnosticFactor` | 0.3 / 0.85 | `config.ts` | |
+| `kit.campaignParamWordFactor` | 0.75 | `config.ts` | zniżka wartości słownych parametrów kampanii |
+| `outboundLinkFactor` | 0.4 | `config.ts` | |
+| `registrationBurstHours` / `registrationBurstWeight` | 48 / 0.3 | `config.ts` | |
+| `maxCertDomains` | 25 | `config.ts` | |
+| `louvain.resolution` / `seed` | 1.0 / 42 | `config.ts` | wyższa rozdzielczość = mniejsze kampanie |
+| `lists.*` | §4.4 | `config.ts` | |
 | `lists.endpointPlatformPaths` / `paramSchemaPlatformParts` / `multiTenantBackends` | §4.12 | `config.ts` | cechy platform z czynnikiem ok. 0,1 (ścieżki backendów i plików, część szablonu linku, hosty usług wielu klientów) |
 | `campaignRules.contentKinds` / `minContentKinds` / `contentKindsWithInfrastructure` | §5.3a pkt 5 / 2 / `null` | `config.ts` | które rodzaje są treścią, ile rodzajów treści łączy reklamy bez infrastruktury; liczba zamiast `null` pozwala treści łączyć także przy infrastrukturze |
 | `campaignRules.infrastructureKinds` / `infrastructureMinWeight` | §5.3a pkt 5 / 0,3 | `config.ts` | co jest infrastrukturą reklamy i od jakiej wagi się liczy |
@@ -832,42 +846,42 @@ Przykład próbki: `data/sample/linking.json` dopisuje fikcyjny skracacz `krotki
 
 | Stała | Wartość | Miejsce |
 |---|---|---|
-| budżet czasu / limit bajtów / przekierowania strony | 8 s / 2 MiB / 8 | `fetchPage.ts:347-349` |
-| limit pliku binarnego (obraz, favicon) | 5 MiB | `fetchPage.ts:476` |
-| meta refresh śledzony do | 10 s | `fetchPage.ts:433` |
-| timeout DNS / RDAP / CT | 5 s / 10 s / 30 s | `dns.ts:50`, `rdap.ts:203`, `ct.ts:235` |
-| ponowienia CT / opóźnienie bazowe / maks. Retry-After / maks. certyfikatów | 3 / 2 s / 60 s / 200 (wzorzec: 1000) | `ct.ts:236-238`, `ct.ts:52`, `ct.ts:229` |
-| współbieżność: reklamy / DNS i ASN / RDAP / CT / NER / media | 4 / 8 / 2 / 1 / 1 / 2 | `enrich.ts:101-106` |
-| łańcuch CNAME | maks. 4 skoki | `enrich.ts:373` |
-| User-Agenty testu cloakingu / próg simhash DOM | crawler Meta, iPhone Safari / 12 bitów | `enrich.ts:48-50`, `enrich.ts:113` |
-| limity czasu OCR / ASR / fpcalc / ffmpeg | 60 s / 10 min / 60 s / 120 s | `ocr.ts:52`, `asr.ts:151`, `audioFp.ts:31`, `asr.ts:84` |
-| kit strony: backendy / pliki / ukryte pola / komentarze / min. tagów simhash | 50 / 100 / 100 / 50 / 25 | `pagekit.ts:66-75` |
+| budżet czasu / limit bajtów / przekierowania strony | 8 s / 2 MiB / 8 | `fetchPage.ts` |
+| limit pliku binarnego (obraz, favicon) | 5 MiB | `fetchPage.ts` |
+| meta refresh śledzony do | 10 s | `fetchPage.ts` |
+| timeout DNS / RDAP / CT | 5 s / 10 s / 30 s | `dns.ts`, `rdap.ts`, `ct.ts` |
+| ponowienia CT / opóźnienie bazowe / maks. Retry-After / maks. certyfikatów | 3 / 2 s / 60 s / 200 (wzorzec: 1000) | `ct.ts`, `ct.ts`, `ct.ts` |
+| współbieżność: reklamy / DNS i ASN / RDAP / CT / NER / media | 4 / 8 / 2 / 1 / 1 / 2 | `enrich.ts` |
+| łańcuch CNAME | maks. 4 skoki | `enrich.ts` |
+| User-Agenty testu cloakingu / próg simhash DOM | crawler Meta, iPhone Safari / 12 bitów | `enrich.ts`, `enrich.ts` |
+| limity czasu OCR / ASR / fpcalc / ffmpeg | 60 s / 10 min / 60 s / 120 s | `ocr.ts`, `asr.ts`, `audioFp.ts`, `asr.ts` |
+| kit strony: backendy / pliki / ukryte pola / komentarze / min. tagów simhash | 50 / 100 / 100 / 50 / 25 | `pagekit.ts` |
 | TTL cache | §3.3 | |
-| maks. pikseli obrazu | 50 Mpx | `imageHash.ts:35` |
-| `visibleText` / `outboundUrls` | 5000 znaków / 300 | `extract.ts:65-66` |
-| odrzucanie słabych powiązań | `score < 0.05` | `link.ts:668` |
-| przycięcie zapisu: powiązania / dowody | 12 / 6 | `prune.ts:16-17` |
-| `topEvidence` kampanii | 6 | `cluster.ts:222` |
-| `/api/analyze`: kandydaci / dowody / limity wejścia | 5 / 8 / 2048·5000·2048 znaków | `analyze.ts:190-196`, `app/api/analyze/route.ts:15-17` |
-| tekst reklamy, OCR i ASR zapisany w węźle | 600 znaków | `link.ts:138` |
-| paczka dowodów: domen na jedno zgłoszenie do CERT | 50 | `lib/evidence/pack.ts:406` |
+| maks. pikseli obrazu | 50 Mpx | `imageHash.ts` |
+| `visibleText` / `outboundUrls` | 5000 znaków / 300 | `extract.ts` |
+| odrzucanie słabych powiązań | `score < 0.05` | `link.ts` |
+| przycięcie zapisu: powiązania / dowody | 12 / 6 | `prune.ts` |
+| `topEvidence` kampanii | 6 | `cluster.ts` |
+| `/api/analyze`: kandydaci / dowody / limity wejścia | 5 / 8 / 2048·5000·2048 znaków | `analyze.ts`, `app/api/analyze/route.ts` |
+| tekst reklamy, OCR i ASR zapisany w węźle | 600 znaków | `link.ts` |
+| paczka dowodów: domen na jedno zgłoszenie do CERT | 50 | `lib/evidence/pack.ts` |
 | watcher CT | §16.8 | |
 
 ### 10.4 Konfiguracja watchera CT (`--lexicon plik.json`)
 
-`lib/ct/config.ts` ma własny plik konfiguracji, niezależny od `linking.json`. `mergeCtConfig` (`lib/ct/config.ts:117`) waliduje go zod. Listy leksykonu są dopisywane do domyślnych, chyba że `"replaceDefaultLexicon": true` (`lib/ct/config.ts:123`). Brak pliku daje wartości domyślne (`lib/ct/config.ts:138`).
+`lib/ct/config.ts` ma własny plik konfiguracji, niezależny od `linking.json`. `mergeCtConfig` (`lib/ct/config.ts`) waliduje go zod. Listy leksykonu są dopisywane do domyślnych, chyba że `"replaceDefaultLexicon": true` (`lib/ct/config.ts`). Brak pliku daje wartości domyślne (`lib/ct/config.ts`).
 
 | Parametr | Domyślnie | `lib/ct/config.ts` | Znaczenie |
 |---|---|---|---|
-| `threshold` | 0.6 | `lib/ct/config.ts:59` | minimalny wynik kandydata |
-| `scores.template` / `templateOtherTld` | 0.9 / 0.8 | `lib/ct/config.ts:61-62` | ten sam szablon nazwy z tym samym / innym TLD |
-| `scores.brand` / `media` | 0.7 / 0.65 | `lib/ct/config.ts:63-64` | marka z leksykonu / medium z leksykonu w kontekście kampanii |
-| `scores.loremKit` / `loremKitOtherTld` | 0.6 / 0.5 | `lib/ct/config.ts:65-66` | ten sam generator nazw z innym słowem kotwicy |
-| `scores.supportBonus` / `tokenBonus` | 0.05 / 0.05 | `lib/ct/config.ts:67-68` | szablon z ≥ 2 domen kampanii; słowo wspierające (maks. 2) |
-| `minTemplateLiteralChars` / `minBrandLength` / `minCampaignTokenLength` | 3 / 5 / 4 | `lib/ct/config.ts:70-72` | |
-| `lexicon.brands` | pusta | `lib/ct/config.ts:74` | marki wymyślone lub podrabiane przez kampanie (ustawiane na zbiór) |
-| `lexicon.media` / `institutions` / `lures` | ogólne słowa PL | `lib/ct/config.ts:75-77` | media (`wiadomosci`, `fakty`, `news`…), instytucje (`gov`, `zus`, `knf`, `bank`…), przynęty (`inwest`, `zysk`, `krypto`, `zwrot`, `doplat`…) |
-| `stopTokens` / `ignoreDomains` | słowa zbyt ogólne / pusta | `lib/ct/config.ts:79` | |
+| `threshold` | 0.6 | `lib/ct/config.ts` | minimalny wynik kandydata |
+| `scores.template` / `templateOtherTld` | 0.9 / 0.8 | `lib/ct/config.ts` | ten sam szablon nazwy z tym samym / innym TLD |
+| `scores.brand` / `media` | 0.7 / 0.65 | `lib/ct/config.ts` | marka z leksykonu / medium z leksykonu w kontekście kampanii |
+| `scores.loremKit` / `loremKitOtherTld` | 0.6 / 0.5 | `lib/ct/config.ts` | ten sam generator nazw z innym słowem kotwicy |
+| `scores.supportBonus` / `tokenBonus` | 0.05 / 0.05 | `lib/ct/config.ts` | szablon z ≥ 2 domen kampanii; słowo wspierające (maks. 2) |
+| `minTemplateLiteralChars` / `minBrandLength` / `minCampaignTokenLength` | 3 / 5 / 4 | `lib/ct/config.ts` | |
+| `lexicon.brands` | pusta | `lib/ct/config.ts` | marki wymyślone lub podrabiane przez kampanie (ustawiane na zbiór) |
+| `lexicon.media` / `institutions` / `lures` | ogólne słowa PL | `lib/ct/config.ts` | media (`wiadomosci`, `fakty`, `news`…), instytucje (`gov`, `zus`, `knf`, `bank`…), przynęty (`inwest`, `zysk`, `krypto`, `zwrot`, `doplat`…) |
+| `stopTokens` / `ignoreDomains` | słowa zbyt ogólne / pusta | `lib/ct/config.ts` | |
 
 Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i „Bałtycka Energia” oraz media „fakt” i „wiadomosci”.
 
@@ -877,19 +891,19 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 
 | Obszar | Co jest zaimplementowane | Gdzie |
 |---|---|---|
-| Tylko pasywne zapytania | DNS (z łańcuchem CNAME), RDAP, crt.sh, Team Cymru (DNS TXT), jeden GET na stronę i każde przekierowanie, GET faviconu i obrazu. Test cloakingu to dwa dodatkowe zwykłe GET-y na stronę, tylko z flagą `--cloaking`. Watcher CT czyta strumień logów CT i crt.sh, a stronę pobiera tylko z `--fetch-page`. Bez skanowania portów, bez sond, bez wysyłania formularzy. | `lib/pipeline/sources.ts:45-63`, `lib/pipeline/enrich.ts:157-168`, `lib/ct/enrich.ts:63` |
-| Schematy | tylko http(s), sprawdzane na każdym skoku; przekierowanie na `file:`/`ftp:` → `blocked` | `fetchPage.ts:399` |
-| SSRF: literały IP | IP prywatne, loopback, link-local (z metadata 169.254.169.254), CGNAT, dokumentacyjne, multicast i zarezerwowane, w tym IPv6 i IPv4 osadzone w IPv6, blokowane przed połączeniem | `fetchPage.ts:140-150`, `ip.ts:179-253` |
-| SSRF: nazwy | `localhost`, `*.local`, `*.internal` blokowane; zwykły DNS zastąpiony w gnieździe `lookup` sprawdzającym **wszystkie** zwrócone adresy, więc odpowiedź DNS-rebinding nie wejdzie między sprawdzenie a połączenie; `agent: false` wymusza nowe połączenie przez strażnika na każdym żądaniu. Te same zabezpieczenia obowiązują GET-y testu cloakingu i `--fetch-page` watchera CT | `fetchPage.ts:157-190`, `fetchPage.ts:224-225` |
-| Wyjątek testowy | `unsafeAllowPrivateNetworks` wyłącza strażnika; używają go tylko testy, nie jest dostępny przez CLI ani API | `fetchPage.ts:99`, `fetchPage.ts:353` |
-| Bez wykonywania JS | strona to tekst; meta refresh i `jsRedirects` wykrywane regexem, kit strony statycznym skanerem; `jsRedirects` nie są śledzone ani używane | `fetchPage.ts:304`, `extract.ts:608`, `pagekit.ts:1-14` |
-| Narzędzia zewnętrzne | tesseract, whisper-cli, ffmpeg i fpcalc działają lokalnie przez `execFile` bez powłoki, z limitem czasu; modele muszą już być na dysku (nic nie jest pobierane) | `lib/media/tools.ts:29-61`, `lib/media/asr.ts:42-49` |
-| Lokalny serwer CT | `certstream-server-go` w Dockerze publikuje port tylko na `127.0.0.1:8181`; `recovery` wyłączone, żeby nie pobierać historii logów od indeksu 0 | `docker-compose.yml:36-43`, `docker/certstream/config.yaml:36-37` |
+| Tylko pasywne zapytania | DNS (z łańcuchem CNAME), RDAP, crt.sh, Team Cymru (DNS TXT), jeden GET na stronę i każde przekierowanie, GET faviconu i obrazu. Test cloakingu to dwa dodatkowe zwykłe GET-y na stronę, tylko z flagą `--cloaking`. Watcher CT czyta strumień logów CT i crt.sh, a stronę pobiera tylko z `--fetch-page`. Bez skanowania portów, bez sond, bez wysyłania formularzy. | `lib/pipeline/sources.ts`, `lib/pipeline/enrich.ts`, `lib/ct/enrich.ts` |
+| Schematy | tylko http(s), sprawdzane na każdym skoku; przekierowanie na `file:`/`ftp:` → `blocked` | `fetchPage.ts` |
+| SSRF: literały IP | IP prywatne, loopback, link-local (z metadata 169.254.169.254), CGNAT, dokumentacyjne, multicast i zarezerwowane, w tym IPv6 i IPv4 osadzone w IPv6, blokowane przed połączeniem | `fetchPage.ts`, `ip.ts` |
+| SSRF: nazwy | `localhost`, `*.local`, `*.internal` blokowane; zwykły DNS zastąpiony w gnieździe `lookup` sprawdzającym **wszystkie** zwrócone adresy, więc odpowiedź DNS-rebinding nie wejdzie między sprawdzenie a połączenie; `agent: false` wymusza nowe połączenie przez strażnika na każdym żądaniu. Te same zabezpieczenia obowiązują GET-y testu cloakingu i `--fetch-page` watchera CT | `fetchPage.ts`, `fetchPage.ts` |
+| Wyjątek testowy | `unsafeAllowPrivateNetworks` wyłącza strażnika; używają go tylko testy, nie jest dostępny przez CLI ani API | `fetchPage.ts`, `fetchPage.ts` |
+| Bez wykonywania JS | strona to tekst; meta refresh i `jsRedirects` wykrywane regexem, kit strony statycznym skanerem; `jsRedirects` nie są śledzone ani używane | `fetchPage.ts`, `extract.ts`, `pagekit.ts` |
+| Narzędzia zewnętrzne | tesseract, whisper-cli, ffmpeg i fpcalc działają lokalnie przez `execFile` bez powłoki, z limitem czasu; modele muszą już być na dysku (nic nie jest pobierane) | `lib/media/tools.ts`, `lib/media/asr.ts` |
+| Lokalny serwer CT | `certstream-server-go` w Dockerze publikuje port tylko na `127.0.0.1:8181`; `recovery` wyłączone, żeby nie pobierać historii logów od indeksu 0 | `docker-compose.yml`, `docker/certstream/config.yaml` |
 | Limity | czas, bajty po dekompresji (bomba gzip), liczba przekierowań, piksele obrazu, wielkość wejścia API, limity kitu strony, limit wzbogaceń watchera na minutę | §10.3 |
-| TLS | domyślnie weryfikacja certyfikatów; `FETCH_INSECURE_TLS=1` ją wyłącza | `fetchPage.ts:197`, `fetchPage.ts:226` |
-| Prywatność | live nie wysyła IP niepublicznych do Team Cymru; nic nie trafia do innych usług niż wymienione i skonfigurowany LLM (streszczenia, embeddingi, opcjonalny NER) | `enrich.ts:440` |
+| TLS | domyślnie weryfikacja certyfikatów; `FETCH_INSECURE_TLS=1` ją wyłącza | `fetchPage.ts`, `fetchPage.ts` |
+| Prywatność | live nie wysyła IP niepublicznych do Team Cymru; nic nie trafia do innych usług niż wymienione i skonfigurowany LLM (streszczenia, embeddingi, opcjonalny NER) | `enrich.ts` |
 | Biometria | brak: persona tylko z tekstu i danych wejściowych; paczka dowodów nie zawiera wzorców twarzy ani głosu | §4.8, §15 |
-| Pliki | `/api/image` serwuje tylko obrazy wewnątrz `baseDir` (ochrona przed path traversal) | `app/api/image/route.ts:20-22` |
+| Pliki | `/api/image` serwuje tylko obrazy wewnątrz `baseDir` (ochrona przed path traversal) | `app/api/image/route.ts` |
 | Dane | `.cache/` zawiera surowe HTML pobranych stron i wyniki zapytań, `data/work/` pełne wzbogacenie i archiwum HTML, `data/evidence/` paczki dowodów, `data/ct-watch.jsonl` feed; wszystkie w `.gitignore`, `.env*` też (poza `.env.example`) | `.gitignore` |
 | Braki | brak rate limitu i uwierzytelnienia w API (§8.4); prompt injection w streszczeniach i NER tylko ograniczone (§7) | |
 
@@ -897,7 +911,7 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 
 ## 12. Testy
 
-`bun run test`: 32 pliki, 392 testy, wszystkie przechodzą (stan z commitu `e132a5d`, 19.11.2026). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzia nie ma (`it.skipIf`); na maszynie z narzędziami przechodzą wszystkie.
+`bun run test`: 638 testów w 73 plikach, wszystkie przechodzą (stan po zadaniu i8, 21.11.2026). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzi brak. Tabela poniżej opisuje pokrycie z pierwotnego zestawu (liczby w kolumnie „Testy” z 19.11.2026 są orientacyjne); nowsze pliki testów leżą obok modułów (`*.test.ts`) i w `tests/`.
 
 | Plik | Testy | Pokrycie |
 |---|---|---|
@@ -941,7 +955,9 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 
 ---
 
-## 13. Jak dostosować w sobotę do danych NASK
+## 13. Dostosowanie do nowego zbioru
+
+Podrozdziały 13.1–13.5 powstały **przed 21.11.2026** (pod kodem sprzed zadań z 21.11) i opisują wczytanie zbioru CSV/JSON oraz strojenie. Od 21.11.2026 zbiór w formie katalogów spraw wczytuje się przez `import-cases` albo `bun run base`, a nowe materiały ocenia `analyze-material` (§9, §9.1, §8.0).
 
 ### 13.1 Wczytanie danych
 
@@ -951,7 +967,7 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
    { "id": "ad_id", "advertiser": "page_id", "text": ["headline", "body"], "imageUrl": "image", "landingUrl": "url",
      "firstSeen": "start", "label": "campaign", "persona": "drozd_identity", "deepfakeScore": "drozd_score" }
    ```
-3. `bun run ingest -- --input nask.csv --mapping nask-mapping.json --base-dir <katalog_obrazów>`. Przejrzyj `warnings` w `data/work/items.json`. Niezmapowane kolumny trafiają do `extra`. Nie są pokazywane w UI ani używane w grafie, dopóki nie dodasz ich w `link.ts:135-150` (dane węzła reklamy).
+3. `bun run ingest -- --input nask.csv --mapping nask-mapping.json --base-dir <katalog_obrazów>`. Przejrzyj `warnings` w `data/work/items.json`. Niezmapowane kolumny trafiają do `extra`. Nie są pokazywane w UI ani używane w grafie, dopóki nie dodasz ich w `link.ts` (dane węzła reklamy).
 4. Etykiety: reklamy spoza kampanii muszą mieć unikalne etykiety (§6). Jeśli NASK oznacza je wspólnie, np. „0” albo „brak”, zamień je przed ingestem na `N<id>`.
 5. Persony: przygotuj listę obserwowanych osób (`[{ "name": "…", "role": "…" }]`) i podaj ją przez `--personas`. Bez listy zostają persony z kolumny wejściowej i z NER (`--ner`).
 
@@ -960,7 +976,7 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 - Bazowy przebieg bez sieci: `bun run enrich -- --skip page,favicon,dns,rdap,ct,asn`. Zostają pivoty z treści (kontakty, portfele, URL/host/domena z linków, parametry kampanii z linków), reklamodawca, persony oraz podobieństwo obrazu (pliki lokalne) i tekstu. Przy `imageUrl` obrazy wymagają sieci. Dodaj wtedy `image` do `--skip` albo pobierz pliki wcześniej.
 - `--offline` działa **tylko** z fixtures w formacie `data/sample/fixtures`. Narzędzia do zamiany `.cache/` na fixtures nie ma. Fixtures z katalogów spraw (zapisana strona, HAR, zrzut ekranu) buduje `import-cases` (§4.9).
 - Artefaktem offline jest `data/work/enriched.json` (z archiwum HTML w `data/work/archive`). Po jednym przebiegu live (tam, gdzie wolno) `build-graph`, `evaluate`, `summarize`, `evidence` i przeglądarka nie potrzebują już sieci. Zachowaj oba.
-- Cache wygasa: strony, DNS i CT po 1 dniu, RDAP i ASN po 7 dniach. Przy kolejnym `enrich` przeterminowane wpisy są pobierane od nowa. TTL zmienisz w `sources.ts:46`, `dns.ts:57`, `ct.ts:179`, `rdap.ts:191`, `asn.ts:133`.
+- Cache wygasa: strony, DNS i CT po 1 dniu, RDAP i ASN po 7 dniach. Przy kolejnym `enrich` przeterminowane wpisy są pobierane od nowa. TTL zmienisz w `sources.ts`, `dns.ts`, `ct.ts`, `rdap.ts`, `asn.ts`.
 - crt.sh jest wolny i zawodny: zaczynaj od `--skip ct`.
 - OCR, ASR i odcisk audio uruchamiaj tylko wtedy, gdy dane zawierają kreacje z tekstem lub wideo; `--cloaking` podwaja liczbę GET-ów na stronę.
 
@@ -970,11 +986,11 @@ NASK w 2025 karał fałszywe negatywy. W klastrowaniu FN to rozbicie prawdziwej 
 
 | Krok | Zmiana | Ryzyko |
 |---|---|---|
-| 1 | `minLinkScore` 0.15 → 0.10…0.12 (`config.ts:160`): więcej średnich powiązań w Louvainie | scalanie przez pojedynczy średni dowód (§14) |
-| 2 | `similarity.imageHamming` 10 → 12…14 (`config.ts:162`); w próbce różne rodziny kreacji miały odległość ≥ 15 | wspólne szablony graficzne różnych oszustów |
-| 3 | `tfidfThreshold` 0.5 → 0.40…0.45 albo `--text embedding` z `embeddingThreshold` 0.82…0.84 (`config.ts:164`) | wspólne szablony tekstów („kity”) |
-| 4 | `similarity.dom.hamming` 6 → 8…10 (`config.ts:165`), gdy kampanie lekko modyfikują szablon strony | gotowe szablony landingów kupowane przez różnych oszustów |
-| 5 | `louvain.resolution` 1.0 → 0.7…0.9 (`config.ts:182`): większe społeczności | scalanie sąsiednich kampanii |
+| 1 | `minLinkScore` 0.15 → 0.10…0.12 (`config.ts`): więcej średnich powiązań w Louvainie | scalanie przez pojedynczy średni dowód (§14) |
+| 2 | `similarity.imageHamming` 10 → 12…14 (`config.ts`); w próbce różne rodziny kreacji miały odległość ≥ 15 | wspólne szablony graficzne różnych oszustów |
+| 3 | `tfidfThreshold` 0.5 → 0.40…0.45 albo `--text embedding` z `embeddingThreshold` 0.82…0.84 (`config.ts`) | wspólne szablony tekstów („kity”) |
+| 4 | `similarity.dom.hamming` 6 → 8…10 (`config.ts`), gdy kampanie lekko modyfikują szablon strony | gotowe szablony landingów kupowane przez różnych oszustów |
+| 5 | `louvain.resolution` 1.0 → 0.7…0.9 (`config.ts`): większe społeczności | scalanie sąsiednich kampanii |
 | 6 | podnieś wagi typów, które w danych NASK okażą się specyficzne (np. `advertiser` → 0.75, wtedy jest silny) | jeden błędny silny pivot scala całe kampanie (union-find jest przechodni) |
 
 Nie obniżaj `strongThreshold` poniżej 0.65 bez sprawdzenia. Przy 0.6 IP, reklamodawca, ukryte pola i komentarze stają się silne, a IP hostingu współdzielonego zacznie scalać kampanie. Listy Cloudflare i innych nadal działają, bo czynnik listy mnoży wagę.
@@ -999,29 +1015,29 @@ Domyślne wartości dobrano na syntetycznej próbce przygotowanej razem ze start
 
 ### 13.4 Nowy typ encji
 
-Wzorem są typy dodane 19.11.2026 (np. `endpoint`, `campaign_param`, `persona`):
+Wzorem są typy `endpoint`, `campaign_param` i `persona`:
 
-1. `lib/graph/model.ts:7`: dopisz typ do `ENTITY_TYPES` i etykietę w `ENTITY_LABELS_PL` (`model.ts:38`). Nowy rodzaj krawędzi dodaj do `EdgeType` (`model.ts:66`).
-2. `lib/graph/config.ts:127`: waga w `typeWeights`. TypeScript wymusi wpis, bo to `Record<EntityType, number>`.
+1. `lib/graph/model.ts`: dopisz typ do `ENTITY_TYPES` i etykietę w `ENTITY_LABELS_PL` (`model.ts`). Nowy rodzaj krawędzi dodaj do `EdgeType` (`model.ts`).
+2. `lib/graph/config.ts`: waga w `typeWeights`. TypeScript wymusi wpis, bo to `Record<EntityType, number>`.
 3. `components/viewer/palette.ts`: kolor w `TYPE_COLORS` (też wymuszone przez typ).
-4. `lib/graph/link.ts`: w pętli po reklamach utwórz `g.node(typ, klucz, etykieta, data)`, `g.edge(...)` i `add(id, typ, ścieżka, relacja, opis)`. Dane z reklamy obok parametrów kampanii i person (`link.ts:456-487`), dane ze strony obok kitu strony (`link.ts:399-453`).
-5. Jeśli wartość pochodzi ze wzbogacenia: pole w `lib/pipeline/types.ts` (`ItemEnrichment` `types.ts:113` lub `PageInfo` `types.ts:78`) i obliczenie w `lib/pipeline/enrich.ts` (etap dla każdej reklamy, `enrich.ts:261-340`) albo w ekstraktorze w `lib/osint/`.
-6. **Zniżka dla infrastruktury współdzielonej**: nowy `case` w `Discounter.discountsFor` (`weights.ts:94`) i lista w `lists` (§4.4). Bez tego nowy pivot może scalać niezwiązane kampanie tak jak adresy Cloudflare. Opcjonalnie etykiety pól w `DetailsPanel.tsx` (`DATA_LABELS_BY_TYPE`, `TYPE_NOTES`).
+4. `lib/graph/link.ts`: w pętli po reklamach utwórz `g.node(typ, klucz, etykieta, data)`, `g.edge(...)` i `add(id, typ, ścieżka, relacja, opis)`. Dane z reklamy obok parametrów kampanii i person (`link.ts`), dane ze strony obok kitu strony (`link.ts`).
+5. Jeśli wartość pochodzi ze wzbogacenia: pole w `lib/pipeline/types.ts` (`ItemEnrichment` `types.ts` lub `PageInfo` `types.ts`) i obliczenie w `lib/pipeline/enrich.ts` (etap dla każdej reklamy, `enrich.ts`) albo w ekstraktorze w `lib/osint/`.
+6. **Zniżka dla infrastruktury współdzielonej**: nowy `case` w `Discounter.discountsFor` (`weights.ts`) i lista w `lists` (§4.4). Bez tego nowy pivot może scalać niezwiązane kampanie tak jak adresy Cloudflare. Opcjonalnie etykiety pól w `DetailsPanel.tsx` (`DATA_LABELS_BY_TYPE`, `TYPE_NOTES`).
 7. Test w `lib/graph/kitLink.test.ts` lub `link.test.ts` z `makeDataset` (`lib/graph/testkit.ts`), w tym trudny negatyw: dwie niezwiązane reklamy z tą samą ogólną wartością nie mogą trafić do jednej kampanii.
 
 `/api/analyze` obsłuży nowy pivot bez zmian, bo porównuje id węzłów.
 
-Typ, który ma tylko opisywać reklamy, a nie je łączyć (jak persona), dostaje wagę poniżej `minLinkScore` i trafia do atrybutów kampanii (`campaignAttributes`, `cluster.ts:237`).
+Typ, który ma tylko opisywać reklamy, a nie je łączyć (jak persona), dostaje wagę poniżej `minLinkScore` i trafia do atrybutów kampanii (`campaignAttributes`, `cluster.ts`).
 
 ### 13.5 Sygnały obrazu i deepfake'ów (DROZD)
 
 | Sygnał | Gdzie wpiąć |
 |---|---|
-| wynik lub etykieta deepfake per reklama (kolumna od NASK/DROZD) | **obsłużone**: zmapuj na `deepfakeScore` (synonimy w `ingest.ts:63`); wynik trafia do danych węzła reklamy, atrybutu `deepfakeScoreMax` kampanii, panelu szczegółów i paczki dowodów jako wynik modelu, nie fakt |
-| identyfikator lub nazwisko osoby z DROZD | **obsłużone**: zmapuj na `persona` (`ingest.ts:62`); persona jest atrybutem i filtrem (§4.8) |
-| embedding twarzy/obrazu (np. z modelu DROZD lub CLIP) | policz w `enrich.ts` w `loadImage` (`enrich.ts:217-237`), zapisz w `ImageInfo` (`types.ts:109`); w `link.ts` dodaj pętlę podobieństwa wzorowaną na obrazie lub DOM (`link.ts:572-608`) z własnym progiem i wagą w `config.similarity`; analogicznie w `analyze.ts:142-149`. Uwaga: dopasowanie twarzy 1:N to przetwarzanie danych biometrycznych; starter tego nie robi |
+| wynik lub etykieta deepfake per reklama (kolumna od NASK/DROZD) | **obsłużone**: zmapuj na `deepfakeScore` (synonimy w `ingest.ts`); wynik trafia do danych węzła reklamy, atrybutu `deepfakeScoreMax` kampanii, panelu szczegółów i paczki dowodów jako wynik modelu, nie fakt |
+| identyfikator lub nazwisko osoby z DROZD | **obsłużone**: zmapuj na `persona` (`ingest.ts`); persona jest atrybutem i filtrem (§4.8) |
+| embedding twarzy/obrazu (np. z modelu DROZD lub CLIP) | policz w `enrich.ts` w `loadImage` (`enrich.ts`), zapisz w `ImageInfo` (`types.ts`); w `link.ts` dodaj pętlę podobieństwa wzorowaną na obrazie lub DOM (`link.ts`) z własnym progiem i wagą w `config.similarity`; analogicznie w `analyze.ts`. Uwaga: dopasowanie twarzy 1:N to przetwarzanie danych biometrycznych; starter tego nie robi |
 | identyfikator klastra twarzy, modelu syntezy lub głosu | nowy typ encji (§13.4) |
-| lepszy hash percepcyjny (pHash, wycinek twarzy) | `lib/media/imageHash.ts` obok `dHash`; porównanie w `link.ts:572-586` |
+| lepszy hash percepcyjny (pHash, wycinek twarzy) | `lib/media/imageHash.ts` obok `dHash`; porównanie w `link.ts` |
 
 Wywołanie zewnętrznego systemu (DROZD) z pipeline'u to nowe wyjście danych. Sprawdź w regulaminie zadania, czy jest dozwolone. Obecnie dane trafiają tylko do zapytań pasywnych i skonfigurowanego LLM.
 
@@ -1029,7 +1045,7 @@ Wywołanie zewnętrznego systemu (DROZD) z pipeline'u to nowe wyjście danych. S
 
 ## 14. Znane ograniczenia
 
-- **Złożoność O(n²).** Podobieństwo obrazów, tekstów, DOM i dźwięku liczy wszystkie pary (`link.ts:572-659`). Pivoty tworzą `df²/2` par, z limitem `df ≤ 400`. Przy dziesiątkach tysięcy reklam potrzebny jest indeks (BK-tree, LSH).
+- **Złożoność O(n²).** Podobieństwo obrazów, tekstów, DOM i dźwięku liczy wszystkie pary (`link.ts`). Pivoty tworzą `df²/2` par, z limitem `df ≤ 400`. Przy dziesiątkach tysięcy reklam potrzebny jest indeks (BK-tree, LSH).
 - **Louvain scala izolowane pary.** Dwie reklamy połączone tylko jedną krawędzią `≥ minLinkScore` lądują w jednej kampanii niezależnie od tego, jak słaba jest ta krawędź (modularność nie zależy od skali w obrębie składowej). Przed tym chroni tylko próg `minLinkScore`.
 - **Union-find jest przechodni.** Jeden błędny silny pivot (np. tracker szablonu albo backend sprzedawanego kitu używany przez różnych oszustów) scala całe kampanie. Taki identyfikator dopisz do `lists.pivots`.
 - **Listy są statyczne.** Nie ma danych passive DNS (ile domen ma dane IP). Nieznany ubiquitous hosting jest tłumiony tylko przez IDF (podłoga 0.2), karę za powszechność (od 50% reklam, zbiory ≥ 10) i `maxStrongDfRatio`.
@@ -1054,7 +1070,7 @@ Wywołanie zewnętrznego systemu (DROZD) z pipeline'u to nowe wyjście danych. S
 
 ## 15. Paczka dowodów
 
-`bun run evidence -- --campaign K01` (`scripts/evidence.ts`, `lib/evidence/pack.ts:124`) zapisuje w `data/evidence/<kampania>/` paczkę zgodną z sekcją 5 raportu „Prawo i dowody” z notatek badawczych. Narzędzie proponuje; człowiek weryfikuje treść i decyduje o zgłoszeniu.
+`bun run evidence -- --campaign K01` (`scripts/evidence.ts`, `lib/evidence/pack.ts`) zapisuje w `data/evidence/<kampania>/` paczkę zgodną z sekcją 5 raportu „Prawo i dowody” z notatek badawczych. Narzędzie proponuje; człowiek weryfikuje treść i decyduje o zgłoszeniu.
 
 **Wejście:** `data/graph.json`, `data/campaigns.json`, `data/work/enriched.json` (z tego samego zbioru), opcjonalnie `data/summaries.json` i archiwum HTML z `enrich`.
 
@@ -1063,24 +1079,24 @@ Wywołanie zewnętrznego systemu (DROZD) z pipeline'u to nowe wyjście danych. S
 | Plik | Zawartość |
 |---|---|
 | `evidence.json` | pełny rekord (niżej) |
-| `evidence.md` | ten sam rekord czytelnie: nagłówek, streszczenie faktów, osoba, obserwacje, analiza, działania, pliki z SHA-256 (`pack.ts:491`) |
-| `cert-domains.txt` | domeny i hosty do zgłoszenia na Listę Ostrzeżeń CERT, jedna na linię, bez platform, skracaczy i serwisów publicznych (`domainDiscount`, `pack.ts:223`, `:278`); przy ponad 50 dodatkowo `cert-domains-<n>.txt` po 50 (`pack.ts:405-408`) |
-| `dsa-art16-notice.md` | szablon zgłoszenia z art. 16 ust. 2 DSA (`pack.ts:450`): (a) wyjaśnienie z faktów i proponowanymi podstawami prawnymi plus miejsce na uzasadnienie, (b) dokładne URL-e (link, każdy skok, strona końcowa) i identyfikatory reklam, (c) imię, nazwisko i e-mail zgłaszającego, (d) oświadczenie o dobrej wierze (`pack.ts:19`) |
+| `evidence.md` | ten sam rekord czytelnie: nagłówek, streszczenie faktów, osoba, obserwacje, analiza, działania, pliki z SHA-256 (`pack.ts`) |
+| `cert-domains.txt` | domeny i hosty do zgłoszenia na Listę Ostrzeżeń CERT, jedna na linię, bez platform, skracaczy i serwisów publicznych (`domainDiscount`, `pack.ts`); przy ponad 50 dodatkowo `cert-domains-<n>.txt` po 50 (`pack.ts`) |
+| `dsa-art16-notice.md` | szablon zgłoszenia z art. 16 ust. 2 DSA (`pack.ts`): (a) wyjaśnienie z faktów i proponowanymi podstawami prawnymi plus miejsce na uzasadnienie, (b) dokładne URL-e (link, każdy skok, strona końcowa) i identyfikatory reklam, (c) imię, nazwisko i e-mail zgłaszającego, (d) oświadczenie o dobrej wierze (`pack.ts`) |
 | `files/html/<sha256>.html`, `files/creatives/…`, `files/media/…` | kopie archiwum HTML stron, kreacji i plików audio/wideo |
-| `manifest.sha256` | SHA-256 każdego pliku w formacie `shasum -a 256 -c` (`pack.ts:416`) |
+| `manifest.sha256` | SHA-256 każdego pliku w formacie `shasum -a 256 -c` (`pack.ts`) |
 
-**Rekord `evidence.json`** (`pack.ts:358-444`):
+**Rekord `evidence.json`** (`pack.ts`):
 - nagłówek: `package_id` (UUID), `version`, `created_utc`, `tool_version` (nazwa, wersja, commit git, progi linkowania), `submitter` (pola niepodane mają znacznik `[UZUPEŁNIJ: …]`), `good_faith_statement`, `tlp` (domyślnie `TLP:AMBER`), `pap`, `summary_facts`;
 - `legal_assessment`: oznaczone „(wniosek)” propozycje podstaw prawnych do weryfikacji przez prawnika, bez rozstrzygania o nielegalności;
-- `requested_action`: propozycje dla odbiorców D (platforma, art. 16 DSA), C (CSIRT NASK, Lista Ostrzeżeń CERT), K (KNF), U (UODO), P (prokuratura/Policja), S (Prezes UKE), E (zabezpieczenie danych) ze statusem „propozycja” (`pack.ts:94-121`);
-- `impersonated_person`: imię i nazwisko, rola publiczna, podstawa wskazania (kolumna wejściowa, lista, OCR/ASR przybliżony, NER), status zgody („nieustalone”), `biometric_data: "brak…"` i wyniki deepfake z danych wejściowych opisane jako wynik modelu (`pack.ts:280-310`);
-- `observations` (fakty): wspólne identyfikatory, reklamy (ID, platforma, reklamodawca, daty UTC, treść, link z łańcuchem, User-Agent i czas pobrania, parametry kampanii, pliki kreacji z SHA-256), domeny (hosty, rejestracja z RDAP, NS, MX, IP z ASN, łańcuchy CNAME, certyfikaty, strony z `body_sha256_raw` i plikiem archiwum, wynik testu cloakingu, fakty o „podstawowym celu” strony: backendy formularzy, ukryte pola, kontakty, trackery, portfele), konta reklamodawców (`pack.ts:155-317`);
-- `analysis` (wyniki modeli i heurystyk, oddzielone od faktów): przypisanie do kampanii, wyniki powiązań z dowodami, metody i progi podobieństwa, użycie NER, wyniki deepfake, streszczenie LLM (`pack.ts:338-356`);
-- `integrity`: manifest, `manifest_sha256`, polecenie weryfikacji, `timestamp_token: null`, `custody_log`, inwentarz danych osobowych z podstawą „(wniosek)” i polem retencji do uzupełnienia, domeny wyłączone z listy CERT, ograniczenia (`pack.ts:418-441`).
+- `requested_action`: propozycje dla odbiorców D (platforma, art. 16 DSA), C (CSIRT NASK, Lista Ostrzeżeń CERT), K (KNF), U (UODO), P (prokuratura/Policja), S (Prezes UKE), E (zabezpieczenie danych) ze statusem „propozycja” (`pack.ts`);
+- `impersonated_person`: imię i nazwisko, rola publiczna, podstawa wskazania (kolumna wejściowa, lista, OCR/ASR przybliżony, NER), status zgody („nieustalone”), `biometric_data: "brak…"` i wyniki deepfake z danych wejściowych opisane jako wynik modelu (`pack.ts`);
+- `observations` (fakty): wspólne identyfikatory, reklamy (ID, platforma, reklamodawca, daty UTC, treść, link z łańcuchem, User-Agent i czas pobrania, parametry kampanii, pliki kreacji z SHA-256), domeny (hosty, rejestracja z RDAP, NS, MX, IP z ASN, łańcuchy CNAME, certyfikaty, strony z `body_sha256_raw` i plikiem archiwum, wynik testu cloakingu, fakty o „podstawowym celu” strony: backendy formularzy, ukryte pola, kontakty, trackery, portfele), konta reklamodawców (`pack.ts`);
+- `analysis` (wyniki modeli i heurystyk, oddzielone od faktów): przypisanie do kampanii, wyniki powiązań z dowodami, metody i progi podobieństwa, użycie NER, wyniki deepfake, streszczenie LLM (`pack.ts`);
+- `integrity`: manifest, `manifest_sha256`, polecenie weryfikacji, `timestamp_token: null`, `custody_log`, inwentarz danych osobowych z podstawą „(wniosek)” i polem retencji do uzupełnienia, domeny wyłączone z listy CERT, ograniczenia (`pack.ts`).
 
 Osoby nie są identyfikowane z twarzy ani głosu, a paczka nie zawiera wzorców biometrycznych. Test `tests/evidence.offline.test.ts` sprawdza m.in., że obserwacje nie zawierają wyników modeli i że każda linia manifestu się weryfikuje.
 
-**Czego paczka nie robi:** nie zapisuje WARC (ISO 28500) ani zrzutów ekranu, tylko zdekodowany HTML i SHA-256 surowej odpowiedzi; nie ma znacznika czasu RFC 3161 ani pieczęci (art. 41 eIDAS); nie pobiera rekordów z repozytoriów reklam (art. 39 DSA); nie sprawdza statusu domen na Liście Ostrzeżeń CERT (`pack.ts:436-440`). Te kroki trzeba wykonać przed zgłoszeniem.
+**Czego paczka nie robi:** nie zapisuje WARC (ISO 28500) ani zrzutów ekranu, tylko zdekodowany HTML i SHA-256 surowej odpowiedzi; nie ma znacznika czasu RFC 3161 ani pieczęci (art. 41 eIDAS); nie pobiera rekordów z repozytoriów reklam (art. 39 DSA); nie sprawdza statusu domen na Liście Ostrzeżeń CERT (`pack.ts`). Te kroki trzeba wykonać przed zgłoszeniem.
 
 ---
 
@@ -1090,77 +1106,301 @@ Kampanie rotują domeny, a nowa domena zwykle dostaje certyfikat TLS, zanim rusz
 
 ### 16.1 Odciski kampanii (`lib/ct/fingerprint.ts`)
 
-`buildFingerprints` (`fingerprint.ts:159`) bierze kampanie z ≥ 2 reklamami i ich domeny bez platform, skracaczy i serwisów publicznych (`isExcludedDomain` z `domainDiscount`, `scripts/_ct.ts:32`). Dla każdej kampanii:
+`buildFingerprints` (`fingerprint.ts`) bierze kampanie z ≥ 2 reklamami i ich domeny bez platform, skracaczy i serwisów publicznych (`isExcludedDomain` z `domainDiscount`, `scripts/_ct.ts`). Dla każdej kampanii:
 - szablony nazw domen z wariantem z TLD i bez (`domainTemplate`, §4.7), gdy rdzeń ma ≥ 3 litery;
-- szkielet generatora nazw: szablon z literalnymi słowami zamienionymi na `<w>` (`templateSkeleton`, `fingerprint.ts:131`), np. `<w><n>-<lorem><n>.sbs`;
-- marki z leksykonu znalezione w domenach kampanii albo, z polską odmianą, w treściach reklam i nazwach reklamodawców (`brandInText`, `fingerprint.ts:119`);
+- szkielet generatora nazw: szablon z literalnymi słowami zamienionymi na `<w>` (`templateSkeleton`, `fingerprint.ts`), np. `<w><n>-<lorem><n>.sbs`;
+- marki z leksykonu znalezione w domenach kampanii albo, z polską odmianą, w treściach reklam i nazwach reklamodawców (`brandInText`, `fingerprint.ts`);
 - media z leksykonu obecne w domenach kampanii;
-- słowa domen używane tylko przez tę kampanię (`fingerprint.ts:226`).
+- słowa domen używane tylko przez tę kampanię (`fingerprint.ts`).
 
-### 16.2 Dopasowanie (`matchDomain`, `fingerprint.ts:287`)
+### 16.2 Dopasowanie (`matchDomain`, `fingerprint.ts`)
 
-Nazwa z certyfikatu jest sprowadzana do domeny rejestrowalnej (`*.`, subdomeny i kropka końcowa znikają, `fingerprint.ts:266`). Domeny już należące do kampanii i z `ignoreDomains` są pomijane. Kandydat **zawsze wymaga wzorca**; pojedyncze popularne słowo nigdy nie wystarcza (`scoreCampaign`, `fingerprint.ts:325`):
+Nazwa z certyfikatu jest sprowadzana do domeny rejestrowalnej (`*.`, subdomeny i kropka końcowa znikają, `fingerprint.ts`). Domeny już należące do kampanii i z `ignoreDomains` są pomijane. Kandydat **zawsze wymaga wzorca**; pojedyncze popularne słowo nigdy nie wystarcza (`scoreCampaign`, `fingerprint.ts`):
 
 | Rodzaj | Warunek | Wynik |
 |---|---|---|
 | `template` | ten sam szablon co domena kampanii, ten sam TLD | 0.9 (+0.05, gdy szablon ma ≥ 2 domeny kampanii) |
 | `template_other_tld` | ten sam szablon, inny TLD | 0.8 (+0.05) |
-| `brand` | marka z leksykonu używana przez kampanię i kontekst: reszta nazwy to cyfry i słowa z domen kampanii, słowo wyłączne kampanii albo ten sam TLD (`fingerprint.ts:367-393`) | 0.7 |
-| `media` | medium z leksykonu obecne w domenach kampanii **i** słowo wyłączne tej kampanii (`fingerprint.ts:395-410`) | 0.65 |
+| `brand` | marka z leksykonu używana przez kampanię i kontekst: reszta nazwy to cyfry i słowa z domen kampanii, słowo wyłączne kampanii albo ten sam TLD (`fingerprint.ts`) | 0.7 |
+| `media` | medium z leksykonu obecne w domenach kampanii **i** słowo wyłączne tej kampanii (`fingerprint.ts`) | 0.65 |
 | `lorem_kit` | ten sam szkielet generatora z innym słowem kotwicy (szablon z `<lorem>` i `<n>`) | 0.6 na tym samym TLD, 0.5 na innym |
 
-Słowa z leksykonu (przynęty, instytucje, media) i słowa kampanii dodają po 0.05 (maks. dwa) i trafiają do uzasadnienia, ale same niczego nie dopasowują (`fingerprint.ts:413-423`). Wynik ≥ `threshold` (0.6) to kandydat; przy kilku kampaniach wygrywa wyższy wynik, potem silniejszy rodzaj, więcej domen za wzorcem i większa kampania (`isBetter`, `fingerprint.ts:91`).
+Słowa z leksykonu (przynęty, instytucje, media) i słowa kampanii dodają po 0.05 (maks. dwa) i trafiają do uzasadnienia, ale same niczego nie dopasowują (`fingerprint.ts`). Wynik ≥ `threshold` (0.6) to kandydat; przy kilku kampaniach wygrywa wyższy wynik, potem silniejszy rodzaj, więcej domen za wzorcem i większa kampania (`isBetter`, `fingerprint.ts`).
 
 Przykłady z testów (`lib/ct/fingerprint.test.ts`, kampania z `finance12-dolorem51.sbs` i `finance88-quia40.sbs`): `finance23-voluptas94.sbs` → `template`, 0,95; `finance23-voluptas94.pro` → `template_other_tld`, 0,85. Bez dopasowania: `finance.sbs`, `finance23.sbs`, `finance-news.pro`, `yahoo-finance.com`, `personal-finance23.pro`, `finance23-news94.sbs`, `voluptas94.pro`, `lorem-ipsum.com`, `dolorem-ipsum.sbs`, `financeplus-voluptas.pro` i `finance23-voluptas94.sbs.evil.example`.
 
 ### 16.3 Źródła strumienia (`lib/ct/stream.ts`)
 
-- Klient protokołu CertStream przez WebSocket (`runCtStream`, `stream.ts:140`) czyta wiadomości `certificate_update` (strumień pełny i „lite”) oraz `dns_entries` (tylko domeny); heartbeat i nieznane typy są pomijane (`parseCertstreamMessage`, `stream.ts:39`). Wysyła tylko pingi WebSocket, których wymaga certstream-server-go (`stream.ts:191`).
-- Kolejność prób: `CT_STREAM_URL` albo `--url`, domyślnie lokalny `ws://127.0.0.1:8181/`, potem publiczny `wss://certstream.calidog.io/` (`scripts/ct-watch.ts:16-17`, `:52`).
-- Strumień jest niedostępny, gdy połączenie nie powstanie w 10 s albo po otwarciu przez 20 s nie przyjdą dane; działający strumień, który ucichnie na 60 s, jest łączony ponownie, z backoffem do 30 s i maks. 20 razy (`stream.ts:143-147`, `:253`). Gdy żaden URL nie da danych, wynik ma status `unavailable` (bez wyjątku), CLI wypisuje próby, podpowiada uruchomienie serwera, backfill albo demo i kończy się kodem 2.
-- **Lokalny serwer:** `docker compose --profile ct up -d certstream` uruchamia `0rickyy0/certstream-server-go:v1.10.1` (obraz dla `linux/arm64` i `linux/amd64`) z portem tylko na `127.0.0.1:8181` (`docker-compose.yml:36-43`). Konfiguracja `docker/certstream/config.yaml`: pusta biała lista klientów (port i tak jest lokalny), bez Prometheusa, `recovery.enabled: false`, żeby serwer nie pobierał logów od indeksu 0 (`docker/certstream/config.yaml:36-37`). Serwer potrzebuje wyjścia do internetu (lista logów Google i same logi CT).
-- **Demo offline:** `bun run ct:watch -- --replay data/sample/ct-stream.jsonl` odtwarza zapisane wiadomości (`replayCertstream`, `stream.ts:258`) bez sieci; wzbogacenie korzysta wtedy z fixtures (`scripts/ct-watch.ts:49-50`).
+- Klient protokołu CertStream przez WebSocket (`runCtStream`, `stream.ts`) czyta wiadomości `certificate_update` (strumień pełny i „lite”) oraz `dns_entries` (tylko domeny); heartbeat i nieznane typy są pomijane (`parseCertstreamMessage`, `stream.ts`). Wysyła tylko pingi WebSocket, których wymaga certstream-server-go (`stream.ts`).
+- Kolejność prób: `CT_STREAM_URL` albo `--url`, domyślnie lokalny `ws://127.0.0.1:8181/`, potem publiczny `wss://certstream.calidog.io/` (`scripts/ct-watch.ts`).
+- Strumień jest niedostępny, gdy połączenie nie powstanie w 10 s albo po otwarciu przez 20 s nie przyjdą dane; działający strumień, który ucichnie na 60 s, jest łączony ponownie, z backoffem do 30 s i maks. 20 razy (`stream.ts`). Gdy żaden URL nie da danych, wynik ma status `unavailable` (bez wyjątku), CLI wypisuje próby, podpowiada uruchomienie serwera, backfill albo demo i kończy się kodem 2.
+- **Lokalny serwer:** `docker compose --profile ct up -d certstream` uruchamia `0rickyy0/certstream-server-go:v1.10.1` (obraz dla `linux/arm64` i `linux/amd64`) z portem tylko na `127.0.0.1:8181` (`docker-compose.yml`). Konfiguracja `docker/certstream/config.yaml`: pusta biała lista klientów (port i tak jest lokalny), bez Prometheusa, `recovery.enabled: false`, żeby serwer nie pobierał logów od indeksu 0 (`docker/certstream/config.yaml`). Serwer potrzebuje wyjścia do internetu (lista logów Google i same logi CT).
+- **Demo offline:** `bun run ct:watch -- --replay data/sample/ct-stream.jsonl` odtwarza zapisane wiadomości (`replayCertstream`, `stream.ts`) bez sieci; wzbogacenie korzysta wtedy z fixtures (`scripts/ct-watch.ts`).
 
 ### 16.4 Backfill z crt.sh
 
-`bun run ct:backfill` (`scripts/ct-backfill.ts`, `runBackfill` w `lib/ct/watch.ts:166`) pyta crt.sh o wzorce (`searchCt`, §3.1, wspólne ponowienia i cache, przestrzeń `ct-search` z TTL 1 h), bierze certyfikaty z ostatnich `--since` dni (data wpisu albo `notBefore`) i przepuszcza ich nazwy przez ten sam watcher. Bez `--pattern` wzorce powstają z rdzeni szablonów kampanii, np. `zwrot<n>-<lorem><n>.example` → `zwrot%` (`backfillPatterns`, `fingerprint.ts:437`), bo crt.sh nie przyjmuje `%` w środku wzorca; TLD i resztę szablonu sprawdza lokalnie matcher. Wzorzec bez odpowiedzi ma status `unavailable`, a błędny `error`; pozostałe wzorce są przetwarzane dalej.
+`bun run ct:backfill` (`scripts/ct-backfill.ts`, `runBackfill` w `lib/ct/watch.ts`) pyta crt.sh o wzorce (`searchCt`, §3.1, wspólne ponowienia i cache, przestrzeń `ct-search` z TTL 1 h), bierze certyfikaty z ostatnich `--since` dni (data wpisu albo `notBefore`) i przepuszcza ich nazwy przez ten sam watcher. Bez `--pattern` wzorce powstają z rdzeni szablonów kampanii, np. `zwrot<n>-<lorem><n>.example` → `zwrot%` (`backfillPatterns`, `fingerprint.ts`), bo crt.sh nie przyjmuje `%` w środku wzorca; TLD i resztę szablonu sprawdza lokalnie matcher. Wzorzec bez odpowiedzi ma status `unavailable`, a błędny `error`; pozostałe wzorce są przetwarzane dalej.
 
 ### 16.5 Po dopasowaniu (`lib/ct/watch.ts`, `lib/ct/enrich.ts`)
 
-`CtWatcher.handle` (`watch.ts:41`) grupuje nazwy certyfikatu po domenie rejestrowalnej, każdą domenę sprawdza raz (zbiór sprawdzonych do 500 000 wpisów, `watch.ts:68`) i zgłasza raz; domeny już obecne w feedzie są pomijane po restarcie (`watch.ts:50`). Dopasowanie jest synchroniczne, a wzbogacenie i zapis biegną w tle, po dwa naraz.
+`CtWatcher.handle` (`watch.ts`) grupuje nazwy certyfikatu po domenie rejestrowalnej, każdą domenę sprawdza raz (zbiór sprawdzonych do 500 000 wpisów, `watch.ts`) i zgłasza raz; domeny już obecne w feedzie są pomijane po restarcie (`watch.ts`). Dopasowanie jest synchroniczne, a wzbogacenie i zapis biegną w tle, po dwa naraz.
 
-Wzbogacenie jest wyłącznie pasywne (`enrichCandidate`, `lib/ct/enrich.ts:17`): DNS A/AAAA/CNAME/NS/MX domeny, A/CNAME do dwóch dodatkowych hostów z certyfikatu, RDAP i historia z crt.sh. **Strona nie jest pobierana**, chyba że podasz `--fetch-page`; wtedy jest to jeden GET `https://<domena>/` przez pobieracz z ochroną SSRF (`lib/ct/enrich.ts:63-77`). Domyślnie maks. 30 wzbogaceń na minutę; ponad limit kandydat jest zapisywany bez wzbogacenia z polem `skipped` (`watch.ts:96-98`). `--no-enrich` wyłącza wzbogacenie.
+Wzbogacenie jest wyłącznie pasywne (`enrichCandidate`, `lib/ct/enrich.ts`): DNS A/AAAA/CNAME/NS/MX domeny, A/CNAME do dwóch dodatkowych hostów z certyfikatu, RDAP i historia z crt.sh. **Strona nie jest pobierana**, chyba że podasz `--fetch-page`; wtedy jest to jeden GET `https://<domena>/` przez pobieracz z ochroną SSRF (`lib/ct/enrich.ts`). Domyślnie maks. 30 wzbogaceń na minutę; ponad limit kandydat jest zapisywany bez wzbogacenia z polem `skipped` (`watch.ts`). `--no-enrich` wyłącza wzbogacenie.
 
 ### 16.6 Feed (`lib/ct/feed.ts`)
 
-`data/ct-watch.jsonl` (albo `CT_FEED_FILE`) to plik tylko do dopisywania: jeden obiekt JSON na linię, nigdy nie przepisywany (`appendFeed`, `feed.ts:61`). Rekord `CtFeedRecord` (`feed.ts:24`):
+`data/ct-watch.jsonl` (albo `CT_FEED_FILE`) to plik tylko do dopisywania: jeden obiekt JSON na linię, nigdy nie przepisywany (`appendFeed`, `feed.ts`). Rekord `CtFeedRecord` (`feed.ts`):
 - `v`, `type: "ct_candidate"`, `observed_utc`, `source` (`certstream` / `crtsh-backfill` / `replay`), `stream` (URL, wzorce albo plik);
 - `domain`, `names` (nazwy z certyfikatu pod tą domeną);
 - `cert`: `issuer`, `not_before`, `not_after`, `fingerprint`, `serial`, `log`, `log_url`, `cert_index`, `crtsh_id`, `seen_utc`;
 - `candidate`: `campaign_id`, `campaign_label`, `score`, `kind`, `template`, `similar_domains`, `tokens`, `evidence` (tekst PL);
 - `enrichment`: `dns`, `hosts`, `rdap`, `ct`, `page` (tylko z `--fetch-page`), `errors`, `skipped`;
-- `status: "candidate"` i `note`: „kandydat do weryfikacji przez człowieka: dopasowanie nazwy domeny do odcisku kampanii, nie dowód” (`watch.ts:15`).
+- `status: "candidate"` i `note`: „kandydat do weryfikacji przez człowieka: dopasowanie nazwy domeny do odcisku kampanii, nie dowód” (`watch.ts`).
 
-`readFeedTail` (`feed.ts:81`) czyta tylko koniec pliku (domyślnie 4 MiB), odrzuca niepełną pierwszą linię i uszkodzone wpisy.
+`readFeedTail` (`feed.ts`) czyta tylko koniec pliku (domyślnie 4 MiB), odrzuca niepełną pierwszą linię i uszkodzone wpisy.
 
 ### 16.7 Panel w przeglądarce
 
-Zakładka „Nowe domeny” (`components/viewer/CtFeedPanel.tsx`) co 15 s czyta `/api/ct-feed` (`CtFeedPanel.tsx:16-22`, §8.3) i pokazuje kandydatów od najnowszych: domenę, przycisk kampanii (zaznacza ją w grafie), wynik, rodzaj dopasowania, uzasadnienie, dane certyfikatu, DNS i RDAP. Przy pustym lub brakującym feedzie pokazuje polecenia uruchomienia watchera, backfillu i demo (`CtFeedPanel.tsx:132`). Liczba kandydatów jest na zakładce, a `?panel=ct` otwiera ją od razu.
+Zakładka „Nowe domeny” (`components/viewer/CtFeedPanel.tsx`) co 15 s czyta `/api/ct-feed` (`CtFeedPanel.tsx`, §8.3) i pokazuje kandydatów od najnowszych: domenę, przycisk kampanii (zaznacza ją w grafie), wynik, rodzaj dopasowania, uzasadnienie, dane certyfikatu, DNS i RDAP. Przy pustym lub brakującym feedzie pokazuje polecenia uruchomienia watchera, backfillu i demo (`CtFeedPanel.tsx`). Liczba kandydatów jest na zakładce, a `?panel=ct` otwiera ją od razu.
 
 ### 16.8 Stałe
 
 | Stała | Wartość | Miejsce |
 |---|---|---|
-| połączenie / pierwsza wiadomość / cisza / ping / ponowne połączenia | 10 s / 20 s / 60 s / 30 s / 20 | `lib/ct/stream.ts:143-147` |
-| wzbogacenia na minutę / współbieżność | 30 / 2 | `lib/ct/watch.ts:96`, `:51` |
-| zbiór sprawdzonych domen | 500 000 | `lib/ct/watch.ts:68` |
-| odczyt końca feedu | 4 MiB | `lib/ct/feed.ts:81` |
-| backfill: okno / ponowienia crt.sh | 7 dni / 2 | `scripts/ct-backfill.ts:45`, `:62` |
+| połączenie / pierwsza wiadomość / cisza / ping / ponowne połączenia | 10 s / 20 s / 60 s / 30 s / 20 | `lib/ct/stream.ts` |
+| wzbogacenia na minutę / współbieżność | 30 / 2 | `lib/ct/watch.ts`,  |
+| zbiór sprawdzonych domen | 500 000 | `lib/ct/watch.ts` |
+| odczyt końca feedu | 4 MiB | `lib/ct/feed.ts` |
+| backfill: okno / ponowienia crt.sh | 7 dni / 2 | `scripts/ct-backfill.ts`,  |
 
-### 16.9 Stan na 19.11.2026 (pomiary z tej maszyny)
+### 16.9 Pomiary watchera CT z jednej maszyny (19.11.2026)
 
 - Lokalny `certstream-server-go` v1.10.1 w Dockerze (arm64) działał: `ct:watch` odebrał 224 963 wiadomości w 75 s i sprawdził 33 602 nowe domeny rejestrowalne. Z odciskami próbki i testowym odciskiem `finance<n>-<lorem><n>.*` nie było kandydatów, czego należało się spodziewać przy fikcyjnych domenach i krótkim oknie.
 - Sonda z odciskiem `bbcsports<n>.ph` (rodzina szablonowych domen zauważona w strumieniu) dała 22 kandydatów w 50 s; pierwszych pięciu wzbogaconych (wspólny adres A, brak RDAP dla `.ph`), reszta zapisana bez wzbogacenia z powodu limitu ustawionego na 5 na minutę.
 - Publiczny CertStream (`wss://certstream.calidog.io/`) przyjął połączenie WebSocket, ale nie przysłał żadnych danych w 12–20 s; watcher traktuje go jako niedostępny.
 - crt.sh: wzorzec z `%` w środku (`bbcsports%.ph`) zwrócił stronę „Unsupported use of '%'”, a wzorzec prefiksowy (`bbcsports%`) odpowiedź 502 po ok. 80 s. Backfill jest więc „best effort”; zapytania o pojedyncze domeny działały (ok. 20 s).
 - Demo offline (`--replay data/sample/ct-stream.jsonl`): 17 wiadomości, 5 kandydatów (`zwrot51-dolores33.invalid` i `zwrot64-quia17.example` z szablonu C4, `kryptozysk-ai24.test` z marki C1, `fakt-dnia-24.example` z medium C3, `pomoc77-dolorem12.example` z generatora nazw C4); łagodne sobowtóry, domeny znane i powtórzone zostały pominięte.
+
+## 17. Treści przeniesione z README (21.11.2026, zadanie i8)
+
+Poniższe sekcje stały w README do 21.11.2026. README opisuje teraz uruchomienie i metodykę dla osoby oceniającej ([README.md](../README.md), [METODYKA.md](METODYKA.md), [LICENCJE.md](../LICENCJE.md)), a opisy techniczne są tutaj bez zmian treści. Stan na dzień przeniesienia; część liczb (np. liczba testów, wersje narzędzi) mogła się zmienić, aktualne są w kodzie i w `LICENCJE.md`.
+
+### 17.1 Opis techniczny
+
+Dla każdej reklamy narzędzie zbiera ślady cyfrowe: link docelowy z pełnym łańcuchem przekierowań, hosty z łańcuchem CNAME, domeny, adresy IP i ASN, serwery NS, rejestratora z RDAP, certyfikaty z logów CT, identyfikatory trackerów, favicon, kontakty, portfele krypto, hash obrazu i treść. Ze strony docelowej bierze odcisk „kitu” (backend formularza, ukryte pola, własne pliki JS/CSS, komentarze w kodzie, struktura DOM), a z linków parametry kampanii (UTM, sub1–5, identyfikatory kliknięć i ofert). Dochodzą wzorce nazw domen i persona, czyli osoba, pod którą podszywa się reklama, rozpoznana z tekstu. Potem buduje z tego graf dowodów i wyznacza kampanie. Każde powiązanie ma opis „dlaczego połączone” i wagę. Wyniki można przejrzeć w przeglądarce (lista kampanii, graf Cytoscape, porównanie dwóch reklam), zmierzyć na etykietach (pairwise/B-cubed F1, ARI) i wyeksportować jako paczkę dowodów kampanii. Watcher Certificate Transparency dopasowuje nowe domeny z certyfikatów TLS do znanych kampanii, zanim ruszy reklama.
+
+
+### 17.2 Dane przykładowe i testowe
+
+Dane w `data/sample/` są w całości **syntetyczne**: fikcyjne osoby („Adam Testowy”, „Ewa Przykładowa”…), fikcyjne marki, zarezerwowane domeny `.example`/`.test`/`.invalid`, adresy IP z zakresów dokumentacyjnych (192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24), prywatne numery ASN (6450x), brytyjskie numery telefonów z puli Ofcom przeznaczonej do fikcji (+44 7700 900xxx), losowe adresy portfeli z poprawną sumą kontrolną, dżingle WAV generowane w kodzie (muzyka, bez mowy) oraz fikcyjny urząd certyfikacji i log CT w pliku demo watchera. Prawdziwe są tylko identyfikatory publicznej infrastruktury potrzebne w trudnych przypadkach: zakresy anycast Cloudflare, AS13335, serwery `*.ns.cloudflare.com`, NS ParkingCrew, nazwy popularnych rejestratorów i urzędów certyfikacji, cel CNAME Fastly, host publicznego serwisu formularzy web3forms i User-Agent crawlera Meta. Poza próbką: jeden test dopasowania person używa nazwiska osoby publicznej wyłącznie jako ciągu znaków (przypadek błędu transkrypcji ASR), a testy wzorców nazw domen używają przykładu `finance23-voluptas94.sbs` z publicznego komunikatu CSIRT KNF. Wartości w testach dodanych 20–21.11 też są syntetyczne: domeny `.example`/`.test` i poddomeny `example.com`, wymyślone UUID-y i identyfikatory reklam, identyfikatory kliknięć wygenerowane z fikcyjnego czasu, maszyny i procesu, fikcyjne tytuły i nazwy.
+
+### 17.3 Architektura
+
+Pipeline ma cztery kroki, a każdy zapisuje JSON, który można obejrzeć. `ingest` zamienia CSV/JSON z dowolnymi nazwami kolumn na znormalizowane `Item` (także kolumny w stylu DROZD: persona, wynik deepfake, plik wideo). `enrich` wykonuje wyłącznie pasywne zapytania (jeden GET na stronę/przekierowanie z ochroną SSRF, DNS z łańcuchem CNAME, RDAP, crt.sh, Team Cymru), z plikowym cache, limitem współbieżności i trybem offline z nagranych odpowiedzi. Opcjonalnie dopasowuje listę person, uruchamia NER przez LLM, OCR, ASR, odcisk audio i test cloakingu. `build-graph` z każdej reklamy wyprowadza „pivoty” (encje osiągalne ze ścieżką dowodu) i waży je czynnikami: priorytetem typu (np. backend formularza > tracker > IP > ASN), listami infrastruktury współdzielonej (Cloudflare i inne CDN, masowi dostawcy DNS, darmowe CA, popularni rejestratorzy, platformy i skracacze, publiczne serwisy formularzy i analityki, popularne biblioteki JS, strony parkingowe), odwrotną częstością i karą za powszechność. Dochodzi do tego podobieństwo obrazów (dHash, opcjonalnie CLIP dla wariantów tego samego szablonu), treści (TF-IDF albo embeddingi bge-m3), struktury strony (simhash DOM) i dźwięku (Chromaprint). Silne dowody łączy union-find, a resztę grupuje Louvain na grafie ważonym. Zdyskontowana infrastruktura, np. wspólne IP Cloudflare, nie trafia nawet do grafu klastrowania. Persona, cyrylica, podejrzenie cloakingu i wynik deepfake są atrybutami kampanii do filtrowania, a nie dowodami łączącymi. `evaluate` porównuje wynik z etykietami. Przeglądarka (Next.js) czyta tylko `data/graph.json` i `data/campaigns.json` (oraz feed CT przez API), więc buduje się i działa bez Ollamy i bez sieci.
+
+```
+data/*.csv|json ──ingest──► items.json ──enrich──► enriched.json ──build-graph──► graph.json + campaigns.json ──► viewer / evaluate / summarize / evidence
+                              (live: DNS, RDAP, CT, ASN, 1×GET │ offline: data/sample/fixtures)
+CT (certstream-server-go │ crt.sh) ──ct:watch / ct:backfill──► data/ct-watch.jsonl ──► viewer („Nowe domeny”)
+```
+
+### 17.4 Szybki start (dane przykładowe, offline)
+
+Wymagania: bun ≥ 1.4, Node ≥ 20.
+
+```bash
+bun install
+bun run pipeline --offline   # ingest → enrich z fixtures → graf → kampanie → ewaluacja
+bun run evaluate             # metryki względem kolumny z etykietami
+bun run dev                  # http://localhost:3000
+```
+
+Na danych przykładowych `bun run evaluate` daje pairwise F1 = B-cubed F1 = ARI = 1.0. **Te dane zaprojektowałem sam, więc wynik pokazuje, że pipeline działa od początku do końca, a nie jak dobrze zadziała na prawdziwych danych.** Trudne przypadki w próbce:
+- kampanie K01, K02 i dwie niezwiązane reklamy stoją za tymi samymi adresami anycast Cloudflare i tymi samymi NS Cloudflare; nie łączą się, bo IP ma wagę 0.006 zamiast 0.6,
+- dwie zaparkowane domeny mają wspólny tracker, favicon i IP dostawcy parkingu,
+- reklama bez linku (c2-08) dołącza do kampanii tylko przez prawie identyczną kreację i podobny tekst,
+- rotacja domen (K04) i serwisy połączone tylko średnimi dowodami (wspólny certyfikat SAN, IP, NS, seria rejestracji, wzorzec nazw `zwrot<n>-<lorem><n>` w dwóch TLD),
+- każdy nowy pivot ma trudny negatyw: publiczny serwis formularzy (web3forms) u K05 i dwóch niezwiązanych reklam, CNAME do Fastly u K05 i niezwiązanej reklamy, jQuery i `style.css`, `utm_source=facebook`, ogólna ścieżka `/api/lead` oraz persona K01 wymieniona w niezwiązanej reklamie; żaden nie scala kampanii.
+
+Bez wpisu o fikcyjnym skracaczu w `data/sample/linking.json` F1 spada do 0.977: niezwiązana reklama korzystająca z tego samego skracacza trafia do K05. Dlatego listy są konfigurowalne.
+
+Linki do konkretnego przypadku (na demo): `http://localhost:3000/?k=K02&n=item:c2-08`, `http://localhost:3000/?n=ip:104.21.32.15`, porównanie `?a=c1-01&b=c1-04` (wspólny backend formularza) i `?a=c5-01&b=n-01` (dlaczego web3forms nie łączy), filtr persony `?p=adam-testowy`, nowe domeny z watchera CT `?panel=ct`.
+
+### 17.5 Tryb live (prawdziwe dane)
+
+```bash
+bun run pipeline -- --input dane.csv --mapping mapping.json
+# albo krok po kroku:
+bun run ingest -- --input dane.csv --mapping mapping.json
+bun run enrich -- --concurrency 4 --skip ct     # crt.sh jest wolny; bez --skip ct też działa (cache)
+bun run build-graph -- --text embedding           # bge-m3 przez Ollamę; domyślnie tfidf
+bun run evaluate
+```
+
+Formaty wejścia: `.csv` (separator `,` `;` tab lub `|` wykrywany automatycznie, BOM), `.tsv`, `.json` (tablica albo obiekt z `items`/`data`/`ads`/`records`), `.jsonl`. Mapowanie (`mapping.json`) wskazuje, która kolumna to które pole. Bez mapowania kolumny są rozpoznawane po synonimach PL/EN (np. `tresc`, `ad_creative_body`, `page_name`, `ad_delivery_start_time`, `wynik_deepfake`).
+
+```json
+{ "id": "ad_id", "platform": "platforma", "advertiser": "reklamodawca", "text": ["tytul", "tresc"],
+  "imageUrl": "obraz", "landingUrl": "link", "firstSeen": "od", "lastSeen": "do", "label": "kampania",
+  "persona": "osoba_drozd", "deepfakeScore": "wynik_deepfake", "videoPath": "wideo" }
+```
+
+`imageUrl` może być adresem http(s) albo ścieżką do pliku względną wobec katalogu danych. Daty: ISO, `dd.mm.rrrr [hh:mm]`, epoch s/ms. Wynik deepfake: `0,91`, `0.91`, `91` albo `91%`. Kolumna `label` jest opcjonalna i służy tylko do ewaluacji.
+
+Wszystkie zapytania sieciowe są pasywne: DNS (A/AAAA/CNAME/NS/MX/TXT), RDAP przez rdap.org, crt.sh, Team Cymru przez DNS TXT i jeden GET na stronę oraz każde przekierowanie (ręcznie śledzone, maks. 8, z meta refresh). JavaScriptu nie wykonujemy: adresy przekierowań JS i backendy formularzy są wyciągane statycznie. Nie ma skanowania ani sondowania portów. Wyniki trafiają do `.cache/` (TTL: strony 1 dzień, DNS 1 dzień, RDAP/ASN 7 dni, CT 1 dzień), a zdekodowany HTML stron do `data/work/archive/`.
+
+#### Sprawy z plików: zapisana strona, HAR, zrzut ekranu
+
+Gdy dane przychodzą jako katalog na sprawę (strona zapisana z przeglądarki z folderem `<nazwa>_files`, plik HAR, zrzut ekranu reklamy; dowolny podzbiór), `import-cases` zamienia je na wejście i fixtures trybu offline. Stron docelowych nie pobiera: treść bierze z HAR (surowa odpowiedź serwera) albo z zapisanej strony, adresy IP z HAR.
+
+```bash
+bun run import-cases -- --cases sprawy/ --out praca/ --lookups   # --lookups: pasywne DNS, RDAP i ASN dla domen; --ct: także crt.sh
+bun run ingest -- --input praca/input.json --mapping praca/mapping.json --out praca/items.json --base-dir praca
+bun run enrich -- --items praca/items.json --out praca/enriched.json --offline --fixtures praca/fixtures --archive praca/archive --ocr --clip
+bun run build-graph -- --enriched praca/enriched.json --graph praca/graph.json --campaigns praca/campaigns.json
+```
+
+Importer radzi sobie też z nieuporządkowanymi sprawami: zapisy w podkatalogach (paczka `dom.html` + `page.har` + `page.mhtml` + `manifest.json` jest scalana z ręczną kopią tej samej strony), kilka różnych stron jednej sprawy (osobne rekordy `<sprawa>_<podkatalog>`), ten sam adres zapisany z różną treścią (klucz `#capture=<id>`, typowe dla cloakingu), strona zapisana z dysku bez adresu (host z pozostałych zapisów sprawy), HAR włożony do katalogu innej sprawy, sprawa bez strony (wideo reklamy i opis `.info.json` z yt-dlp, z którego idą reklamodawca i identyfikator biblioteki reklam), wiele zrzutów (pierwszy to kreacja, pozostałe czyta OCR) i nagrania ekranu (ASR, odcisk audio, CLIP). Ścieżki mediów w `input.json` są bezwzględne. Szczegóły i przypadki brzegowe: `lib/pipeline/caseImport.ts`.
+
+Zrzut ekranu reklamy trafia do pipeline'u jako kreacja. Z tekstu OCR znikają etykiety interfejsu („Sponsorowane”, „Dowiedz się więcej”, panele biblioteki reklam), a „Identyfikator biblioteki” staje się parametrem `ad_library_id` z linkiem do biblioteki reklam. Zrzut widoku biblioteki reklam to głównie interfejs, więc jego obraz nie jest porównywany z innymi. `import-cases` wypisuje domeny, dla których RDAP albo crt.sh nie odpowiedziały; ponowne uruchomienie pobiera tylko brakujące.
+
+#### Opcjonalne kroki wzbogacania
+
+Domyślnie wyłączone, włączane flagami `enrich` i `pipeline`:
+
+```bash
+bun run enrich -- --personas lista.json   # lista obserwowanych osób (z próbką: data/sample/personas.json)
+bun run enrich -- --ner                   # nazwiska z tekstu przez skonfigurowany LLM
+bun run enrich -- --cloaking              # dwa zwykłe GET-y: UA crawlera platformy i przeglądarki mobilnej
+bun run enrich -- --ocr --asr --audio     # tesseract (pol), whisper-cli (+ffmpeg), fpcalc
+bun run enrich -- --speaker --ad-library  # głos mówcy (SpeechBrain, scripts/py/setup-speaker.sh), biblioteka reklam Mety (MetaAdsCollector)
+bun run enrich -- --clip                  # embeddingi obrazów CLIP (lokalnie, ONNX)
+bun run media:smoke                       # test adapterów na syntetycznym wejściu
+```
+
+OCR, ASR i odcisk audio działają tylko z zainstalowanymi narzędziami. Brak narzędzia jest wykrywany i krok jest cicho pomijany, więc build pozostaje przenośny. Model whispera wskazuje `WHISPER_MODEL` (domyślnie `~/models/whisper/ggml-large-v3-turbo.bin`); nic nie jest pobierane automatycznie. `--clip` liczy lokalnie embedding kreacji modelem CLIP ViT-B/32 (`CLIP_MODEL`, domyślnie `Xenova/clip-vit-base-patch32`, ok. 350 MB, pobierany raz przy pierwszym użyciu, potem działa offline). Dla wideo (`videoPath`) bierze 8 klatek równo rozłożonych w środku filmu (10–90% długości, bez intro i outro; potrzebne ffmpeg i ffprobe) i uśrednia ich embeddingi. Obraz i wideo są w tej samej przestrzeni CLIP, więc da się je porównywać między sobą. Daje krawędź `similar_image_semantic` dla par, których dHash nie uznał za duplikaty: inny kadr, tło albo twarz w tym samym szablonie. Próg i wagę ustawia `similarity.imageSemantic` (domyślnie cosinus ≥ 0,9, waga 0,45); na prawdziwych danych trzeba je dostroić. Persona pochodzi tylko z tekstu i danych wejściowych, bez biometrii; tekst z OCR i ASR jest dopasowywany w trybie tolerującym błędy transkrypcji.
+
+#### Instalacja narzędzi opcjonalnych (macOS)
+
+Rdzeń (graf, kampanie, przeglądarka) potrzebuje tylko bun. Poniższe narzędzia włączają kroki z flag `--ocr`, `--asr`, `--audio`, `--clip`, `--speaker` i `--ad-library`. Każde instaluje się osobno, a brak któregoś tylko wyłącza jego krok.
+
+```bash
+# OCR, ASR, odcisk audio, klatki wideo
+brew install tesseract tesseract-lang ffmpeg chromaprint whisper.cpp
+mkdir -p ~/models/whisper
+# model ASR (ok. 1,5 GB): ggml-large-v3-turbo.bin z repozytorium modeli whisper.cpp na Hugging Face,
+# np. skryptem models/download-ggml-model.sh large-v3-turbo z repozytorium whisper.cpp, zapisany do ~/models/whisper/
+
+# LLM i embeddingi tekstu (tylko summarize, --ner, --text embedding)
+brew install ollama && ollama serve &
+ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M
+ollama pull bge-m3
+
+# adaptery w Pythonie: głos mówcy (--speaker) i Biblioteka Reklam Mety (--ad-library); wymaga uv
+bash scripts/py/setup-speaker.sh
+
+bun run media:smoke   # sprawdza, które adaptery są dostępne
+```
+
+`scripts/py/setup-speaker.sh` tworzy w katalogu repozytorium środowisko `.venv-speaker` (Python 3.12: speechbrain, torch, torchaudio, soundfile), pobiera raz model `speechbrain/spkrec-ecapa-voxceleb` (ok. 85 MB) do `SPEAKER_MODEL_DIR` i instaluje `meta-ads-collector` przez `uv tool install`. Inne położenie interpretera albo modelu wskazują `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR` i `META_ADS_PYTHON`. Krok `--speaker` potrzebuje też ffmpeg (konwersja do WAV 16 kHz mono).
+
+Sieć jest potrzebna tylko przy instalacji: modele CLIP, ECAPA, whisper i modele Ollamy pobiera się raz, potem wszystkie działają offline. Wyjątkiem jest `--ad-library`, który przy każdym użyciu odpytuje Bibliotekę Reklam Mety.
+
+#### Konfiguracja wag i list
+
+Domyślne wartości są w `lib/graph/config.ts`. Nadpisanie podajesz plikiem JSON (`--config plik.json`): reguły list są dopisywane do domyślnych, a pozostałe pola zastępowane. Przykład w `data/sample/linking.json`:
+
+```json
+{ "minLinkScore": 0.15, "similarity": { "imageHamming": 10 },
+  "lists": { "domains": [{ "match": "krotki.test", "factor": 0, "reason": "skracacz linków" }],
+             "pivots":  [{ "match": "tracker:ga4:G-XXXXXXXXXX", "factor": 0.05, "reason": "tracker szablonu" }] } }
+```
+
+
+### 17.6 Biblioteki, modele i źródła danych
+
+Narzędzia zewnętrzne są opcjonalne, uruchamiane jako osobne procesy (albo kontener) i nie są dołączone do repozytorium ani do obrazu aplikacji.
+
+| Składnik | Wersja | Licencja | Do czego |
+|---|---|---|---|
+| Next.js | 16.4.6 | MIT | aplikacja, API |
+| React / React DOM | 19.3.0 | MIT | UI |
+| TypeScript | 5.9 | Apache-2.0 | typy (strict) |
+| Tailwind CSS | 4.3 | MIT | style |
+| ESLint, eslint-config-next | 9 / 16.4.6 | MIT | lint |
+| zod | 4.6.7 | MIT | walidacja, schematy structured output |
+| graphology, graphology-communities-louvain, graphology-types | 0.26.0 / 2.0.2 / 0.24.8 | MIT | graf, Louvain |
+| cytoscape, cytoscape-fcose | 3.35.0 / 2.2.0 | MIT | wizualizacja grafu |
+| tldts | 7.5.4 | MIT (dane Public Suffix List: MPL-2.0) | domena rejestrowalna (eTLD+1) |
+| sharp | 0.35.5 | Apache-2.0 (binaria libvips: LGPL-3.0-or-later) | dHash/aHash, favicon |
+| p-limit | 7.3.3 | MIT | limit współbieżności |
+| @huggingface/transformers | 3.7.6 | Apache-2.0 | opcjonalne embeddingi CLIP (ONNX Runtime) |
+| CLIP ViT-B/32 (`Xenova/clip-vit-base-patch32`) | – | MIT (OpenAI CLIP) | model, pobierany przy pierwszym `--clip` |
+| csv-parse | 7.0.3 | MIT | CSV |
+| @anthropic-ai/sdk | 1.10.0 | Apache-2.0 | dostawca Anthropic |
+| @noble/hashes | 2.4.0 | MIT | keccak-256 (suma kontrolna EIP-55) |
+| vitest | 5.1.1 | MIT | testy |
+| Ollama | 0.40 | MIT | lokalne uruchamianie modeli |
+| PLLuM-12B-instruct-2512 (GGUF Q5_K_M, kwantyzacja mradermacher) | — | Apache-2.0 | domyślny LLM |
+| Bielik-11B-v3.0-instruct (SpeakLeash, Q5_K_M) | — | Apache-2.0 | alternatywny LLM |
+| bge-m3 (BAAI) | — | MIT | embeddingi |
+| Claude `claude-opus-5-5` (Anthropic API) | — | warunki komercyjne Anthropic | opcjonalny LLM (testy tylko z mockami) |
+| Tesseract OCR + dane `pol` (tessdata) | 5.5.3 | Apache-2.0 | opcjonalny OCR kreacji (proces zewnętrzny) |
+| whisper.cpp (`whisper-cli`) + model `ggml-large-v3-turbo` (wagi Whisper, OpenAI) | 1.9.5 | MIT / MIT | opcjonalny ASR (proces zewnętrzny, model lokalny) |
+| FFmpeg | 9.0.2 | LGPL-2.1-or-later; build Homebrew z `--enable-gpl --enable-version3`, czyli GPL-3.0-or-later | konwersja audio do WAV 16 kHz mono przed ASR (proces zewnętrzny) |
+| Chromaprint (`fpcalc`) | 1.6.2 | LGPL-2.1-or-later | opcjonalny odcisk audio (proces zewnętrzny) |
+| certstream-server-go (obraz `0rickyy0/certstream-server-go`) | 1.10.1 | MIT | opcjonalny lokalny strumień CT (kontener Docker) |
+| mlx-whisper | 0.4.3 | MIT | zapasowy ASR na Apple Silicon, tylko z modelem już obecnym lokalnie (proces zewnętrzny) |
+| SpeechBrain | 1.1.2 | Apache-2.0 | embedding głosu mówcy dla `--speaker` (Python, proces zewnętrzny) |
+| model `speechbrain/spkrec-ecapa-voxceleb` (ECAPA-TDNN) | — | Apache-2.0 (trenowany na VoxCeleb) | wektor głosu (192 wymiary), pobierany raz przez `setup-speaker.sh`; nie był trenowany na polskiej mowie |
+| PyTorch / torchaudio | 2.15.0 / 2.11.1 | licencje liberalne według metadanych pakietów (PyTorch: Apache-2.0, BSD-2/3-Clause, MIT i in.; torchaudio: BSD) | środowisko wykonawcze SpeechBrain |
+| soundfile, NumPy | 0.14.0 / 2.5.5 | BSD-3-Clause | odczyt WAV, wektory |
+| MetaAdsCollector (`meta-ads-collector`) | 1.7.2 | MIT | dane przejrzystości DSA z Biblioteki Reklam Mety dla `--ad-library`: płatnik, beneficjent, usunięcie, zasięg w UE. Korzysta z publicznego endpointu strony, bez klucza API, więc może przestać działać po zmianie strony; automatyczne odpytywanie może naruszać regulamin Mety |
+| uv | 0.12.15 | MIT OR Apache-2.0 | instalacja środowiska Pythona w `setup-speaker.sh` |
+| rdap.org, crt.sh, Team Cymru IP-to-ASN, logi Certificate Transparency (lista logów Google), publiczny CertStream (calidog) | — | publiczne usługi bezpłatne | RDAP, logi CT, ASN, strumień CT |
+| Biblioteka Reklam Mety (publiczna strona) | — | regulamin Mety | odpytywana tylko z `--ad-library`, przez MetaAdsCollector |
+| Hugging Face Hub, rejestr Ollamy | — | licencje poszczególnych modeli (wyżej) | jednorazowe pobranie modeli CLIP, ECAPA, PLLuM/Bielik i bge-m3 |
+
+#### Usługi wymagające autoryzacji
+
+Domyślna konfiguracja nie wymaga żadnego klucza ani konta. Wszystkie usługi z tabeli wyżej są publiczne i bezpłatne.
+
+- **Anthropic API** (opcjonalny dostawca LLM): klucz w `ANTHROPIC_API_KEY` albo profil `ant auth login`. Używać go tylko wtedy, gdy regulamin pozwala wysyłać dane na zewnątrz.
+- **Oficjalne Ad Library API Mety** (nieużywane w kodzie): wymaga weryfikacji tożsamości w Meta i tokenu dostępu. Zastąpiłoby nieoficjalny endpoint MetaAdsCollector.
+- **urlscan.io** (tylko do zbierania danych walidacyjnych, poza kodem narzędzia): wyszukiwanie anonimowe obejmuje 30 dni wstecz i 100 zapytań na godzinę. Darmowe konto daje klucz API i dostęp do DOM zapisanych stron.
+
+Klucze trzyma się w `.env` (w `.gitignore`). Do repozytorium trafia tylko `.env.example` bez wartości.
+
+### 17.7 Pochodzenie danych
+
+| Dane | Źródło | Gdzie są | Do czego |
+|---|---|---|---|
+| Próbka `data/sample/`, testy, fixtures | wygenerowane (`scripts/gen-sample.ts`), w całości syntetyczne (szczegóły w [Dane przykładowe i testowe](#dane-przykładowe-i-testowe)) | w repozytorium | demo offline, testy, `bun run evaluate` |
+| Materiały organizatora (sprawy z zapowiedzi zadania i paczka od jury) | organizator zadania | wyłącznie lokalnie, poza repozytorium i jego historią git | rozwój importera, dobór wag i progów, demo. Materiałów organizatora nie wolno rozpowszechniać, dlatego wartości z nich w testach zastąpiłem syntetycznymi (sekcja [Pochodzenie kodu](#pochodzenie-kodu)) |
+| Zbiór walidacyjny: 212 materiałów spoza próbki (z 298 kandydatów) | **urlscan.io** (publiczne wyniki wyszukiwania: zrzut strony, lista żądań odtworzona jako HAR z hashami zasobów, strona wyniku), **Lista Ostrzeżeń CERT Polska** (`hole.cert.pl/domains/v2/domains.json`) i **RDAP** (serie rejestracji), zrzuty z artykułu **Demagog**, kopia z **Internet Archive (Wayback Machine)**. Bez wyników sprawdzone: crt.sh, OpenPhish, URLhaus, ostrzeżenia KNF, Google Ads Transparency Center | poza repozytorium (treści oszukańczych stron); każdy materiał ma `zrodlo.json` z adresem źródła i datą dostępu (21.11.2026) | walidacja na danych spoza próbki: warianty znanych kampanii jako pozytywy, strony tej samej platformy albo narracji od innych operatorów jako trudne negatywy |
+| Lista Ostrzeżeń CERT Polska 2024–2026 z logiem zmian API v2 | `hole.cert.pl` (publiczne API) | poza repozytorium | pilot wczesnego ostrzegania: o ile wcześniej domena pojawia się w logach CT niż na Liście |
+| Przykład wzorca nazw domen `finance23-voluptas94.sbs` | publiczny komunikat CSIRT KNF | w testach | test wzorców nazw domen |
+| Dane zbierane w działaniu (tryb live) | DNS, rdap.org, crt.sh, Team Cymru, jedno pobranie strony na adres, strumień CT, opcjonalnie Biblioteka Reklam Mety | `.cache/` i `data/work/` (w `.gitignore`) | wzbogacanie materiałów (sekcja [Tryb live](#tryb-live-prawdziwe-dane)) |
+
+Lista obserwowanych osób (`--personas`) nie jest dołączona. W próbce są tylko fikcyjne osoby, a listę osób publicznych dostarcza użytkownik. Tryb `import-cases` nie pobiera stron docelowych: bierze treść z HAR i zapisanych stron, które przyszły z materiałem.
+
+### 17.8 Struktura
+
+```
+lib/osint/      urls, ip, fetchPage (SSRF), extract, pagekit (kit strony), domainPattern, campaignParams,
+                crypto, dns, rdap, ct (lookupCt, searchCt), asn
+lib/media/      imageHash (dHash/aHash, Hamming, favicon mmh3), imageEmbed (CLIP), tools, ocr, asr, audioFp
+lib/text/       normalizacja (homoglify, leet, diakrytyki), TF-IDF, cosinus, persona
+lib/graph/      model, config (wagi i listy), weights, link, cluster (union-find + Louvain), explain, eval, prune
+lib/llm/        ollama, anthropic, wybór dostawcy
+lib/pipeline/   ingest, sources (live/fixtures), enrich, steps, analyze, summary
+lib/evidence/   paczka dowodów (JSON, Markdown, lista CERT, zgłoszenie DSA, manifest)
+lib/ct/         watcher CT: config (leksykon), fingerprint (odciski i dopasowanie), stream, feed, enrich, watch
+scripts/        ingest, enrich, build-graph, evaluate, pipeline, summarize, evidence, ct-watch, ct-backfill,
+                llm-smoke, media-smoke, gen-sample
+app/, components/viewer/   przeglądarka (porównanie reklam, zakładka „Nowe domeny”) i API
+docker/certstream/         konfiguracja lokalnego serwera CT
+data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl
+```
+
+

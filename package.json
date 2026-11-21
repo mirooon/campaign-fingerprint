@@ -1,7 +1,8 @@
 {
-  "name": "starter",
+  "name": "odcisk-kampanii",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -27,7 +28,8 @@
     "base": "bun scripts/base.ts",
     "cache:freeze": "bun scripts/cache-freeze.ts",
     "demo-batch": "bun scripts/demo-batch.ts",
-    "demo": "bun scripts/demo.ts"
+    "demo": "bun scripts/demo.ts",
+    "licenses": "bun scripts/licenses.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

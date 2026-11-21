@@ -6,7 +6,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Stan:** w budowie. Instrukcja uruchomienia jest niżej, szczegóły techniczne (formaty, wagi i progi z odwołaniami do kodu, CLI, konfiguracja) w [docs/TECHNICAL.md](docs/TECHNICAL.md).
 
-**Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne.
+**Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne. Skąd pochodzą dane spoza repozytorium i z jakich źródeł narzędzie korzysta w działaniu: [Pochodzenie danych](#pochodzenie-danych).
 
 ## Opis techniczny
 
@@ -161,6 +161,32 @@ bun run media:smoke                       # test adapterów na syntetycznym wej�
 
 OCR, ASR i odcisk audio działają tylko z zainstalowanymi narzędziami. Brak narzędzia jest wykrywany i krok jest cicho pomijany, więc build pozostaje przenośny. Model whispera wskazuje `WHISPER_MODEL` (domyślnie `~/models/whisper/ggml-large-v3-turbo.bin`); nic nie jest pobierane automatycznie. `--clip` liczy lokalnie embedding kreacji modelem CLIP ViT-B/32 (`CLIP_MODEL`, domyślnie `Xenova/clip-vit-base-patch32`, ok. 350 MB, pobierany raz przy pierwszym użyciu, potem działa offline). Dla wideo (`videoPath`) bierze 8 klatek równo rozłożonych w środku filmu (10–90% długości, bez intro i outro; potrzebne ffmpeg i ffprobe) i uśrednia ich embeddingi. Obraz i wideo są w tej samej przestrzeni CLIP, więc da się je porównywać między sobą. Daje krawędź `similar_image_semantic` dla par, których dHash nie uznał za duplikaty: inny kadr, tło albo twarz w tym samym szablonie. Próg i wagę ustawia `similarity.imageSemantic` (domyślnie cosinus ≥ 0,9, waga 0,45); na prawdziwych danych trzeba je dostroić. Persona pochodzi tylko z tekstu i danych wejściowych, bez biometrii; tekst z OCR i ASR jest dopasowywany w trybie tolerującym błędy transkrypcji.
 
+### Instalacja narzędzi opcjonalnych (macOS)
+
+Rdzeń (graf, kampanie, przeglądarka) potrzebuje tylko bun. Poniższe narzędzia włączają kroki z flag `--ocr`, `--asr`, `--audio`, `--clip`, `--speaker` i `--ad-library`. Każde instaluje się osobno, a brak któregoś tylko wyłącza jego krok.
+
+```bash
+# OCR, ASR, odcisk audio, klatki wideo
+brew install tesseract tesseract-lang ffmpeg chromaprint whisper.cpp
+mkdir -p ~/models/whisper
+# model ASR (ok. 1,5 GB): ggml-large-v3-turbo.bin z repozytorium modeli whisper.cpp na Hugging Face,
+# np. skryptem models/download-ggml-model.sh large-v3-turbo z repozytorium whisper.cpp, zapisany do ~/models/whisper/
+
+# LLM i embeddingi tekstu (tylko summarize, --ner, --text embedding)
+brew install ollama && ollama serve &
+ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M
+ollama pull bge-m3
+
+# adaptery w Pythonie: głos mówcy (--speaker) i Biblioteka Reklam Mety (--ad-library); wymaga uv
+bash scripts/py/setup-speaker.sh
+
+bun run media:smoke   # sprawdza, które adaptery są dostępne
+```
+
+`scripts/py/setup-speaker.sh` tworzy w katalogu repozytorium środowisko `.venv-speaker` (Python 3.12: speechbrain, torch, torchaudio, soundfile), pobiera raz model `speechbrain/spkrec-ecapa-voxceleb` (ok. 85 MB) do `SPEAKER_MODEL_DIR` i instaluje `meta-ads-collector` przez `uv tool install`. Inne położenie interpretera albo modelu wskazują `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR` i `META_ADS_PYTHON`. Krok `--speaker` potrzebuje też ffmpeg (konwersja do WAV 16 kHz mono).
+
+Sieć jest potrzebna tylko przy instalacji: modele CLIP, ECAPA, whisper i modele Ollamy pobiera się raz, potem wszystkie działają offline. Wyjątkiem jest `--ad-library`, który przy każdym użyciu odpytuje Bibliotekę Reklam Mety.
+
 ### Konfiguracja wag i list
 
 Domyślne wartości są w `lib/graph/config.ts`. Nadpisanie podajesz plikiem JSON (`--config plik.json`): reguły list są dopisywane do domyślnych, a pozostałe pola zastępowane. Przykład w `data/sample/linking.json`:
@@ -256,6 +282,10 @@ Wszystkie zmienne z komentarzami są w `.env.example`, łącznie z adapterami me
 | `LINK_CONFIG` | `data/sample/linking.json` | konfiguracja wag dla `/api/analyze` |
 | `WHISPER_MODEL` | `~/models/whisper/ggml-large-v3-turbo.bin` | model whisper.cpp dla `--asr` |
 | `MLX_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | zapasowy ASR, tylko gdy model jest już lokalnie |
+| `CLIP_MODEL` | `Xenova/clip-vit-base-patch32` | model CLIP dla `--clip` |
+| `SPEAKER_PYTHON` | `.venv-speaker/bin/python` | interpreter z SpeechBrain dla `--speaker` |
+| `SPEAKER_MODEL_DIR` | `~/models/speechbrain/spkrec-ecapa-voxceleb` | katalog modelu ECAPA |
+| `META_ADS_PYTHON` | interpreter z `meta-ads-collector` w `PATH` | Python z MetaAdsCollector dla `--ad-library` |
 | `CT_STREAM_URL` | `ws://127.0.0.1:8181/,wss://certstream.calidog.io/` | strumienie CT w kolejności prób |
 | `CT_FEED_FILE` | `data/ct-watch.jsonl` | feed kandydatów watchera CT (zapis i `/api/ct-feed`) |
 
@@ -327,7 +357,39 @@ Rozszerzenie z 19.11.2026 nie dodało nowych bibliotek npm. Narzędzia zewnętrz
 | FFmpeg | 9.0.2 | LGPL-2.1-or-later; build Homebrew z `--enable-gpl --enable-version3`, czyli GPL-3.0-or-later | konwersja audio do WAV 16 kHz mono przed ASR (proces zewnętrzny) |
 | Chromaprint (`fpcalc`) | 1.6.2 | LGPL-2.1-or-later | opcjonalny odcisk audio (proces zewnętrzny) |
 | certstream-server-go (obraz `0rickyy0/certstream-server-go`) | 1.10.1 | MIT | opcjonalny lokalny strumień CT (kontener Docker) |
+| mlx-whisper | 0.4.3 | MIT | zapasowy ASR na Apple Silicon, tylko z modelem już obecnym lokalnie (proces zewnętrzny) |
+| SpeechBrain | 1.1.2 | Apache-2.0 | embedding głosu mówcy dla `--speaker` (Python, proces zewnętrzny) |
+| model `speechbrain/spkrec-ecapa-voxceleb` (ECAPA-TDNN) | — | Apache-2.0 (trenowany na VoxCeleb) | wektor głosu (192 wymiary), pobierany raz przez `setup-speaker.sh`; nie był trenowany na polskiej mowie |
+| PyTorch / torchaudio | 2.15.0 / 2.11.1 | licencje liberalne według metadanych pakietów (PyTorch: Apache-2.0, BSD-2/3-Clause, MIT i in.; torchaudio: BSD) | środowisko wykonawcze SpeechBrain |
+| soundfile, NumPy | 0.14.0 / 2.5.5 | BSD-3-Clause | odczyt WAV, wektory |
+| MetaAdsCollector (`meta-ads-collector`) | 1.7.2 | MIT | dane przejrzystości DSA z Biblioteki Reklam Mety dla `--ad-library`: płatnik, beneficjent, usunięcie, zasięg w UE. Korzysta z publicznego endpointu strony, bez klucza API, więc może przestać działać po zmianie strony; automatyczne odpytywanie może naruszać regulamin Mety |
+| uv | 0.12.15 | MIT OR Apache-2.0 | instalacja środowiska Pythona w `setup-speaker.sh` |
 | rdap.org, crt.sh, Team Cymru IP-to-ASN, logi Certificate Transparency (lista logów Google), publiczny CertStream (calidog) | — | publiczne usługi bezpłatne | RDAP, logi CT, ASN, strumień CT |
+| Biblioteka Reklam Mety (publiczna strona) | — | regulamin Mety | odpytywana tylko z `--ad-library`, przez MetaAdsCollector |
+| Hugging Face Hub, rejestr Ollamy | — | licencje poszczególnych modeli (wyżej) | jednorazowe pobranie modeli CLIP, ECAPA, PLLuM/Bielik i bge-m3 |
+
+### Usługi wymagające autoryzacji
+
+Domyślna konfiguracja nie wymaga żadnego klucza ani konta. Wszystkie usługi z tabeli wyżej są publiczne i bezpłatne.
+
+- **Anthropic API** (opcjonalny dostawca LLM): klucz w `ANTHROPIC_API_KEY` albo profil `ant auth login`. Używać go tylko wtedy, gdy regulamin pozwala wysyłać dane na zewnątrz.
+- **Oficjalne Ad Library API Mety** (nieużywane w kodzie): wymaga weryfikacji tożsamości w Meta i tokenu dostępu. Zastąpiłoby nieoficjalny endpoint MetaAdsCollector.
+- **urlscan.io** (tylko do zbierania danych walidacyjnych, poza kodem narzędzia): wyszukiwanie anonimowe obejmuje 30 dni wstecz i 100 zapytań na godzinę. Darmowe konto daje klucz API i dostęp do DOM zapisanych stron.
+
+Klucze trzyma się w `.env` (w `.gitignore`). Do repozytorium trafia tylko `.env.example` bez wartości.
+
+## Pochodzenie danych
+
+| Dane | Źródło | Gdzie są | Do czego |
+|---|---|---|---|
+| Próbka `data/sample/`, testy, fixtures | wygenerowane (`scripts/gen-sample.ts`), w całości syntetyczne (szczegóły w [Dane przykładowe i testowe](#dane-przykładowe-i-testowe)) | w repozytorium | demo offline, testy, `bun run evaluate` |
+| Materiały organizatora (sprawy z zapowiedzi zadania i paczka od jury) | organizator zadania | wyłącznie lokalnie, poza repozytorium i jego historią git | rozwój importera, dobór wag i progów, demo. Materiałów organizatora nie wolno rozpowszechniać, dlatego wartości z nich w testach zastąpiłem syntetycznymi (sekcja [Pochodzenie kodu](#pochodzenie-kodu)) |
+| Zbiór walidacyjny: 212 materiałów spoza próbki (z 298 kandydatów) | **urlscan.io** (publiczne wyniki wyszukiwania: zrzut strony, lista żądań odtworzona jako HAR z hashami zasobów, strona wyniku), **Lista Ostrzeżeń CERT Polska** (`hole.cert.pl/domains/v2/domains.json`) i **RDAP** (serie rejestracji), zrzuty z artykułu **Demagog**, kopia z **Internet Archive (Wayback Machine)**. Bez wyników sprawdzone: crt.sh, OpenPhish, URLhaus, ostrzeżenia KNF, Google Ads Transparency Center | poza repozytorium (treści oszukańczych stron); każdy materiał ma `zrodlo.json` z adresem źródła i datą dostępu (21.11.2026) | walidacja na danych spoza próbki: warianty znanych kampanii jako pozytywy, strony tej samej platformy albo narracji od innych operatorów jako trudne negatywy |
+| Lista Ostrzeżeń CERT Polska 2024–2026 z logiem zmian API v2 | `hole.cert.pl` (publiczne API) | poza repozytorium | pilot wczesnego ostrzegania: o ile wcześniej domena pojawia się w logach CT niż na Liście |
+| Przykład wzorca nazw domen `finance23-voluptas94.sbs` | publiczny komunikat CSIRT KNF | w testach | test wzorców nazw domen |
+| Dane zbierane w działaniu (tryb live) | DNS, rdap.org, crt.sh, Team Cymru, jedno pobranie strony na adres, strumień CT, opcjonalnie Biblioteka Reklam Mety | `.cache/` i `data/work/` (w `.gitignore`) | wzbogacanie materiałów (sekcja [Tryb live](#tryb-live-prawdziwe-dane)) |
+
+Lista obserwowanych osób (`--personas`) nie jest dołączona. W próbce są tylko fikcyjne osoby, a listę osób publicznych dostarcza użytkownik. Tryb `import-cases` nie pobiera stron docelowych: bierze treść z HAR i zapisanych stron, które przyszły z materiałem.
 
 ## Struktura
 

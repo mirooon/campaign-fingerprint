@@ -303,15 +303,16 @@ describe("similarity and explain", () => {
     const config = mergeConfig({ similarity: { imageHamming: 10 } });
     const graph = buildEvidenceGraph(
       makeDataset([
-        { id: "i1", url: "https://img-a.example/", dhash: "ffffffff00000000" },
-        { id: "i2", dhash: "ffffffff00000007" }, // distance 3 from i1, no URL at all
+        { id: "i1", url: "https://img-a.example/", dhash: "ffffffff00000000", advertiser: "Strona Testowa Media" },
+        // distance 3 from i1, no URL at all: the picture (content) is corroborated by the advertiser
+        { id: "i2", dhash: "ffffffff00000007", advertiser: "Strona Testowa Media" },
         { id: "i3", url: "https://img-a.example/p2" },
       ]),
       { config, textMethod: "none" },
     );
     const res = clusterCampaigns(graph, { config });
     const sim = res.graph.links.find((l) => l.a === "i1" && l.b === "i2")!;
-    expect(sim.evidence[0].edgeType).toBe("similar_image");
+    expect(sim.evidence.map((e) => e.edgeType)).toContain("similar_image");
     expect(res.campaigns.assignments.i2).toBe(res.campaigns.assignments.i3);
 
     const ex = explain(res.graph, "i2", "i3", config);
@@ -330,8 +331,9 @@ describe("similarity and explain", () => {
   it("links reworded ad copy via TF-IDF and reports campaign stats", () => {
     const graph = buildEvidenceGraph(
       makeDataset([
-        { id: "t1", text: "Adam Testowy ujawnia: nowa platforma krypto zarabia 5000 zł dziennie. Zarejestruj się dziś!", firstSeen: "2026-10-01T00:00:00Z" },
-        { id: "t2", text: "Adam Testowy ujawnił sekret: platforma kryptowalut zarabia nawet 5000 zł dziennie. Zarejestruj się teraz!", firstSeen: "2026-10-05T00:00:00Z" },
+        // no addresses: the copy and a near-identical picture are two kinds of content
+        { id: "t1", text: "Adam Testowy ujawnia: nowa platforma krypto zarabia 5000 zł dziennie. Zarejestruj się dziś!", firstSeen: "2026-10-01T00:00:00Z", dhash: "f0f0f0f0f0f0f0f0" },
+        { id: "t2", text: "Adam Testowy ujawnił sekret: platforma kryptowalut zarabia nawet 5000 zł dziennie. Zarejestruj się teraz!", firstSeen: "2026-10-05T00:00:00Z", dhash: "f0f0f0f0f0f0f0ff" },
         { id: "t3", text: "Promocja na rowery miejskie i darmowa dostawa przez cały październik.", firstSeen: "2026-10-03T00:00:00Z" },
       ]),
     );
@@ -341,6 +343,10 @@ describe("similarity and explain", () => {
     const c = res.campaigns.campaigns.find((x) => x.members.includes("t1"))!;
     expect(c.firstSeen).toBe("2026-10-01T00:00:00Z");
     expect(c.lastSeen).toBe("2026-10-05T00:00:00Z");
-    expect(c.topEvidence[0].type).toBe("similar_text");
+    expect(c.topEvidence.map((e) => e.type)).toContain("similar_text");
+    expect(c.attributes.basis).toBe("content");
+    // one kind of content alone (the copy) does not make a campaign
+    const textOnly = clusterCampaigns(buildEvidenceGraph(makeDataset([{ id: "t1", text: "Adam Testowy ujawnia: nowa platforma krypto zarabia 5000 zł dziennie. Zarejestruj się dziś!" }, { id: "t2", text: "Adam Testowy ujawnił sekret: platforma kryptowalut zarabia nawet 5000 zł dziennie. Zarejestruj się teraz!" }])));
+    expect(textOnly.campaigns.assignments.t1).not.toBe(textOnly.campaigns.assignments.t2);
   });
 });

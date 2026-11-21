@@ -182,6 +182,8 @@ export interface PairEvidence {
   strong: boolean;
   discounted: boolean;
   evidence: string;
+  /** Raw similarity of a similarity edge (cosine, Chromaprint similarity), when it has one. */
+  similarity?: number;
   /** Node path item A -> pivot and item B -> pivot (kind = pivot). */
   pathA: string[];
   pathB: string[];
@@ -271,6 +273,12 @@ export interface CampaignAttributes {
   cloakingSuspected: number;
   /** Highest deepfake score supplied in the input data (e.g. DROZD column), if any. */
   deepfakeScoreMax: number | null;
+  /**
+   * What the campaign stands on: "content" when every link that joined its members is content only
+   * (similar copy, picture, recording, the same creative file) and a single member has no infrastructure;
+   * "infrastructure" when no member is attached by content alone; "mixed" otherwise.
+   */
+  basis?: "content" | "infrastructure" | "mixed";
 }
 
 export interface CampaignsFile {
@@ -288,6 +296,9 @@ export interface CampaignsFile {
   families?: CampaignFamily[];
   assignments: Record<string, string>;
 }
+
+/** Key prefix of the "same creative file" pivot: an image-hash node keyed by the SHA-256 of the file ("creative_sha256" in the campaign rules). */
+export const CREATIVE_FILE_PREFIX = "sha256:";
 
 export function nodeId(type: EntityType, key: string): string {
   return `${type}:${key}`;

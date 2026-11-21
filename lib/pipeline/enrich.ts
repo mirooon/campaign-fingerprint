@@ -27,7 +27,7 @@ import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../me
 import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText } from "../osint/extract";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
-import { domSimhash, extractPageKit, simhashDistance } from "../osint/pagekit";
+import { domSimhash, extractPageKit, simhashDistance, withRequestUrls } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   extractPersonsNer,
@@ -212,6 +212,9 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           }
         }
       }
+      // requests recorded with the page (HAR): traces visible without the page code (platform tenant)
+      const requests = sources.requestsFor?.(url) ?? (res.finalUrl !== url ? sources.requestsFor?.(res.finalUrl) : null) ?? null;
+      if (requests?.length) kit = withRequestUrls(kit, requests);
       let favicon: PageInfo["favicon"] = null;
       if (!skip.favicon && extract?.faviconUrl) {
         try {
@@ -341,6 +344,15 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         let asrText: string | null = null;
         let audioFp: AudioFingerprint | null = null;
         let videoEmbedding: number[] | null = null;
+        let videoSha256: string | null = null;
+        if (item.videoPath) {
+          try {
+            const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
+            videoSha256 = createHash("sha256").update(await readFile(file)).digest("hex");
+          } catch (e) {
+            errors.push(`video: ${errMsg(e)}`);
+          }
+        }
         if (item.videoPath && (asrOn || audioOn || clipOn)) {
           const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
           if (asrOn) asrText = await mediaLimit(() => transcribe(file));
@@ -422,6 +434,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           audioFp,
           ...(imageEmbedding ? { imageEmbedding } : {}),
           ...(videoEmbedding ? { videoEmbedding } : {}),
+          ...(videoSha256 ? { videoSha256 } : {}),
           errors,
         };
         progress("items", ++done, items.length);

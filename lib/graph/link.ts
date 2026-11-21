@@ -22,6 +22,7 @@ import type { EnrichedDataset, Item } from "../pipeline/types";
 import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/similarity";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import {
+  CREATIVE_FILE_PREFIX,
   ENTITY_TYPES,
   nodeId,
   type EdgeType,
@@ -140,6 +141,22 @@ export function buildEvidenceGraph(
   /** Items whose creative is a screenshot of an ad-library view: mostly interface, so the picture is not compared. */
   const libraryViews = new Set<string>();
 
+  // Tenants of the landing-page platform (landing-cdn/<uuid>) seen together with an owner_uuid: a page
+  // that has only the tenant (no page code) is then attributed to that account. A tenant seen with two
+  // different owners is ambiguous and not mapped.
+  const tenantOwner = new Map<string, string | null>();
+  for (const item of items) {
+    const e = dataset.perItem[item.id];
+    const kit = e?.pageKey ? dataset.pages[e.pageKey]?.kit : null;
+    const owner = kit?.lander?.ownerId;
+    if (!owner) continue;
+    for (const t of kit?.platformTenants ?? []) {
+      if (t === owner) continue;
+      const cur = tenantOwner.get(t);
+      tenantOwner.set(t, cur === undefined || cur === owner ? owner : null);
+    }
+  }
+
   for (const item of items) {
     const facts: Fact[] = [];
     const add = (pivot: string, type: EntityType, path: string[], relation: number, how: string) => {
@@ -245,6 +262,16 @@ export function buildEvidenceGraph(
       g.edge(itemNode, ih, "has_image", "dHash kreacji reklamy");
       // an ad-library view is mostly interface: two different ads can hash identically
       if (ui?.view !== "ad_library") add(ih, "imagehash", [itemNode, ih], 1, `identyczny obraz (dHash ${enr.image.dhash})`);
+    }
+    // The same creative file (SHA-256 of the bytes): a node of the image-hash type keyed "sha256:<hex>"
+    const creativeFiles: Array<{ sha: string; media: "image" | "video" }> = [];
+    if (enr?.image?.sha256) creativeFiles.push({ sha: enr.image.sha256, media: "image" });
+    if (enr?.videoSha256) creativeFiles.push({ sha: enr.videoSha256, media: "video" });
+    for (const f of creativeFiles) {
+      const what = f.media === "video" ? "plik wideo" : "plik obrazu";
+      const id = g.node("imagehash", `${CREATIVE_FILE_PREFIX}${f.sha}`, `${what} kreacji ${f.sha.slice(0, 12)}…`, { sha256: f.sha, media: f.media, exactFile: true });
+      g.edge(itemNode, id, "has_image", `SHA-256 pliku kreacji (${what})`);
+      add(id, "imagehash", [itemNode, id], 1, `ten sam plik kreacji (${what}, SHA-256 ${f.sha.slice(0, 16)}…)`);
     }
 
     const addContacts = (
@@ -486,7 +513,8 @@ export function buildEvidenceGraph(
         const rel = pageRel;
         const finalPath = path;
         for (const ep of kit.endpoints) {
-          const label = ep.sameOrigin ? `backend ${ep.pathTemplate} (ta sama domena)` : `backend ${ep.host}${ep.pathTemplate}`;
+          const client = ep.clientId ? ` (klient ${ep.clientId.length > 16 ? `${ep.clientId.slice(0, 15)}…` : ep.clientId})` : "";
+          const label = ep.sameOrigin ? `backend ${ep.pathTemplate} (ta sama domena)` : `backend ${ep.host}${ep.pathTemplate}${client}`;
           const id = g.node("endpoint", ep.key, label, {
             host: ep.host,
             pathTemplate: ep.pathTemplate,
@@ -494,9 +522,15 @@ export function buildEvidenceGraph(
             method: ep.method,
             via: ep.via,
             registrableDomain: registrableDomain(ep.host),
+            ...(ep.clientId ? { clientId: ep.clientId, clientIdSource: ep.clientIdSource ?? null } : {}),
           });
           g.edge(finalUrlNode, id, "posts_to", `strona wysyła dane (${ep.via}${ep.method ? `, ${ep.method}` : ""}) do ${ep.raw}`);
-          add(id, "endpoint", [...finalPath, id], rel, `ten sam backend formularza ${ep.sameOrigin ? `*${ep.pathTemplate}` : `${ep.host}${ep.pathTemplate}`}`);
+          const how = ep.sameOrigin
+            ? `ten sam backend formularza *${ep.pathTemplate}`
+            : ep.clientId
+              ? `ten sam backend formularza z tym samym identyfikatorem klienta (${ep.host}${ep.pathTemplate}, ${ep.clientIdSource ?? "identyfikator"} ${ep.clientId})`
+              : `ten sam backend formularza ${ep.host}${ep.pathTemplate}`;
+          add(id, "endpoint", [...finalPath, id], rel, how);
         }
         const hidden = discounter.specificHiddenFields(kit.hiddenFields);
         if (hidden.length >= config.kit.minHiddenFields) {
@@ -534,15 +568,48 @@ export function buildEvidenceGraph(
         }
         // Records of the landing-page platform (window.aio): account, campaign, template, traffic source
         const lc = kit.lander;
+        const tenants = kit.platformTenants ?? [];
+        if (tenants.length) itemData.platformTenants = tenants;
+        if (lc?.ownerId && tenants.length && !tenants.includes(lc.ownerId)) {
+          itemData.platformAccountWarning = `najemca landing-cdn (${tenants.join(", ")}) różni się od owner_uuid (${lc.ownerId}) z window.${lc.platform}: konto przypisane według owner_uuid`;
+        }
+        if (!lc?.ownerId && tenants.length) {
+          // No page code with the owner (a HAR or a scan's request list): the tenant stands in for the account
+          itemData.landerPlatform ??= lc?.platform ?? "aio";
+          for (const t of tenants) {
+            const mapped = tenantOwner.get(t) ?? null;
+            const account = mapped ?? t;
+            const id = g.node("platform_account", account, `konto ${account.slice(0, 8)}… na platformie stron`, {
+              ownerId: mapped ?? (g.nodes.get(nodeId("platform_account", account))?.data.ownerId as string | undefined) ?? null,
+              tenantId: t,
+              platform: lc?.platform ?? "aio",
+            });
+            g.edge(finalUrlNode, id, "built_on", `pliki strony leżą w katalogu najemcy platformy stron (landing-cdn/${t})${mapped ? `; ten sam najemca ma konto owner_uuid ${mapped}` : ""}`);
+            add(id, "platform_account", [...finalPath, id], rel, `to samo konto na platformie stron (najemca landing-cdn ${t}${mapped ? ` = owner_uuid ${mapped}` : ""})`);
+          }
+          const first = tenants[0];
+          const mapped = tenantOwner.get(first) ?? null;
+          itemData.platformAccount = mapped ?? first;
+          itemData.platformAccountSource = mapped ? "tenant→owner_uuid" : "tenant";
+        }
         if (lc) {
           itemData.landerPlatform = lc.platform;
-          if (lc.ownerId) itemData.platformAccount = lc.ownerId;
+          if (lc.ownerId) {
+            itemData.platformAccount = lc.ownerId;
+            itemData.platformAccountSource = "owner_uuid";
+          }
           if (lc.campaignName) itemData.platformCampaignName = lc.campaignName;
           if (lc.landingName) itemData.landingName = lc.landingName;
           if (lc.sourceName) itemData.trafficSource = lc.sourceName;
           if (lc.sourceName && /cloak/i.test(lc.sourceName)) itemData.cloakerInSource = true;
           if (lc.ownerId) {
-            const id = g.node("platform_account", lc.ownerId, `konto ${lc.ownerId.slice(0, 8)}… na platformie stron`, { ownerId: lc.ownerId, platform: lc.platform });
+            const prevTenants = (g.nodes.get(nodeId("platform_account", lc.ownerId))?.data.tenants as string[] | undefined) ?? [];
+            const tenantsOfOwner = [...new Set([...prevTenants, ...tenants.filter((t) => t !== lc.ownerId)])].sort();
+            const id = g.node("platform_account", lc.ownerId, `konto ${lc.ownerId.slice(0, 8)}… na platformie stron`, {
+              ownerId: lc.ownerId,
+              platform: lc.platform,
+              ...(tenantsOfOwner.length ? { tenants: tenantsOfOwner } : {}),
+            });
             g.edge(finalUrlNode, id, "built_on", `strona zapisuje w kodzie konto właściciela na platformie stron (window.${lc.platform}, owner_uuid ${lc.ownerId})`);
             add(id, "platform_account", [...finalPath, id], rel, `to samo konto na platformie stron (owner_uuid ${lc.ownerId})`);
           }
@@ -607,9 +674,12 @@ export function buildEvidenceGraph(
     const landingPage = enr?.pageKey ? dataset.pages[enr.pageKey] : undefined;
     const clickIds = clickIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl]);
     for (const x of clickIds.xids) {
-      const id = g.node("click_server", `${x.machine}/${x.pid}`, `serwer trackera ${x.machine}/${x.pid}`, { machine: x.machine, pid: x.pid });
-      g.edge(itemNode, id, "routed_by", `identyfikator kliknięcia ${x.param}=${x.value} w formacie xid: wydany ${x.time}, maszyna ${x.machine}, proces ${x.pid}, licznik ${x.counter}`);
-      add(id, "click_server", [itemNode, id], 1, `ten sam serwer trackera (clickid w formacie xid: maszyna ${x.machine}, proces ${x.pid})`);
+      // Keyed by the machine only: the "process ID" of this tracker product is one constant on many
+      // installations (a trait of the platform, not of one server), so it stays a detail of the node.
+      const prevPids = (g.nodes.get(nodeId("click_server", x.machine))?.data.pids as number[] | undefined) ?? [];
+      const id = g.node("click_server", x.machine, `serwer trackera ${x.machine}`, { machine: x.machine, pids: [...new Set([...prevPids, x.pid])].sort((p, q) => p - q) });
+      g.edge(itemNode, id, "routed_by", `identyfikator kliknięcia ${x.param}=${x.value} w formacie xid: wydany ${x.time}, maszyna ${x.machine}, proces ${x.pid} (stała instalacji platformy), licznik ${x.counter}`);
+      add(id, "click_server", [itemNode, id], 1, `ten sam serwer trackera (clickid w formacie xid: maszyna ${x.machine})`);
       itemData.clickTime ??= x.time;
       itemData.clickCounter ??= x.counter;
     }
@@ -692,10 +762,27 @@ export function buildEvidenceGraph(
     if (node.type === "item") continue;
     node.df = pivotItems.get(node.id)?.length ?? 0;
     node.discounts = discounter.discountsFor({ type: node.type, key: node.key, id: node.id, data: node.data });
-    const w = pivotWeight(node.type, node.discounts, node.df, n, config, node.data.burst ? config.registrationBurstWeight : undefined);
+    const base = node.data.burst ? config.registrationBurstWeight : node.data.exactFile ? (config.creativeFileWeight ?? 0.95) : undefined;
+    const w = pivotWeight(node.type, node.discounts, node.df, n, config, base);
     node.weight = round(w.weight);
-    node.strong = w.strong;
+    // the same creative file joins by the campaign rules, not by union-find: a platform-account conflict wins over it
+    node.strong = w.strong && !node.data.exactFile;
     node.data.weightParts = { base: w.base, listFactor: w.listFactor, idf: round(w.idf), ubiquity: round(w.ubiquity) };
+  }
+
+  // Infrastructure of each ad (addresses, hosting, backends, platform records, identifiers): decides
+  // whether content similarity may join it (campaignRules.contentKinds)
+  const infraKinds = new Set(config.campaignRules.infrastructureKinds ?? []);
+  const infraMin = config.campaignRules.infrastructureMinWeight ?? 0.3;
+  for (const [itemId, facts] of factsByItem) {
+    const types = new Set<string>();
+    for (const f of facts) {
+      if (!infraKinds.has(f.type)) continue;
+      const node = g.nodes.get(f.pivot);
+      const parts = node?.data.weightParts as { base: number; listFactor: number } | undefined;
+      if (parts && parts.base * parts.listFactor * f.relation >= infraMin) types.add(f.type);
+    }
+    g.nodes.get(nodeId("item", itemId))!.data.infrastructure = [...types].sort();
   }
 
   // Pair evidence from shared pivots
@@ -761,7 +848,7 @@ export function buildEvidenceGraph(
       if (d === 0 || d > thr) continue;
       const weight = config.similarity.imageWeight * (1 - (0.5 * d) / Math.max(1, thr));
       const ev = `prawie identyczna kreacja (dHash, odległość Hamminga ${d}/64)`;
-      pushPair(withImage[i].id, withImage[j].id, simEvidence("similar_image", weight, ev));
+      pushPair(withImage[i].id, withImage[j].id, simEvidence("similar_image", weight, ev, 1 - d / 64));
       g.edge(nodeId("item", withImage[i].id), nodeId("item", withImage[j].id), "similar_image", ev, round(weight));
     }
   }
@@ -785,7 +872,7 @@ export function buildEvidenceGraph(
       if (c < sem.minCosine) continue;
       const weight = sem.weight * (0.5 + (0.5 * (c - sem.minCosine)) / Math.max(1e-9, 1 - sem.minCosine));
       const ev = `ten sam szablon kreacji (CLIP${ca.video || cb.video ? ", klatki wideo" : ""}, cosinus ${c.toFixed(2)})`;
-      pushPair(withEmb[i].id, withEmb[j].id, simEvidence("similar_image_semantic", weight, ev));
+      pushPair(withEmb[i].id, withEmb[j].id, simEvidence("similar_image_semantic", weight, ev, c));
       g.edge(nodeId("item", withEmb[i].id), nodeId("item", withEmb[j].id), "similar_image_semantic", ev, round(weight));
     }
   }
@@ -807,7 +894,7 @@ export function buildEvidenceGraph(
       if (d > domThr) continue;
       const weight = config.similarity.dom.weight * (1 - (0.5 * d) / Math.max(1, domThr));
       const ev = `ta sama struktura strony docelowej (simhash DOM, odległość ${d}/64)`;
-      pushPair(withDom[i].id, withDom[j].id, simEvidence("similar_dom", weight, ev));
+      pushPair(withDom[i].id, withDom[j].id, simEvidence("similar_dom", weight, ev, 1 - d / 64));
       g.edge(nodeId("item", withDom[i].id), nodeId("item", withDom[j].id), "similar_dom", ev, round(weight));
     }
   }
@@ -821,7 +908,7 @@ export function buildEvidenceGraph(
       const span = Math.max(1e-9, 1 - config.similarity.audio.minSimilarity);
       const weight = config.similarity.audio.weight * (0.5 + (0.5 * (sim - config.similarity.audio.minSimilarity)) / span);
       const ev = `ta sama ścieżka dźwiękowa (Chromaprint, podobieństwo ${sim.toFixed(2)})`;
-      pushPair(withAudio[i].id, withAudio[j].id, simEvidence("similar_audio", weight, ev));
+      pushPair(withAudio[i].id, withAudio[j].id, simEvidence("similar_audio", weight, ev, sim));
       g.edge(nodeId("item", withAudio[i].id), nodeId("item", withAudio[j].id), "similar_audio", ev, round(weight));
     }
   }
@@ -839,7 +926,7 @@ export function buildEvidenceGraph(
       if (c < voice.minCosine) continue;
       const weight = voice.weight * (0.5 + (0.5 * (c - voice.minCosine)) / Math.max(1e-9, 1 - voice.minCosine));
       const ev = `ten sam głos mówcy (SpeechBrain ECAPA, cosinus ${c.toFixed(2)}; także sklonowany głos tej samej osoby)`;
-      pushPair(withVoice[i].id, withVoice[j].id, simEvidence("similar_voice", weight, ev));
+      pushPair(withVoice[i].id, withVoice[j].id, simEvidence("similar_voice", weight, ev, c));
       g.edge(nodeId("item", withVoice[i].id), nodeId("item", withVoice[j].id), "similar_voice", ev, round(weight));
     }
   }
@@ -875,7 +962,7 @@ export function buildEvidenceGraph(
         if (c < threshold) continue;
         const weight = config.similarity.text.weight * (0.5 + (0.5 * (c - threshold)) / Math.max(1e-9, 1 - threshold));
         const ev = `podobna treść reklamy (cosinus ${c.toFixed(2)}, ${textMethod === "embedding" ? "embeddingi" : "TF-IDF n-gramów"})`;
-        pushPair(items[i].id, items[j].id, simEvidence("similar_text", weight, ev));
+        pushPair(items[i].id, items[j].id, simEvidence("similar_text", weight, ev, c));
         g.edge(nodeId("item", items[i].id), nodeId("item", items[j].id), "similar_text", ev, round(weight));
       }
     }
@@ -921,8 +1008,20 @@ export function buildEvidenceGraph(
   };
 }
 
-function simEvidence(edgeType: SimilarityEdgeType, weight: number, evidence: string): PairEvidence {
-  return { kind: "similarity", pivot: null, pivotType: null, edgeType, weight: round(weight), strong: false, discounted: false, evidence, pathA: [], pathB: [] };
+function simEvidence(edgeType: SimilarityEdgeType, weight: number, evidence: string, similarity?: number): PairEvidence {
+  return {
+    kind: "similarity",
+    pivot: null,
+    pivotType: null,
+    edgeType,
+    weight: round(weight),
+    strong: false,
+    discounted: false,
+    evidence,
+    ...(similarity !== undefined ? { similarity: round(similarity) } : {}),
+    pathA: [],
+    pathB: [],
+  };
 }
 
 /** Text used for similarity: ad copy, falling back to the landing page title/description. */

@@ -149,19 +149,28 @@ export class Discounter {
       }
       case "endpoint": {
         const host = String(p.data.host ?? "");
-        const svc = firstRule(lists.endpointHosts, (r) => suffixMatch(host, r.match));
-        if (svc) out.push({ reason: svc.reason, factor: svc.factor, rule: `endpointHosts:${svc.match}` });
-        const d = this.domainDiscount(registrableDomain(host));
-        if (d) out.push(d);
+        const hasClient = typeof p.data.clientId === "string" && p.data.clientId !== "";
+        // One client of a shared service (form ID, account key, bot ID) names that client, whatever the
+        // host: the host-level discounts (form services, platforms, multi-client services) do not apply.
+        if (!hasClient) {
+          const svc = firstRule(lists.endpointHosts, (r) => suffixMatch(host, r.match));
+          if (svc) out.push({ reason: svc.reason, factor: svc.factor, rule: `endpointHosts:${svc.match}` });
+          const d = this.domainDiscount(registrableDomain(host));
+          if (d) out.push(d);
+          if (p.data.sameOrigin !== true) {
+            const mt = firstRule(lists.multiTenantBackends ?? [], (r) => suffixMatch(host, r.match));
+            if (mt) out.push({ reason: mt.reason, factor: mt.factor, rule: `multiTenantBackends:${mt.match}` });
+          }
+        }
+        const pathTemplate = String(p.data.pathTemplate ?? "");
+        const sdk = platformPathRule(lists.endpointPlatformPaths, pathTemplate);
+        if (sdk) out.push({ reason: sdk.reason, factor: sdk.factor, rule: `endpointPlatformPaths:${sdk.match}` });
         if (p.data.sameOrigin === true) {
           out.push({
             reason: "ścieżka na tej samej domenie co strona (odcisk szablonu, nie osobny backend)",
             factor: this.config.kit.sameOriginEndpointFactor,
             rule: "kit.sameOriginEndpointFactor",
           });
-          const pathTemplate = String(p.data.pathTemplate ?? "");
-          const sdk = lists.endpointPlatformPaths.find((r) => pathTemplate.startsWith(r.match));
-          if (sdk) out.push({ reason: sdk.reason, factor: sdk.factor, rule: `endpointPlatformPaths:${sdk.match}` });
           const generic = lists.endpointGenericPaths.find((r) => r.match === pathTemplate);
           if (generic) out.push({ reason: generic.reason, factor: generic.factor, rule: `endpointGenericPaths:${generic.match}` });
           else if (pathTemplate.split("/").filter(Boolean).length <= 2) {
@@ -177,9 +186,13 @@ export class Discounter {
       case "asset": {
         const lib = firstRegexRule(this.assetRules, String(p.data.basename ?? ""));
         if (lib) out.push({ reason: lib.reason, factor: lib.factor, rule: `assetLibraries:${lib.match}` });
+        const sdk = platformPathRule(lists.endpointPlatformPaths, String(p.data.path ?? ""));
+        if (sdk) out.push({ reason: sdk.reason, factor: sdk.factor, rule: `endpointPlatformPaths:${sdk.match}` });
         if (p.data.sameOrigin !== true) {
           const d = this.domainDiscount(registrableDomain(String(p.data.host ?? "")));
           if (d) out.push(d);
+          const mt = firstRule(lists.multiTenantBackends ?? [], (r) => suffixMatch(String(p.data.host ?? ""), r.match));
+          if (mt) out.push({ reason: mt.reason, factor: mt.factor, rule: `multiTenantBackends:${mt.match}` });
         }
         break;
       }
@@ -226,6 +239,13 @@ export class Discounter {
         if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `pathIdSharedPrefixes:${rule.match}` });
         break;
       }
+      case "param_schema": {
+        // The link format of a tracker product (e.g. "/click?key=<32 hex>"): a trait of the platform type
+        const parts = String(p.data.schema ?? p.key).split("|");
+        const rule = firstRule(lists.paramSchemaPlatformParts ?? [], (r) => parts.includes(r.match));
+        if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `paramSchemaPlatformParts:${rule.match}` });
+        break;
+      }
       case "campaign_param": {
         const name = String(p.data.canonicalName ?? "");
         const value = String(p.data.value ?? "").trim().toLowerCase();
@@ -259,6 +279,18 @@ export class Discounter {
     }
     return [...byReason.values()];
   }
+}
+
+/**
+ * Rule of `lists.endpointPlatformPaths` matching a path: a rule ending in "/" is a prefix, any other
+ * rule matches the path itself or a path below it ("/click" matches "/click" and "/click/x", not "/clicks").
+ */
+export function platformPathRule(rules: ListRule[], path: string): ListRule | null {
+  const p = path.toLowerCase();
+  return firstRule(rules, (r) => {
+    const m = r.match.toLowerCase();
+    return m.endsWith("/") ? p.startsWith(m) : p === m || p.startsWith(`${m}/`);
+  });
 }
 
 export function listFactor(discounts: Discount[]): number {

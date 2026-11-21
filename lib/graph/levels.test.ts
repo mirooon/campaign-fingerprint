@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { campaignLinkVerdict, clusterCampaigns } from "./cluster";
-import { DEFAULT_LINK_CONFIG } from "./config";
+import { DEFAULT_LINK_CONFIG, mergeConfig } from "./config";
 import { buildEvidenceGraph, impersonatedBrand } from "./link";
 import type { ItemLink, PairEvidence } from "./model";
 import { makeDataset, type TestItemSpec } from "./testkit";
@@ -84,11 +84,26 @@ describe("campaignLinkVerdict", () => {
   });
   const link = (evidence: PairEvidence[], score = 0.4): ItemLink => ({ a: "a", b: "b", score, strong: false, evidence });
 
-  it("lets one kind of the material itself stand alone, but not a page-kit trait or a persona", () => {
-    expect(campaignLinkVerdict(link([ev("similar_text", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("campaign");
+  it("never lets one kind of content, a page-kit trait or a persona join alone", () => {
+    expect(campaignLinkVerdict(link([ev("similar_text", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("single_kind");
+    expect(campaignLinkVerdict(link([ev("similar_text", 0.5)], 0.5), DEFAULT_LINK_CONFIG, new Map(), new Set())).toBe("single_kind");
     expect(campaignLinkVerdict(link([ev("similar_dom", 0.38)]), DEFAULT_LINK_CONFIG)).toBe("single_kind");
-    expect(campaignLinkVerdict(link([ev("persona", 0.1), ev("persona", 0.1)], 0.19), DEFAULT_LINK_CONFIG)).toBe("single_kind");
+    expect(campaignLinkVerdict(link([ev("persona", 0.1), ev("persona", 0.1)], 0.19), DEFAULT_LINK_CONFIG)).toBe("below");
     expect(campaignLinkVerdict(link([ev("similar_dom", 0.3), ev("comment", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("campaign");
+    // a kind of evidence that is neither content nor a kit trait still stands alone
+    expect(campaignLinkVerdict(link([ev("advertiser", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("campaign");
+  });
+
+  it("joins content only between ads without infrastructure, by two kinds of content", () => {
+    const content = link([ev("similar_image", 0.4), ev("similar_text", 0.3)], 0.58);
+    expect(campaignLinkVerdict(content, DEFAULT_LINK_CONFIG, new Map(), new Set())).toBe("campaign");
+    expect(campaignLinkVerdict(content, DEFAULT_LINK_CONFIG, new Map(), new Set(["a"]))).toBe("single_kind");
+    // with infrastructure all content is one kind: it still corroborates another kind
+    const mixed = link([ev("similar_text", 0.3), ev("similar_dom", 0.3)], 0.51);
+    expect(campaignLinkVerdict(mixed, DEFAULT_LINK_CONFIG, new Map(), new Set(["a", "b"]))).toBe("campaign");
+    // the older reading is one setting away
+    const loose = mergeConfig({ campaignRules: { contentKindsWithInfrastructure: 2 } });
+    expect(campaignLinkVerdict(content, loose, new Map(), new Set(["a"]))).toBe("campaign");
   });
 
   it("does not count weak discounted evidence, and never joins two accounts without strong evidence", () => {
@@ -100,15 +115,16 @@ describe("campaignLinkVerdict", () => {
 });
 
 describe("tracker server and clicked ad from the landing URL", () => {
-  it("links two landings routed through one xid tracker process and reads the clicked Meta ad", () => {
+  it("links two landings routed through one xid tracker machine and reads the clicked Meta ad", () => {
     const fb = "PAYnJpZAECdGVzdC1jbGljay1yZWNvcmQAYWRpZAGrE2D2xQHHc3J0Y2FwcF9pZA8xMjM0NTAwMDAwNjc4OTAAAQ";
     const res = run([
       { id: "m2", url: "https://smart-zdrowie.example/L50918273fl-306k741-fkf205Q/?clickid=d6q8k5t1mb1h14galpgg" },
       { id: "m1", url: `https://zdrowie-link.example/L72649105fl-518m392-fkf864W/?clickid=d6qjcrl1mb1h14gblns0&fbclid=${fb}` },
     ]);
     const l = res.graph.links.find((x) => x.a === "m1" && x.b === "m2")!;
-    expect(l.evidence[0]).toMatchObject({ pivot: "click_server:a1b2c3/4242", strong: false });
-    expect(l.evidence[0].evidence).toContain("maszyna a1b2c3, proces 4242");
+    expect(l.evidence[0]).toMatchObject({ pivot: "click_server:a1b2c3", strong: false });
+    expect(l.evidence[0].evidence).toContain("maszyna a1b2c3");
+    expect(res.graph.nodes.find((n) => n.id === "click_server:a1b2c3")?.data.pids).toEqual([4242]);
     const m1 = res.graph.nodes.find((n) => n.id === "item:m1")!;
     expect(m1.data).toMatchObject({ clickTime: "2026-03-14T10:20:30Z", metaAdId: "120211122233344455", metaAppId: "123450000067890" });
     expect(res.graph.nodes.some((n) => n.id === "meta_ad:120211122233344455")).toBe(true);

@@ -19,6 +19,7 @@ import louvain from "graphology-communities-louvain";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import { combineScores } from "./weights";
 import {
+  CREATIVE_FILE_PREFIX,
   isSimilarityEdge,
   type Campaign,
   type CampaignAttributes,
@@ -68,10 +69,9 @@ export function clusterCampaigns(
   const uf = new UnionFind<string>(itemIds);
   for (const link of graph.links) if (link.strong) uf.union(link.a, link.b);
 
-  const accountOf = new Map<string, string>();
-  for (const nd of itemNodes) if (typeof nd.data.platformAccount === "string") accountOf.set(nd.key, nd.data.platformAccount);
+  const { accountOf, infraItems } = verdictContext(graph.nodes);
   const verdicts = new Map<ItemLink, LinkVerdict>();
-  for (const link of graph.links) verdicts.set(link, campaignLinkVerdict(link, config, accountOf));
+  for (const link of graph.links) verdicts.set(link, campaignLinkVerdict(link, config, accountOf, infraItems));
 
   // Louvain over the weighted graph
   const g = new Graph({ type: "undirected", multi: false, allowSelfLoops: false });
@@ -176,7 +176,7 @@ export function clusterCampaigns(
       advertisers: [...advertisers].filter(Boolean).sort(),
       cohesion: Math.round(cohesion * 1e4) / 1e4,
       strongComponents: c.strongComponents,
-      attributes: campaignAttributes(c.members, nodeById, edgesBySource),
+      attributes: { ...campaignAttributes(c.members, nodeById, edgesBySource), basis: campaignBasis(c.members, c.internal, verdicts, config, infraItems) },
     };
   });
 
@@ -199,7 +199,9 @@ export function clusterCampaigns(
         louvain: { resolution: config.louvain.resolution, seed: config.louvain.seed, modularity },
         minLinkScore: config.minLinkScore,
         rules: [
-          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; sama cecha zestawu stron lub persona (${config.campaignRules.notAloneKinds.join(", ")}) wymaga drugiego rodzaju dowodu albo wyniku ≥ ${config.campaignRules.singleKindMinScore}; dowody zdyskontowane się nie liczą`,
+          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; sama cecha zestawu stron (${config.campaignRules.notAloneKinds.join(", ")}) wymaga drugiego rodzaju dowodu albo wyniku ≥ ${config.campaignRules.singleKindMinScore}; dowody zdyskontowane się nie liczą`,
+          `treść (${(config.campaignRules.contentKinds ?? []).join(", ")}): bez infrastruktury po obu stronach kampanię tworzą co najmniej ${config.campaignRules.minContentKinds ?? 2} różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} z tym samym dźwiękiem) łączy sam`,
+          ...((config.campaignRules.familyOnlyKinds ?? []).length ? [`tylko grupa podobnych kampanii: ${(config.campaignRules.familyOnlyKinds ?? []).join(", ")}`] : []),
           ...(config.campaignRules.accountConflict ? ["różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu"] : []),
           `grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ ${config.familyMinScore}`,
         ],
@@ -213,10 +215,49 @@ export function clusterCampaigns(
 
 export type LinkVerdict = "campaign" | "below" | "single_kind" | "account_conflict";
 
+/** Rule kind of a piece of evidence: the pivot type, the similarity edge type, or "creative_sha256" for the same creative file. */
+export function evidenceKind(e: ItemLink["evidence"][number]): string {
+  if (e.pivot?.startsWith(`imagehash:${CREATIVE_FILE_PREFIX}`)) return "creative_sha256";
+  return e.pivotType ?? e.edgeType ?? e.kind;
+}
+
+/**
+ * Per-item context of the campaign rules, read from the item nodes: the platform account (with its
+ * namespace: "tenant:" for a landing-cdn tenant not mapped to an owner_uuid) and the items that have
+ * infrastructure (`data.infrastructure`, filled by buildEvidenceGraph).
+ */
+export function verdictContext(nodes: GraphNode[]): { accountOf: Map<string, string>; infraItems: Set<string> } {
+  const accountOf = new Map<string, string>();
+  const infraItems = new Set<string>();
+  for (const nd of nodes) {
+    if (nd.type !== "item") continue;
+    if (typeof nd.data.platformAccount === "string") accountOf.set(nd.key, nd.data.platformAccountSource === "tenant" ? `tenant:${nd.data.platformAccount}` : nd.data.platformAccount);
+    if (Array.isArray(nd.data.infrastructure) && nd.data.infrastructure.length) infraItems.add(nd.key);
+  }
+  return { accountOf, infraItems };
+}
+
+/** Two accounts of the same namespace (owner_uuid, or unmapped landing-cdn tenant) that differ. */
+function accountsConflict(a: string | undefined, b: string | undefined): boolean {
+  if (!a || !b) return false;
+  const ns = (x: string) => (x.startsWith("tenant:") ? "tenant" : "owner");
+  return ns(a) === ns(b) && a !== b;
+}
+
+const shortAccount = (a: string | undefined) => (a ? a.replace(/^tenant:/, "").slice(0, 8) : "?");
+
 /** Evidence of a kind that only counts for groups of similar campaigns (e.g. page techniques). */
 function familyOnly(e: ItemLink["evidence"][number], config: LinkConfig): boolean {
   const kinds = config.campaignRules.familyOnlyKinds ?? [];
-  return kinds.length > 0 && kinds.includes(e.pivotType ?? e.edgeType ?? e.kind);
+  return kinds.length > 0 && kinds.includes(evidenceKind(e));
+}
+
+/** The same creative file: identical SHA-256, or video frames with CLIP cosine >= clipMinCosine plus the same audio. */
+function sameCreative(evidence: ItemLink["evidence"], config: LinkConfig): boolean {
+  if (evidence.some((e) => evidenceKind(e) === "creative_sha256")) return true;
+  const clipMin = config.campaignRules.sameCreative?.clipMinCosine ?? 0.97;
+  const frames = evidence.some((e) => e.edgeType === "similar_image_semantic" && (e.similarity ?? 0) >= clipMin);
+  return frames && evidence.some((e) => e.edgeType === "similar_audio");
 }
 
 /** Score of a link for the campaign level: without the family-only evidence. */
@@ -232,24 +273,64 @@ function countedEvidence(link: ItemLink, config: LinkConfig) {
 
 /**
  * Whether a link may join two ads into one campaign. Strong links always may. A non-strong link
- * needs the minimum score and must not join two different accounts of one page platform. Then
- * either evidence of `minEvidenceKinds` different kinds, or one kind that may stand alone, or one
- * page-kit kind (or persona) reaching `singleKindMinScore`: a reused kit alone says "similar", not "same".
+ * needs the minimum score and must not join two different accounts of one page platform (this wins
+ * over any content). The same creative file then joins alone. Content similarity follows its own
+ * rule: between two ads without infrastructure it needs `minContentKinds` different content kinds;
+ * when either ad has infrastructure all content counts as one kind ("content") that never joins alone.
+ * Otherwise evidence of `minEvidenceKinds` different kinds, or one kind that may stand alone, or one
+ * page-kit kind reaching `singleKindMinScore`: a reused kit alone says "similar", not "same".
+ * `infraItems` lists the items that have infrastructure; when it is not given, every item counts as
+ * having it (the stricter reading for content).
  */
-export function campaignLinkVerdict(link: ItemLink, config: LinkConfig, accountOf: Map<string, string> = new Map()): LinkVerdict {
+export function campaignLinkVerdict(
+  link: ItemLink,
+  config: LinkConfig,
+  accountOf: Map<string, string> = new Map(),
+  infraItems: Set<string> | null = null,
+): LinkVerdict {
   if (link.strong) return "campaign";
   if (campaignScore(link, config) < config.minLinkScore) return "below";
   const r = config.campaignRules;
-  const accA = accountOf.get(link.a);
-  const accB = accountOf.get(link.b);
-  if (r.accountConflict && accA && accB && accA !== accB) return "account_conflict";
+  if (r.accountConflict && accountsConflict(accountOf.get(link.a), accountOf.get(link.b))) return "account_conflict";
   const counted = countedEvidence(link, config).filter((e) => !familyOnly(e, config));
-  const kinds = new Set(counted.map((e) => e.pivotType ?? e.edgeType ?? e.kind));
-  if (kinds.size >= r.minEvidenceKinds) return "campaign";
-  if (kinds.size !== 1) return "single_kind";
-  const [kind] = kinds;
+  if (sameCreative(counted, config)) return "campaign";
+  const contentKinds = new Set(r.contentKinds ?? []);
+  const kinds = new Set(counted.map(evidenceKind));
+  const content = [...kinds].filter((k) => contentKinds.has(k));
+  const other = [...kinds].filter((k) => !contentKinds.has(k));
+  const withInfra = infraItems === null || infraItems.has(link.a) || infraItems.has(link.b);
+  if (content.length && !other.length) {
+    const need = withInfra ? (r.contentKindsWithInfrastructure ?? null) : (r.minContentKinds ?? 2);
+    return need !== null && need > 0 && content.length >= need ? "campaign" : "single_kind";
+  }
+  const effective = withInfra && content.length ? [...other, "content"] : [...kinds];
+  if (effective.length >= r.minEvidenceKinds) return "campaign";
+  if (effective.length !== 1) return "single_kind";
+  const [kind] = effective;
   if (!r.notAloneKinds.includes(kind)) return "campaign";
   return combineScores(counted.map((e) => e.weight)) >= r.singleKindMinScore ? "campaign" : "single_kind";
+}
+
+/** Whether all counted evidence of a link is content (similar copy, picture, recording, the same creative file). */
+function contentOnly(link: ItemLink, config: LinkConfig): boolean {
+  const contentKinds = new Set([...(config.campaignRules.contentKinds ?? []), "creative_sha256"]);
+  const counted = countedEvidence(link, config).filter((e) => !familyOnly(e, config));
+  return counted.length > 0 && counted.every((e) => contentKinds.has(evidenceKind(e)));
+}
+
+/** What a campaign stands on (CampaignAttributes.basis). */
+function campaignBasis(
+  members: string[],
+  internal: ItemLink[],
+  verdicts: Map<ItemLink, LinkVerdict>,
+  config: LinkConfig,
+  infraItems: Set<string>,
+): "content" | "infrastructure" | "mixed" {
+  if (members.length === 1) return infraItems.has(members[0]) ? "infrastructure" : "content";
+  const joining = internal.filter((l) => verdicts.get(l) === "campaign");
+  const byContent = joining.filter((l) => contentOnly(l, config)).length;
+  if (joining.length && byContent === joining.length) return "content";
+  return byContent === 0 ? "infrastructure" : "mixed";
 }
 
 /** Second level: campaigns tied by links that were not allowed to merge them. */
@@ -281,8 +362,8 @@ function buildFamilies(
     const apart = new Set<string>();
     for (const l of own) {
       const v = verdicts.get(l);
-      if (v === "account_conflict") apart.add(`różne konta na platformie stron (${accountOf.get(l.a)?.slice(0, 8)}…, ${accountOf.get(l.b)?.slice(0, 8)}…)`);
-      else if (v === "single_kind") apart.add("łączy je tylko jeden rodzaj dowodu");
+      if (v === "account_conflict") apart.add(`różne konta na platformie stron (${shortAccount(accountOf.get(l.a))}…, ${shortAccount(accountOf.get(l.b))}…)`);
+      else if (v === "single_kind") apart.add(contentOnly(l, config) ? "łączy je tylko treść" : "łączy je tylko jeden rodzaj dowodu");
     }
     return { camps: camps.sort(), members, own, apart: [...apart].sort() };
   });

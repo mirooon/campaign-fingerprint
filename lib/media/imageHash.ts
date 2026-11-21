@@ -18,6 +18,8 @@ export interface ImageHashes {
   width: number;
   height: number;
   format: string | null;
+  /** SHA-256 of the file bytes: the same creative file, not just a similar picture (absent in old caches). */
+  sha256?: string;
 }
 
 export type FaviconFormat = "ico" | "png" | "svg" | "jpeg" | "gif" | "webp" | "unknown";
@@ -88,6 +90,7 @@ export async function hashImage(input: Buffer): Promise<ImageHashes> {
     width: meta.autoOrient?.width ?? meta.width ?? 0,
     height: meta.autoOrient?.height ?? meta.height ?? 0,
     format: meta.format ?? null,
+    sha256: createHash("sha256").update(input).digest("hex"),
   };
 }
 

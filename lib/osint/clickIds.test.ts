@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { clickIdsFromUrls, decodeFbclid, decodeXid } from "./clickIds";
+import { clickIdsFromUrls, decodeFbclid, decodeXid, encodeXid } from "./clickIds";
 
 describe("decodeXid", () => {
   it("reads time, machine, process and counter of a tracker click ID", () => {
     expect(decodeXid("d6qjcrl1mb1h14gblns0")).toEqual({ time: "2026-03-14T10:20:30Z", machine: "a1b2c3", pid: 4242, counter: 765432 });
     expect(decodeXid("d6q8k5t1mb1h14galpgg")).toMatchObject({ machine: "a1b2c3", pid: 4242, counter: 700001 });
+  });
+
+  it("round-trips through encodeXid", () => {
+    expect(encodeXid({ time: "2026-03-14T10:20:30Z", machine: "a1b2c3", pid: 4242, counter: 765432 })).toBe("d6qjcrl1mb1h14gblns0");
+    const parts = { time: "2026-09-01T08:00:00Z", machine: "0f1e2d", pid: 50001, counter: 12 };
+    expect(decodeXid(encodeXid(parts))).toEqual(parts);
   });
 
   it("rejects values outside the format or with an implausible time", () => {

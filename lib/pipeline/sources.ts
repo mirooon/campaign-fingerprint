@@ -29,6 +29,8 @@ export interface EnrichmentSources {
   rdap(domain: string): Promise<RdapInfo | null>;
   ct(domain: string): Promise<CtResult | null>;
   asn(ip: string): Promise<AsnInfo | null>;
+  /** Request URLs recorded with a page (HAR of a case, request list of a scan); offline fixtures only. */
+  requestsFor?(url: string): string[] | null;
 }
 
 export interface LiveSourceOptions {
@@ -73,6 +75,8 @@ interface FixtureResponse {
 interface FixtureHttpEntry extends FixtureResponse {
   /** Alternative responses chosen when the request User-Agent contains `uaContains` (case-insensitive). */
   variants?: Array<FixtureResponse & { uaContains: string }>;
+  /** URLs the page requested while it loaded (from the HAR), for traces visible only in the requests. */
+  requests?: string[];
 }
 
 type FixtureDns = Record<string, Partial<Record<DnsRecordType, string[]>>>;
@@ -125,5 +129,6 @@ export function fixtureSources(dir: string): EnrichmentSources {
       return existsSync(file) ? parseCrtSh(JSON.parse(readFileSync(file, "utf8")), domain) : null;
     },
     asn: (ip) => lookupAsn(ip, { txt: async (name) => cymru[name] ?? [], cache: false }),
+    requestsFor: (url) => http[url]?.requests ?? null,
   };
 }

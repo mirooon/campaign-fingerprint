@@ -89,6 +89,21 @@ interface HttpFixture {
   status: number;
   headers: Record<string, string>;
   bodyFile: string;
+  /** URLs the page requested while loading (from the HAR): traces visible only in the requests. */
+  requests?: string[];
+}
+
+const MAX_REQUESTS = 1000;
+
+/** Unique http(s) request URLs of a HAR, in recorded order. */
+function requestUrls(entries: HarEntry[]): string[] {
+  const out = new Set<string>();
+  for (const e of entries) {
+    const u = e.request?.url;
+    if (u && /^https?:\/\//i.test(u) && u.length <= 2048) out.add(u);
+    if (out.size >= MAX_REQUESTS) break;
+  }
+  return [...out];
 }
 
 const IMAGE_EXT = /\.(ico|png|jpe?g|gif|webp|svg|avif)$/i;
@@ -258,6 +273,8 @@ interface Capture {
   har: Har | null;
   main: HarEntry | null;
   landingUrl: string | null;
+  /** A HAR without the document body (e.g. rebuilt from the request list of a scan): only its requests are read. */
+  requestsOnly?: boolean;
   inferred: boolean;
 }
 
@@ -321,7 +338,15 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     if (htmls.length) continue;
     for (const h of dirHars) {
       const main = mainDocument(h.entries, bundleUrl, h.pageUrl);
-      if (!main) continue;
+      if (!main) {
+        // no document body: the page address from the bundle, the HAR's page record or its document request
+        const docUrl = h.entries.find((e) => e._resourceType === "document" || /html/i.test(e.response?.content?.mimeType ?? ""))?.request.url ?? null;
+        const url = bundleUrl ?? httpUrl(h.pageUrl) ?? httpUrl(docUrl);
+        if (!url || !h.entries.length) continue;
+        used.add(h);
+        captures.push({ name, dir: d, htmlName: null, saved: null, savedFrom: bundleUrl, har: h, main: null, landingUrl: url, inferred: false, requestsOnly: true });
+        continue;
+      }
       used.add(h);
       captures.push({ name, dir: d, htmlName: null, saved: null, savedFrom: bundleUrl, har: h, main, landingUrl: bundleUrl ?? main.request.url, inferred: false });
     }
@@ -422,11 +447,11 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" });
         continue;
       }
-      if (!c.main && !c.saved) {
+      if (!c.main && !c.saved && !c.requestsOnly) {
         skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "HAR bez treści dokumentu i brak zapisanej strony" });
         continue;
       }
-      const body = c.main ? harBody(c.main)! : Buffer.from(c.saved!.replace(DOWNLOAD_SUFFIX, ""), "utf8");
+      const body = c.main ? harBody(c.main)! : c.saved !== null ? Buffer.from(c.saved.replace(DOWNLOAD_SUFFIX, ""), "utf8") : Buffer.alloc(0);
       const key = `${norm.host}${new URL(norm.url).pathname}|${titleOf(body.toString("utf8"))}`;
       const prev = seen.get(key);
       if (prev === undefined) {
@@ -486,8 +511,14 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
 
       const bodyFile = `pages/${safeName(itemId)}.html`;
       write(path.join(fix, bodyFile), body);
-      const bodySource: ImportedCase["bodySource"] = c.main ? "har" : "saved-html";
-      http[pageKey] = { status: 200, headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) }, bodyFile };
+      const bodySource: ImportedCase["bodySource"] = c.main || c.requestsOnly ? "har" : "saved-html";
+      const requests = c.har ? requestUrls(c.har.entries) : [];
+      http[pageKey] = {
+        status: 200,
+        headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) },
+        bodyFile,
+        ...(requests.length ? { requests } : {}),
+      };
       if (!c.main && c.htmlName) {
         // Images of the saved page (favicon), under the addresses its rewritten links resolve to.
         const htmlDir = path.join(s.dir, path.dirname(c.htmlName));
@@ -532,7 +563,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         firstSeen: earliestHar(c) ?? mediaTime ?? s.infoTime,
       });
       log(
-        `[${itemId}] ${norm.host} | treść: ${bodySource === "har" ? "HAR" : "zapisana strona"} | obrazy z HAR: ${n} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
+        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : "zapisana strona"} | obrazy z HAR: ${n} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
       );
     }
   }

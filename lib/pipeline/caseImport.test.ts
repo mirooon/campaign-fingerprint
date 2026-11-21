@@ -257,3 +257,38 @@ describe("importCases (untidy case folders)", () => {
     expect(prov.cases.find((c) => c.id === "4")!.harFromCase).toBe("1");
   });
 });
+
+describe("importCases: a HAR without the document body (request list of a scan)", () => {
+  let dir: string;
+  const TENANT = "3c9e1f20-7a4b-4d6e-9f81-2b5c0d7e4a19";
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-requests-"));
+    const c = path.join(dir, "cases", "scan-1");
+    mkdirSync(c, { recursive: true });
+    const req = (url: string, type: string, mime: string) => ({ _resourceType: type, request: { method: "GET", url }, response: { status: 200, content: { mimeType: mime } } });
+    writeFileSync(
+      path.join(c, "scan.har"),
+      JSON.stringify({
+        log: {
+          pages: [{ title: "https://lander-skan.example/oferta/" }],
+          entries: [
+            req("https://lander-skan.example/oferta/", "document", "text/html"),
+            req(`https://cdn.example/_cdn/production/landing-cdn/${TENANT}/5d2a8c1e-0b7f-4e93-a6d4-1f8e2c9b7a30/app.js`, "script", "application/javascript"),
+            req("https://lander-skan.example/include/events-stat.js", "script", "application/javascript"),
+          ],
+        },
+      }),
+    );
+    await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("keeps the page with an empty body and records its requests for the page kit", async () => {
+    const records = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8")) as Array<Record<string, unknown>>;
+    expect(records.map((r) => [r.id, r.landing_url])).toEqual([["scan-1", "https://lander-skan.example/oferta/"]]);
+    const src = fixtureSources(path.join(dir, "out", "fixtures"));
+    const reqs = src.requestsFor?.("https://lander-skan.example/oferta/") ?? [];
+    expect(reqs).toHaveLength(3);
+    expect(reqs.some((u) => u.includes(`/landing-cdn/${TENANT}/`))).toBe(true);
+  });
+});

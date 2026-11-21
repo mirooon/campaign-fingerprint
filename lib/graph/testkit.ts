@@ -41,6 +41,12 @@ export interface TestItemSpec {
   speakerEmbedding?: number[];
   /** Meta Ad Library records of the item. */
   adLibrary?: AdLibraryInfo[];
+  /** SHA-256 of the image file of the creative (needs dhash). */
+  imageSha256?: string;
+  /** SHA-256 of the video file of the creative. */
+  videoSha256?: string;
+  /** Chromaprint values of the video/audio creative. */
+  audioFingerprint?: number[];
 }
 
 export function emptyKit(over: Partial<PageKit> = {}): PageKit {
@@ -216,14 +222,15 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
       landing,
       pageKey,
       text: null,
-      image: s.dhash ? { dhash: s.dhash, ahash: s.dhash, width: 100, height: 100, format: "png", source: "test" } : null,
+      image: s.dhash ? { dhash: s.dhash, ahash: s.dhash, width: 100, height: 100, format: "png", source: "test", ...(s.imageSha256 ? { sha256: s.imageSha256 } : {}) } : null,
       personas: (s.personas ?? []).map((name): PersonaMatch => ({ id: personaSlug(name), name, matched: name.toLowerCase(), source: "watchlist", role: null })),
       campaignParams: (s.params ?? []).map(
         (p): CampaignParam => ({ name: p.name, canonicalName: p.name, value: p.value, sourceUrl: s.url ?? "", cyrillic: /[\u0400-\u04FF]/.test(p.value), macro: false }),
       ),
       ocrText: s.ocrText ?? null,
       asrText: null,
-      audioFp: null,
+      audioFp: s.audioFingerprint ? { duration: s.audioFingerprint.length / 8, fingerprint: s.audioFingerprint } : null,
+      ...(s.videoSha256 ? { videoSha256: s.videoSha256 } : {}),
       ...(s.imageEmbedding ? { imageEmbedding: s.imageEmbedding } : {}),
       ...(s.videoEmbedding ? { videoEmbedding: s.videoEmbedding } : {}),
       ...(s.speakerEmbedding ? { speakerEmbedding: s.speakerEmbedding } : {}),

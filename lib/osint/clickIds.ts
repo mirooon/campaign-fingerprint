@@ -2,9 +2,11 @@
  * Identifiers in landing URLs that carry more than a random token.
  *
  * - Click IDs in the xid format (20 characters of base32hex): 4 bytes of time, 3 bytes of a machine
- *   ID, 2 bytes of a process ID and a counter. The same machine and process mean the same tracker
- *   server, so two landing pages reached through it share the click-routing infrastructure; the
- *   counter shows how many IDs that process has issued.
+ *   ID, 2 bytes of a process ID and a counter. The machine ID names the tracker server (one
+ *   instance), so two landing pages reached through it share the click-routing infrastructure. The
+ *   "process ID" is not: one tracker product writes the same constant there on every installation
+ *   (public scans show one value on many different machines), so it names the platform, not a server.
+ *   The counter shows how many IDs that instance has issued since its last restart.
  * - The newer Meta `fbclid` ("PA…"): a base64 record whose `adid` field is the ID of the clicked ad
  *   and `app_id` the app it was shown in.
  * Pure functions, no network access.
@@ -25,6 +27,44 @@ const XID_MIN_TIME = Date.UTC(2016, 0, 1) / 1000;
 const XID_MAX_TIME = Date.UTC(2040, 0, 1) / 1000;
 /** Parameter names that hold click or visit IDs in tracker links. */
 const CLICK_PARAM = /(?:click|cid|sub|visit|track|tid|uid)/i;
+
+/**
+ * Encodes an xid from its parts (inverse of decodeXid): time (ISO 8601 or a Date), 3-byte machine ID
+ * (6 hex chars), 2-byte process ID and 3-byte counter. Used to build synthetic click IDs for tests.
+ */
+export function encodeXid(parts: { time: string | Date; machine: string; pid: number; counter: number }): string {
+  const ts = Math.floor((parts.time instanceof Date ? parts.time.getTime() : Date.parse(parts.time)) / 1000);
+  if (!/^[0-9a-f]{6}$/i.test(parts.machine)) throw new Error(`machine must be 6 hex chars: ${parts.machine}`);
+  const m = parseInt(parts.machine, 16);
+  const bytes = [
+    (ts >>> 24) & 0xff,
+    (ts >>> 16) & 0xff,
+    (ts >>> 8) & 0xff,
+    ts & 0xff,
+    (m >>> 16) & 0xff,
+    (m >>> 8) & 0xff,
+    m & 0xff,
+    (parts.pid >>> 8) & 0xff,
+    parts.pid & 0xff,
+    (parts.counter >>> 16) & 0xff,
+    (parts.counter >>> 8) & 0xff,
+    parts.counter & 0xff,
+  ];
+  // 96 bits -> 20 base32hex characters (the last one carries 1 bit of padding)
+  let out = "";
+  let acc = 0;
+  let n = 0;
+  for (const b of bytes) {
+    acc = ((acc << 8) | b) & 0xffff;
+    n += 8;
+    while (n >= 5) {
+      n -= 5;
+      out += B32HEX[(acc >> n) & 31];
+    }
+  }
+  if (n > 0) out += B32HEX[(acc << (5 - n)) & 31];
+  return out;
+}
 
 /** Decodes an xid; null when the value is not one (format or an implausible time). */
 export function decodeXid(value: string): XidInfo | null {

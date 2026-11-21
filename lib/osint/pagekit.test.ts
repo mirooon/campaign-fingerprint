@@ -156,10 +156,12 @@ describe("endpoints: inline scripts", () => {
     </script>`;
     expect(keys(html)).toEqual([
       "*/api/v1/trigger/field/",
-      "backend.example/api/v1/submit/<uuid>/",
-      "cb.example/callback/<n>",
+      // a cross-origin backend keeps the client identifier (UUID, numeric account) in its key
+      "backend.example/api/v1/submit/<uuid>/#klient=0b9a5c3e-1d2f-4a6b-9c8d-7e6f5a4b3c2d",
+      "cb.example/callback/<n>#klient=12345",
     ]);
     expect(kit(html).endpoints.every((e) => e.via === "literal")).toBe(true);
+    expect(kit(html).endpoints.find((e) => e.host === "cb.example")).toMatchObject({ pathTemplate: "/callback/<n>", clientId: "12345", clientIdSource: "ścieżka" });
   });
 
   it("does not scan external or non-JS scripts and keeps the first via when deduplicating", () => {

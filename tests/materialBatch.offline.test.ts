@@ -109,20 +109,22 @@ describe("analyzeMaterial: duplicates", () => {
     expect(it.verdictText).toContain(originalId);
   });
 
-  it("puts variants (sticker, crop) into the same campaign without calling them copies", () => {
+  it("puts variants (sticker, crop) next to the original's campaign without calling them copies", () => {
+    // a similar picture is content: it does not join an ad with infrastructure on its own, so a variant
+    // without an address is a similar campaign of the original (campaignRules.contentKinds)
     for (const id of ["wariant-naklejka", "wariant-przyciety"]) {
       const it = item(id);
-      expect(it.verdict, id).not.toBe("duplicate");
+      expect(it.verdict, id).toBe("similar_campaigns");
       expect(it.duplicateOf, id).toBeUndefined();
-      expect(it.campaign, id).toBe(originalCampaign);
+      expect(it.similarCampaigns, id).toContain(originalCampaign);
     }
   });
 
-  it("finds a copy of another material of the same batch", () => {
+  it("finds a copy of another material of the same batch and gives it that material's result", () => {
     const it = item("wariant-naklejka-kopia");
     expect(it.verdict).toBe("duplicate");
     expect(it.duplicateOf?.id).toBe("wariant-naklejka");
-    expect(it.campaign).toBe(originalCampaign);
+    expect(it.campaign).toBe(item("wariant-naklejka").campaign);
   });
 });
 
@@ -174,9 +176,10 @@ describe("analyzeMaterial: not enough to compare", () => {
   });
 
   it("lets a link over the threshold decide even for a material without an address", async () => {
-    // a known creative alone: no address and no text, but the picture links it to its campaign
+    // a known creative alone: no address and no text, but the picture ties it to a known campaign
+    // (as a similar campaign: a picture alone does not join an ad that has infrastructure)
     const res = await analyzeMaterial({ caseDir: caseWithImage("sam-obraz", path.join(root, "obrazy", "c1_A_crop.jpg")) }, ctx("w-image-only"));
-    expect(res.items[0].verdict).toBe("known_campaign");
+    expect(res.items[0].verdict).toBe("similar_campaigns");
     expect(res.items[0].missing).toBeUndefined();
   });
 });

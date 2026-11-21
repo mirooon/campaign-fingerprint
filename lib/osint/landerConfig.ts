@@ -101,3 +101,27 @@ export function extractLanderConfig(html: string): LanderConfig | null {
   };
   return cfg.ownerId || cfg.campaignId || cfg.templateId ? cfg : null;
 }
+
+const LANDING_CDN = /\/landing-cdn\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/|$)/i;
+
+/**
+ * Tenants of the landing-page platform in resource addresses: `…/landing-cdn/<uuid>/…` names the
+ * account space the page's files are stored under. It is visible without the page code (a HAR, the
+ * request list of a public scan) and stands in for `owner_uuid` of `window.aio`. Only UUIDs count: a
+ * shared library of the platform (a short name such as "666") is used by many accounts.
+ */
+export function landingCdnTenants(urls: Iterable<string | null | undefined>): string[] {
+  const out = new Set<string>();
+  for (const raw of urls) {
+    if (!raw) continue;
+    let p: string;
+    try {
+      p = new URL(raw).pathname;
+    } catch {
+      p = String(raw).split(/[?#]/)[0];
+    }
+    const m = LANDING_CDN.exec(p);
+    if (m) out.add(m[1].toLowerCase());
+  }
+  return [...out].sort();
+}

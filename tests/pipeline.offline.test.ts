@@ -4,7 +4,9 @@
  * (shared form service, CDN CNAME, common libraries, generic UTM values, a celebrity name).
  */
 import { beforeAll, describe, expect, it } from "vitest";
-import { explain } from "../lib/graph/cluster";
+import { clusterCampaigns, explain } from "../lib/graph/cluster";
+import { mergeConfig } from "../lib/graph/config";
+import { buildEvidenceGraph } from "../lib/graph/link";
 import { evaluateClustering } from "../lib/graph/eval";
 import type { CampaignsFile, EvidenceGraph } from "../lib/graph/model";
 import type { LinkConfig } from "../lib/graph/config";
@@ -48,9 +50,21 @@ describe("campaign linking on the synthetic sample", () => {
   it("recovers the ground-truth campaigns", () => {
     const truth = Object.fromEntries(ds.items.map((it) => [it.id, it.label!]));
     const r = evaluateClustering(campaigns.assignments, truth);
-    expect(r.pairwise.recall).toBe(1);
+    expect(r.pairwise.precision).toBe(1);
+    // the one miss is c2-08 (no address, only a similar picture and copy): content alone does not join
+    // an ad with infrastructure, so it is a similar campaign of C2 (see the next test)
+    expect(r.pairwise.recall).toBeGreaterThanOrEqual(0.94);
     expect(r.pairwise.f1).toBeGreaterThanOrEqual(0.95);
     expect(r.ari).toBeGreaterThanOrEqual(0.95);
+    const withoutC208 = Object.fromEntries(Object.entries(campaigns.assignments).filter(([id]) => id !== "c2-08"));
+    expect(evaluateClustering(withoutC208, truth).pairwise.recall).toBe(1);
+  });
+
+  it("recovers every campaign with the older content reading (contentKindsWithInfrastructure: 2)", async () => {
+    const loose = mergeConfig({ campaignRules: { contentKindsWithInfrastructure: 2 } }, config);
+    const res = clusterCampaigns(buildEvidenceGraph(ds, { config: loose }), { config: loose });
+    const truth = Object.fromEntries(ds.items.map((it) => [it.id, it.label!]));
+    expect(evaluateClustering(res.campaigns.assignments, truth).pairwise.recall).toBe(1);
   });
 
   it("does not merge campaigns that only share Cloudflare anycast IPs and NS", () => {
@@ -69,10 +83,16 @@ describe("campaign linking on the synthetic sample", () => {
     expect(a["n-02"]).not.toBe(a["c5-01"]);
   });
 
-  it("explains membership of an ad that has no URL (image + text similarity)", () => {
+  it("keeps an ad without a URL (image + text similarity only) as a similar campaign of the campaign it resembles", () => {
     const ex = explain(graph, "c2-08", "c2-01");
-    expect(ex.sameCampaign).toBe(true);
+    expect(ex.sameCampaign).toBe(false);
     expect(ex.direct.map((e) => e.edgeType)).toContain("similar_image");
+    const own = campaigns.campaigns.find((c) => c.members.includes("c2-08"))!;
+    const c2 = campaigns.campaigns.find((c) => c.members.includes("c2-01"))!;
+    expect(own.attributes.basis).toBe("content");
+    expect(c2.attributes.basis).toBe("infrastructure");
+    expect(own.familyId).not.toBeNull();
+    expect(own.familyId).toBe(c2.familyId);
   });
 });
 
@@ -80,9 +100,10 @@ describe("page kit, CNAME, domain pattern, campaign parameters and personas", ()
   it("extracts the lead backend, hidden fields, own build files and comments from landing pages", () => {
     const backendA = pageOf("c1-01").kit!.endpoints.find((e) => e.host === "leads-gate.test")!;
     const backendB = pageOf("c1-04").kit!.endpoints.find((e) => e.host === "leads-gate.test")!;
-    expect(backendA.key).toBe("leads-gate.test/api/v1/submit/<uuid>/");
-    expect(backendB.key).toBe(backendA.key);
-    expect(backendB.raw).not.toBe(backendA.raw); // a different UUID per domain, same backend template
+    // the UUID in the path is the client of the backend: it stays in the key
+    expect(backendA.key).toBe("leads-gate.test/api/v1/submit/<uuid>/#klient=0b9a5c3e-1d2f-4a6b-9c8d-7e6f5a4b3c2d");
+    expect(backendA.pathTemplate).toBe(backendB.pathTemplate);
+    expect(backendB.key).not.toBe(backendA.key); // a different UUID per domain: a different client
     expect(pageOf("c1-01").kit!.cyrillicComments).toBe(true);
     expect(pageOf("c1-01").kit!.assets.map((a) => a.path)).toContain("/assets/js/kz-form.3fa9c1.js");
     expect(pageOf("c3-01").kit!.hiddenFields).toEqual(expect.arrayContaining(["device_id", "fill_time", "read_time"]));
@@ -90,7 +111,7 @@ describe("page kit, CNAME, domain pattern, campaign parameters and personas", ()
   });
 
   it("turns the cross-origin backend, campaign parameters, CNAME operator domain and name template into pivots", () => {
-    expect(node("endpoint:leads-gate.test/api/v1/submit/<uuid>/")?.strong).toBe(true);
+    expect(node("endpoint:leads-gate.test/api/v1/submit/<uuid>/#klient=0b9a5c3e-1d2f-4a6b-9c8d-7e6f5a4b3c2d")?.strong).toBe(true);
     expect(node("campaign_param:utm_campaign=пл_инвест_лиды_07")?.data.cyrillic).toBe(true);
     for (const id of ["campaign_param:sub1=mb_kowal", "campaign_param:offer_id=771304", "campaign_param:aff_id=kd_partner_19"]) {
       expect(node(id)?.strong, id).toBe(true);
@@ -105,7 +126,10 @@ describe("page kit, CNAME, domain pattern, campaign parameters and personas", ()
   });
 
   it("hard negative: a public form service shared by C5, N1 and N2 does not merge them", () => {
-    expect(node("endpoint:api.web3forms.com/submit")!.weight!).toBeLessThan(0.05);
+    // each site has its own access key: three different clients of the service, no shared node
+    const forms = graph.nodes.filter((n) => n.type === "endpoint" && n.data.host === "api.web3forms.com");
+    expect(forms.map((n) => n.data.clientIdSource)).toEqual(["ukryte pole access_key", "ukryte pole access_key", "ukryte pole access_key"]);
+    expect(new Set(forms.map((n) => n.data.clientId)).size).toBe(3);
     expect(node("domain:web3forms.com")?.weight ?? 0).toBeLessThan(0.05);
     const a = campaigns.assignments;
     expect(new Set([a["c5-01"], a["n-01"], a["n-02"]]).size).toBe(3);

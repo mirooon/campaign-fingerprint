@@ -1,16 +1,18 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-21T12:30:37.909Z",
+  "generatedAt": "2026-11-21T17:59:56.594Z",
   "method": {
     "unionFind": "silne dowody (waga typu × lista ≥ 0.7)",
     "louvain": {
       "resolution": 1,
       "seed": 42,
-      "modularity": 0.7849
+      "modularity": 0.7836
     },
     "minLinkScore": 0.15,
     "rules": [
-      "kampania: silny dowód albo wynik pary ≥ 0.15; sama cecha zestawu stron lub persona (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, persona) wymaga drugiego rodzaju dowodu albo wyniku ≥ 0.5; dowody zdyskontowane się nie liczą",
+      "kampania: silny dowód albo wynik pary ≥ 0.15; sama cecha zestawu stron (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, comment_block) wymaga drugiego rodzaju dowodu albo wyniku ≥ 0.5; dowody zdyskontowane się nie liczą",
+      "treść (similar_text, similar_image, similar_image_semantic, similar_audio, similar_voice, imagehash): bez infrastruktury po obu stronach kampanię tworzą co najmniej 2 różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ 0.97 z tym samym dźwiękiem) łączy sam",
+      "tylko grupa podobnych kampanii: technique, persona",
       "różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu",
       "grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ 0.3"
     ]
@@ -55,13 +57,6 @@
           "weight": 0.5672
         },
         {
-          "key": "endpoint:leads-gate.test/api/v1/submit/<uuid>/",
-          "type": "endpoint",
-          "label": "backend leads-gate.test/api/v1/submit/<uuid>/",
-          "count": 8,
-          "weight": 0.6263
-        },
-        {
           "key": "similar_image",
           "type": "similar_image",
           "label": "prawie identyczne kreacje (dHash)",
@@ -74,6 +69,13 @@
           "label": "podobna treść reklam",
           "count": 14,
           "weight": 0.4816
+        },
+        {
+          "key": "similar_dom",
+          "type": "similar_dom",
+          "label": "ta sama struktura strony (simhash DOM)",
+          "count": 27,
+          "weight": 0.45
         }
       ],
       "domains": [
@@ -89,7 +91,7 @@
         "Nowe Technologie Demo",
         "Rynek i Ty Demo"
       ],
-      "cohesion": 0.9334,
+      "cohesion": 0.9328,
       "strongComponents": 1,
       "attributes": {
         "personas": [
@@ -101,97 +103,13 @@
         ],
         "cyrillic": 8,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": 0.93
+        "deepfakeScoreMax": 0.93,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
     {
       "id": "K02",
-      "size": 8,
-      "members": [
-        "c2-01",
-        "c2-02",
-        "c2-03",
-        "c2-04",
-        "c2-05",
-        "c2-06",
-        "c2-07",
-        "c2-08"
-      ],
-      "firstSeen": "2026-08-20T00:00:00.000Z",
-      "lastSeen": "2026-10-10T00:00:00.000Z",
-      "topEvidence": [
-        {
-          "key": "tracker:yandex_metrica:98765432",
-          "type": "tracker",
-          "label": "Yandex Metrica 98765432",
-          "count": 7,
-          "weight": 0.692
-        },
-        {
-          "key": "similar_image",
-          "type": "similar_image",
-          "label": "prawie identyczne kreacje (dHash)",
-          "count": 13,
-          "weight": 0.57
-        },
-        {
-          "key": "phone:+447700900123",
-          "type": "phone",
-          "label": "+447700900123",
-          "count": 7,
-          "weight": 0.6228
-        },
-        {
-          "key": "similar_dom",
-          "type": "similar_dom",
-          "label": "ta sama struktura strony (simhash DOM)",
-          "count": 21,
-          "weight": 0.45
-        },
-        {
-          "key": "domain:baltycka-energia-inwestycje.example",
-          "type": "domain",
-          "label": "baltycka-energia-inwestycje.example",
-          "count": 4,
-          "weight": 0.7881
-        },
-        {
-          "key": "email:kontakt@baltycka-energia-inwestycje.example",
-          "type": "email",
-          "label": "kontakt@baltycka-energia-inwestycje.example",
-          "count": 4,
-          "weight": 0.7467
-        }
-      ],
-      "domains": [
-        "baltycka-energia-inwestycje.example",
-        "energia-dywidenda.test"
-      ],
-      "advertisers": [
-        "Dywidenda Info Test",
-        "Energia Polska Demo",
-        "Oszczędzaj Mądrze Demo",
-        "Wiadomości Gospodarcze Demo"
-      ],
-      "cohesion": 0.8476,
-      "strongComponents": 2,
-      "attributes": {
-        "personas": [
-          {
-            "id": "ewa-przykladowa",
-            "name": "Ewa Przykładowa",
-            "count": 8
-          }
-        ],
-        "cyrillic": 0,
-        "cloakingSuspected": 0,
-        "deepfakeScoreMax": 0.91
-      },
-      "familyId": null
-    },
-    {
-      "id": "K03",
       "size": 8,
       "members": [
         "c3-01",
@@ -273,9 +191,94 @@
         ],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": 0.64
+        "deepfakeScoreMax": 0.64,
+        "basis": "infrastructure"
       },
       "familyId": null
+    },
+    {
+      "id": "K03",
+      "size": 7,
+      "members": [
+        "c2-01",
+        "c2-02",
+        "c2-03",
+        "c2-04",
+        "c2-05",
+        "c2-06",
+        "c2-07"
+      ],
+      "firstSeen": "2026-08-20T00:00:00.000Z",
+      "lastSeen": "2026-10-05T00:00:00.000Z",
+      "topEvidence": [
+        {
+          "key": "tracker:yandex_metrica:98765432",
+          "type": "tracker",
+          "label": "Yandex Metrica 98765432",
+          "count": 7,
+          "weight": 0.692
+        },
+        {
+          "key": "phone:+447700900123",
+          "type": "phone",
+          "label": "+447700900123",
+          "count": 7,
+          "weight": 0.6228
+        },
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 9,
+          "weight": 0.57
+        },
+        {
+          "key": "domain:baltycka-energia-inwestycje.example",
+          "type": "domain",
+          "label": "baltycka-energia-inwestycje.example",
+          "count": 4,
+          "weight": 0.7881
+        },
+        {
+          "key": "similar_dom",
+          "type": "similar_dom",
+          "label": "ta sama struktura strony (simhash DOM)",
+          "count": 21,
+          "weight": 0.45
+        },
+        {
+          "key": "email:kontakt@baltycka-energia-inwestycje.example",
+          "type": "email",
+          "label": "kontakt@baltycka-energia-inwestycje.example",
+          "count": 4,
+          "weight": 0.7467
+        }
+      ],
+      "domains": [
+        "baltycka-energia-inwestycje.example",
+        "energia-dywidenda.test"
+      ],
+      "advertisers": [
+        "Dywidenda Info Test",
+        "Energia Polska Demo",
+        "Wiadomości Gospodarcze Demo"
+      ],
+      "cohesion": 0.9943,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "ewa-przykladowa",
+            "name": "Ewa Przykładowa",
+            "count": 7
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.91,
+        "basis": "infrastructure"
+      },
+      "familyId": "R01"
     },
     {
       "id": "K04",
@@ -363,7 +366,8 @@
         ],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": 0.12
+        "deepfakeScoreMax": 0.12,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
@@ -396,6 +400,13 @@
           "weight": 0.7299
         },
         {
+          "key": "endpoint:api.web3forms.com/submit#klient=00000000-0000-4000-8000-0000000000c5",
+          "type": "endpoint",
+          "label": "backend api.web3forms.com/submit (klient 00000000-0000-4…)",
+          "count": 6,
+          "weight": 0.6934
+        },
+        {
           "key": "domain:wygrana-demo.example",
           "type": "domain",
           "label": "wygrana-demo.example",
@@ -415,13 +426,6 @@
           "label": "aff_id=kd_partner_19",
           "count": 6,
           "weight": 0.584
-        },
-        {
-          "key": "similar_image",
-          "type": "similar_image",
-          "label": "prawie identyczne kreacje (dHash)",
-          "count": 14,
-          "weight": 0.57
         }
       ],
       "domains": [
@@ -434,7 +438,7 @@
         "Kamil Demonstracyjny Fan",
         "Urodziny Kanału Demo"
       ],
-      "cohesion": 0.9999,
+      "cohesion": 1,
       "strongComponents": 1,
       "attributes": {
         "personas": [
@@ -446,7 +450,8 @@
         ],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": 0.83
+        "deepfakeScoreMax": 0.83,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
@@ -471,7 +476,8 @@
         "personas": [],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": null
+        "deepfakeScoreMax": null,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
@@ -496,12 +502,43 @@
         "personas": [],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": null
+        "deepfakeScoreMax": null,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
     {
       "id": "K08",
+      "size": 1,
+      "members": [
+        "c2-08"
+      ],
+      "firstSeen": "2026-09-25T00:00:00.000Z",
+      "lastSeen": "2026-10-10T00:00:00.000Z",
+      "topEvidence": [],
+      "domains": [],
+      "advertisers": [
+        "Oszczędzaj Mądrze Demo"
+      ],
+      "cohesion": 0,
+      "strongComponents": 1,
+      "attributes": {
+        "personas": [
+          {
+            "id": "ewa-przykladowa",
+            "name": "Ewa Przykładowa",
+            "count": 1
+          }
+        ],
+        "cyrillic": 0,
+        "cloakingSuspected": 0,
+        "deepfakeScoreMax": 0.77,
+        "basis": "content"
+      },
+      "familyId": "R01"
+    },
+    {
+      "id": "K09",
       "size": 1,
       "members": [
         "n-03"
@@ -521,12 +558,13 @@
         "personas": [],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": null
+        "deepfakeScoreMax": null,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
     {
-      "id": "K09",
+      "id": "K10",
       "size": 1,
       "members": [
         "n-04"
@@ -546,12 +584,13 @@
         "personas": [],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": null
+        "deepfakeScoreMax": null,
+        "basis": "infrastructure"
       },
       "familyId": null
     },
     {
-      "id": "K10",
+      "id": "K11",
       "size": 1,
       "members": [
         "n-05"
@@ -577,12 +616,58 @@
         ],
         "cyrillic": 0,
         "cloakingSuspected": 0,
-        "deepfakeScoreMax": null
+        "deepfakeScoreMax": null,
+        "basis": "infrastructure"
       },
       "familyId": null
     }
   ],
-  "families": [],
+  "families": [
+    {
+      "id": "R01",
+      "campaigns": [
+        "K03",
+        "K08"
+      ],
+      "members": [
+        "c2-01",
+        "c2-02",
+        "c2-03",
+        "c2-04",
+        "c2-05",
+        "c2-06",
+        "c2-07",
+        "c2-08"
+      ],
+      "size": 8,
+      "topEvidence": [
+        {
+          "key": "similar_image",
+          "type": "similar_image",
+          "label": "prawie identyczne kreacje (dHash)",
+          "count": 4,
+          "weight": 0.57
+        },
+        {
+          "key": "similar_text",
+          "type": "similar_text",
+          "label": "podobna treść reklam",
+          "count": 3,
+          "weight": 0.3188
+        },
+        {
+          "key": "persona:ewa-przykladowa",
+          "type": "persona",
+          "label": "Ewa Przykładowa",
+          "count": 6,
+          "weight": 0.0659
+        }
+      ],
+      "apart": [
+        "łączy je tylko treść"
+      ]
+    }
+  ],
   "assignments": {
     "c1-01": "K01",
     "c1-02": "K01",
@@ -593,22 +678,21 @@
     "c1-07": "K01",
     "c1-08": "K01",
     "c1-09": "K01",
-    "c2-01": "K02",
-    "c2-02": "K02",
-    "c2-03": "K02",
-    "c2-04": "K02",
-    "c2-05": "K02",
-    "c2-06": "K02",
-    "c2-07": "K02",
-    "c2-08": "K02",
-    "c3-01": "K03",
-    "c3-02": "K03",
-    "c3-03": "K03",
-    "c3-04": "K03",
-    "c3-05": "K03",
-    "c3-06": "K03",
-    "c3-07": "K03",
-    "c3-08": "K03",
+    "c3-01": "K02",
+    "c3-02": "K02",
+    "c3-03": "K02",
+    "c3-04": "K02",
+    "c3-05": "K02",
+    "c3-06": "K02",
+    "c3-07": "K02",
+    "c3-08": "K02",
+    "c2-01": "K03",
+    "c2-02": "K03",
+    "c2-03": "K03",
+    "c2-04": "K03",
+    "c2-05": "K03",
+    "c2-06": "K03",
+    "c2-07": "K03",
     "c4-01": "K04",
     "c4-02": "K04",
     "c4-03": "K04",
@@ -624,8 +708,9 @@
     "c5-06": "K05",
     "n-01": "K06",
     "n-02": "K07",
-    "n-03": "K08",
-    "n-04": "K09",
-    "n-05": "K10"
+    "c2-08": "K08",
+    "n-03": "K09",
+    "n-04": "K10",
+    "n-05": "K11"
   }
 }

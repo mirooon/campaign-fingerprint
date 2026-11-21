@@ -10,7 +10,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import path from "node:path";
-import { campaignLinkVerdict, clusterCampaigns, type LinkVerdict } from "../graph/cluster";
+import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { buildEvidenceGraph } from "../graph/link";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
@@ -231,6 +231,7 @@ function resolveBaseDir(baseDir: string, dataDir: string): string {
 const FEATURE_KEYS = [
   "landingUrl", "finalUrl", "landingSource", "landingFragment", "observedUrls", "inAppBrowser", "advertiser", "uiView", "adLibraryIds",
   "personas", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "cloakerInSource", "platformAccount",
+  "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
   "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques",
 ];
 
@@ -394,14 +395,10 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   }
   const { campaigns } = phase("compare", () => clusterCampaigns(raw, { config }));
   for (const c of caseIds) progress(c, "group", "start");
-  const accountOf = new Map<string, string>();
+  const { accountOf, infraItems } = verdictContext(raw.nodes);
   const nodeData = new Map<string, Record<string, unknown>>();
   const nodeById = new Map(raw.nodes.map((n) => [n.id, n]));
-  for (const n of raw.nodes) {
-    if (n.type !== "item") continue;
-    nodeData.set(n.key, n.data);
-    if (typeof n.data.platformAccount === "string") accountOf.set(n.key, n.data.platformAccount);
-  }
+  for (const n of raw.nodes) if (n.type === "item") nodeData.set(n.key, n.data);
   const oldOf = (id: string) => oldCampaigns.assignments[id] ?? null;
   const majorityOld = (members: string[]) => {
     const counts = new Map<string, number>();
@@ -458,7 +455,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
           otherCampaign: oldOf(other),
           score: l.score,
           strong: l.strong,
-          rule: campaignLinkVerdict(l, config, accountOf),
+          rule: campaignLinkVerdict(l, config, accountOf, infraItems),
           evidence: l.evidence.slice(0, 6).map((e) => ({
             evidence: e.evidence,
             weight: e.weight,

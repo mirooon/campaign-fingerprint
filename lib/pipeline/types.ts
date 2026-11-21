@@ -144,6 +144,8 @@ export interface ItemEnrichment {
   imageEmbedding?: number[];
   /** CLIP embedding of the video creative: mean over interior frames (opt-in). */
   videoEmbedding?: number[];
+  /** SHA-256 of the video creative file: the same file, not just a similar recording. */
+  videoSha256?: string;
   /** L2-normalised SpeechBrain ECAPA speaker embedding of the video/audio creative (opt-in). */
   speakerEmbedding?: number[];
   /** Meta Ad Library details for the ad-library IDs of this item (opt-in, live mode). */

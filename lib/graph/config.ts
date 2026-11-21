@@ -61,7 +61,35 @@ export interface LinkConfig {
     discountedMinWeight: number;
     /** Evidence kinds that never count for a campaign (score, kinds, clustering weight), only for groups of similar campaigns. */
     familyOnlyKinds?: string[];
+    /**
+     * Content evidence (similar copy, picture, recording, voice): copies of one lander or creative are
+     * reused by unrelated operators. Between two ads without infrastructure a campaign needs
+     * `minContentKinds` different content kinds; when either ad has infrastructure, content counts as
+     * one kind that never joins alone.
+     */
+    contentKinds?: string[];
+    minContentKinds?: number;
+    /**
+     * Content kinds that join a content-only link when either ad has infrastructure. null (default):
+     * never, content then only corroborates other evidence. 2 restores the older reading in which a
+     * picture plus copy similar to an ad with an address joins it (e.g. a screenshot without a URL).
+     */
+    contentKindsWithInfrastructure?: number | null;
+    /**
+     * Pivot types that are infrastructure of an ad (addresses, hosting, backends, platform account and
+     * campaign, tracker server, ad and campaign identifiers, trackers). An ad has infrastructure when it
+     * holds such a pivot with weight (type x list factor x relation) >= `infrastructureMinWeight`.
+     */
+    infrastructureKinds?: string[];
+    infrastructureMinWeight?: number;
+    /**
+     * The same creative file joins alone (unless the accounts conflict): an identical SHA-256 of the image
+     * or video ("creative_sha256"), or video frames with CLIP cosine >= `clipMinCosine` plus the same audio.
+     */
+    sameCreative?: { clipMinCosine: number };
   };
+  /** Base weight of the "same creative file" pivot (SHA-256 of the image or video file). */
+  creativeFileWeight?: number;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -132,8 +160,20 @@ export interface LinkConfig {
     endpointHosts: ListRule[];
     /** Exact match on a same-origin endpoint path template ("/submit", "/contact.php" ...). */
     endpointGenericPaths: ListRule[];
-    /** Prefix match on a same-origin endpoint path: SDK of a landing-page platform, shared by all its accounts. */
+    /**
+     * Paths of a platform used by many operators (SDK of a landing-page platform, script of a tracker
+     * product), shared by all its accounts or installations: applied to endpoint paths (any origin) and
+     * asset paths. A rule ending in "/" is a prefix, otherwise the path itself or a path below it.
+     */
     endpointPlatformPaths: ListRule[];
+    /**
+     * Suffix match on the host of a cross-origin backend (or script) without a client identifier:
+     * services of many clients (form handlers, lead collectors, webhook relays, CRMs). A backend there
+     * is a trait of the service, not of one operator; with a client ID in the key it stays strong.
+     */
+    multiTenantBackends?: ListRule[];
+    /** Exact `name:shape` part of a link template (param_schema) that is the link format of a tracker product. */
+    paramSchemaPlatformParts?: ListRule[];
     /** Hidden input names ignored when building the hidden-field set (CSRF, form-service keys ...). */
     hiddenFieldGeneric: string[];
     /** Case-insensitive regex on the asset basename: well-known libraries and generic file names. */
@@ -214,11 +254,35 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   campaignRules: {
     minEvidenceKinds: 2,
     singleKindMinScore: 0.5,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "persona", "similar_voice", "comment_block"],
-    familyOnlyKinds: ["technique"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block"],
+    // a persona (impersonated public figure) appears in campaigns of many unrelated operators
+    familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
     discountedMinWeight: 0.3,
+    contentKinds: ["similar_text", "similar_image", "similar_image_semantic", "similar_audio", "similar_voice", "imagehash"],
+    minContentKinds: 2,
+    contentKindsWithInfrastructure: null,
+    infrastructureKinds: [
+      "url",
+      "host",
+      "domain",
+      "ip",
+      "nameserver",
+      "cert",
+      "cname_target",
+      "endpoint",
+      "platform_account",
+      "platform_campaign",
+      "click_server",
+      "meta_ad",
+      "campaign_param",
+      "path_id",
+      "tracker",
+    ],
+    infrastructureMinWeight: 0.3,
+    sameCreative: { clipMinCosine: 0.97 },
   },
+  creativeFileWeight: 0.95,
   familyMinScore: 0.3,
   similarity: {
     imageHamming: 10,
@@ -510,6 +574,53 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     endpointPlatformPaths: [
       { match: "/api/v1/trigger/", factor: 0.1, reason: "ścieżka SDK platformy stron (window.aio), wspólna dla wszystkich jej kont" },
       { match: "/api/v1/agent/", factor: 0.1, reason: "ścieżka SDK platformy stron (window.aio), wspólna dla wszystkich jej kont" },
+      // public scans: the same script on landers of many unrelated operators in many countries
+      { match: "/include/events-stat.js", factor: 0.1, reason: "skrypt zdarzeń platformy trackera (Binom), wspólny dla wszystkich jej instalacji" },
+      { match: "/click", factor: 0.1, reason: "ścieżka linku kampanii platformy trackera (/click?key=…), wspólna dla wszystkich jej instalacji" },
+    ],
+    multiTenantBackends: [
+      ...[
+        // form handlers (the ones not already in endpointHosts)
+        "submit-form.com",
+        "formspark.io",
+        "formbold.com",
+        "formkeep.com",
+        "pageclip.co",
+        "kwes.io",
+        "99inbound.com",
+        "fabform.io",
+        "getsimpleform.com",
+        "formester.com",
+        // webhook relays and no-code automation
+        "hooks.zapier.com",
+        "zapier.com",
+        "make.com",
+        "integromat.com",
+        "pabbly.com",
+        "webhook.site",
+        "sheetdb.io",
+        "sheetbest.com",
+        "sheet.best",
+        "nocodeapi.com",
+        "script.google.com",
+        // lead collectors, CRMs and affiliate networks with one host for all clients
+        "api.telegram.org",
+        "salesforce.com",
+        "pipedrive.com",
+        "getresponse.com",
+        "klaviyo.com",
+        "convertkit.com",
+        "mailerlite.com",
+        "sendpulse.com",
+        "leadsquared.com",
+        "keycrm.app",
+        "lp-crm.biz",
+      ].map((match) => ({ match, factor: 0.1, reason: "usługa wielu klientów (formularze, zbieranie leadów, webhooki, CRM): bez identyfikatora klienta cecha usługi, nie operatora" })),
+      // public scans (urlscan, 44 scans of unrelated sites in many sectors): one script for many clients
+      { match: "afrdtech.com", factor: 0.1, reason: "publiczna usługa wielu klientów (skrypt na stronach wielu niezwiązanych branż w publicznych skanach)" },
+    ],
+    paramSchemaPlatformParts: [
+      { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora" },
     ],
     endpointGenericPaths: [
       "/",

@@ -13,7 +13,7 @@
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
 import { detectPageTechniques, type CommentBlock, type PageTechnique } from "./pageTechniques";
-import { extractLanderConfig, type LanderConfig } from "./landerConfig";
+import { extractLanderConfig, landingCdnTenants, type LanderConfig } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
 import { toAsciiHost } from "./urls";
@@ -33,6 +33,14 @@ export interface EndpointRef {
   via: EndpointVia;
   /** Original URL literal (max 300 chars). */
   raw: string;
+  /**
+   * Identifier of the client of a cross-origin backend (UUID, ≥16 hex chars, a long token, a numeric
+   * account ID, a bot ID) found in the path, a query parameter or a hidden field of the form. It is part
+   * of the key: two clients of one multi-client service are different backends.
+   */
+  clientId?: string | null;
+  /** Where the client identifier was found ("ścieżka", "parametr <name>", "ukryte pole <name>"). */
+  clientIdSource?: string | null;
 }
 
 export interface AssetRef {
@@ -70,6 +78,11 @@ export interface PageKit {
   pathIds: PathId[];
   /** Configuration record of the landing-page platform embedded in the page (`window.aio`), when present. */
   lander?: LanderConfig | null;
+  /**
+   * Tenants of the landing-page platform (`…/landing-cdn/<uuid>/…`) in the resource addresses of the page
+   * and in the requests recorded with it (HAR, scan request list). Sorted, unique.
+   */
+  platformTenants?: string[];
   /** Block of comments written into the page (no real comments plugin), when present. */
   commentBlock?: CommentBlock | null;
   /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
@@ -432,6 +445,68 @@ export function normalizeEndpointPath(path: string): string {
   return `/${out.join("/")}${trailing ? "/" : ""}`;
 }
 
+const HEX_ID = /^[0-9a-f]{16,}$/i;
+/** Random-looking token: ≥16 chars, ≥4 digits and ≥4 letters, at most 2 separators ("contact-form-7-submit" is not one). */
+function isTokenId(v: string): boolean {
+  if (!/^[A-Za-z0-9_-]{16,}$/.test(v)) return false;
+  const digits = v.replace(/\D/g, "").length;
+  const letters = v.replace(/[^A-Za-z]/g, "").length;
+  const seps = v.replace(/[^_-]/g, "").length;
+  return digits >= 4 && letters >= 4 && seps <= 2;
+}
+const BOT_TOKEN = /^bot(\d{6,}):[A-Za-z0-9_-]{20,}$/;
+/** Query/hidden-field names that hold a per-visit or per-session value, not a client of the service. */
+const VOLATILE_NAME = /click|^sub|visit|session|sess|csrf|nonce|captcha|recaptcha|honey|^utm_|fbclid|gclid|ttclid|^_?ts$|time|^_token$|^token$|authenticity|viewstate|eventvalidation/i;
+/** Names that announce an account, form or client identifier (numeric IDs count only under such a name). */
+const CLIENT_NAME = /(^|[_-])(id|uid|oid|key|account|acct|client|customer|form|partner|tenant|owner|site|publisher|aff|affiliate|user|api|access)([_-]?(id|key))?$/i;
+
+/** Client identifier in one path segment; null when the segment is not one. */
+function clientIdOfSegment(seg: string): string | null {
+  const bot = BOT_TOKEN.exec(seg);
+  if (bot) return `bot${bot[1]}`;
+  if (UUID_SEGMENT.test(seg.toLowerCase())) return seg.toLowerCase();
+  if (HEX_ID.test(seg)) return seg.toLowerCase();
+  if (/^\d{4,}$/.test(seg)) return seg;
+  if (isTokenId(seg)) return seg;
+  return null;
+}
+
+/** Client identifier in a named value (query parameter or hidden field); null when it is not one. */
+export function clientIdOfValue(name: string, value: string): string | null {
+  const n = name.trim();
+  const v = value.trim();
+  if (!n || !v || v.length > 200 || VOLATILE_NAME.test(n)) return null;
+  if (UUID_SEGMENT.test(v.toLowerCase()) || HEX_ID.test(v)) return v.toLowerCase();
+  if (/^\d{4,}$/.test(v)) return CLIENT_NAME.test(n) ? v : null;
+  if (isTokenId(v)) return CLIENT_NAME.test(n) ? v : null;
+  return null;
+}
+
+/** Client identifier of a cross-origin backend URL: the first ID-like path segment, else an ID-like query value. */
+function clientIdOfUrl(u: URL): { id: string; source: string } | null {
+  for (const raw of u.pathname.split("/")) {
+    let seg = raw;
+    try {
+      seg = decodeURIComponent(raw);
+    } catch {
+      // keep the raw segment
+    }
+    const id = seg ? clientIdOfSegment(seg) : null;
+    if (id) return { id, source: "ścieżka" };
+  }
+  for (const [name, value] of u.searchParams) {
+    const id = clientIdOfValue(name, value);
+    if (id) return { id, source: `parametr ${name.slice(0, 40)}` };
+  }
+  return null;
+}
+
+/** Key of an endpoint: same-origin `*path`, cross-origin `host+path`, plus the client identifier when known. */
+export function endpointKey(host: string, pathTemplate: string, sameOrigin: boolean, clientId: string | null | undefined): string {
+  if (sameOrigin) return `*${pathTemplate}`;
+  return clientId ? `${host}${pathTemplate}#klient=${clientId}` : `${host}${pathTemplate}`;
+}
+
 function toEndpoint(
   raw: string,
   via: EndpointVia,
@@ -456,14 +531,16 @@ function toEndpoint(
   if (!host) return null;
   const pathTemplate = normalizeEndpointPath(u.pathname);
   const sameOrigin = pageHost !== null && host === pageHost;
+  const client = sameOrigin ? null : clientIdOfUrl(u);
   return {
-    key: sameOrigin ? `*${pathTemplate}` : `${host}${pathTemplate}`,
+    key: endpointKey(host, pathTemplate, sameOrigin, client?.id),
     host,
     pathTemplate,
     sameOrigin,
     method,
     via,
     raw: s.slice(0, MAX_RAW),
+    ...(client ? { clientId: client.id, clientIdSource: client.source } : {}),
   };
 }
 
@@ -727,6 +804,8 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
 
     const tokens: string[] = [];
     const endpoints: EndpointRef[] = [];
+    /** Last cross-origin `<form action>` seen: its hidden fields may name the client of the service. */
+    let formEp: EndpointRef | null = null;
     const hidden = new Set<string>();
     const assets = new Map<string, AssetRef>();
     const comments: string[] = [];
@@ -735,8 +814,11 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
     /** UUID path segment -> same-origin resource paths that contain it, and the path before it (first seen). */
     const pathIdResources = new Map<string, { urls: Set<string>; prefix: string }>();
 
+    /** Every resolved src/href (any origin): tenants of the landing-page platform in the file addresses. */
+    const resourceUrls: string[] = [];
     const addResource = (href: string) => {
       const u = resolveAgainst(href, base);
+      if (u && resourceUrls.length < 2000) resourceUrls.push(u.toString());
       if (!u || pageHost === null || hostOfUrl(u) !== pageHost) return;
       const segs = u.pathname.toLowerCase().split("/");
       segs.forEach((seg, i) => {
@@ -795,17 +877,28 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       tokens.push(name);
       if (attrs.src) addResource(attrs.src);
       if (name === "link" && attrs.href) addResource(attrs.href);
-      if (name === "form" && attrs.action !== undefined) {
-        const action = attrs.action.trim();
+      if (name === "form") {
+        formEp = null;
+        const action = (attrs.action ?? "").trim();
         if (action && !action.startsWith("#") && !/^(?:javascript|mailto):/i.test(action)) {
           const method = (attrs.method ?? "GET").trim().toUpperCase() || "GET";
           const ep = toEndpoint(action, "form", method, base, pageHost);
           if (ep) endpoints.push(ep);
+          if (ep && !ep.sameOrigin) formEp = ep;
         }
       } else if (name === "input") {
         const type = (attrs.type ?? "").trim().toLowerCase();
         const fieldName = (attrs.name ?? "").trim().toLowerCase();
         if (type === "hidden" && fieldName && hidden.size < MAX_HIDDEN) hidden.add(fieldName);
+        // a hidden field of a cross-origin form that names the client of the service (account, form or site ID)
+        if (type === "hidden" && formEp && !formEp.clientId && fieldName) {
+          const id = clientIdOfValue(fieldName, attrs.value ?? "");
+          if (id) {
+            formEp.clientId = id;
+            formEp.clientIdSource = `ukryte pole ${fieldName.slice(0, 40)}`;
+            formEp.key = endpointKey(formEp.host, formEp.pathTemplate, false, id);
+          }
+        }
       } else if (name === "script" && attrs.src) {
         addAsset(attrs.src, "js");
       } else if (name === "link" && attrs.href) {
@@ -835,9 +928,25 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
         .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
         .slice(0, MAX_PATH_IDS),
       lander: extractLanderConfig(html),
+      ...tenantsOf(resourceUrls),
       ...techniquesOf(html, pageUrl),
     };
   } catch {
     return emptyKit();
   }
+}
+
+function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {
+  const t = landingCdnTenants(urls);
+  return t.length ? { platformTenants: t } : {};
+}
+
+/**
+ * Adds what the requests recorded with a page (HAR entries, the request list of a scan) say about the
+ * page kit: tenants of the landing-page platform. Works without the page code (pass an empty kit).
+ */
+export function withRequestUrls(kit: PageKit | null, requests: string[]): PageKit {
+  const k = kit ?? emptyKit();
+  const tenants = landingCdnTenants([...(k.platformTenants ?? []).map((t) => `/landing-cdn/${t}/`), ...requests]);
+  return tenants.length ? { ...k, platformTenants: tenants } : k;
 }

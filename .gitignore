@@ -1,0 +1,25 @@
+# zależności i build
+node_modules/
+.next/
+out/
+build/
+*.tsbuildinfo
+next-env.d.ts
+
+# środowisko
+.env*
+!.env.example
+.venv*/
+__pycache__/
+
+# cache i dane robocze (mogą zawierać materiały z analiz)
+.cache/
+data/work/
+data/evidence/
+data/ct-watch.jsonl
+data/watch.jsonl
+/dane/
+
+# system
+.DS_Store
+*.log

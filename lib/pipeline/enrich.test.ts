@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ArchivedCopy, ArchiveSource } from "../osint/archive";
 import type { FetchPageResult } from "../osint/fetchPage";
 import { enrichItems } from "./enrich";
 import type { EnrichmentSources } from "./sources";
@@ -48,5 +49,128 @@ describe("enrichItems: the landing page in live mode", () => {
     expect(requested[0]).toBe(url);
     expect(out.perItem.m1.pageKey).toBe("https://lp.example/landers/x/?clickid=c1");
     expect(Object.keys(out.pages)).toEqual(["https://lp.example/landers/x/?clickid=c1"]);
+  });
+});
+
+/** Live sources whose page does not answer (network error); RDAP gives `created` when asked for it. */
+function deadLive(opts: { created?: string; status?: number; body?: string; errorCode?: FetchPageResult["errorCode"] } = {}): EnrichmentSources {
+  const live = recordingLive([]);
+  const failed = opts.status === undefined && opts.body === undefined;
+  return {
+    ...live,
+    fetchPage: async (url) => ({
+      requestedUrl: url,
+      finalUrl: url,
+      status: failed ? null : (opts.status ?? 200),
+      ok: !failed && (opts.status ?? 200) < 400,
+      redirectChain: [],
+      contentType: failed ? null : "text/html",
+      headers: {},
+      bytes: 0,
+      truncated: false,
+      body: opts.body ?? null,
+      bodySha256: null,
+      userAgent: "test",
+      remoteAddress: null,
+      error: failed ? "getaddrinfo ENOTFOUND" : null,
+      errorCode: failed ? (opts.errorCode ?? "network") : null,
+      fetchedAt: "2026-11-22T00:00:00.000Z",
+      durationMs: 0,
+    }),
+    rdap: async (domain) => (opts.created ? ({ domain, registrar: null, registrarIanaId: null, created: opts.created, expires: null, updated: null, status: [], nameservers: [], abuseEmail: null, source: null }) : null),
+  };
+}
+
+function archiveSource(name: "urlscan" | "wayback", copies: ArchivedCopy[], calls: string[] = []): ArchiveSource {
+  return { name, available: async () => ({ ok: true }), lookup: async (url) => (calls.push(url), copies) };
+}
+
+const deadItem: Item = { id: "m1", platform: null, advertiser: null, text: null, imageUrl: null, imagePath: null, landingUrl: "https://dead.example/lp/", firstSeen: "2026-10-20T00:00:00Z", lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: null, extra: {} };
+const waybackCopy = (capturedAt: string, extra: Partial<ArchivedCopy> = {}): ArchivedCopy => ({
+  source: "wayback",
+  url: "https://dead.example/lp/",
+  sourceUrl: "https://web.archive.org/web/20261018020257/https://dead.example/lp/",
+  capturedAt,
+  fetchedAt: "2026-11-22T10:00:00.000Z",
+  html: '<html><head><title>Archived Offer</title><script src="https://cdn.example/js/app.min.js"></script></head><body><form action="https://forms.example/send.php"></form></body></html>',
+  ...extra,
+});
+
+describe("enrichItems: archive step", () => {
+  it("feeds the features from a copy when the live page is dead, and keeps where it came from", async () => {
+    const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", archive: { sources: [archiveSource("wayback", [waybackCopy("2026-10-18T02:02:57.000Z")])] } });
+    const page = out.pages["https://dead.example/lp/"];
+    expect(page.fetch.ok).toBe(false);
+    expect(page.bodySource).toBe("wayback");
+    expect(page.extract?.title).toBe("Archived Offer");
+    expect(page.kit?.assets?.length).toBeGreaterThan(0);
+    expect(page.archive).toMatchObject({ source: "wayback", sourceUrl: expect.stringContaining("web.archive.org"), capturedAt: "2026-10-18T02:02:57.000Z", used: true });
+    expect((page.archive as Record<string, unknown>).html).toBeUndefined();
+    expect(out.perItem.m1.archive).toEqual({ status: "used", detail: "kopia z wayback z 2026-10-18" });
+  });
+
+  it("takes the request list of a urlscan copy without a DOM as the page's resources", async () => {
+    const copy: ArchivedCopy = { ...waybackCopy("2026-10-19T00:00:00.000Z"), source: "urlscan", html: undefined, requests: [{ url: "https://dead.example/lp/", sha256: "1".repeat(64) }, { url: "https://cdn.example/js/app.min.js", sha256: "2".repeat(64) }] };
+    const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", archive: { sources: [archiveSource("urlscan", [copy])] } });
+    const page = out.pages["https://dead.example/lp/"];
+    expect(page.bodySource).toBe("urlscan");
+    expect(page.extract).toBeNull();
+    expect(page.kit?.assets?.some((a) => a.key.includes("app.min.js"))).toBe(true);
+    expect(page.archive?.requests).toHaveLength(2);
+  });
+
+  it("rejects a copy from before the registration: it is kept as information, gives no features and marks the domain re-registered", async () => {
+    const out = await enrichItems([deadItem], { sources: deadLive({ created: "2026-09-10T00:00:00Z" }), baseDir: ".", archive: { sources: [archiveSource("wayback", [waybackCopy("2016-05-01T00:00:00.000Z")])] } });
+    const page = out.pages["https://dead.example/lp/"];
+    expect(page.extract).toBeNull();
+    expect(page.kit).toBeNull();
+    expect(page.bodySource).toBeUndefined();
+    expect(page.archive).toMatchObject({ used: false, rejected: { reason: "kopia sprzed rejestracji domeny" } });
+    expect(out.domains["dead.example"].reRegistered).toBe(true);
+    expect(out.perItem.m1.archive?.status).toBe("rejected");
+  });
+
+  it("checks the era of the domain with the archive's own RDAP lookup when the page sources have none (a run on saved files)", async () => {
+    const rdap = async (domain: string) => ({ domain, registrar: null, registrarIanaId: null, created: "2026-09-10T00:00:00Z", expires: null, updated: null, status: [], nameservers: [], abuseEmail: null, source: null });
+    const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", skip: { rdap: false }, archive: { sources: [archiveSource("wayback", [waybackCopy("2016-05-01T00:00:00.000Z")])], rdap } });
+    expect(out.pages["https://dead.example/lp/"].archive).toMatchObject({ used: false, rejected: { reason: "kopia sprzed rejestracji domeny" } });
+    expect(out.domains["dead.example"].reRegistered).toBe(true);
+  });
+
+  it("does not ask the archives when the page was fetched", async () => {
+    const calls: string[] = [];
+    const out = await enrichItems([deadItem], { sources: deadLive({ status: 200, body: "<html><title>Live</title></html>" }), baseDir: ".", archive: { sources: [archiveSource("wayback", [waybackCopy("2026-10-18T00:00:00.000Z")], calls)] } });
+    expect(calls).toEqual([]);
+    expect(out.pages["https://dead.example/lp/"].archive).toBeUndefined();
+    expect(out.perItem.m1.archive).toBeUndefined();
+  });
+
+  it("asks the archives for a page that answered with an error status or with a block page", async () => {
+    for (const live of [deadLive({ status: 503, body: "" }), deadLive({ status: 200, body: "<html><title>This domain is parked</title></html>" })]) {
+      const out = await enrichItems([deadItem], { sources: live, baseDir: ".", archive: { sources: [archiveSource("wayback", [waybackCopy("2026-10-18T00:00:00.000Z")])], isBlockPage: (t) => t.some((x) => /parked/i.test(x ?? "")) } });
+      expect(out.pages["https://dead.example/lp/"].bodySource).toBe("wayback");
+    }
+  });
+
+  it("leaves a dead page as it was when the step is not enabled", async () => {
+    const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: "." });
+    expect(out.pages["https://dead.example/lp/"].bodySource).toBeUndefined();
+    expect(out.perItem.m1.archive).toBeUndefined();
+  });
+
+  it("skips the step with the reason when the run is offline, and for an address that was refused", async () => {
+    const calls: string[] = [];
+    const src = archiveSource("wayback", [waybackCopy("2026-10-18T00:00:00.000Z")], calls);
+    const off = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", archive: { sources: [src], skipReason: "tryb offline: bez zapytań sieciowych" } });
+    expect(off.perItem.m1.archive).toEqual({ status: "skipped", detail: "tryb offline: bez zapytań sieciowych" });
+    const refused = await enrichItems([deadItem], { sources: deadLive({ errorCode: "blocked" }), baseDir: ".", archive: { sources: [src] } });
+    expect(refused.perItem.m1.archive?.status).toBe("skipped");
+    expect(refused.perItem.m1.archive?.detail).toMatch(/adres/);
+    expect(calls).toEqual([]);
+  });
+
+  it("says that there is neither a page nor a copy", async () => {
+    const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", archive: { sources: [archiveSource("wayback", []), archiveSource("urlscan", [])] } });
+    expect(out.perItem.m1.archive).toEqual({ status: "none", detail: "brak kopii archiwalnej (wayback, urlscan)" });
   });
 });

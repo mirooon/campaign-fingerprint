@@ -8,6 +8,7 @@
 import { existsSync, writeFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { analyzeMaterial } from "../pipeline/analyzeMaterial";
+import { archiveStepOptions } from "../pipeline/archiveContext";
 import { resolveLinkConfigFile } from "../pipeline/linkConfigFile";
 import { liveSources } from "../pipeline/sources";
 import { loadLinkConfig } from "../pipeline/steps";
@@ -23,6 +24,8 @@ export interface RunnerSpec {
   url?: string;
   text?: string;
   live: boolean;
+  /** Archive step on (also switched on by ARCHIVE_SOURCES in the environment). */
+  archive?: boolean;
   asr?: boolean;
   fixtures?: string;
   config?: string;
@@ -59,6 +62,7 @@ async function main(): Promise<void> {
       workDir: spec.workDir,
       fixtures: spec.fixtures,
       live: spec.live ? liveSources({ skipCt: true }) : null,
+      archive: archiveStepOptions({ enabled: !!spec.archive, screenshotDir: path.join(spec.workDir, "archiwum") }),
       config: loadLinkConfig(configFile ?? undefined),
       personas: personasFile ? compileWatchlist(loadWatchlist(personasFile)) : null,
       media: { ocr: true, asr: !!spec.asr, audio: !!spec.asr, clip: false, speaker: false, adLibrary: false },

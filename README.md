@@ -63,8 +63,11 @@ bun run analyze-material -- --cases partia/ --csv wynik.csv     # partia: każdy
 bun run analyze-material -- --cases pliki/ --each-file          # każdy luźny plik to osobny materiał
 bun run analyze-material -- --dataset zbior.csv --mapping m.json  # CSV/JSON/JSONL: wiersz to materiał
 bun run analyze-material -- --url https://oferta.example/       # sam link (pobranie strony tylko z --live)
+bun run analyze-material -- --url https://oferta.example/ --archive  # martwa strona: publiczna kopia z urlscan.io lub Internet Archive
 bun run analyze-material -- --text "Ewa Przykładowa poleca…"   # sam tekst reklamy
 ```
+
+**Strony, które już nie odpowiadają.** Z `--archive` narzędzie dla martwego adresu (bez odpowiedzi albo z planszą blokady) szuka publicznej kopii strony w urlscan.io (istniejące skany) i w Internet Archive (Wayback) i dokłada ją do materiału z podaniem źródła, adresu kopii i jej daty. Krok jest opcjonalny i pasywny (nie zleca skanów, nie zapisuje stron do archiwum); źródła wybiera `ARCHIVE_SOURCES` (domyślnie `urlscan,wayback`), klucz urlscan (`URLSCAN_API_KEY`, darmowe konto, sekcja 6) jest opcjonalny i dokłada kod zapisanej strony. Bez sieci lub przy `ANALYZE_OFFLINE=1` krok jest pomijany z powodem w wyniku.
 
 Ocena partii na własnych etykietach (plik `{"kampania": ["sprawa", …]}` albo `{"sprawa": "kampania"}`): F1 par i B-cubed jednym poleceniem.
 
@@ -147,7 +150,8 @@ Wszystkie opcjonalne. Domyślna konfiguracja nie wymaga żadnego klucza ani kont
 | Usługa | Jak zdobyć dostęp | Zmienna | Bez niej |
 |---|---|---|---|
 | **Anthropic API** (dostawca LLM) | konto na [console.anthropic.com](https://console.anthropic.com) → „API keys” → utwórz klucz | `ANTHROPIC_API_KEY` w `.env` (albo `LLM_PROVIDER=anthropic` z profilem `ant auth login`) | LLM domyślnie lokalny (Ollama); bez żadnego LLM działa wszystko poza streszczeniami i `--ner`. Używaj tylko wtedy, gdy wolno wysyłać dane na zewnątrz |
-| **urlscan.io** | konto na [urlscan.io](https://urlscan.io) → profil → „API Keys”; wyszukiwanie anonimowe obejmuje 30 dni i 100 zapytań na godzinę | – (narzędzie go nie używa; służył do zbierania danych poza kodem) | – |
+| **urlscan.io** (kopie martwych stron, `--archive`) | darmowe konto na [urlscan.io](https://urlscan.io) → profil → „API Keys”; wyszukiwanie anonimowe obejmuje 30 dni i ok. 100 zapytań na godzinę | `URLSCAN_API_KEY` w `.env` | wyszukiwanie działa, ale bez kodu (DOM) zapisanych stron: kopia daje wtedy adresy i hashe zasobów, a kod strony bierze się z Wayback, jeśli tam jest |
+| **Internet Archive (Wayback)** (`--archive`) | bez klucza i konta | – | – |
 | **Oficjalne Ad Library API Mety** | weryfikacja tożsamości na [facebook.com/id](https://www.facebook.com/id) i aplikacja na [developers.facebook.com](https://developers.facebook.com); token dostępu | – (nieużywane w kodzie; zastąpiłoby nieoficjalny endpoint MetaAdsCollector) | `--ad-library` używa MetaAdsCollector bez klucza (z ryzykiem opisanym w [LICENCJE.md](LICENCJE.md)) |
 | DNS, RDAP (`rdap.org`), crt.sh, Team Cymru, logi CT | bez klucza i konta | – | zapytania tylko z `--live` / `--lookups`; bez nich cechy sieciowe pochodzą z zapisów w materiale |
 | Ollama, modele Hugging Face | bez klucza (modele publiczne) | `OLLAMA_HOST`, `CLIP_MODEL` | zob. sekcja 5 |

@@ -297,10 +297,19 @@ export interface Sufficiency {
   linked: boolean;
   /** The ad is a lead form of the platform (isLeadAd): it has no landing page to capture. */
   leadAd?: boolean;
+  /** The archive step ran for the dead landing page and found no usable copy (none, or only rejected ones). */
+  archiveNone?: boolean;
 }
 
+/**
+ * Not enough to compare the material with anything: no linked campaign, no identifier, under
+ * MIN_CONTENT_WORDS words, and no page to read: either no address, or an address whose page is
+ * dead and has no copy in the archives (`archiveNone`; an address that merely was not fetched
+ * still counts as an address, so a run without the archive step is unchanged).
+ */
 export function isInsufficient(s: Sufficiency): boolean {
-  return !s.linked && !s.hasAddress && !s.hasIdentifier && s.contentWords < MIN_CONTENT_WORDS;
+  const noPage = !s.hasAddress || (!!s.archiveNone && !s.hasPage);
+  return !s.linked && noPage && !s.hasIdentifier && s.contentWords < MIN_CONTENT_WORDS;
 }
 
 /** Material files of one case with the SHA-256 of their bytes (read by the caller). */
@@ -344,6 +353,7 @@ export function missingData(s: Sufficiency): string[] {
   const leadForm = !!s.leadAd && !s.hasAddress;
   if (leadForm) out.push("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy", "zrzut formularza reklamy");
   else if (!s.hasAddress) out.push("link do reklamy albo strony docelowej", "zrzut z widocznym paskiem adresu");
+  if (s.archiveNone && !s.hasPage) out.push("zapisana strona (plik HTML albo HAR): adres nie odpowiada na żywo i nie ma kopii w archiwach");
   if ((!s.hasPage || s.hasHar === false) && !leadForm) out.push("plik HAR z wizyty na stronie");
   if (!s.hasImage && !s.hasVideo) out.push("zrzut ekranu reklamy");
   if (s.contentWords < MIN_CONTENT_WORDS) out.push("pełna treść reklamy (tekst posta albo czytelny zrzut)");

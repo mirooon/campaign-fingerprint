@@ -175,6 +175,15 @@ describe("insufficient", () => {
     expect(isInsufficient({ ...empty, hasIdentifier: true })).toBe(false);
     expect(isInsufficient({ ...empty, linked: true })).toBe(false);
   });
+  it("takes a bare address as too little when the archive step found no copy of the dead page", () => {
+    const dead: Sufficiency = { ...empty, hasAddress: true, archiveNone: true };
+    expect(isInsufficient(dead)).toBe(true);
+    expect(isInsufficient({ ...dead, archiveNone: false })).toBe(false);
+    expect(isInsufficient({ ...dead, hasPage: true })).toBe(false);
+    expect(isInsufficient({ ...dead, contentWords: 5 })).toBe(false);
+    expect(isInsufficient({ ...dead, hasIdentifier: true })).toBe(false);
+    expect(missingData(dead)).toContain("zapisana strona (plik HTML albo HAR): adres nie odpowiada na żywo i nie ma kopii w archiwach");
+  });
   it("says what to add", () => {
     expect(missingData(empty)).toEqual([
       "link do reklamy albo strony docelowej",

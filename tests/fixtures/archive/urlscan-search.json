@@ -1,0 +1,70 @@
+{
+ "results": [
+  {
+   "_id": "aaaaaaaa-0000-4000-8000-000000000001",
+   "task": {
+    "time": "2026-11-03T09:00:00.000Z",
+    "url": "https://promo.example/offer/?clickid=synthetic1",
+    "visibility": "public",
+    "domain": "promo.example"
+   },
+   "page": {
+    "url": "https://promo.example/offer/?clickid=synthetic1",
+    "domain": "promo.example",
+    "ip": "192.0.2.10",
+    "asn": "AS64500",
+    "asnname": "EXAMPLE-AS, ZZ",
+    "server": "nginx",
+    "title": "Synthetic Offer Page",
+    "tlsIssuer": "Example CA"
+   },
+   "result": "https://urlscan.io/api/v1/result/aaaaaaaa-0000-4000-8000-000000000001/",
+   "screenshot": "https://urlscan.io/screenshots/aaaaaaaa-0000-4000-8000-000000000001.png"
+  },
+  {
+   "_id": "aaaaaaaa-0000-4000-8000-000000000002",
+   "task": {
+    "time": "2026-11-10T09:00:00.000Z",
+    "url": "https://promo.example/other/",
+    "visibility": "public",
+    "domain": "promo.example"
+   },
+   "page": {
+    "url": "https://promo.example/other/",
+    "domain": "promo.example",
+    "ip": "192.0.2.10",
+    "asn": "AS64500",
+    "asnname": "EXAMPLE-AS, ZZ",
+    "server": "nginx",
+    "title": "Synthetic Offer Page",
+    "tlsIssuer": "Example CA"
+   },
+   "result": "https://urlscan.io/api/v1/result/aaaaaaaa-0000-4000-8000-000000000002/",
+   "screenshot": "https://urlscan.io/screenshots/aaaaaaaa-0000-4000-8000-000000000002.png"
+  },
+  {
+   "_id": "aaaaaaaa-0000-4000-8000-000000000003",
+   "task": {
+    "time": "2026-11-12T09:00:00.000Z",
+    "url": "https://promo.example/offer/",
+    "visibility": "public",
+    "domain": "promo.example"
+   },
+   "page": {
+    "url": "https://promo.example/offer/",
+    "domain": "promo.example",
+    "ip": "192.0.2.10",
+    "asn": "AS64500",
+    "asnname": "EXAMPLE-AS, ZZ",
+    "server": "nginx",
+    "title": "Synthetic Offer Page",
+    "tlsIssuer": "Example CA"
+   },
+   "result": "https://urlscan.io/api/v1/result/aaaaaaaa-0000-4000-8000-000000000003/",
+   "screenshot": "https://urlscan.io/screenshots/aaaaaaaa-0000-4000-8000-000000000003.png"
+  }
+ ],
+ "total": 3,
+ "took": 12,
+ "has_more": false
+}

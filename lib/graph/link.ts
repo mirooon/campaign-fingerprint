@@ -388,6 +388,8 @@ export function buildEvidenceGraph(
           certCount: di?.ct?.certs.length ?? null,
           // off the air: its live NS and A belong to the registrar's suspension service, not the operator
           ...(rdapSuspended(di?.rdap?.status, config.lists.suspendedRdapStatuses ?? []) ? { suspended: true } : {}),
+          // an archived copy predates the registration: the domain changed hands, so its old content says nothing about the operator
+          ...(di?.reRegistered ? { reRegistered: true } : {}),
         });
         g.edge(hostNode, domainNode, "in_domain", "domena rejestrowalna (eTLD+1)");
         const domainPath = [...hostPath, domainNode];

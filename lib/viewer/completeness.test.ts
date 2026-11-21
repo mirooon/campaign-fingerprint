@@ -11,6 +11,12 @@ describe("completeness (§8.9)", () => {
     expect(c.items.find((i) => i.id === "video")?.optional).toBe(true);
     expect(c.complete).toBe(true);
   });
+  it("a page that stands in as an archived copy is named with its source, not shown as a live or saved page", () => {
+    const c = completeness({ provenance: { screenshot: "a.png", bodySource: "none", landingUrl: "https://a.test/" }, features: { bodySource: "urlscan" } });
+    const page = c.items.find((i) => i.id === "page");
+    expect(page).toMatchObject({ status: "warn", label: "strona (kopia archiwalna: urlscan)" });
+    expect(page?.effect).toMatch(/nie jest pobraniem na żywo/);
+  });
   it("missing page: effect explains what will not be compared", () => {
     const c = completeness({ provenance: { screenshot: "a.png", bodySource: "none", landingUrl: null } });
     const page = c.items.find((i) => i.id === "page");

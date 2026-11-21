@@ -7,14 +7,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createCache, TTL } from "../cache";
 import { clusterCampaigns } from "../graph/cluster";
-import { mergeConfig, type LinkConfig, type LinkConfigOverride } from "../graph/config";
+import { DEFAULT_LINK_CONFIG, mergeConfig, type LinkConfig, type LinkConfigOverride } from "../graph/config";
 import { evaluateClustering, type EvalResult } from "../graph/eval";
 import { campaignEvolution } from "../graph/evolution";
 import { buildEvidenceGraph, textOf } from "../graph/link";
+import { Discounter } from "../graph/weights";
 import type { CampaignsFile, EvidenceGraph } from "../graph/model";
 import { pruneGraphForOutput } from "../graph/prune";
 import { embed, getProvider } from "../llm";
 import { compileWatchlist, loadWatchlist } from "../text/persona";
+import { archiveStepOptions } from "./archiveContext";
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords } from "./ingest";
 import { datasetDuplicates, duplicateMedia, duplicateTraits } from "./materialVerdicts";
@@ -102,8 +104,15 @@ export interface EnrichStepOptions {
   adLibrary?: boolean;
   /** Directory for archived HTML; null disables archiving. */
   archive?: string | null;
+  /** Opt-in archive lookup (urlscan, Wayback) for landing pages that do not answer; ARCHIVE_SOURCES picks the sources. */
+  archiveLookup?: boolean;
 }
 
+/**
+ * `enrich` step: reads items.json, enriches the landing pages, hosts, domains and media (live passive sources, or
+ * recorded fixtures with `offline`), writes enriched.json and prints a summary. With `archiveLookup` a landing page
+ * that does not answer gets a public copy (urlscan, Wayback) with its provenance; an offline run skips that with the reason.
+ */
 export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> {
   const itemsFile = readJson<ItemsFile>(o.items);
   const sources = o.offline ? fixtureSources(o.fixtures ?? DEFAULTS.fixtures) : liveSources();
@@ -111,7 +120,9 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
   console.log(`[enrich] tryb: ${o.offline ? `offline (fixtures: ${o.fixtures ?? DEFAULTS.fixtures})` : "live (pasywne zapytania, cache w .cache/)"}`);
   const watchlist = o.personas && existsSync(o.personas) ? compileWatchlist(loadWatchlist(o.personas)) : null;
   if (watchlist) console.log(`[enrich] lista obserwowanych osób: ${watchlist.entries.length} (${o.personas})`);
-  const extras = [o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "głos (SpeechBrain)", o.adLibrary && "biblioteka reklam"].filter(Boolean);
+  const archiveStep = archiveStepOptions({ enabled: !!o.archiveLookup, offline: o.offline });
+  const parking = new Discounter(DEFAULT_LINK_CONFIG);
+  const extras = [archiveStep && "archiwa stron (urlscan, Wayback)", o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "głos (SpeechBrain)", o.adLibrary && "biblioteka reklam"].filter(Boolean);
   if (extras.length) console.log(`[enrich] włączone opcje: ${extras.join(", ")}`);
   let lastLog = 0;
   const ds = await enrichItems(itemsFile.items, {
@@ -129,6 +140,7 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
     speaker: !!o.speaker,
     adLibrary: !!o.adLibrary,
     archiveDir: o.archive === undefined ? DEFAULTS.archive : o.archive,
+    archive: archiveStep ? { ...archiveStep, isBlockPage: (texts) => parking.isParked(texts) } : null,
     log: (m) => console.log(`[enrich] ${m}`),
     onProgress: (stage, done, total) => {
       const now = Date.now();

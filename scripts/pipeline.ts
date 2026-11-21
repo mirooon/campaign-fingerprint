@@ -26,9 +26,10 @@ const args = cli(
     clip: { type: "boolean" },
     speaker: { type: "boolean" },
     "ad-library": { type: "boolean" },
+    "archive-lookup": { type: "boolean" },
   } as const,
   `Użycie: bun run pipeline [--offline] [--input plik] [--mapping mapping.json] [--fixtures dir] [--config linking.json] [--text tfidf|embedding|none] [--skip ct,...]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--ad-library] [--archive-lookup]
 Kroki: ingest -> enrich -> build-graph -> evaluate (jeśli są etykiety).`,
 );
 
@@ -55,6 +56,7 @@ void main(async () => {
     clip: !!args.clip,
     speaker: !!args.speaker,
     adLibrary: !!args["ad-library"],
+    archiveLookup: !!args["archive-lookup"],
   });
   const config = args.config ?? (usingSample && existsSync(DEFAULTS.config) ? DEFAULTS.config : undefined);
   const text = (args.text ?? process.env.TEXT_SIMILARITY ?? "tfidf") as "tfidf" | "embedding" | "none";

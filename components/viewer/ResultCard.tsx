@@ -156,6 +156,13 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
       </div>
       <p className="mt-1 text-sm text-slate-800">{sentence}</p>
       {note && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">{note}</p>}
+      {item.archive?.copy && (
+        <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">
+          {item.archive.copy.used ? "Strona nie odpowiadała; cechy strony pochodzą z kopii" : "Znaleziono kopię strony, ale jej nie użyto"}: {item.archive.copy.source}, {item.archive.copy.capturedAt.slice(0, 10)}
+          {item.archive.copy.rejected ? ` (${item.archive.copy.rejected.reason})` : ""}.{" "}
+          <a className="underline" href={item.archive.copy.sourceUrl} target="_blank" rel="noopener noreferrer">Źródło kopii</a>
+        </p>
+      )}
       {camp?.attributes.basis === "content" && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">Kampania z treści, bez infrastruktury: słabsza podstawa niż wspólne konto czy serwer.</p>}
       {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.join("; ")}.</p>}
       {item.verdict === "insufficient" && (item.missing?.length ?? 0) > 0 && (

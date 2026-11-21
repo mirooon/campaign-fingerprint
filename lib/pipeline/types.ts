@@ -12,6 +12,7 @@ import type { NormalizedUrl } from "../osint/urls";
 import type { FaviconHashes, ImageHashes } from "../media/imageHash";
 import type { AudioFingerprint } from "../media/audioFp";
 import type { AdLibraryInfo } from "../osint/adLibrary";
+import type { PageArchive } from "../osint/archive/types";
 import type { ObservedAddress } from "../media/addressBar";
 import type { CampaignParam } from "../osint/campaignParams";
 import type { PageKit } from "../osint/pagekit";
@@ -71,6 +72,8 @@ export interface DomainInfo {
   txt: string[];
   rdap: RdapInfo | null;
   ct: CtResult | null;
+  /** An archived copy of a page of this domain predates its registration in RDAP: the domain was registered again (the old content is not the current operator's). */
+  reRegistered?: boolean;
 }
 
 export interface FaviconInfo {
@@ -90,6 +93,10 @@ export interface PageInfo {
   archiveFile: string | null;
   /** Optional cloaking check (two extra GETs with a crawler and a mobile User-Agent). */
   cloaking: CloakingCheck | null;
+  /** Where `extract` and `kit` came from when the live page was dead and an archived copy stood in: never set for a page fetched live. */
+  bodySource?: "urlscan" | "wayback";
+  /** Provenance of the archived copy found for this page (used, or found but rejected); without the body. */
+  archive?: PageArchive;
 }
 
 export interface CloakingVariant {
@@ -150,6 +157,8 @@ export interface ItemEnrichment {
   speakerEmbedding?: number[];
   /** Meta Ad Library details for the ad-library IDs of this item (opt-in, live mode). */
   adLibrary?: AdLibraryInfo[];
+  /** Outcome of the archive step for the landing page (opt-in); absent when the page was fetched live or the step is off. */
+  archive?: { status: "used" | "rejected" | "none" | "skipped"; detail: string };
   errors: string[];
 }
 

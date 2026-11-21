@@ -22,12 +22,15 @@ import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo } fr
 import { detectOcr, ocrImage } from "../media/ocr";
 import { detectSpeaker, embedSpeakers } from "../media/speaker";
 import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
+import { copyProvenance, findArchivedCopy, type ArchiveConfig, type ArchivedCopy, type ArchiveSource } from "../osint/archive";
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
 import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../media/addressBar";
 import { extractCampaignParams } from "../osint/campaignParams";
-import { extractFromHtml, extractFromText } from "../osint/extract";
+import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
+import type { FetchPageResult } from "../osint/fetchPage";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
 import { domSimhash, extractPageKit, simhashDistance, withRequestUrls } from "../osint/pagekit";
+import type { RdapInfo } from "../osint/rdap";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   extractPersonsNer,
@@ -84,6 +87,23 @@ export interface EnrichOptions {
   adLibrary?: boolean;
   /** Archive decoded HTML of fetched pages here (content-addressed by raw-body SHA-256). */
   archiveDir?: string | null;
+  /**
+   * Opt-in archive step: for a landing page that could not be fetched (or shows a block page), look for a
+   * public copy (urlscan, Wayback) and feed the page features from it, with its provenance. Passive.
+   */
+  archive?: {
+    sources: ArchiveSource[];
+    config?: ArchiveConfig;
+    /** Whether page texts (title, description, visible text) show a parking or suspension notice instead of the page. */
+    isBlockPage?: (texts: Array<string | null | undefined>) => boolean;
+    /** When set, the step is skipped with this reason (an offline run) and no source is asked. */
+    skipReason?: string;
+    /**
+     * RDAP lookup for the era check when `sources` has no record of the domain (a run on saved files has no
+     * live lookups, yet the copy of a re-registered domain must still be told from the current one).
+     */
+    rdap?: (domain: string) => Promise<RdapInfo | null>;
+  } | null;
 }
 
 function errMsg(e: unknown): string {
@@ -186,12 +206,70 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     return { crawler, mobile, finalUrlDiffers, domDistance, suspected: reasons.length > 0, reasons };
   };
 
+  /** Outcome of the archive step per page key, and the registrable domains whose archived copy predates their registration. */
+  const archiveStatus = new Map<string, NonNullable<ItemEnrichment["archive"]>>();
+  const reRegistered = new Set<string>();
+
+  /**
+   * Archive step for a page that was not fetched (error, 4xx/5xx) or shows a block page: looks for a public
+   * copy, after checking the era of the domain (RDAP `created`, else the oldest certificate) so that a copy
+   * of an earlier owner is rejected. Returns null when the step is off or not needed; otherwise the outcome
+   * for the step report, the copy to use (null when none) and the copy that was found but rejected.
+   */
+  const archiveStep = async (
+    url: string,
+    res: FetchPageResult,
+    extract: PageExtract | null,
+    firstSeen: string | null,
+  ): Promise<{ status: NonNullable<ItemEnrichment["archive"]>; copy: ArchivedCopy | null; rejected: ArchivedCopy | null } | null> => {
+    const a = opts.archive;
+    if (!a) return null;
+    const blockPage = !!extract && !!a.isBlockPage?.([extract.title, extract.description, extract.visibleText]);
+    if (res.ok && !blockPage) return null;
+    const skipped = (detail: string) => ({ status: { status: "skipped" as const, detail }, copy: null, rejected: null });
+    if (a.skipReason) return skipped(a.skipReason);
+    // an address the fetcher refused (local, not http) has no public copy to look for
+    if (res.errorCode === "blocked" || res.errorCode === "invalid-url") return skipped(`adres nie do sprawdzenia w archiwum: ${res.error ?? res.errorCode}`);
+    const domain = registrableDomain(url);
+    const notes: string[] = [];
+    let domainCreated: string | null = null;
+    let oldestCert: string | null = null;
+    if (domain && !skip.rdap) {
+      try {
+        domainCreated = ((await sources.rdap(domain)) ?? (await a.rdap?.(domain)))?.created ?? null;
+      } catch (e) {
+        notes.push(`epoka domeny: RDAP niedostępny (${errMsg(e)})`);
+      }
+    }
+    if (domain && !domainCreated && !skip.ct) {
+      try {
+        const certs = (await sources.ct(domain))?.certs ?? [];
+        oldestCert = certs.map((c) => c.notBefore).filter((t): t is string => !!t).sort()[0] ?? null;
+      } catch (e) {
+        notes.push(`epoka domeny: CT niedostępny (${errMsg(e)})`);
+      }
+    }
+    if (!domainCreated && !oldestCert) notes.push("epoka domeny nie sprawdzona: brak daty rejestracji i certyfikatów");
+    const found = await findArchivedCopy(url, { sources: a.sources, config: a.config, firstSeen, domainCreated, oldestCert });
+    if (found.reRegistered && domain) reRegistered.add(domain);
+    const copy = found.copy ? { ...found.copy, notes: [...(found.copy.notes ?? []), ...notes] } : null;
+    const status: NonNullable<ItemEnrichment["archive"]>["status"] = copy
+      ? "used"
+      : found.rejected.length
+        ? "rejected"
+        : found.tried.every((t) => t.status === "none")
+          ? "none"
+          : "skipped";
+    return { status: { status, detail: found.summary }, copy, rejected: found.rejected[0] ?? null };
+  };
+
   /**
    * Page under its key (normalised address), fetched once per key. `fetchUrl` is the address actually
    * requested (default: the key); live mode passes the full input address, because the normalised key
-   * drops `fbclid`/`utm_*` and many scam pages show the offer only to the full address.
+   * drops `fbclid`/`utm_*` and many scam pages show the offer only to the full address. `firstSeen` is when the
+   * material was first seen: the archive step wants the copy nearest to it.
    */
-  const loadPage = (url: string, fetchUrl: string = url): Promise<PageInfo> => {
+  const loadPage = (url: string, fetchUrl: string = url, firstSeen: string | null = null): Promise<PageInfo> => {
     const existing = pagePromises.get(url);
     if (existing) return existing;
     const p = (async (): Promise<PageInfo> => {
@@ -221,8 +299,34 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       // the page's files when only the request list survived)
       const requests = sources.requestsFor?.(url) ?? (res.finalUrl !== url ? sources.requestsFor?.(res.finalUrl) : null) ?? null;
       if (requests?.length) kit = withRequestUrls(kit, requests, res.finalUrl || url);
+      // a dead page (or a block page): a public copy stands in for it, marked with where it came from
+      const step = await archiveStep(url, res, extract, firstSeen);
+      let bodySource: PageInfo["bodySource"];
+      let archive: PageInfo["archive"];
+      if (step) {
+        archiveStatus.set(url, step.status);
+        const shown = step.copy ?? step.rejected;
+        if (shown) {
+          archive = { ...copyProvenance(shown), used: !!step.copy };
+        }
+        if (step.copy) {
+          bodySource = step.copy.source;
+          extract = null;
+          kit = null;
+          if (step.copy.html) {
+            try {
+              extract = extractFromHtml(step.copy.html, step.copy.url);
+              kit = extractPageKit(step.copy.html, step.copy.url);
+            } catch (e) {
+              fetchMeta.error = `extract failed (archive copy): ${errMsg(e)}`;
+            }
+          }
+          if (step.copy.requests?.length) kit = withRequestUrls(kit, step.copy.requests.map((r) => r.url), step.copy.url);
+        }
+      }
       let favicon: PageInfo["favicon"] = null;
-      if (!skip.favicon && extract?.faviconUrl) {
+      // the favicon of an archived page would be asked of the dead host: left out
+      if (!skip.favicon && extract?.faviconUrl && !bodySource) {
         try {
           const data = await sources.fetchBinary(extract.faviconUrl);
           favicon = data
@@ -233,7 +337,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         }
       }
       const cloaking = opts.cloaking ? await checkCloaking(url) : null;
-      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking };
+      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking, ...(bodySource ? { bodySource } : {}), ...(archive ? { archive } : {}) };
       pages[url] = info;
       return info;
     })();
@@ -393,7 +497,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           try {
             // offline fixtures are stored under the normalised key; a live request goes to the full input address
             const full = landingSource === "input" && sources.mode === "live" ? item.landingUrl!.replace(/#.*$/, "") : pageKey;
-            page = await loadPage(pageKey, full);
+            page = await loadPage(pageKey, full, item.firstSeen);
             if (page.fetch.error) errors.push(`page: ${page.fetch.error}`);
           } catch (e) {
             errors.push(`page: ${errMsg(e)}`);
@@ -443,6 +547,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           ...(imageEmbedding ? { imageEmbedding } : {}),
           ...(videoEmbedding ? { videoEmbedding } : {}),
           ...(videoSha256 ? { videoSha256 } : {}),
+          ...(pageKey && archiveStatus.has(pageKey) ? { archive: archiveStatus.get(pageKey) } : {}),
           errors,
         };
         progress("items", ++done, items.length);
@@ -580,7 +685,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   done = 0;
   await Promise.all(
     [...domainSet].map(async (domain) => {
-      const info: DomainInfo = { domain, ns: [], mx: [], txt: [], rdap: null, ct: null };
+      const info: DomainInfo = { domain, ns: [], mx: [], txt: [], rdap: null, ct: null, ...(reRegistered.has(domain) ? { reRegistered: true } : {}) };
       const tasks: Array<Promise<void>> = [];
       if (!skip.dns) {
         tasks.push(

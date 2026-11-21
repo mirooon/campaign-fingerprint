@@ -1,6 +1,6 @@
 /**
  * bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik> [--mapping m.json] | --url <link> | --text <treść>)
- *   [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+ *   [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--archive] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
  * Analiza nowego materiału (jednej sprawy albo partii spraw) względem istniejącego przebiegu (graph.json, campaigns.json, enriched.json).
  */
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -10,6 +10,7 @@ import { analyzeMaterial } from "../lib/pipeline/analyzeMaterial";
 import { batchCaseDirs } from "../lib/pipeline/caseBatch";
 import { materialCsv } from "../lib/pipeline/materialCsv";
 import { liveSources } from "../lib/pipeline/sources";
+import { archiveStepOptions } from "../lib/pipeline/archiveContext";
 import { loadLinkConfig } from "../lib/pipeline/steps";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
 import { cli, main } from "./_cli";
@@ -28,6 +29,7 @@ const args = cli(
     config: { type: "string" },
     personas: { type: "string" },
     live: { type: "boolean" },
+    archive: { type: "boolean" },
     asr: { type: "boolean" },
     audio: { type: "boolean" },
     clip: { type: "boolean" },
@@ -38,13 +40,14 @@ const args = cli(
     out: { type: "string" },
     fixtures: { type: "string" },
   } as const,
-  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--archive] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
 --cases: każdy podkatalog to sprawa; wszystkie idą przez jeden import i jeden graf. --each-file: każdy luźny plik w katalogu to osobna sprawa.
 --dataset: każdy wiersz pliku zbioru to materiał (mapowanie kolumn jak w bun run ingest; --mapping jak tam). Ścieżki obrazów względem katalogu pliku.
 --csv: wynik partii, wiersz na rekord (material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data).
 --json: pełny wynik (MaterialResult) do pliku; "-" = na standardowe wyjście. --out: to samo do pliku (używa przeglądarka).
 --data: katalog z graph.json, campaigns.json i enriched.json (domyślnie VIEWER_DATA_DIR albo data/).
 --live: pasywne DNS, RDAP i ASN oraz jeden GET strony, której nie ma w materiale. Bez tego tylko materiał.
+--archive: dla strony, która nie odpowiada (albo pokazuje planszę blokady), szuka publicznej kopii w urlscan.io i Internet Archive (Wayback); kopia wchodzi do materiału z podanym źródłem, adresem i datą, a kopia sprzed rejestracji domeny jest odrzucana. Pasywnie: nic nie zleca ani nie zapisuje. Źródła: ARCHIVE_SOURCES (domyślnie urlscan,wayback); opcjonalny klucz urlscan: URLSCAN_API_KEY. Przy ANALYZE_OFFLINE=1 albo bez sieci krok jest pomijany z powodem w kroku "archive".
 --config / --personas: konfiguracja wag i lista osób (domyślnie <data>/linking.json i <data>/personas.json albo katalog wyżej).`,
 );
 
@@ -65,6 +68,7 @@ void main(async () => {
       workDir,
       fixtures: args.fixtures,
       live: args.live ? liveSources({ skipCt: true }) : null,
+      archive: archiveStepOptions({ enabled: !!args.archive, screenshotDir: path.join(workDir, "archiwum") }),
       config: loadLinkConfig(configFile),
       personas: personasFile ? compileWatchlist(loadWatchlist(personasFile)) : null,
       media: { ocr: true, asr: !!args.asr, audio: !!args.audio, clip: !!args.clip, speaker: !!args.speaker, adLibrary: !!args["ad-library"] },

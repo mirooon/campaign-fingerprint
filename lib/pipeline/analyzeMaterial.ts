@@ -15,8 +15,10 @@ import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:f
 import path from "node:path";
 import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
+import { Discounter } from "../graph/weights";
 import { buildEvidenceGraph } from "../graph/link";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
+import type { ArchiveSource, PageArchive } from "../osint/archive";
 import type { CompiledWatchlist } from "../text/persona";
 import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./caseImport";
 import { enrichItems } from "./enrich";
@@ -46,7 +48,7 @@ export interface MaterialInput {
   text?: string;
 }
 
-export type MaterialStep = "import" | "ocr" | "address_bar" | "asr" | "audio" | "clip" | "lookups" | "features" | "compare" | "group";
+export type MaterialStep = "import" | "ocr" | "address_bar" | "asr" | "audio" | "clip" | "lookups" | "archive" | "features" | "compare" | "group";
 
 /** Progress of one case: a step starts, ends, is skipped (with the reason in `detail`) or fails. */
 export interface MaterialProgress {
@@ -68,6 +70,12 @@ export interface MaterialContext {
   config?: LinkConfig;
   personas?: CompiledWatchlist | null;
   media?: { ocr?: boolean; asr?: boolean; audio?: boolean; clip?: boolean; speaker?: boolean; adLibrary?: boolean };
+  /**
+   * Opt-in archive step: for a landing page that is dead (or shows a block page) the public copies in `sources`
+   * (urlscan, Wayback) are asked for, and a copy found stands in for the page. `skipReason` turns the step off with
+   * the reason shown in the step report (an offline run). Absent: no step, no change to the result.
+   */
+  archive?: { sources: ArchiveSource[]; skipReason?: string } | null;
   log?: (m: string) => void;
   /** Progress per case and step (import, media, lookups, graph, campaign rules, verdicts). */
   onProgress?: (e: MaterialProgress) => void;
@@ -124,6 +132,15 @@ export interface MaterialPivot {
 /** Cap of `MaterialPivot.sharedWith` (df keeps the full count). */
 export const MAX_SHARED_WITH = 100;
 
+/** What the archive step did for the landing page of a record (see `EnrichedDataset` `PageInfo.archive`). */
+export interface MaterialArchive {
+  status: "used" | "rejected" | "none" | "skipped";
+  /** The line of the step report: "kopia z wayback z 2026-10-18", or why there is no copy. */
+  detail: string;
+  /** Provenance of the copy found (used, or rejected with the reason); no body. */
+  copy?: PageArchive;
+}
+
 export interface MaterialItemResult {
   id: string;
   /** Case (folder name) the record comes from; for a bare link or text, the record id. */
@@ -155,6 +172,10 @@ export interface MaterialItemResult {
   techniques?: string[];
   /** Traits of the record (graph pivots) with their weight and how many records of the existing run share them. */
   pivots?: MaterialPivot[];
+  /** The page features come from an archived copy, not from a live fetch: which archive. Absent for a page fetched live or without a page. */
+  bodySource?: "urlscan" | "wayback";
+  /** Archive step for the landing page: only when the step was on and the page was dead or blocked. */
+  archive?: MaterialArchive;
   /** Faces found in the record's pictures (reserved: no face detection in the pipeline yet, never filled). */
   faces?: Array<{ image: string; x: number; y: number; w: number; h: number; persona?: string; similarity?: number }>;
   links: MaterialLink[];
@@ -376,8 +397,10 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     ["audio", media.audio, (it) => !!it.videoPath],
     ["clip", media.clip, (it) => hasImage(it) || !!it.videoPath],
     ["lookups", !!ctx.live, () => true],
+    ["archive", !!ctx.archive, () => true],
   ];
   for (const c of caseIds) for (const [step, on, applies] of planned) if (on && itemsOf(c).some(applies)) progress(c, step, "start");
+  const parking = new Discounter(config);
   let extra: EnrichedDataset;
   try {
     extra = await enrichItems(items, {
@@ -393,6 +416,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       speaker: ctx.media?.speaker ?? false,
       adLibrary: ctx.media?.adLibrary ?? false,
       archiveDir: null,
+      archive: ctx.archive ? { ...ctx.archive, isBlockPage: (texts) => parking.isParked(texts) } : null,
       log,
     });
   } catch (e) {
@@ -400,6 +424,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     throw e;
   }
   reportMediaSteps(extra, caseIds, itemsOf, media, !!ctx.live, toolNotes, progress);
+  if (ctx.archive) reportArchiveStep(extra, caseIds, itemsOf, progress);
 
   // 3. One graph and the campaign rules over the existing dataset plus the new records
   const merged = mergeDatasets(base, extra);
@@ -515,9 +540,14 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
               : "Nowa kampania: brak wspólnych śladów ze znanymi kampaniami.";
     const data = nodeData.get(id) ?? {};
     const features = Object.fromEntries(FEATURE_KEYS.filter((k) => data[k] !== undefined && data[k] !== null && data[k] !== "").map((k) => [k, data[k]]));
+    // features of the page come from an archived copy: say so next to them (the data completeness list reads it)
+    const archivedBody = extra.perItem[id]?.pageKey ? extra.pages[extra.perItem[id].pageKey!]?.bodySource : undefined;
+    if (archivedBody) features.bodySource = archivedBody;
     // the landing URL may come from the material itself (address bar, ad text), not from the input
     if (!features.landingUrl && extra.perItem[id]?.landing) features.landingUrl = extra.perItem[id].landing!.url;
     const withNew = (camp?.members ?? []).filter((m) => m !== id && newIds.has(m));
+    const archiveStatus = extra.perItem[id]?.archive;
+    const archivedPage = extra.perItem[id]?.pageKey ? extra.pages[extra.perItem[id].pageKey!] : undefined;
     const block = typeof data.commentBlock === "string" ? nodeById.get(data.commentBlock) : undefined;
     results.push({
       id,
@@ -532,6 +562,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       newCampaign: null,
       ...(block ? { fakeComments: { count: Number(data.fakeCommentCount ?? 0), repeatedInOtherItems: Math.max(0, block.df - 1) } } : {}),
       ...(Array.isArray(data.techniques) && data.techniques.length ? { techniques: data.techniques as string[] } : {}),
+      ...(archivedPage?.bodySource ? { bodySource: archivedPage.bodySource } : {}),
+      ...(archiveStatus ? { archive: { ...archiveStatus, ...(archivedPage?.archive ? { copy: archivedPage.archive } : {}) } } : {}),
       pivots: pivotsOf(id),
       links,
       features,
@@ -617,15 +649,18 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       hasImage: !!enr?.image,
       hasVideo: !!it?.videoPath,
       // an address alone (typed in, or read from a screenshot) is not a captured page: the fetch of it may have failed
-      hasPage: !!(enr?.pageKey && merged.pages[enr.pageKey]?.fetch.ok),
+      hasPage: !!(enr?.pageKey && (merged.pages[enr.pageKey]?.fetch.ok || merged.pages[enr.pageKey]?.bodySource)),
       hasHar: harCases.has(r.caseId ?? r.id) ? true : caseDirOf.has(r.caseId ?? r.id) ? false : undefined,
       linked: (camp?.members.length ?? 1) > 1 || !!camp?.familyId,
       leadAd,
+      archiveNone: r.archive?.status === "none" || r.archive?.status === "rejected",
     };
     if (isInsufficient(s)) {
       r.verdict = "insufficient";
       r.missing = missingData(s);
-      r.verdictText = `Za mało danych do porównania: brak adresu strony, identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`;
+      r.verdictText = s.archiveNone
+        ? `Za mało danych do porównania: brak strony i brak kopii archiwalnej (krok archiwum: ${r.archive?.detail}), brak identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`
+        : `Za mało danych do porównania: brak adresu strony, identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`;
     } else if (r.verdict === "new_campaign" || r.verdict === "similar_campaigns") {
       const m = missingData(s);
       if (m.length) r.missing = m;
@@ -685,5 +720,25 @@ function reportMediaSteps(
     report("audio", media.audio, "odcisk audio wyłączony", vid, "brak wideo", "odcisk audio", enr.some((e) => (e.audioFp?.fingerprint.length ?? 0) > 0), "brak ścieżki dźwiękowej", /fpcalc|audio/i);
     report("clip", media.clip, "CLIP wyłączony", img || vid, "brak obrazu i wideo", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "brak osadzenia", /clip/i);
     report("lookups", live, "tryb offline: bez zapytań sieciowych, tylko strony z materiału", true, "", null, true, "", /dns|rdap|asn/i);
+  }
+}
+
+/**
+ * Outcome of the archive step per case: "done" with the source and date of the copy when one was used, otherwise
+ * "skipped" with the reason (no copy, copy rejected, source unavailable, offline run, or the page was fetched).
+ */
+function reportArchiveStep(
+  extra: EnrichedDataset,
+  caseIds: string[],
+  itemsOf: (c: string) => Item[],
+  progress: (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => void,
+): void {
+  for (const c of caseIds) {
+    const outcomes = itemsOf(c).map((it) => extra.perItem[it.id]?.archive).filter((a): a is NonNullable<typeof a> => !!a);
+    if (!outcomes.length) progress(c, "archive", "skipped", "archiwum niepotrzebne: strona pobrana albo brak adresu strony");
+    else {
+      const used = outcomes.find((a) => a.status === "used");
+      progress(c, "archive", used ? "done" : "skipped", (used ?? outcomes[0]).detail);
+    }
   }
 }

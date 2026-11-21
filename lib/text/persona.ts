@@ -1,5 +1,6 @@
 /**
- * Persona (impersonated public figure) from TEXT only — no biometrics.
+ * Persona (impersonated public figure) from TEXT. A persona from a face (lib/media/face.ts) joins the
+ * same persona node with source "face"; this module does no biometrics.
  *
  * - watchlist matching with simple Polish inflection ("Adama Testowego", "Ewie Przykładowej")
  *   on text folded by normalizeForMatching (diacritics, homoglyphs, case);
@@ -31,8 +32,10 @@ export interface PersonaMatch {
   name: string;
   /** Matched text in normalised form (lower-case, folded diacritics). */
   matched: string;
-  source: "watchlist" | "ingest" | "ner";
+  source: "watchlist" | "ingest" | "ner" | "face";
   role: string | null;
+  /** Weighted cosine of the face for source "face" ("a face similar to X (0.xx)", for review, never proof). */
+  similarity?: number;
   /** True when found by the fuzzy (OCR/ASR-tolerant) matcher. */
   fuzzy?: boolean;
   /** Edit distance between surname stems for fuzzy matches. */
@@ -184,6 +187,9 @@ export function compileWatchlist(entries: PersonaEntry[]): CompiledWatchlist {
   }
   return { entries: compiled };
 }
+
+/** The closed list of public figures shared by the text watchlist, the face reference and the voice gallery (each entry has a public source: a bank or CERT warning). */
+export const PUBLIC_PERSONS_FILE = "data/osoby-publiczne.json";
 
 /** Loads a watchlist: a JSON array of entries (or an object with a "personas" array). */
 export function loadWatchlist(file: string): PersonaEntry[] {

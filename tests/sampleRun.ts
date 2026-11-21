@@ -4,8 +4,10 @@
  */
 import path from "node:path";
 import { clusterCampaigns } from "../lib/graph/cluster";
+import type { LinkConfig } from "../lib/graph/config";
 import { buildEvidenceGraph } from "../lib/graph/link";
 import { enrichItems, type EnrichOptions } from "../lib/pipeline/enrich";
+import type { Item } from "../lib/pipeline/types";
 import { loadMapping, loadRecords, normalizeRecords } from "../lib/pipeline/ingest";
 import { fixtureSources } from "../lib/pipeline/sources";
 import { loadLinkConfig } from "../lib/pipeline/steps";
@@ -17,16 +19,17 @@ export function sampleItems() {
   return normalizeRecords(loadRecords(path.join(SAMPLE, "ads.csv")), loadMapping(path.join(SAMPLE, "mapping.json")));
 }
 
-export async function runSample(opts: { only?: string[]; enrich?: Partial<EnrichOptions> } = {}) {
+export async function runSample(opts: { only?: string[]; enrich?: Partial<EnrichOptions>; config?: LinkConfig; prepare?: (items: Item[]) => void } = {}) {
   const { items, warnings } = sampleItems();
   const subset = opts.only ? items.filter((it) => opts.only!.includes(it.id)) : items;
+  opts.prepare?.(subset);
   const ds = await enrichItems(subset, {
     sources: fixtureSources(path.join(SAMPLE, "fixtures")),
     baseDir: SAMPLE,
     personas: compileWatchlist(loadWatchlist(path.join(SAMPLE, "personas.json"))),
     ...opts.enrich,
   });
-  const config = loadLinkConfig(path.join(SAMPLE, "linking.json"));
+  const config = opts.config ?? loadLinkConfig(path.join(SAMPLE, "linking.json"));
   const { graph, campaigns } = clusterCampaigns(buildEvidenceGraph(ds, { config }), { config });
   return { items: subset, warnings, ds, config, graph, campaigns };
 }

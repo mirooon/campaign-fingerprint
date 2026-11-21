@@ -1,0 +1,67 @@
+[
+  {
+    "id": "rafal-brzoska",
+    "name": "Rafał Brzóska",
+    "aliases": [
+      "Rafał Brzoska",
+      "@RBrzoska"
+    ],
+    "role": "przedsiębiorca, współzałożyciel InPost",
+    "source": "CERT Polska, „Ad fraud on large online platforms” (2024-12): fałszywa recenzja platformy z wizerunkiem Rafała Brzoski, https://cert.pl/en/posts/2024/12/Ad-fraud-on-large-online-platforms/ ; Demagog.org.pl, „Deepfake z Rafałem Brzoską wykorzystany w oszustwie inwestycyjnym”, https://demagog.org.pl/fake_news/deepfake-z-rafalem-brzoska-wykorzystany-w-oszustwie-inwestycyjnym/"
+  },
+  {
+    "id": "monika-olejnik",
+    "name": "Monika Olejnik",
+    "aliases": [],
+    "role": "dziennikarka",
+    "source": "NASK, lista osób, których wizerunek wykorzystano w deepfake'ach oszustw (stan 07.2024), kategoria dziennikarze: https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (21.11.2026 adres zwracał stronę „nie znaleziono”; wpis znany z wyników wyszukiwarki, do potwierdzenia)"
+  },
+  {
+    "id": "adam-glapinski",
+    "name": "Adam Glapiński",
+    "aliases": [],
+    "role": "prezes Narodowego Banku Polskiego",
+    "source": "Demagog.org.pl, „Wizerunek Adama Glapińskiego wykorzystany w oszustwie na inwestycje”, https://demagog.org.pl/fake_news/wizerunek-adama-glapinskiego-wykorzystany-w-oszustwie-na-inwestycje/"
+  },
+  {
+    "id": "donald-tusk",
+    "name": "Donald Tusk",
+    "aliases": [
+      "@donaldtusk"
+    ],
+    "role": "premier RP",
+    "source": "Demagog.org.pl, „Tusk reklamuje platformę inwestycyjną? Przerobione nagranie z polskim premierem”, https://demagog.org.pl/fake_news/tusk-reklamuje-platforme-inwestycyjna-przerobione-nagranie-polskiego-premiera/"
+  },
+  {
+    "id": "mateusz-morawiecki",
+    "name": "Mateusz Morawiecki",
+    "aliases": [
+      "@MorawieckiM"
+    ],
+    "role": "poseł, były premier RP",
+    "source": "Demagog.org.pl, „Nowy program inwestycyjny dla Polaków? Rząd takiego nie ogłosił” (wizerunek premiera Morawieckiego w fałszywej reklamie), https://demagog.org.pl/fake_news/nowy-program-inwestycyjny-dla-polakow-rzad-takiego-nie-oglosil/"
+  },
+  {
+    "id": "krzysztof-stanowski",
+    "name": "Krzysztof Stanowski",
+    "aliases": [],
+    "role": "dziennikarz, twórca Kanału Zero",
+    "source": "Bezprawnik, „Ta reklama na X nie obiecuje milionów” (reklama na X z jego wizerunkiem, wygląda na wygenerowaną; autor nie potwierdza oszustwa), https://bezprawnik.pl/ta-reklama-na-x-nie-obiecuje-milionow/ (źródło słabsze od pozostałych, do potwierdzenia ostrzeżeniem banku lub CERT)"
+  },
+  {
+    "id": "robert-lewandowski",
+    "name": "Robert Lewandowski",
+    "aliases": [],
+    "role": "piłkarz",
+    "source": "Demagog.org.pl, „Lewandowski zachęca do inwestowania? Kolejny scam z użyciem AI”, https://demagog.org.pl/fake_news/lewandowski-zacheca-do-inwestowania-kolejny-scam-z-uzyciem-ai/"
+  },
+  {
+    "id": "andrzej-duda",
+    "name": "Andrzej Duda",
+    "aliases": [
+      "@AndrzejDuda"
+    ],
+    "role": "były prezydent RP",
+    "source": "Benchmark.pl, „Andrzej Duda »namawia« do inwestowania. Eksperci radzą uważać – to przekręt”, https://www.benchmark.pl/andrzej-duda-zacheca-do-inwestowania-sprytne-oszustwo-krazy-w-7265363399689281a ; Demagog.org.pl (fałszywe reklamy z jego wizerunkiem), https://demagog.org.pl/fake_news/prezydent-zacheca-do-inwestycji-nic-takiego-sie-nie-wydarzylo/"
+  }
+]

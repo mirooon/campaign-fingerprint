@@ -1,6 +1,6 @@
 /**
  * bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik> [--mapping m.json] | --url <link> | --text <treść>)
- *   [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+ *   [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library]
  * Analiza nowego materiału (jednej sprawy albo partii spraw) względem istniejącego przebiegu (graph.json, campaigns.json, enriched.json).
  */
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -11,7 +11,7 @@ import { batchCaseDirs } from "../lib/pipeline/caseBatch";
 import { materialCsv } from "../lib/pipeline/materialCsv";
 import { liveSources } from "../lib/pipeline/sources";
 import { loadLinkConfig } from "../lib/pipeline/steps";
-import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
+import { compileWatchlist, loadWatchlist, PUBLIC_PERSONS_FILE } from "../lib/text/persona";
 import { cli, main } from "./_cli";
 
 const args = cli(
@@ -32,20 +32,22 @@ const args = cli(
     audio: { type: "boolean" },
     clip: { type: "boolean" },
     speaker: { type: "boolean" },
+    faces: { type: "boolean" },
+    "verify-person": { type: "string" },
     "ad-library": { type: "boolean" },
     csv: { type: "string" },
     json: { type: "string" },
     out: { type: "string" },
     fixtures: { type: "string" },
   } as const,
-  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+  `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library]
 --cases: każdy podkatalog to sprawa; wszystkie idą przez jeden import i jeden graf. --each-file: każdy luźny plik w katalogu to osobna sprawa.
 --dataset: każdy wiersz pliku zbioru to materiał (mapowanie kolumn jak w bun run ingest; --mapping jak tam). Ścieżki obrazów względem katalogu pliku.
 --csv: wynik partii, wiersz na rekord (material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data).
 --json: pełny wynik (MaterialResult) do pliku; "-" = na standardowe wyjście. --out: to samo do pliku (używa przeglądarka).
 --data: katalog z graph.json, campaigns.json i enriched.json (domyślnie VIEWER_DATA_DIR albo data/).
 --live: pasywne DNS, RDAP i ASN oraz jeden GET strony, której nie ma w materiale. Bez tego tylko materiał.
---config / --personas: konfiguracja wag i lista osób (domyślnie <data>/linking.json i <data>/personas.json albo katalog wyżej).`,
+--config / --personas: konfiguracja wag i lista osób (domyślnie <data>/linking.json i <data>/personas.json albo katalog wyżej, a dla osób na końcu data/osoby-publiczne.json).`,
 );
 
 void main(async () => {
@@ -54,7 +56,8 @@ void main(async () => {
   const workDir = path.resolve(args.work ?? mkdtempSync(path.join(os.tmpdir(), "analiza-")));
   const pick = (...files: string[]) => files.find((f) => existsSync(f));
   const configFile = args.config ?? process.env.LINK_CONFIG ?? pick(path.join(dataDir, "linking.json"), path.join(dataDir, "..", "linking-default.json"));
-  const personasFile = args.personas ?? process.env.PERSONAS ?? pick(path.join(dataDir, "personas.json"), path.join(dataDir, "..", "personas.json"));
+  // the closed list of public figures (also the face reference) is the fallback of the text persona
+  const personasFile = args.personas ?? process.env.PERSONAS ?? pick(path.join(dataDir, "personas.json"), path.join(dataDir, "..", "personas.json"), path.join(process.cwd(), PUBLIC_PERSONS_FILE));
   const log = (m: string) => console.error(`[analiza] ${m}`);
   const caseDirs = args.cases ? batchCaseDirs(args.cases, { eachFile: !!args["each-file"], scratchDir: workDir }) : undefined;
   if (caseDirs && !caseDirs.length) throw new Error(`brak spraw w ${args.cases} (podkatalogi albo --each-file dla luźnych plików)`);
@@ -67,7 +70,7 @@ void main(async () => {
       live: args.live ? liveSources({ skipCt: true }) : null,
       config: loadLinkConfig(configFile),
       personas: personasFile ? compileWatchlist(loadWatchlist(personasFile)) : null,
-      media: { ocr: true, asr: !!args.asr, audio: !!args.audio, clip: !!args.clip, speaker: !!args.speaker, adLibrary: !!args["ad-library"] },
+      media: { ocr: true, asr: !!args.asr, audio: !!args.audio, clip: !!args.clip, speaker: !!args.speaker, faces: !!args.faces, facesOnly: args["verify-person"], adLibrary: !!args["ad-library"] },
       log,
     },
   );

@@ -3,7 +3,7 @@
  * hosts (A/AAAA + CNAME chain), domains (NS/MX/TXT, RDAP, CT), IPs (ASN), image hashes,
  * campaign parameters and personas (from text, input columns, optional NER).
  * Opt-in: cloaking check (two extra GETs), OCR, ASR, audio fingerprints, speaker embeddings
- * (SpeechBrain) and Meta Ad Library details (MetaAdsCollector) (skipped
+ * (SpeechBrain), faces of public figures (OpenCV) and Meta Ad Library details (MetaAdsCollector) (skipped
  * quietly when the tools are missing). Concurrency-limited, cached (live mode) and
  * failure-tolerant: errors are recorded, never thrown.
  */
@@ -18,8 +18,9 @@ import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
 import { hashFavicon, hashImage } from "../media/imageHash";
-import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo } from "../media/imageEmbed";
+import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo, extractFrames } from "../media/imageEmbed";
 import { detectOcr, ocrImage } from "../media/ocr";
+import { detectFaces, type FaceHit } from "../media/face";
 import { detectSpeaker, embedSpeakers } from "../media/speaker";
 import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
@@ -31,9 +32,11 @@ import { domSimhash, extractPageKit, simhashDistance, withRequestUrls } from "..
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   extractPersonsNer,
+  loadWatchlist,
   matchPersonas,
   personasFromIngest,
   personaSlug,
+  PUBLIC_PERSONS_FILE,
   type CompiledWatchlist,
   type PersonaMatch,
 } from "../text/persona";
@@ -80,6 +83,12 @@ export interface EnrichOptions {
   clip?: boolean;
   /** Opt-in SpeechBrain speaker embedding of video/audio creatives (same voice across ads). */
   speaker?: boolean;
+  /** Opt-in faces: boxes in the creative images, screenshots and video frames, and the persona when a face is similar to a public figure on the closed list (OpenCV YuNet + SFace). */
+  faces?: boolean;
+  /** Replaces the Python adapter of `faces` (tests inject a recorded result). */
+  facesAdapter?: typeof detectFaces;
+  /** With `faces`: compare only with this person id from the list (1:1 verification at that person's request). */
+  facesOnly?: string;
   /** Opt-in Meta Ad Library lookup of ad-library IDs via MetaAdsCollector (live mode only). */
   adLibrary?: boolean;
   /** Archive decoded HTML of fetched pages here (content-addressed by raw-body SHA-256). */
@@ -104,6 +113,80 @@ function dedupePersonas(list: PersonaMatch[]): PersonaMatch[] {
     out.push(p);
   }
   return out;
+}
+
+/**
+ * Face step of the enrichment: finds faces in each item's creative image, further screenshots and
+ * video frames (the same frames CLIP takes) and sets `faces` on its enrichment. A face similar to
+ * a person on the closed list (data/osoby-publiczne.json) also adds a persona with source "face"
+ * (similarity kept, the vector never): a trait of a group of similar campaigns, to be reviewed by a
+ * person. One adapter call for the whole batch; when the adapter is missing the reason is logged
+ * ("twarze pominięte: ...") and nothing is set.
+ * @param perItem enrichments by item id, changed in place
+ */
+async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment>, opts: EnrichOptions, log: (message: string) => void): Promise<void> {
+  const dir = await mkdtemp(path.join(os.tmpdir(), "starter-faces-"));
+  try {
+    // file given to the adapter -> the items that show it (two records can share one file) and the label stored in the result
+    const jobs = new Map<string, Array<{ itemId: string; label: string }>>();
+    let n = 0;
+    const abs = (p: string) => (path.isAbsolute(p) ? p : path.join(opts.baseDir, p));
+    /** Registers a picture for the adapter: `file` is what it reads, `label` what the result will show (the path or `video#frameN`). */
+    const addJob = (file: string, itemId: string, label: string) => jobs.set(file, [...(jobs.get(file) ?? []), { itemId, label }]);
+    /** Writes in-memory bytes (a downloaded image, a video frame) to a temporary file and registers it. */
+    const addBytes = async (itemId: string, label: string, bytes: Buffer) => {
+      const file = path.join(dir, `${n++}.img`);
+      await writeFile(file, bytes);
+      addJob(file, itemId, label);
+    };
+    for (const it of items) {
+      const enr = perItem[it.id];
+      if (!enr) continue;
+      try {
+        for (const rel of [it.imagePath, ...(it.extraImagePaths ?? [])]) if (rel) addJob(abs(rel), it.id, rel);
+        if (!it.imagePath && it.imageUrl) {
+          const bytes = await opts.sources.fetchBinary(it.imageUrl);
+          if (bytes) await addBytes(it.id, it.imageUrl, bytes);
+        }
+        if (it.videoPath) {
+          const frames = await extractFrames(abs(it.videoPath));
+          for (const [i, frame] of frames.entries()) await addBytes(it.id, `${it.videoPath}#kadr${i + 1}`, frame);
+        }
+      } catch (e) {
+        enr.errors.push(`faces: ${errMsg(e)}`);
+      }
+    }
+    if (!jobs.size) return;
+    const found = await (opts.facesAdapter ?? detectFaces)([...jobs.keys()], { only: opts.facesOnly });
+    if (!Array.isArray(found)) {
+      log(`twarze pominięte: ${found.skipped}`);
+      return;
+    }
+    let people: Map<string, { name: string; role: string | null }>;
+    try {
+      people = new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null }]));
+    } catch (e) {
+      log(`lista osób publicznych nieczytelna (${errMsg(e)}): persona z twarzy pod identyfikatorem`);
+      people = new Map();
+    }
+    const byItem = new Map<string, FaceHit[]>();
+    for (const owners of jobs.values()) for (const { itemId } of owners) byItem.set(itemId, []);
+    for (const hit of found) for (const job of jobs.get(hit.image) ?? []) byItem.get(job.itemId)?.push({ ...hit, image: job.label });
+    let similar = 0;
+    for (const [itemId, hits] of byItem) {
+      perItem[itemId].faces = hits;
+      const best = new Map<string, number>();
+      for (const h of hits) if (h.persona && h.similarity !== undefined) best.set(h.persona, Math.max(best.get(h.persona) ?? 0, h.similarity));
+      for (const [id, similarity] of best) {
+        const who = people.get(id);
+        perItem[itemId].personas.push({ id, name: who?.name ?? id, matched: "twarz", source: "face", role: who?.role ?? null, similarity });
+        similar++;
+      }
+    }
+    log(`twarze: ${found.length} wykrytych, ${similar} podobnych do osób z listy`);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
 }
 
 export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<EnrichedDataset> {
@@ -478,7 +561,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     }
   }
 
-  // 1c. Meta Ad Library details for ad-library IDs (input column, OCR of the screenshots)
+  // 1c. Faces: boxes and personas from the closed list (one batch so the models load once)
+  if (opts.faces) await enrichFaces(items, perItem, opts, log);
+
+  // 1d. Meta Ad Library details for ad-library IDs (input column, OCR of the screenshots)
   if (opts.adLibrary) {
     const idsOf = (it: Item): string[] => {
       const enr = perItem[it.id];

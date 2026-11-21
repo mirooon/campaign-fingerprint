@@ -704,7 +704,7 @@ export function buildEvidenceGraph(
     // One edge per persona; every way it was found is kept in the edge evidence ("; "-separated).
     const personaHows = new Map<string, { name: string; role: string | null; hows: string[] }>();
     for (const pm of enr?.personas ?? []) {
-      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
+      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.source === "face" ? `z twarzy (podobna twarz${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
       const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, hows: [] };
       if (!cur.hows.includes(how)) cur.hows.push(how);
       cur.role ??= pm.role;

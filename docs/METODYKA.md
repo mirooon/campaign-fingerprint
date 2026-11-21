@@ -28,13 +28,13 @@ Cecha to ślad, który może się powtórzyć w innym materiale. Narzędzie nie 
 
 | Rodzina | Przykłady cech | Przykład (syntetyczny) |
 |---|---|---|
-| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście, kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
+| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście albo z twarzy (zamknięta lista osób publicznych, patrz „Twarze” w punkcie 9), kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
 | **Wygląd** | hash obrazu (dHash), ten sam plik kreacji (SHA-256), podobieństwo CLIP (opcjonalnie, także 8 klatek wideo), odcisk dźwięku (Chromaprint), głos mówcy (opcjonalnie) | dwa zrzuty różnią się naklejką: odległość dHash 3 z 64 bitów |
 | **Strona** | backend formularza, ukryte pola, własne pliki JS/CSS, komentarze w kodzie, struktura DOM, techniki (fałszywy sklep z aplikacjami, blokada przycisku „wstecz”, fałszywe komentarze) | oba formularze wysyłają dane na `https://zbieracz.example/lead/ab12` |
 | **Infrastruktura** | domena, host, IP, ASN, serwery NS, rejestrator i seria rejestracji (RDAP), certyfikat (CT), cel CNAME, tracker | dwie domeny `a-oferta.example` i `b-oferta.example` zarejestrowane w odstępie 20 minut u tego samego rejestratora |
 | **Platforma i identyfikatory** | konto i kampania platformy stron, serwer trackera (maszyna w identyfikatorze kliknięcia), identyfikator reklamy w `fbclid`, identyfikator biblioteki reklam, płatnik z biblioteki reklam, parametry kampanii (UTM, sub1–5), szablon linku | dwa linki mają ten sam trzybajtowy identyfikator maszyny w `xid` |
 
-**Które cechy działają dziś** (B-104): wszystkie wymienione, o ile materiał je zawiera. Cechy opcjonalne wymagają włączenia i narzędzi: OCR (`--ocr`, tesseract), transkrypcja (`--asr`), odcisk dźwięku (`--audio`), CLIP (`--clip`, wymaga modelu), głos (`--speaker`), biblioteka reklam (`--ad-library`), zapytania sieciowe DNS/RDAP/ASN (`--lookups` albo `--live`). Brakujący krok jest oznaczony w wyniku jako `skipped` z powodem. Domyślny obraz Dockera nie ma modeli ASR, CLIP ani głosu i nie wychodzi do sieci, więc te cechy są wtedy puste. Twarze i galeria głosów nie są jeszcze zaimplementowane i nie występują w tym dokumencie jako metoda.
+**Które cechy działają dziś** (B-104): wszystkie wymienione, o ile materiał je zawiera. Cechy opcjonalne wymagają włączenia i narzędzi: OCR (`--ocr`, tesseract), transkrypcja (`--asr`), odcisk dźwięku (`--audio`), CLIP (`--clip`, wymaga modelu), głos (`--speaker`), twarze (`--faces`, OpenCV, wymaga venv z `scripts/py/setup-face.sh` i modeli ok. 40 MB), biblioteka reklam (`--ad-library`), zapytania sieciowe DNS/RDAP/ASN (`--lookups` albo `--live`). Brakujący krok jest oznaczony w wyniku jako `skipped` z powodem. Domyślny obraz Dockera ma modele twarzy (YuNet, SFace), ale nie ma modeli ASR, CLIP ani głosu, i nie wychodzi do sieci, więc te cechy są wtedy puste. Galeria głosów nie jest jeszcze zaimplementowana i nie występuje w tym dokumencie jako metoda.
 
 ## 3. Wagi
 
@@ -103,6 +103,7 @@ Progi (wszystkie w `config.ts`, domyślny profil to `DEFAULT_LINK_CONFIG`; plik 
 | tekst, `tfidfThreshold` | 0,5 | przeredagowanie tych samych słów; pełne parafrazy wymagają embeddingów (0,86) |
 | struktura strony, `dom.hamming` | 6 bitów | |
 | obraz CLIP | cosinus ≥ 0,9; ten sam plik wideo ≥ 0,97 z tym samym dźwiękiem | próg nieskalibrowany na danych |
+| twarz (persona, `--faces`) | ważony cosinus ≥ próg z pomiaru (docs/TECHNICAL.md), tylko cecha grupy | próg z pomiaru na zdjęciach osób spoza listy |
 | głos | cosinus ≥ 0,6 | ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych |
 
 Dawna „furtka” `singleKindMinScore` (0,5, pojedynczy rodzaj dowodu o dużym wyniku tworzył kampanię) została usunięta w I14c: pozwalała dwóm klonom portalu stać się jedną kampanią.
@@ -140,6 +141,7 @@ Wynik dopisze zadanie walidacji.
 - **Nieoficjalny endpoint biblioteki reklam Mety** (przez MetaAdsCollector) może przestać działać po zmianie strony i jego użycie może naruszać regulamin serwisu.
 - **Zależność od RDAP**: przy odpowiedzi tylko dla części domen seria rejestracji znika i część kampanii traci jeden z dowodów.
 - **Seria rejestracji** to łańcuch: domeny zarejestrowane u tego samego rejestratora w odstępach ≤ 48 h łączą się przechodnio, więc długi łańcuch może objąć domeny odległe w czasie.
+- **Twarze (`--faces`)**: zamknięta lista 8 osób publicznych (`data/osoby-publiczne.json`, po 3–5 zdjęć z Wikimedia Commons w `data/faces`, wektory w `data/faces/index.json`). Wynik to „podobna twarz do X (0,xx)”, nigdy „to jest X”, i trafia do przeglądu człowieka. Dopasowanie tylko do osób z listy: twarz, która nikogo nie przypomina, zostaje ramką bez persony, a jej wektora nie zapisujemy (ani w `enriched.json`, ani w pamięci podręcznej, ani w paczce dowodów); wektory dopasowanych twarzy też nie trafiają do grafu ani eksportu (w wyniku jest ramka, identyfikator persony i podobieństwo). Persona z twarzy jest **cechą grupy podobnych kampanii** (ta sama osoba jako przynęta w wielu kampaniach różnych operatorów), nigdy dowodem, że dwa materiały są jedną kampanią. Waga dopasowania maleje z rozmiarem twarzy i wynikiem detektora (jakość twarzy, jak w MagFace). Próg 0,46 wybrano z pomiaru na zdjęciach 26 innych osób publicznych (0 fałszywych trafień na 54 twarzach, 96,7% trafień na parach tej samej osoby; zalecany dla SFace 0,363 dawał 9,3% fałszywych trafień): docs/TECHNICAL.md, „Persona z twarzy”. Nie budujemy bazy twarzy z sieci: zdjęcia referencyjne są wybrane ręcznie, ze źródłem, autorem i licencją ([data/faces/ZRODLA.md](../data/faces/ZRODLA.md)), a własne osoby dodaje instytucja (README, „Twarze”).
 - **Dane biometryczne głosu**: wektory głosu (SpeechBrain, 192 liczby) liczone tylko z `--speaker`, zapisywane wyłącznie w lokalnym `enriched.json` i w lokalnej pamięci podręcznej (TTL 28 dni, `.cache/speaker`). Nie trafiają do `graph.json`, paczki dowodów ani eksportu CSV/JSON. Usunięcie: skasować `.cache/speaker` i pliki `enriched.json`.
 - **Skala**: porównania są liczone parami, O(n²); przy dziesiątkach tysięcy materiałów potrzebny byłby indeks.
 - **Strony renderowane w JavaScripcie**: nie wykonujemy JS, więc część treści i adresów jest niewidoczna.
@@ -150,6 +152,7 @@ Wynik dopisze zadanie walidacji.
 - **Nie wykrywamy klonów głosu.** Wymagałoby to modeli typu XLS-R/wav2vec2 i dostrojenia. Błąd równych wskaźników (EER) detektorów audio na prawdziwych reklamach to 25–60%, więc wynik takiego detektora byłby wskazówką, a nie dowodem. Głos mówcy służy do łączenia materiałów (ten sam głos w dwóch reklamach), nie do orzekania o fałszerstwie.
 - **Nie wykrywamy tekstu pisanego przez LLM.**
 - **CLIP z klatek wideo** to u nas tylko cecha wyglądu (podobieństwo kreacji), nie ocena „deepfake”.
+- **Nie rozpoznajemy twarzy spoza listy i nie oceniamy, czy twarz jest prawdziwa.** Rozpoznanie dotyczy 8 osób publicznych z ostrzeżeń; nie jest identyfikacją („podobna twarz do X” to wskazówka do przeglądu), a wykrywanie deepfake’ów twarzy jest poza zakresem.
 - **Czego nie używamy:** bazy odcisków technologii *webappanalyzer* (licencja GPL-3.0; atrybut platformy powstaje z własnych wzorców) oraz *httpx* (aktywne sondowanie hostów łamie zasadę pasywności).
 - Nie logujemy się na cudze konta, nie obchodzimy zabezpieczeń, nie renderujemy stron, nie wydajemy nakazów. Decyzję o zgłoszeniu podejmuje człowiek.
 

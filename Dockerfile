@@ -17,6 +17,9 @@ ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 COPY scripts/py/requirements.txt scripts/py/requirements.txt
 RUN pip install --no-cache-dir -r scripts/py/requirements.txt
+# Face models of OpenCV Zoo (YuNet, MIT; SFace, Apache-2.0; ~40 MB), fetched at build time like the packages
+RUN mkdir -p /opt/models/opencv && python3 -c "import urllib.request as u; z='https://github.com/opencv/opencv_zoo/raw/main/models/'; [u.urlretrieve(z+d+'/'+f, '/opt/models/opencv/'+f) for d,f in (('face_detection_yunet','face_detection_yunet_2023mar.onnx'),('face_recognition_sface','face_recognition_sface_2021dec.onnx'))]"
+ENV FACE_PYTHON=/opt/venv/bin/python FACE_MODEL_DIR=/opt/models/opencv
 
 # --- build of the GUI ---
 FROM system AS build

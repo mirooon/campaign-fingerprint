@@ -15,6 +15,7 @@ import {
   maxSurnameDistance,
   personaSlug,
   personasFromIngest,
+  PUBLIC_PERSONS_FILE,
   stemPolish,
 } from "./persona";
 
@@ -197,5 +198,25 @@ describe("extractPersonsNer", () => {
     const provider = new FakeProvider({ persons: [] });
     expect(await extractPersonsNer("   ", provider)).toEqual([]);
     expect(provider.calls).toHaveLength(0);
+  });
+});
+
+describe("handles as aliases of the public list", () => {
+  const list = compileWatchlist([{ name: "Rafał Brzoska", aliases: ["@RBrzoska"] }, { name: "Adam Glapiński" }]);
+
+  it("finds the person by a social handle in page text and in OCR text", () => {
+    expect(matchPersonas("Sprawdź post na profilu @RBrzoska i zarób.", list).map((p) => p.id)).toEqual(["rafal-brzoska"]);
+    expect(matchPersonas("zobacz wpis @rbrzoska na X", list).map((p) => p.id)).toEqual(["rafal-brzoska"]);
+    expect(matchPersonas("tekst ze zrzutu: (@RBrzoska) polecił", list, { fuzzy: true }).map((p) => p.id)).toEqual(["rafal-brzoska"]);
+  });
+
+  it("does not take a longer handle for the alias", () => {
+    expect(matchPersonas("konto @RBrzoska2024 nie jest jego kontem", list)).toEqual([]);
+  });
+
+  it("loads the shared list with sources and finds a person from it", () => {
+    const real = compileWatchlist(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)));
+    expect(real.entries.length).toBeGreaterThanOrEqual(8);
+    expect(matchPersonas("Wizerunek Roberta Lewandowskiego w reklamie", real).map((p) => p.id)).toContain("robert-lewandowski");
   });
 });

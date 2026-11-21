@@ -25,10 +25,12 @@ const args = cli(
     audio: { type: "boolean" },
     clip: { type: "boolean" },
     speaker: { type: "boolean" },
+    faces: { type: "boolean" },
+    "verify-person": { type: "string" },
     "ad-library": { type: "boolean" },
   } as const,
   `Użycie: bun run pipeline [--offline] [--input plik] [--mapping mapping.json] [--fixtures dir] [--config linking.json] [--text tfidf|embedding|none] [--skip ct,...]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--ad-library]
+  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library]
 Kroki: ingest -> enrich -> build-graph -> evaluate (jeśli są etykiety).`,
 );
 
@@ -54,6 +56,8 @@ void main(async () => {
     audio: !!args.audio,
     clip: !!args.clip,
     speaker: !!args.speaker,
+    faces: !!args.faces,
+    facesOnly: args["verify-person"],
     adLibrary: !!args["ad-library"],
   });
   const config = args.config ?? (usingSample && existsSync(DEFAULTS.config) ? DEFAULTS.config : undefined);

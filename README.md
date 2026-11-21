@@ -31,7 +31,7 @@ docker compose run --rm app bun run analyze-material -- --cases /dane/syntetyczn
 
 `demo` pokazuje werdykty `known_campaign`, `similar_campaigns`, `duplicate`, `insufficient` i `new_campaign`, m.in. martwą stronę (tylko zrzut z paskiem adresu; ma werdykt `new_campaign` z cechami z nagranych RDAP/DNS) i trzy strony jednej nowej kampanii ze zmienionymi domenami i twarzami. Bazę z `demo` obejrzysz w GUI: `VIEWER_DATA_DIR=/dane/demo/baza docker compose up -d`.
 
-Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
+Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Modele twarzy (YuNet, SFace, ok. 40 MB) są w obrazie, więc `--faces` działa też w kontenerze. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
 
 ### Wynik: kolumny CSV
 
@@ -66,7 +66,7 @@ bun run analyze-material -- --url https://oferta.example/       # sam link (pobr
 bun run analyze-material -- --text "Ewa Przykładowa poleca…"   # sam tekst reklamy
 ```
 
-Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
+Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--faces`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
 
 ### Jak zebrać materiał
 
@@ -126,9 +126,12 @@ bun run test && bun run lint && bun run typecheck
 | `fpcalc` (odcisk dźwięku, `--audio`) | `brew install chromaprint` | `sudo apt install libchromaprint-tools` | krok `--audio` `skipped` |
 | whisper-cli i model (transkrypcja, `--asr`) | `brew install whisper-cpp`; model `ggml-large-v3-turbo.bin` (ok. 1,5 GB) do `~/models/whisper/` | zbuduj [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`cmake`); ten sam model | krok `--asr` `skipped` |
 | SpeechBrain i model głosu (`--speaker`) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
+| OpenCV, YuNet i SFace (twarze, `--faces`) | `brew install uv`, potem `bash scripts/py/setup-face.sh` (venv `.venv-face`, modele ok. 40 MB do `~/models/opencv`; `FACE_VENV=.venv-speaker` dopisuje pakiety do istniejącego venv) | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-face.sh` | krok `--faces` `skipped` z powodem „brak adaptera twarzy” |
 | MetaAdsCollector (biblioteka reklam, `--ad-library`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped` |
 | model CLIP (`--clip`) | pobierany raz przy pierwszym użyciu (`Xenova/clip-vit-base-patch32`, ok. 350 MB) | to samo | krok `--clip` `skipped` (w Dockerze brak modelu) |
 | Ollama (streszczenia, NER, `--text embedding`) | `brew install ollama`, `ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M`, `ollama pull bge-m3` | [ollama.com/download](https://ollama.com/download) | `summarize` i `--ner` kończą się błędem połączenia; graf działa bez LLM |
+
+**Twarze (`--faces`).** Krok szuka twarzy w obrazie reklamy, zrzutach i klatkach wideo (tych samych, które bierze CLIP) i porównuje je z **zamkniętą listą 8 osób publicznych** (`data/osoby-publiczne.json`, zdjęcia ze źródłem, autorem i licencją w `data/faces/ZRODLA.md`). Wynik to „podobna twarz do X (0,xx)” do przeglądu człowieka, a nie „to jest X”; trafia do pola `faces` materiału i do persony jako cecha **grupy** podobnych kampanii, nigdy jako dowód jednej kampanii. Wektory twarzy nie są zapisywane. Zmienne: `FACE_PYTHON` (interpreter venv, domyślnie `.venv-face/bin/python`), `FACE_MODEL_DIR` (domyślnie `~/models/opencv`). Własne osoby (np. instytucja, która chce rozpoznawać inne osoby ze swoich ostrzeżeń): dopisz wpis z `source` (publiczne ostrzeżenie) do `data/osoby-publiczne.json`, wrzuć 3–5 zdjęć z wolną licencją do `data/faces/<id>/` (id = nazwisko bez polskich znaków, małymi, z myślnikami), wpisz je do `data/faces/ZRODLA.md` i `LICENCJE.md`, po czym `python3 -I scripts/py/face_embed.py --build-index data/faces` (z `FACE_PYTHON`). Nie buduj bazy zdjęć z sieci hurtem (AI Act art. 5 ust. 1 lit. e).
 
 `bun run media:smoke` sprawdza, które adaptery są dostępne. Zmienne środowiskowe (modele, ścieżki, limity): `.env.example` i [docs/TECHNICAL.md §10](docs/TECHNICAL.md#10-konfiguracja). Zależności bibliotek: `package.json`, licencje: [LICENCJE.md](LICENCJE.md).
 
@@ -161,7 +164,7 @@ Klucze trzymaj w `.env` (jest w `.gitignore`). W repozytorium jest tylko `.env.e
 - Przestrzega warunków korzystania ze źródeł (np. nieoficjalny endpoint biblioteki reklam jest opcją z opisanym ryzykiem).
 - Nie wydaje nakazów ani decyzji: proponuje powiązania, o zgłoszeniu decyduje człowiek.
 - Nie renderuje stron i nie wykonuje ich JavaScriptu.
-- Nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
+- Nie rozpoznaje twarzy spoza zamkniętej listy 8 osób publicznych i nie ocenia, czy twarz jest prawdziwa; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
 
 ## Pochodzenie danych
 
@@ -221,10 +224,10 @@ Nowe pliki (29):
 - `app/api/analyze-material/route.ts`;
 - `lib/pipeline/`: caseImport (z testem), analyzeMaterial;
 - `lib/osint/`: clickIds, landerConfig, adLibrary (z testami);
-- `lib/media/`: addressBar, imageEmbed, speaker (z testami);
+- `lib/media/`: addressBar, imageEmbed, speaker, face (z testami);
 - `lib/text/`: addressBar, uiChrome (z testami);
 - `lib/graph/`: testy levels, screenshotLink, adLibraryVoice;
-- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, setup-speaker.sh;
+- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, setup-speaker.sh, face_embed.py, face_threshold.py, setup-face.sh;
 - `tests/analyzeMaterial.offline.test.ts`.
 
 Zmienione pliki (41; razem z nowymi śledzonymi `git diff --stat` daje 62 pliki, +4191/−147):
@@ -254,6 +257,7 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i14c | ślady zestawu stron nie sumują się w kampanię, biblioteka landerów „666”, konflikt kont wygrywa z silnym `path_id` |
 | i2 | nowy interfejs: zakładki „Analizuj materiał”, „Kampanie”, „Porównaj”, „Graf powiązań”, „Jak to działa”, API zadań (`/api/material`), moduły `lib/viewer`, dymki pomocy |
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
+| i5 | persona z twarzy: `--faces` (OpenCV YuNet + SFace), zamknięta lista 8 osób publicznych (`data/osoby-publiczne.json`, `data/faces`), `scripts/py/face_embed.py`, `setup-face.sh`, próg z pomiaru |
 | i7 | `bun run base`, `bun run demo`, obraz Dockera z narzędziami do mediów, profile `full`/`llm`/`ct`, limity API (`ANALYZE_RATE_LIMIT`, `MATERIAL_MAX_MB`), `cache:freeze` |
 | i8 | dokumentacja: README, `docs/METODYKA.md`, `LICENCJE.md`, `LICENSE`, `bun run licenses` |
 
@@ -264,7 +268,7 @@ Przeniesienie kodu do tego repozytorium nastąpiło bez historii (opis wyżej): 
 ```
 lib/osint/      urls, ip, fetchPage (SSRF), extract, pagekit (kit strony), pageTechniques, landerConfig, clickIds,
                 adLibrary, domainPattern, campaignParams, crypto, dns, rdap, ct, asn
-lib/media/      imageHash (dHash/aHash, favicon mmh3), imageEmbed (CLIP), ocr, asr, audioFp, speaker, addressBar, tools
+lib/media/      imageHash (dHash/aHash, favicon mmh3), imageEmbed (CLIP), ocr, asr, audioFp, speaker, face (YuNet + SFace), addressBar, tools
 lib/text/       normalizacja (homoglify, leet, diakrytyki), TF-IDF, cosinus, persona, uiChrome, addressBar
 lib/graph/      model, config (wagi, progi i listy), weights, link, cluster (reguły kampanii, union-find, Louvain,
                 warianty), explain, eval, prune

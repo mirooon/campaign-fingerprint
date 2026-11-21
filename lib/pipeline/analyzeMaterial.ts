@@ -7,6 +7,8 @@
  * existing dataset plus the new records. Only the new records are enriched; the existing ones come
  * from the run's enriched.json. The answer has the two levels of the batch output: a known campaign,
  * a new campaign similar to known ones (same family), or a new campaign, with the links behind it.
+ * A record without infrastructure whose creative nearly repeats the creatives of one campaign joins it
+ * as a variant (campaignRules.contentVariant, `campaignBasis: "content_variant"`), with lower confidence.
  */
 import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import path from "node:path";
@@ -80,6 +82,8 @@ export interface MaterialLink {
   strong: boolean;
   /** What the campaign rules made of this link. */
   rule: LinkVerdict;
+  /** The near-identical creative the record joined its campaign by (`campaignBasis: "content_variant"`). */
+  variant?: boolean;
   evidence: MaterialEvidence[];
 }
 
@@ -127,6 +131,11 @@ export interface MaterialItemResult {
   verdictText: string;
   /** Existing campaign the record joined (id from the existing run). */
   campaign: string | null;
+  /**
+   * How the record got into its campaign when not by the usual rules: "content_variant" = it has no
+   * infrastructure and joined as a variant of a nearly identical creative (less certain). Absent otherwise.
+   */
+  campaignBasis?: "content_variant";
   /** Existing campaigns in the same group of similar campaigns. */
   similarCampaigns: string[];
   /** Why the record is not in those campaigns (different accounts, one kind of evidence). */
@@ -446,6 +455,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const similar = fam
       ? [...new Set(fam.campaigns.filter((c) => c !== campId).flatMap((c) => campaigns.campaigns.find((x) => x.id === c)?.members ?? []).filter((m) => !newIds.has(m)).map(oldOf).filter((c): c is string => !!c && c !== known))].sort()
       : [];
+    const variant = camp?.variants?.find((v) => v.id === id);
     const links: MaterialLink[] = raw.links
       .filter((l) => (l.a === id && !newIds.has(l.b)) || (l.b === id && !newIds.has(l.a)))
       .map((l) => {
@@ -456,6 +466,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
           score: l.score,
           strong: l.strong,
           rule: campaignLinkVerdict(l, config, accountOf, infraItems),
+          ...(variant?.like === other ? { variant: true } : {}),
           evidence: l.evidence.slice(0, 6).map((e) => ({
             evidence: e.evidence,
             weight: e.weight,
@@ -468,18 +479,20 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
           })),
         };
       })
-      .sort((x, y) => Number(y.strong) - Number(x.strong) || y.score - x.score)
+      .sort((x, y) => Number(!!y.variant) - Number(!!x.variant) || Number(y.strong) - Number(x.strong) || y.score - x.score)
       .slice(0, 10);
     const strongest = links.find((l) => l.otherCampaign === known && (l.strong || l.rule === "campaign"));
     const verdict: MaterialVerdict = known ? "known_campaign" : similar.length ? "similar_campaigns" : "new_campaign";
     const verdictText =
-      verdict === "known_campaign"
-        ? `Należy do kampanii ${known}${strongest ? ` (${strongest.strong ? "silny dowód" : "dowody kilku rodzajów"}: ${strongest.evidence[0]?.evidence ?? ""})` : ""}.`
-        : verdict === "similar_campaigns"
-          ? `Nowa kampania, podobna do ${similar.join(", ")} (grupa podobnych kampanii${fam?.apart.length ? `; osobno, bo: ${fam.apart.join("; ")}` : ""}).`
-          : links.length
-            ? "Nowa kampania: powiązania ze znanymi kampaniami są za słabe albo jednego rodzaju."
-            : "Nowa kampania: brak wspólnych śladów ze znanymi kampaniami.";
+      verdict === "known_campaign" && variant
+        ? `Należy do kampanii ${known} jako wariant: kreacja prawie identyczna z materiałem ${variant.like} (${variant.evidence}); materiał nie ma własnych śladów infrastruktury, więc przypisanie opiera się tylko na kreacji i jest mniej pewne.`
+        : verdict === "known_campaign"
+          ? `Należy do kampanii ${known}${strongest ? ` (${strongest.strong ? "silny dowód" : "dowody kilku rodzajów"}: ${strongest.evidence[0]?.evidence ?? ""})` : ""}.`
+          : verdict === "similar_campaigns"
+            ? `Nowa kampania, podobna do ${similar.join(", ")} (grupa podobnych kampanii${fam?.apart.length ? `; osobno, bo: ${fam.apart.join("; ")}` : ""}).`
+            : links.length
+              ? "Nowa kampania: powiązania ze znanymi kampaniami są za słabe albo jednego rodzaju."
+              : "Nowa kampania: brak wspólnych śladów ze znanymi kampaniami.";
     const data = nodeData.get(id) ?? {};
     const features = Object.fromEntries(FEATURE_KEYS.filter((k) => data[k] !== undefined && data[k] !== null && data[k] !== "").map((k) => [k, data[k]]));
     // the landing URL may come from the material itself (address bar, ad text), not from the input
@@ -492,6 +505,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       verdict,
       verdictText: withNew.length && verdict !== "known_campaign" ? `${verdictText} Razem z: ${withNew.join(", ")}.` : verdictText,
       campaign: known,
+      ...(variant ? { campaignBasis: "content_variant" as const } : {}),
       similarCampaigns: similar,
       apart: fam?.apart ?? [],
       withNew,
@@ -542,6 +556,9 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     r.verdict = "duplicate";
     r.duplicateOf = d;
     r.campaign = campaign;
+    // the campaign now comes from the original: a variant basis holds only if the original had it
+    if (orig?.campaignBasis) r.campaignBasis = orig.campaignBasis;
+    else delete r.campaignBasis;
     if (orig) {
       r.similarCampaigns = orig.similarCampaigns;
       r.newCampaign = orig.newCampaign ?? r.newCampaign;

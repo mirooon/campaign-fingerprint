@@ -83,16 +83,16 @@ describe("campaign linking on the synthetic sample", () => {
     expect(a["n-02"]).not.toBe(a["c5-01"]);
   });
 
-  it("keeps an ad without a URL (image + text similarity only) as a similar campaign of the campaign it resembles", () => {
+  it("puts an ad without a URL whose creative nearly repeats one campaign's into that campaign as a variant", () => {
+    // image + text similarity only: content does not join an ad with infrastructure by the pair rules,
+    // but the creative (a few dHash bits away) points to one campaign only (campaignRules.contentVariant)
     const ex = explain(graph, "c2-08", "c2-01");
-    expect(ex.sameCampaign).toBe(false);
+    expect(ex.sameCampaign).toBe(true);
     expect(ex.direct.map((e) => e.edgeType)).toContain("similar_image");
-    const own = campaigns.campaigns.find((c) => c.members.includes("c2-08"))!;
     const c2 = campaigns.campaigns.find((c) => c.members.includes("c2-01"))!;
-    expect(own.attributes.basis).toBe("content");
-    expect(c2.attributes.basis).toBe("infrastructure");
-    expect(own.familyId).not.toBeNull();
-    expect(own.familyId).toBe(c2.familyId);
+    expect(c2.members).toContain("c2-08");
+    expect(c2.variants?.map((v) => v.id)).toEqual(["c2-08"]);
+    expect(c2.attributes.basis).toBe("mixed");
   });
 });
 

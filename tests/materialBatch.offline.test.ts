@@ -109,14 +109,15 @@ describe("analyzeMaterial: duplicates", () => {
     expect(it.verdictText).toContain(originalId);
   });
 
-  it("puts variants (sticker, crop) next to the original's campaign without calling them copies", () => {
-    // a similar picture is content: it does not join an ad with infrastructure on its own, so a variant
-    // without an address is a similar campaign of the original (campaignRules.contentKinds)
+  it("puts variants (sticker, crop) into the original's campaign without calling them copies", () => {
+    // a variant without an address has nothing to contradict the creative, which is nearly identical to
+    // the creatives of one campaign only: it joins that campaign as a variant (campaignRules.contentVariant)
     for (const id of ["wariant-naklejka", "wariant-przyciety"]) {
       const it = item(id);
-      expect(it.verdict, id).toBe("similar_campaigns");
+      expect(it.verdict, id).toBe("known_campaign");
+      expect(it.campaign, id).toBe(originalCampaign);
+      expect(it.campaignBasis, id).toBe("content_variant");
       expect(it.duplicateOf, id).toBeUndefined();
-      expect(it.similarCampaigns, id).toContain(originalCampaign);
     }
   });
 
@@ -177,9 +178,9 @@ describe("analyzeMaterial: not enough to compare", () => {
 
   it("lets a link over the threshold decide even for a material without an address", async () => {
     // a known creative alone: no address and no text, but the picture ties it to a known campaign
-    // (as a similar campaign: a picture alone does not join an ad that has infrastructure)
+    // (as a variant: the creative is nearly identical to the creatives of one campaign only)
     const res = await analyzeMaterial({ caseDir: caseWithImage("sam-obraz", path.join(root, "obrazy", "c1_A_crop.jpg")) }, ctx("w-image-only"));
-    expect(res.items[0].verdict).toBe("similar_campaigns");
+    expect(res.items[0].verdict).toBe("known_campaign");
     expect(res.items[0].missing).toBeUndefined();
   });
 });

@@ -87,6 +87,16 @@ export interface LinkConfig {
      * or video ("creative_sha256"), or video frames with CLIP cosine >= `clipMinCosine` plus the same audio.
      */
     sameCreative?: { clipMinCosine: number };
+    /**
+     * Variant of a known creative (a screenshot with a sticker, a crop): a campaign with no
+     * infrastructure, joined by content only (usually one material), joins the only campaign with
+     * infrastructure whose creatives its own nearly repeat. Nearly repeat: the same dHash, the same
+     * file, dHash within `imageHamming` bits, or CLIP cosine >= `clipMinCosine`. This attaches, never
+     * merges: it is a step after the campaigns are built, and a creative near those of two or more
+     * campaigns attaches nowhere. Similar copy never attaches (text templates travel between operators).
+     * null switches the step off.
+     */
+    contentVariant?: { imageHamming: number; clipMinCosine: number } | null;
   };
   /** Base weight of the "same creative file" pivot (SHA-256 of the image or video file). */
   creativeFileWeight?: number;
@@ -281,6 +291,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     ],
     infrastructureMinWeight: 0.3,
     sameCreative: { clipMinCosine: 0.97 },
+    // duplicate <= 4 bits, similar picture <= 10; on the sample stickers move 2-5 bits, crops 5-6,
+    // different creatives >= 16. CLIP: template 0.9, the same video file 0.97 with the same audio.
+    contentVariant: { imageHamming: 6, clipMinCosine: 0.95 },
   },
   creativeFileWeight: 0.95,
   familyMinScore: 0.3,

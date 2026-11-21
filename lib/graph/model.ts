@@ -247,6 +247,20 @@ export interface Campaign {
   attributes: CampaignAttributes;
   /** Group of similar campaigns (same kit, template or narrative) this campaign belongs to, if any. */
   familyId?: string | null;
+  /**
+   * Members attached as variants of a creative (campaignRules.contentVariant): they have no
+   * infrastructure and stand on the creative alone, so the assignment is less certain. `like` is the
+   * member with the nearest creative, `evidence` the premise of that link, `weight` its weight.
+   */
+  variants?: ContentVariant[];
+}
+
+/** A member attached to its campaign as a variant of a creative (`Campaign.variants`). */
+export interface ContentVariant {
+  id: string;
+  like: string;
+  evidence: string;
+  weight: number;
 }
 
 /**

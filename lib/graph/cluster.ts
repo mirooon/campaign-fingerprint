@@ -8,6 +8,8 @@
  *    can merge strong components, while discounted infrastructure (shared Cloudflare
  *    IPs etc.) never even enters the clustering graph.
  * 3. Each strong component is assigned wholesale to the community holding most of it.
+ *    A campaign without infrastructure then joins the only campaign whose creatives its own nearly
+ *    repeat (`attachContentVariants`): a variant attaches, it never merges two campaigns.
  *
  * Which non-strong links enter step 2 is decided by `config.campaignRules` (see `campaignLinkVerdict`):
  * corroboration by two kinds of evidence, and no joining of different accounts of one page platform.
@@ -26,6 +28,7 @@ import {
   type CampaignEvidence,
   type CampaignFamily,
   type CampaignsFile,
+  type ContentVariant,
   type EntityType,
   type EvidenceGraph,
   type GraphEdge,
@@ -109,6 +112,8 @@ export function clusterCampaigns(
     list.push(...comp);
     groups.set(best, list);
   }
+  const attached = attachContentVariants([...groups.values()], graph.links, verdicts, config, infraItems);
+  const variantLinks = new Set([...attached.variants.values()].map((v) => v.link));
 
   const nodeById = new Map(graph.nodes.map((nd) => [nd.id, nd]));
   const edgesBySource = new Map<string, GraphEdge[]>();
@@ -117,7 +122,7 @@ export function clusterCampaigns(
     list.push(e);
     edgesBySource.set(e.source, list);
   }
-  const draft = [...groups.values()].map((members) => {
+  const draft = attached.groups.map((members) => {
     members.sort();
     const set = new Set(members);
     const internal = graph.links.filter((l) => set.has(l.a) && set.has(l.b));
@@ -176,7 +181,8 @@ export function clusterCampaigns(
       advertisers: [...advertisers].filter(Boolean).sort(),
       cohesion: Math.round(cohesion * 1e4) / 1e4,
       strongComponents: c.strongComponents,
-      attributes: { ...campaignAttributes(c.members, nodeById, edgesBySource), basis: campaignBasis(c.members, c.internal, verdicts, config, infraItems) },
+      attributes: { ...campaignAttributes(c.members, nodeById, edgesBySource), basis: campaignBasis(c.members, c.internal, verdicts, config, infraItems, variantLinks) },
+      ...variantsOf(c.members, attached.variants),
     };
   });
 
@@ -201,6 +207,9 @@ export function clusterCampaigns(
         rules: [
           `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; sama cecha zestawu stron (${config.campaignRules.notAloneKinds.join(", ")}) wymaga drugiego rodzaju dowodu albo wyniku ≥ ${config.campaignRules.singleKindMinScore}; dowody zdyskontowane się nie liczą`,
           `treść (${(config.campaignRules.contentKinds ?? []).join(", ")}): bez infrastruktury po obu stronach kampanię tworzą co najmniej ${config.campaignRules.minContentKinds ?? 2} różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} z tym samym dźwiękiem) łączy sam`,
+          ...(config.campaignRules.contentVariant
+            ? [`wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ ${config.campaignRules.contentVariant.imageHamming}, CLIP ≥ ${config.campaignRules.contentVariant.clipMinCosine}); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza`]
+            : []),
           ...((config.campaignRules.familyOnlyKinds ?? []).length ? [`tylko grupa podobnych kampanii: ${(config.campaignRules.familyOnlyKinds ?? []).join(", ")}`] : []),
           ...(config.campaignRules.accountConflict ? ["różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu"] : []),
           `grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ ${config.familyMinScore}`,
@@ -318,19 +327,116 @@ function contentOnly(link: ItemLink, config: LinkConfig): boolean {
   return counted.length > 0 && counted.every((e) => contentKinds.has(evidenceKind(e)));
 }
 
-/** What a campaign stands on (CampaignAttributes.basis). */
+/**
+ * What a campaign stands on (CampaignAttributes.basis). `variantLinks` are the links that attached
+ * content variants (attachContentVariants): they count as joining links, so a campaign with an
+ * attached variant is "mixed".
+ */
 function campaignBasis(
   members: string[],
   internal: ItemLink[],
   verdicts: Map<ItemLink, LinkVerdict>,
   config: LinkConfig,
   infraItems: Set<string>,
+  variantLinks: Set<ItemLink>,
 ): "content" | "infrastructure" | "mixed" {
   if (members.length === 1) return infraItems.has(members[0]) ? "infrastructure" : "content";
-  const joining = internal.filter((l) => verdicts.get(l) === "campaign");
+  const joining = internal.filter((l) => verdicts.get(l) === "campaign" || variantLinks.has(l));
   const byContent = joining.filter((l) => contentOnly(l, config)).length;
   if (joining.length && byContent === joining.length) return "content";
   return byContent === 0 ? "infrastructure" : "mixed";
+}
+
+/** A member attached as a variant of a creative: the link that attached it, the other end, and the premise. */
+interface VariantAttachment {
+  link: ItemLink;
+  like: string;
+  evidence: ItemLink["evidence"][number];
+}
+
+/**
+ * The premise that makes a link "the same creative, nearly": the same dHash or file, a similar picture
+ * within `imageHamming` bits (similar_image stores 1 - bits/64), or CLIP cosine >= `clipMinCosine`;
+ * the heaviest one, or null. Only the creative counts: similar copy never does, because text templates
+ * travel between operators. Discounted evidence counts as in the campaign rules.
+ */
+function variantEvidence(link: ItemLink, config: LinkConfig, rule: { imageHamming: number; clipMinCosine: number }): ItemLink["evidence"][number] | null {
+  const near = countedEvidence(link, config).filter((e) => {
+    const kind = evidenceKind(e);
+    if (kind === "imagehash" || kind === "creative_sha256") return true;
+    if (e.similarity === undefined) return false;
+    if (e.edgeType === "similar_image") return Math.round((1 - e.similarity) * 64) <= rule.imageHamming;
+    return e.edgeType === "similar_image_semantic" && e.similarity >= rule.clipMinCosine;
+  });
+  return near.sort((x, y) => y.weight - x.weight)[0] ?? null;
+}
+
+/**
+ * Content variants (campaignRules.contentVariant), a step after the campaigns are built. A group with
+ * no infrastructure, joined by content only (usually one screenshot), has nothing that could
+ * contradict an assignment: it moves into the only group with infrastructure that its variant links
+ * reach. Why it attaches and never merges: targets are read from the groups before any move and a
+ * group without infrastructure is never a target, so variants cannot chain; a creative near the
+ * creatives of two campaigns attaches nowhere (creative templates travel between operators, so content
+ * must not decide between campaigns, and the campaigns stay apart). A group with infrastructure keeps
+ * the pair rules (a variant on its own domain joins through shared infrastructure, not content), and a
+ * platform-account conflict still wins. Takes the groups (member ids) and returns them after the moves,
+ * with the variant link of each moved member (its own nearest, else the group's nearest).
+ */
+function attachContentVariants(
+  groups: string[][],
+  links: ItemLink[],
+  verdicts: Map<ItemLink, LinkVerdict>,
+  config: LinkConfig,
+  infraItems: Set<string>,
+): { groups: string[][]; variants: Map<string, VariantAttachment> } {
+  const variants = new Map<string, VariantAttachment>();
+  const rule = config.campaignRules.contentVariant;
+  if (!rule) return { groups, variants };
+  const groupOf = new Map<string, number>();
+  groups.forEach((members, idx) => members.forEach((m) => groupOf.set(m, idx)));
+  const hasInfra = groups.map((members) => members.some((m) => infraItems.has(m)));
+  const notContent = new Set<number>();
+  const outgoing = new Map<number, VariantAttachment[]>();
+  for (const link of links) {
+    const ga = groupOf.get(link.a);
+    const gb = groupOf.get(link.b);
+    if (ga === undefined || gb === undefined) continue;
+    if (ga === gb) {
+      if (verdicts.get(link) === "campaign" && !contentOnly(link, config)) notContent.add(ga);
+      continue;
+    }
+    if (verdicts.get(link) === "account_conflict") continue;
+    const evidence = variantEvidence(link, config, rule);
+    if (!evidence) continue;
+    for (const [from, to, like] of [[ga, gb, link.b], [gb, ga, link.a]] as const) {
+      if (hasInfra[from] || !hasInfra[to]) continue;
+      outgoing.set(from, [...(outgoing.get(from) ?? []), { link, like, evidence }]);
+    }
+  }
+  const out = groups.map((members) => [...members]);
+  for (const [from, found] of outgoing) {
+    if (notContent.has(from)) continue;
+    const targets = new Set(found.map((v) => groupOf.get(v.like)!));
+    if (targets.size !== 1) continue;
+    const [to] = targets;
+    const byWeight = [...found].sort((x, y) => y.evidence.weight - x.evidence.weight || x.like.localeCompare(y.like));
+    for (const m of groups[from]) variants.set(m, byWeight.find((v) => v.link.a === m || v.link.b === m) ?? byWeight[0]);
+    out[to].push(...groups[from]);
+    out[from] = [];
+  }
+  return { groups: out.filter((members) => members.length > 0), variants };
+}
+
+/** `Campaign.variants` of a campaign: its members attached as variants, or nothing when there are none. */
+function variantsOf(members: string[], variants: Map<string, VariantAttachment>): { variants?: ContentVariant[] } {
+  const list = members
+    .filter((m) => variants.has(m))
+    .map((m) => {
+      const v = variants.get(m)!;
+      return { id: m, like: v.like, evidence: v.evidence.evidence, weight: v.evidence.weight };
+    });
+  return list.length ? { variants: list } : {};
 }
 
 /** Second level: campaigns tied by links that were not allowed to merge them. */

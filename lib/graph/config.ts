@@ -45,19 +45,25 @@ export interface LinkConfig {
   /** Minimum combined pair score for an edge in the clustering graph. */
   minLinkScore: number;
   /**
-   * Which non-strong links may join two ads into one campaign (first level). A link must carry
-   * evidence of at least `minEvidenceKinds` different kinds (discounted evidence does not count).
-   * One kind is enough unless it is in `notAloneKinds` (page-kit traits that are sold and reused
-   * across operators, and personas); such a kind alone needs `singleKindMinScore`. Discounted
-   * evidence counts only when its weight after the discount is still `discountedMinWeight`. With `accountConflict`, ads on the same
-   * landing-page platform under different accounts are never joined by non-strong evidence:
-   * a shared kit then makes them similar campaigns (second level), not one campaign.
+   * Which non-strong links may join two ads into one campaign (first level). Traces of a page kit
+   * (`notAloneKinds`: template, shop theme, cloned portal), sold and reused across operators, count
+   * together as one kind and never join on their own, with each other or with content: a link needs
+   * at least one kind of evidence outside the kit and the content. Then `minEvidenceKinds` different
+   * kinds, or that one kind alone. Discounted evidence counts only when its weight after the discount
+   * is still `discountedMinWeight`. With `accountConflict`, ads on the same landing-page platform under
+   * different accounts are never joined by non-strong evidence: a shared kit then makes them similar
+   * campaigns (second level), not one campaign.
    */
   campaignRules: {
     minEvidenceKinds: number;
-    singleKindMinScore: number;
     notAloneKinds: string[];
     accountConflict: boolean;
+    /**
+     * Strong evidence that still yields to an account conflict: a strong link whose strong evidence is
+     * all of these kinds does not join two different accounts of one page platform. A UUID in resource
+     * paths can name a lander of a library the platform shares between accounts, not the account.
+     */
+    accountConflictOverStrongKinds?: string[];
     discountedMinWeight: number;
     /** Evidence kinds that never count for a campaign (score, kinds, clustering weight), only for groups of similar campaigns. */
     familyOnlyKinds?: string[];
@@ -250,7 +256,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // a free-text name, so generic names are damped by IDF like any other pivot.
     ad_payer: 0.7,
     // The same set of comment authors written into pages on different domains: one page template.
-    // A template trace like page_template: it needs a second kind of evidence to join a campaign.
+    // A template trace like page_template: it joins a campaign only with evidence of the operator (campaignRules.notAloneKinds).
     comment_block: 0.45,
     // Technique of the page (fake app store, back trap, fake social post, fake comments): the same
     // modus operandi, counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
@@ -263,11 +269,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   minLinkScore: 0.15,
   campaignRules: {
     minEvidenceKinds: 2,
-    singleKindMinScore: 0.5,
     notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators
     familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
+    accountConflictOverStrongKinds: ["path_id"],
     discountedMinWeight: 0.3,
     contentKinds: ["similar_text", "similar_image", "similar_image_semantic", "similar_audio", "similar_voice", "imagehash"],
     minContentKinds: 2,
@@ -746,11 +752,20 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "cookie(bot| consent| banner)",
       "^(header|footer|navigation|nav|sidebar|main content|content|wrapper|container)( (start|end))?$",
     ].map((match) => ({ match, factor: 0.05, reason: "standardowy komentarz (snippet trackera lub szablonu CMS)" })),
-    pathIdSharedPrefixes: ["/cdn/shop/", "/cdn/extensions/"].map((match) => ({
-      match,
-      factor: 0.05,
-      reason: "platforma sklepowa: identyfikator aplikacji lub motywu, wspólny dla wielu sklepów",
-    })),
+    pathIdSharedPrefixes: [
+      ...["/cdn/shop/", "/cdn/extensions/"].map((match) => ({
+        match,
+        factor: 0.05,
+        reason: "platforma sklepowa: identyfikator aplikacji lub motywu, wspólny dla wielu sklepów",
+      })),
+      // The page platform keeps a library of ready landers under "666", served to many accounts: the
+      // UUID there names a lander of the library, not the account (landing-cdn/<account uuid>/ does).
+      ...["/_cdn/production/landing-cdn/666/", "/_cdn/production/action-files-test/666/"].map((match) => ({
+        match,
+        factor: 0.05,
+        reason: "wspólna biblioteka gotowych landerów platformy stron („666”), używana przez wiele kont",
+      })),
+    ],
     cnameTargets: [
       ...[
         "cloudfront.net",

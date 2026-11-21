@@ -16,6 +16,8 @@ function link(res: ReturnType<typeof run>, a: string, b: string): ItemLink | und
 }
 
 const same = (res: ReturnType<typeof run>, a: string, b: string) => res.campaigns.assignments[a] === res.campaigns.assignments[b];
+const familyOf = (res: ReturnType<typeof run>, id: string) => res.campaigns.campaigns.find((c) => c.members.includes(id))?.familyId ?? null;
+const sameFamily = (res: ReturnType<typeof run>, a: string, b: string) => familyOf(res, a) !== null && familyOf(res, a) === familyOf(res, b);
 
 describe("endpoint (lead backend) pivot", () => {
   it("a shared cross-origin backend is strong evidence across different domains", () => {
@@ -71,7 +73,7 @@ describe("endpoint (lead backend) pivot", () => {
 });
 
 describe("page-kit pivots", () => {
-  it("hidden fields: generic names are ignored, a specific set becomes a pivot", () => {
+  it("hidden fields: generic names are ignored, a specific set becomes a pivot (alone it makes a family, not a campaign)", () => {
     const res = run([
       { id: "a", url: "https://a.example/", kit: { hiddenFields: ["_token", "access_key", "redirect"] } },
       { id: "b", url: "https://b.example/", kit: { hiddenFields: ["_token", "access_key", "redirect"] } },
@@ -81,10 +83,12 @@ describe("page-kit pivots", () => {
     expect(res.graph.nodes.some((n) => n.type === "hidden_fields" && n.key.includes("access_key"))).toBe(false);
     expect(res.graph.nodes.find((n) => n.type === "hidden_fields")!.key).toBe("device_id,fill_time,read_time");
     expect(same(res, "a", "b")).toBe(false);
-    expect(same(res, "c", "d")).toBe(true);
+    expect(link(res, "c", "d")!.evidence[0]).toMatchObject({ pivotType: "hidden_fields", discounted: false });
+    expect(same(res, "c", "d")).toBe(false);
+    expect(sameFamily(res, "c", "d")).toBe(true);
   });
 
-  it("assets: libraries and CDNs are discounted, a kit's own build file is evidence", () => {
+  it("assets: libraries and CDNs are discounted, a kit's own build file is evidence (alone a family, not a campaign)", () => {
     const asset = (url: string, page: string) => {
       const u = new URL(url, page);
       const sameOrigin = u.hostname === new URL(page).hostname;
@@ -100,10 +104,12 @@ describe("page-kit pivots", () => {
     expect(res.graph.nodes.some((n) => n.id.includes("jsdelivr"))).toBe(false);
     expect(res.graph.nodes.find((n) => n.id === "asset:/js/jquery-3.7.1.min.js")!.discounts[0].rule).toContain("assetLibraries");
     expect(same(res, "a", "b")).toBe(false);
-    expect(same(res, "c", "d")).toBe(true);
+    expect(link(res, "c", "d")!.evidence[0]).toMatchObject({ pivotType: "asset", discounted: false });
+    expect(same(res, "c", "d")).toBe(false);
+    expect(sameFamily(res, "c", "d")).toBe(true);
   });
 
-  it("comments: boilerplate is discounted, a specific Cyrillic comment links and flags the ads", () => {
+  it("comments: boilerplate is discounted, a specific Cyrillic comment links (a family, not a campaign) and flags the ads", () => {
     const cyr = "вставляем форму после блока phone (демо)";
     const res = run([
       { id: "a", url: "https://a.example/", kit: { comments: ["google tag manager"] } },
@@ -112,9 +118,9 @@ describe("page-kit pivots", () => {
       { id: "d", url: "https://d.test/", kit: { comments: [cyr], cyrillicComments: true } },
     ]);
     expect(same(res, "a", "b")).toBe(false);
-    expect(same(res, "c", "d")).toBe(true);
-    const camp = res.campaigns.campaigns.find((c) => c.members.includes("c"))!;
-    expect(camp.attributes.cyrillic).toBe(2);
+    expect(same(res, "c", "d")).toBe(false);
+    expect(sameFamily(res, "c", "d")).toBe(true);
+    for (const id of ["c", "d"]) expect(res.campaigns.campaigns.find((c) => c.members.includes(id))!.attributes.cyrillic).toBe(1);
   });
 
   it("DOM simhash: the same structure on different domains is medium similarity evidence", () => {

@@ -60,12 +60,13 @@ describe("records of the landing-page platform (window.aio)", () => {
     expect(res.campaigns.campaigns.find((c) => c.members.includes("other"))!.familyId).toBeNull();
   });
 
-  it("joins the same shared kit into one campaign when no account says otherwise", () => {
+  it("keeps a shared kit apart also when no account says otherwise: one family, not one campaign", () => {
     const res = run([
       { id: "x", url: "https://one.example/", kit: { comments: COMMENTS, hiddenFields: ["lead_ref", "pxl", "sub_ref", "promo_code"] } },
       { id: "y", url: "https://two.example/", kit: { comments: COMMENTS, hiddenFields: ["lead_ref", "pxl", "sub_ref", "promo_code"] } },
     ]);
-    expect(same(res, "x", "y")).toBe(true);
+    expect(same(res, "x", "y")).toBe(false);
+    expect(res.campaigns.families?.[0]?.members).toEqual(["x", "y"]);
   });
 });
 
@@ -89,7 +90,10 @@ describe("campaignLinkVerdict", () => {
     expect(campaignLinkVerdict(link([ev("similar_text", 0.5)], 0.5), DEFAULT_LINK_CONFIG, new Map(), new Set())).toBe("single_kind");
     expect(campaignLinkVerdict(link([ev("similar_dom", 0.38)]), DEFAULT_LINK_CONFIG)).toBe("single_kind");
     expect(campaignLinkVerdict(link([ev("persona", 0.1), ev("persona", 0.1)], 0.19), DEFAULT_LINK_CONFIG)).toBe("below");
-    expect(campaignLinkVerdict(link([ev("similar_dom", 0.3), ev("comment", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("campaign");
+    // page-kit traces of two kinds do not add up; with evidence of the operator they corroborate it
+    expect(campaignLinkVerdict(link([ev("similar_dom", 0.3), ev("comment", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("single_kind");
+    expect(campaignLinkVerdict(link([ev("comment", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("single_kind");
+    expect(campaignLinkVerdict(link([ev("similar_dom", 0.3), ev("nameserver", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("campaign");
     // a kind of evidence that is neither content nor a kit trait still stands alone
     expect(campaignLinkVerdict(link([ev("advertiser", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("campaign");
   });
@@ -98,9 +102,11 @@ describe("campaignLinkVerdict", () => {
     const content = link([ev("similar_image", 0.4), ev("similar_text", 0.3)], 0.58);
     expect(campaignLinkVerdict(content, DEFAULT_LINK_CONFIG, new Map(), new Set())).toBe("campaign");
     expect(campaignLinkVerdict(content, DEFAULT_LINK_CONFIG, new Map(), new Set(["a"]))).toBe("single_kind");
-    // with infrastructure all content is one kind: it still corroborates another kind
-    const mixed = link([ev("similar_text", 0.3), ev("similar_dom", 0.3)], 0.51);
+    // with infrastructure all content is one kind: it corroborates evidence of the operator, not a page-kit trace
+    const mixed = link([ev("similar_text", 0.3), ev("nameserver", 0.3)], 0.51);
     expect(campaignLinkVerdict(mixed, DEFAULT_LINK_CONFIG, new Map(), new Set(["a", "b"]))).toBe("campaign");
+    const kitAndContent = link([ev("similar_text", 0.3), ev("similar_dom", 0.3)], 0.51);
+    expect(campaignLinkVerdict(kitAndContent, DEFAULT_LINK_CONFIG, new Map(), new Set(["a", "b"]))).toBe("single_kind");
     // the older reading is one setting away
     const loose = mergeConfig({ campaignRules: { contentKindsWithInfrastructure: 2 } });
     expect(campaignLinkVerdict(content, loose, new Map(), new Set(["a"]))).toBe("campaign");
@@ -111,6 +117,10 @@ describe("campaignLinkVerdict", () => {
     const accounts = new Map([["a", OWNER_A], ["b", OWNER_B]]);
     expect(campaignLinkVerdict(link([ev("similar_dom", 0.4), ev("comment", 0.6)], 0.76), DEFAULT_LINK_CONFIG, accounts)).toBe("account_conflict");
     expect(campaignLinkVerdict({ ...link([]), strong: true }, DEFAULT_LINK_CONFIG, accounts)).toBe("campaign");
+    // a strong path ID alone yields to the conflict (it may name a lander of a library shared by accounts)
+    const pathId = { ...ev("path_id", 0.85), strong: true };
+    expect(campaignLinkVerdict({ ...link([pathId], 0.85), strong: true }, DEFAULT_LINK_CONFIG, accounts)).toBe("account_conflict");
+    expect(campaignLinkVerdict({ ...link([pathId, { ...ev("tracker", 0.9), strong: true }], 0.98), strong: true }, DEFAULT_LINK_CONFIG, accounts)).toBe("campaign");
   });
 });
 

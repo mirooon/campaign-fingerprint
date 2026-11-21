@@ -30,8 +30,8 @@ describe("family-only evidence (page techniques, personas)", () => {
     // a template trace with a technique is still one kind of campaign evidence
     const kit = link([pivot("comment_block", 0.45), pivot("technique", 0.2)], 0.56);
     expect(campaignLinkVerdict(kit, DEFAULT_LINK_CONFIG)).toBe("single_kind");
-    // a link without techniques is unchanged
-    const plain = link([pivot("comment_block", 0.45), pivot("asset", 0.3)], 0.615);
+    // a link without techniques is unchanged (a template trace with evidence of the operator)
+    const plain = link([pivot("comment_block", 0.45), pivot("nameserver", 0.3)], 0.615);
     expect(campaignScore(plain, DEFAULT_LINK_CONFIG)).toBe(0.615);
     expect(campaignLinkVerdict(plain, DEFAULT_LINK_CONFIG)).toBe("campaign");
   });

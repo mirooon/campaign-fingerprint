@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedAt": "2026-11-21T18:25:42.290Z",
+  "generatedAt": "2026-11-21T18:40:21.883Z",
   "method": {
     "unionFind": "silne dowody (waga typu × lista ≥ 0.7)",
     "louvain": {
@@ -10,11 +10,11 @@
     },
     "minLinkScore": 0.15,
     "rules": [
-      "kampania: silny dowód albo wynik pary ≥ 0.15; sama cecha zestawu stron (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, comment_block) wymaga drugiego rodzaju dowodu albo wyniku ≥ 0.5; dowody zdyskontowane się nie liczą",
+      "kampania: silny dowód albo wynik pary ≥ 0.15; cechy zestawu stron (similar_dom, comment, asset, hidden_fields, page_template, favicon, endpoint, param_schema, comment_block) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą",
       "treść (similar_text, similar_image, similar_image_semantic, similar_audio, similar_voice, imagehash): bez infrastruktury po obu stronach kampanię tworzą co najmniej 2 różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ 0.97 z tym samym dźwiękiem) łączy sam",
       "wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ 6, CLIP ≥ 0.95); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza",
       "tylko grupa podobnych kampanii: technique, persona",
-      "różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu",
+      "różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu; silny dowód samego rodzaju path_id też nie wystarcza",
       "grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ 0.3"
     ]
   },

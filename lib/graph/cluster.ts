@@ -69,12 +69,12 @@ export function clusterCampaigns(
   const config = options.config ?? DEFAULT_LINK_CONFIG;
   const itemNodes = graph.nodes.filter((nd) => nd.type === "item");
   const itemIds = itemNodes.map(itemIdOf).sort();
-  const uf = new UnionFind<string>(itemIds);
-  for (const link of graph.links) if (link.strong) uf.union(link.a, link.b);
-
   const { accountOf, infraItems } = verdictContext(graph.nodes);
   const verdicts = new Map<ItemLink, LinkVerdict>();
   for (const link of graph.links) verdicts.set(link, campaignLinkVerdict(link, config, accountOf, infraItems));
+  const uf = new UnionFind<string>(itemIds);
+  // a strong link held back by an account conflict (campaignRules.accountConflictOverStrongKinds) must not merge either
+  for (const link of graph.links) if (link.strong && verdicts.get(link) === "campaign") uf.union(link.a, link.b);
 
   // Louvain over the weighted graph
   const g = new Graph({ type: "undirected", multi: false, allowSelfLoops: false });
@@ -205,13 +205,17 @@ export function clusterCampaigns(
         louvain: { resolution: config.louvain.resolution, seed: config.louvain.seed, modularity },
         minLinkScore: config.minLinkScore,
         rules: [
-          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; sama cecha zestawu stron (${config.campaignRules.notAloneKinds.join(", ")}) wymaga drugiego rodzaju dowodu albo wyniku ≥ ${config.campaignRules.singleKindMinScore}; dowody zdyskontowane się nie liczą`,
+          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; cechy zestawu stron (${config.campaignRules.notAloneKinds.join(", ")}) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą`,
           `treść (${(config.campaignRules.contentKinds ?? []).join(", ")}): bez infrastruktury po obu stronach kampanię tworzą co najmniej ${config.campaignRules.minContentKinds ?? 2} różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} z tym samym dźwiękiem) łączy sam`,
           ...(config.campaignRules.contentVariant
             ? [`wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ ${config.campaignRules.contentVariant.imageHamming}, CLIP ≥ ${config.campaignRules.contentVariant.clipMinCosine}); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza`]
             : []),
           ...((config.campaignRules.familyOnlyKinds ?? []).length ? [`tylko grupa podobnych kampanii: ${(config.campaignRules.familyOnlyKinds ?? []).join(", ")}`] : []),
-          ...(config.campaignRules.accountConflict ? ["różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu"] : []),
+          ...(config.campaignRules.accountConflict
+            ? [
+                `różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu${(config.campaignRules.accountConflictOverStrongKinds ?? []).length ? `; silny dowód samego rodzaju ${(config.campaignRules.accountConflictOverStrongKinds ?? []).join(", ")} też nie wystarcza` : ""}`,
+              ]
+            : []),
           `grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ ${config.familyMinScore}`,
         ],
       },
@@ -281,13 +285,17 @@ function countedEvidence(link: ItemLink, config: LinkConfig) {
 }
 
 /**
- * Whether a link may join two ads into one campaign. Strong links always may. A non-strong link
+ * Whether a link may join two ads into one campaign. Strong links may, unless two different accounts of
+ * one page platform meet and all the strong evidence is of a kind in `accountConflictOverStrongKinds`
+ * (a UUID in resource paths can name a lander of a library shared by many accounts). A non-strong link
  * needs the minimum score and must not join two different accounts of one page platform (this wins
- * over any content). The same creative file then joins alone. Content similarity follows its own
- * rule: between two ads without infrastructure it needs `minContentKinds` different content kinds;
- * when either ad has infrastructure all content counts as one kind ("content") that never joins alone.
- * Otherwise evidence of `minEvidenceKinds` different kinds, or one kind that may stand alone, or one
- * page-kit kind reaching `singleKindMinScore`: a reused kit alone says "similar", not "same".
+ * over any content). The same creative file then joins alone. Page-kit traces (`notAloneKinds`: a page
+ * template, a shop theme, a cloned portal) are bought and reused by many operators, so they count
+ * together as one kind and never join on their own, with each other or with content: a campaign needs at
+ * least one kind of evidence outside the kit and the content. Without one, content follows its own rule:
+ * between two ads without infrastructure it needs `minContentKinds` different content kinds; when either
+ * ad has infrastructure it never joins alone. With one, `minEvidenceKinds` different kinds (all content
+ * then one kind "content", all kit traces one kind "page_kit") or that one kind alone.
  * `infraItems` lists the items that have infrastructure; when it is not given, every item counts as
  * having it (the stricter reading for content).
  */
@@ -297,27 +305,31 @@ export function campaignLinkVerdict(
   accountOf: Map<string, string> = new Map(),
   infraItems: Set<string> | null = null,
 ): LinkVerdict {
-  if (link.strong) return "campaign";
-  if (campaignScore(link, config) < config.minLinkScore) return "below";
   const r = config.campaignRules;
-  if (r.accountConflict && accountsConflict(accountOf.get(link.a), accountOf.get(link.b))) return "account_conflict";
+  const conflict = r.accountConflict && accountsConflict(accountOf.get(link.a), accountOf.get(link.b));
+  if (link.strong) {
+    const overStrong = r.accountConflictOverStrongKinds ?? [];
+    const strongKinds = link.evidence.filter((e) => e.strong).map(evidenceKind);
+    const yields = strongKinds.length > 0 && strongKinds.every((k) => overStrong.includes(k));
+    return conflict && yields ? "account_conflict" : "campaign";
+  }
+  if (campaignScore(link, config) < config.minLinkScore) return "below";
+  if (conflict) return "account_conflict";
   const counted = countedEvidence(link, config).filter((e) => !familyOnly(e, config));
   if (sameCreative(counted, config)) return "campaign";
   const contentKinds = new Set(r.contentKinds ?? []);
-  const kinds = new Set(counted.map(evidenceKind));
-  const content = [...kinds].filter((k) => contentKinds.has(k));
-  const other = [...kinds].filter((k) => !contentKinds.has(k));
+  const kinds = [...new Set(counted.map(evidenceKind))];
+  const content = kinds.filter((k) => contentKinds.has(k));
+  const kit = kinds.filter((k) => !contentKinds.has(k) && r.notAloneKinds.includes(k));
+  const operator = kinds.filter((k) => !contentKinds.has(k) && !r.notAloneKinds.includes(k));
   const withInfra = infraItems === null || infraItems.has(link.a) || infraItems.has(link.b);
-  if (content.length && !other.length) {
+  if (!operator.length) {
+    if (!content.length) return "single_kind";
     const need = withInfra ? (r.contentKindsWithInfrastructure ?? null) : (r.minContentKinds ?? 2);
     return need !== null && need > 0 && content.length >= need ? "campaign" : "single_kind";
   }
-  const effective = withInfra && content.length ? [...other, "content"] : [...kinds];
-  if (effective.length >= r.minEvidenceKinds) return "campaign";
-  if (effective.length !== 1) return "single_kind";
-  const [kind] = effective;
-  if (!r.notAloneKinds.includes(kind)) return "campaign";
-  return combineScores(counted.map((e) => e.weight)) >= r.singleKindMinScore ? "campaign" : "single_kind";
+  const effective = [...operator, ...(kit.length ? ["page_kit"] : []), ...(withInfra && content.length ? ["content"] : content)];
+  return effective.length === 1 || effective.length >= r.minEvidenceKinds ? "campaign" : "single_kind";
 }
 
 /** Whether all counted evidence of a link is content (similar copy, picture, recording, the same creative file). */

@@ -47,6 +47,8 @@ export interface TestItemSpec {
   videoSha256?: string;
   /** Chromaprint values of the video/audio creative. */
   audioFingerprint?: number[];
+  /** Shodan mmh3 hash of the landing page's favicon (the other hashes are derived from it). */
+  faviconMmh3?: number;
 }
 
 export function emptyKit(over: Partial<PageKit> = {}): PageKit {
@@ -169,7 +171,10 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           phones: s.phones ?? [],
           wallets: s.wallets ?? [],
         }),
-        favicon: null,
+        favicon:
+          s.faviconMmh3 === undefined
+            ? null
+            : { url: new URL("/favicon.ico", landing.url).toString(), hashes: { mmh3: s.faviconMmh3, sha256: `sha-${s.faviconMmh3}`, dhash: null, ahash: null, format: "ico" }, error: null },
         kit: emptyKit(s.kit),
         archiveFile: null,
         cloaking: null,

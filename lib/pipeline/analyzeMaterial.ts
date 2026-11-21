@@ -17,6 +17,7 @@ import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { buildEvidenceGraph } from "../graph/link";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
 import type { FaceHit } from "../media/face";
+import type { VoiceSpan } from "../media/speaker";
 import type { CompiledWatchlist } from "../text/persona";
 import { importCases } from "./caseImport";
 import { enrichItems } from "./enrich";
@@ -46,7 +47,7 @@ export interface MaterialInput {
   text?: string;
 }
 
-export type MaterialStep = "import" | "ocr" | "address_bar" | "asr" | "audio" | "clip" | "faces" | "lookups" | "features" | "compare" | "group";
+export type MaterialStep = "import" | "ocr" | "address_bar" | "asr" | "audio" | "clip" | "voice" | "faces" | "lookups" | "features" | "compare" | "group";
 
 /** Progress of one case: a step starts, ends, is skipped (with the reason in `detail`) or fails. */
 export interface MaterialProgress {
@@ -157,6 +158,8 @@ export interface MaterialItemResult {
   pivots?: MaterialPivot[];
   /** Faces found in the record's pictures (opt-in `faces`): box, and for a face similar to a public figure of the closed list the persona id and the similarity ("podobna twarz do X (0,xx)", for review). */
   faces?: FaceHit[];
+  /** Stretches of speech in the record's video (opt-in `speaker`, needs the gallery data/voices): seconds from the start, and for a voice similar to a public figure of the closed list the persona id and the cosine ("głos podobny do X (0,xx)", for review, never "this is X's voice"). */
+  voices?: VoiceSpan[];
   links: MaterialLink[];
   /** Traits of the record read from the material (graph node data). */
   features: Record<string, unknown>;
@@ -255,7 +258,7 @@ const FEATURE_KEYS = [
 export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext): Promise<MaterialResult> {
   const toolNotes = new Map<string, string>();
   const log = (m: string) => {
-    const off = /^(OCR|ASR|CLIP|odcisk audio|twarze) pomini[ęe]t[ye]: (.*)$/.exec(m);
+    const off = /^(OCR|ASR|CLIP|odcisk audio|twarze|głos mówcy) pomini[ęe]t[ye]: (.*)$/.exec(m);
     if (off) toolNotes.set(off[1], off[2]);
     ctx.log?.(m);
   };
@@ -358,7 +361,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const sources = existsSync(fixtureDir) ? hybridSources(fixtureDir, ctx.live ?? null) : (ctx.live ?? fixtureSources(fallbackFixtures));
   const caseIds = [...new Set(items.map((it) => caseOf.get(it.id) ?? it.id))];
   const itemsOf = (c: string) => items.filter((it) => (caseOf.get(it.id) ?? it.id) === c);
-  const media = { ocr: ctx.media?.ocr ?? true, asr: ctx.media?.asr ?? false, audio: ctx.media?.audio ?? false, clip: ctx.media?.clip ?? false, faces: ctx.media?.faces ?? false };
+  const media = { ocr: ctx.media?.ocr ?? true, asr: ctx.media?.asr ?? false, audio: ctx.media?.audio ?? false, clip: ctx.media?.clip ?? false, voice: ctx.media?.speaker ?? false, faces: ctx.media?.faces ?? false };
   const hasImage = (it: Item) => !!(it.imagePath || it.imageUrl || it.extraImagePaths?.length);
   const planned: Array<[MaterialStep, boolean, (it: Item) => boolean]> = [
     ["ocr", media.ocr, hasImage],
@@ -366,6 +369,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     ["asr", media.asr, (it) => !!it.videoPath],
     ["audio", media.audio, (it) => !!it.videoPath],
     ["clip", media.clip, (it) => hasImage(it) || !!it.videoPath],
+    ["voice", media.voice, (it) => !!it.videoPath],
     ["faces", media.faces, (it) => hasImage(it) || !!it.videoPath],
     ["lookups", !!ctx.live, () => true],
   ];
@@ -528,6 +532,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       ...(Array.isArray(data.techniques) && data.techniques.length ? { techniques: data.techniques as string[] } : {}),
       pivots: pivotsOf(id),
       ...(extra.perItem[id]?.faces ? { faces: extra.perItem[id].faces } : {}),
+      ...(extra.perItem[id]?.voices ? { voices: extra.perItem[id].voices } : {}),
       links,
       features,
       errors: extra.perItem[id]?.errors ?? [],
@@ -620,7 +625,7 @@ function reportMediaSteps(
   extra: EnrichedDataset,
   caseIds: string[],
   itemsOf: (c: string) => Item[],
-  media: { ocr: boolean; asr: boolean; audio: boolean; clip: boolean; faces: boolean },
+  media: { ocr: boolean; asr: boolean; audio: boolean; clip: boolean; voice: boolean; faces: boolean },
   live: boolean,
   toolNotes: Map<string, string>,
   progress: (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => void,
@@ -645,6 +650,7 @@ function reportMediaSteps(
     report("asr", media.asr, "transkrypcja wyłączona", vid, "brak wideo", "ASR", enr.some((e) => !!e.asrText), "brak mowy", /asr|whisper|transkry/i);
     report("audio", media.audio, "odcisk audio wyłączony", vid, "brak wideo", "odcisk audio", enr.some((e) => (e.audioFp?.fingerprint.length ?? 0) > 0), "brak ścieżki dźwiękowej", /fpcalc|audio/i);
     report("clip", media.clip, "CLIP wyłączony", img || vid, "brak obrazu i wideo", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "brak osadzenia", /clip/i);
+    report("voice", media.voice, "głos wyłączony", vid, "brak wideo", "głos mówcy", enr.some((e) => e.voices !== undefined), "adapter nie zwrócił wyniku", /speaker|głos/i);
     report("faces", media.faces, "twarze wyłączone", img || vid, "brak obrazu i wideo", "twarze", enr.some((e) => e.faces !== undefined), "adapter nie zwrócił wyniku", /faces/i);
     report("lookups", live, "tryb offline: bez zapytań sieciowych, tylko strony z materiału", true, "", null, true, "", /dns|rdap|asn/i);
   }

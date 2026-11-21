@@ -20,8 +20,9 @@ import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/
 import { hashFavicon, hashImage } from "../media/imageHash";
 import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo, extractFrames } from "../media/imageEmbed";
 import { detectOcr, ocrImage } from "../media/ocr";
+import { nonEmptyFile } from "../media/tools";
 import { detectFaces, type FaceHit } from "../media/face";
-import { detectSpeaker, embedSpeakers } from "../media/speaker";
+import { detectSpeaker, embedSpeakers, embedSpeakerWindows, loadVoiceIndex, matchVoiceWindows, speakerVadDir, type VoiceIndex } from "../media/speaker";
 import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
 import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../media/addressBar";
@@ -81,8 +82,12 @@ export interface EnrichOptions {
   audio?: boolean;
   /** Opt-in CLIP embedding of creative images (semantic similarity: same template, different variant). */
   clip?: boolean;
-  /** Opt-in SpeechBrain speaker embedding of video/audio creatives (same voice across ads). */
+  /** Opt-in SpeechBrain speaker embedding of video/audio creatives (same voice across ads) and, with the gallery data/voices, the persona of a voice similar to a public figure of the closed list. */
   speaker?: boolean;
+  /** Replaces the Python adapter of the voice gallery match (tests inject a recorded result). */
+  voicesAdapter?: typeof embedSpeakerWindows;
+  /** Replaces data/voices/index.json (tests); null means "no gallery". */
+  voiceIndex?: VoiceIndex | null;
   /** Opt-in faces: boxes in the creative images, screenshots and video frames, and the persona when a face is similar to a public figure on the closed list (OpenCV YuNet + SFace). */
   faces?: boolean;
   /** Replaces the Python adapter of `faces` (tests inject a recorded result). */
@@ -113,6 +118,21 @@ function dedupePersonas(list: PersonaMatch[]): PersonaMatch[] {
     out.push(p);
   }
   return out;
+}
+
+/**
+ * Names of the closed list of public figures (data/osoby-publiczne.json) by person id, to give a
+ * persona found by a face or a voice its name and role. An unreadable list is logged and gives an
+ * empty map (the persona then carries the id as its name).
+ * @param trait what the persona comes from ("twarzy", "głosu"), for the log line
+ */
+function loadPublicPeople(trait: string, log: (message: string) => void): Map<string, { name: string; role: string | null }> {
+  try {
+    return new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null }]));
+  } catch (e) {
+    log(`lista osób publicznych nieczytelna (${errMsg(e)}): persona z ${trait} pod identyfikatorem`);
+    return new Map();
+  }
 }
 
 /**
@@ -162,13 +182,7 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
       log(`twarze pominięte: ${found.skipped}`);
       return;
     }
-    let people: Map<string, { name: string; role: string | null }>;
-    try {
-      people = new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null }]));
-    } catch (e) {
-      log(`lista osób publicznych nieczytelna (${errMsg(e)}): persona z twarzy pod identyfikatorem`);
-      people = new Map();
-    }
+    const people = loadPublicPeople("twarzy", log);
     const byItem = new Map<string, FaceHit[]>();
     for (const owners of jobs.values()) for (const { itemId } of owners) byItem.set(itemId, []);
     for (const hit of found) for (const job of jobs.get(hit.image) ?? []) byItem.get(job.itemId)?.push({ ...hit, image: job.label });
@@ -187,6 +201,55 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+}
+
+/**
+ * Voice step of the enrichment: cuts the audio of each video creative into windows and matches them
+ * with the gallery of voices (data/voices/index.json, the closed list of public figures). Sets
+ * `voices` (spans of speech; a span with a voice similar to a person carries the persona id and the
+ * cosine) and adds a persona with source "voice" (cosine kept, never a vector): a trait of a group
+ * of similar campaigns, to be reviewed by a person. One adapter call for the whole batch; when the
+ * gallery, the venv or the model is missing the reason is logged ("głos mówcy pominięty: ...") and
+ * nothing is set.
+ * @param perItem enrichments by item id, changed in place
+ */
+async function enrichVoices(items: Item[], perItem: Record<string, ItemEnrichment>, opts: EnrichOptions, log: (message: string) => void): Promise<void> {
+  const adapter = opts.voicesAdapter ?? embedSpeakerWindows;
+  let python: string | undefined;
+  let modelDir: string | undefined;
+  if (!opts.voicesAdapter) {
+    const st = await detectSpeaker();
+    // the reason (no venv, model or ffmpeg) was already logged by the speaker-embedding step just before
+    if (!st.available) return;
+    python = st.python ?? undefined;
+    modelDir = st.modelDir;
+    if (!(await nonEmptyFile(path.join(speakerVadDir(), "hyperparams.yaml")))) return log(`głos mówcy pominięty: brak modelu detekcji mowy w ${speakerVadDir()} (scripts/py/setup-speaker.sh)`);
+  }
+  const index = opts.voiceIndex === undefined ? loadVoiceIndex() : opts.voiceIndex;
+  if (!index) return log("głos mówcy pominięty: brak galerii głosów (data/voices/index.json)");
+  const abs = (p: string) => (path.isAbsolute(p) ? p : path.join(opts.baseDir, p));
+  const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
+  if (!withVideo.length) return;
+  const windows = await adapter([...new Set(withVideo.map((it) => abs(it.videoPath!)))], { python, modelDir });
+  const people = loadPublicPeople("głosu", log);
+  let similar = 0;
+  for (const it of withVideo) {
+    const w = windows[abs(it.videoPath!)];
+    if (!w) {
+      perItem[it.id].errors.push("speaker: nie odczytano ścieżki dźwiękowej albo jest krótsza niż jedno okno");
+      continue;
+    }
+    const spans = matchVoiceWindows(w, index);
+    perItem[it.id].voices = spans;
+    const best = new Map<string, number>();
+    for (const sp of spans) if (sp.persona && sp.similarity !== undefined) best.set(sp.persona, Math.max(best.get(sp.persona) ?? 0, sp.similarity));
+    for (const [id, similarity] of best) {
+      const who = people.get(id);
+      perItem[it.id].personas.push({ id, name: who?.name ?? id, matched: "głos", source: "voice", role: who?.role ?? null, similarity });
+      similar++;
+    }
+  }
+  log(`głos z galerii: ${withVideo.length} nagrań, ${similar} podobnych do osób z listy`);
 }
 
 export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<EnrichedDataset> {
@@ -560,6 +623,9 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       }
     }
   }
+
+  // 1b2. Voice gallery: persona of a voice similar to a public figure (windows of the same recordings)
+  if (opts.speaker) await enrichVoices(items, perItem, opts, log);
 
   // 1c. Faces: boxes and personas from the closed list (one batch so the models load once)
   if (opts.faces) await enrichFaces(items, perItem, opts, log);

@@ -32,9 +32,9 @@ export interface PersonaMatch {
   name: string;
   /** Matched text in normalised form (lower-case, folded diacritics). */
   matched: string;
-  source: "watchlist" | "ingest" | "ner" | "face";
+  source: "watchlist" | "ingest" | "ner" | "face" | "voice";
   role: string | null;
-  /** Weighted cosine of the face for source "face" ("a face similar to X (0.xx)", for review, never proof). */
+  /** Weighted cosine of the face for source "face" ("a face similar to X (0.xx)") or cosine of the voice for source "voice" ("a voice similar to X (0.xx)"), for review, never proof. */
   similarity?: number;
   /** True when found by the fuzzy (OCR/ASR-tolerant) matcher. */
   fuzzy?: boolean;

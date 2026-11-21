@@ -16,6 +16,7 @@ import type { ObservedAddress } from "../media/addressBar";
 import type { CampaignParam } from "../osint/campaignParams";
 import type { PageKit } from "../osint/pagekit";
 import type { FaceHit } from "../media/face";
+import type { VoiceSpan } from "../media/speaker";
 import type { PersonaMatch } from "../text/persona";
 
 /** Normalised ad record (output of ingest). */
@@ -151,6 +152,8 @@ export interface ItemEnrichment {
   speakerEmbedding?: number[];
   /** Faces in the creative image, the further screenshots and the video frames (opt-in): box, and for a face similar to someone on the closed list of public figures the persona id and similarity. No vectors. */
   faces?: FaceHit[];
+  /** Stretches of speech in the video/audio creative (opt-in `speaker`, needs the gallery data/voices): seconds from the start, and for a voice similar to someone on the closed list the persona id and cosine. No vectors. */
+  voices?: VoiceSpan[];
   /** Meta Ad Library details for the ad-library IDs of this item (opt-in, live mode). */
   adLibrary?: AdLibraryInfo[];
   errors: string[];

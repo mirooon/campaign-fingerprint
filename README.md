@@ -125,13 +125,15 @@ bun run test && bun run lint && bun run typecheck
 | ffmpeg i ffprobe (audio, klatki wideo) | `brew install ffmpeg` | `sudo apt install ffmpeg` | `--asr`, `--audio`, `--speaker`, klatki wideo dla `--clip` `skipped` |
 | `fpcalc` (odcisk dźwięku, `--audio`) | `brew install chromaprint` | `sudo apt install libchromaprint-tools` | krok `--audio` `skipped` |
 | whisper-cli i model (transkrypcja, `--asr`) | `brew install whisper-cpp`; model `ggml-large-v3-turbo.bin` (ok. 1,5 GB) do `~/models/whisper/` | zbuduj [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`cmake`); ten sam model | krok `--asr` `skipped` |
-| SpeechBrain i model głosu (`--speaker`) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
+| SpeechBrain i modele głosu (`--speaker`: wektor mówcy, galeria osób, detekcja mowy) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` (venv `.venv-speaker`, modele ECAPA ok. 85 MB i VAD ok. 0,5 MB do `~/models/speechbrain`) | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
 | OpenCV, YuNet i SFace (twarze, `--faces`) | `brew install uv`, potem `bash scripts/py/setup-face.sh` (venv `.venv-face`, modele ok. 40 MB do `~/models/opencv`; `FACE_VENV=.venv-speaker` dopisuje pakiety do istniejącego venv) | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-face.sh` | krok `--faces` `skipped` z powodem „brak adaptera twarzy” |
 | MetaAdsCollector (biblioteka reklam, `--ad-library`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped` |
 | model CLIP (`--clip`) | pobierany raz przy pierwszym użyciu (`Xenova/clip-vit-base-patch32`, ok. 350 MB) | to samo | krok `--clip` `skipped` (w Dockerze brak modelu) |
 | Ollama (streszczenia, NER, `--text embedding`) | `brew install ollama`, `ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M`, `ollama pull bge-m3` | [ollama.com/download](https://ollama.com/download) | `summarize` i `--ner` kończą się błędem połączenia; graf działa bez LLM |
 
 **Twarze (`--faces`).** Krok szuka twarzy w obrazie reklamy, zrzutach i klatkach wideo (tych samych, które bierze CLIP) i porównuje je z **zamkniętą listą 8 osób publicznych** (`data/osoby-publiczne.json`, zdjęcia ze źródłem, autorem i licencją w `data/faces/ZRODLA.md`). Wynik to „podobna twarz do X (0,xx)” do przeglądu człowieka, a nie „to jest X”; trafia do pola `faces` materiału i do persony jako cecha **grupy** podobnych kampanii, nigdy jako dowód jednej kampanii. Wektory twarzy nie są zapisywane. Zmienne: `FACE_PYTHON` (interpreter venv, domyślnie `.venv-face/bin/python`), `FACE_MODEL_DIR` (domyślnie `~/models/opencv`). Własne osoby (np. instytucja, która chce rozpoznawać inne osoby ze swoich ostrzeżeń): dopisz wpis z `source` (publiczne ostrzeżenie) do `data/osoby-publiczne.json`, wrzuć 3–5 zdjęć z wolną licencją do `data/faces/<id>/` (id = nazwisko bez polskich znaków, małymi, z myślnikami), wpisz je do `data/faces/ZRODLA.md` i `LICENCJE.md`, po czym `python3 -I scripts/py/face_embed.py --build-index data/faces` (z `FACE_PYTHON`). Nie buduj bazy zdjęć z sieci hurtem (AI Act art. 5 ust. 1 lit. e).
+
+**Głos (`--speaker`).** Krok liczy wektor mówcy z wideo (łączenie materiałów z tym samym głosem) i dopasowuje okna dźwięku (4 s, krok 2 s) do **zamkniętej galerii 10 osób publicznych** (ta sama lista co dla twarzy, `data/osoby-publiczne.json`; w repozytorium tylko wektory `data/voices/index.json` i źródła nagrań `data/voices/ZRODLA.md`, nagrań nie ma). Wynik to **„głos podobny do X (0,57)”**, nigdy „to jest głos X”: pole `voices` materiału (przedziały `start`/`end` w sekundach, `persona`, `similarity`) i persona jako cecha **grupy** podobnych kampanii, nie dowód jednej kampanii. Reguła: kosinus ≥ 0,5, przewaga ≥ 0,15 nad drugą osobą, co najmniej 2 sąsiednie okna; ciche okna i z samą muzyką są odrzucane (docs/METODYKA.md). Bez venv albo modeli krok jest `skipped` z powodem (w Dockerze tylko profil `full`). Zmienne: `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`, `SPEAKER_VAD_DIR`. Detektora klonu głosu nie ma. **Dodanie osoby:** wpis ze `source` w `data/osoby-publiczne.json`, 5–8 polskich nagrań tej osoby (wystąpienia, wywiady) w pliku źródeł (JSON: `set: "gallery"`, `person`, `url`, `start`, `seconds` 30–120), potem `.venv-speaker/bin/python -I scripts/py/build_voice_index.py --sources <plik> --work-dir <katalog poza repozytorium> --model-dir ~/models/speechbrain/spkrec-ecapa-voxceleb --vad-dir ~/models/speechbrain/vad-crdnn-libriparty --index data/voices/index.json --zrodla data/voices/ZRODLA.md --persons-file data/osoby-publiczne.json` (pobiera fragmenty yt-dlp, zapisuje wektory i listę źródeł; nagrania zostają w katalogu roboczym). Pomiar progu i fałszywych trafień: `bun run voice:eval -- --work-dir <katalog>`.
 
 `bun run media:smoke` sprawdza, które adaptery są dostępne. Zmienne środowiskowe (modele, ścieżki, limity): `.env.example` i [docs/TECHNICAL.md §10](docs/TECHNICAL.md#10-konfiguracja). Zależności bibliotek: `package.json`, licencje: [LICENCJE.md](LICENCJE.md).
 
@@ -164,7 +166,7 @@ Klucze trzymaj w `.env` (jest w `.gitignore`). W repozytorium jest tylko `.env.e
 - Przestrzega warunków korzystania ze źródeł (np. nieoficjalny endpoint biblioteki reklam jest opcją z opisanym ryzykiem).
 - Nie wydaje nakazów ani decyzji: proponuje powiązania, o zgłoszeniu decyduje człowiek.
 - Nie renderuje stron i nie wykonuje ich JavaScriptu.
-- Nie rozpoznaje twarzy spoza zamkniętej listy 8 osób publicznych i nie ocenia, czy twarz jest prawdziwa; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
+- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (8 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
 
 ## Pochodzenie danych
 
@@ -224,10 +226,10 @@ Nowe pliki (29):
 - `app/api/analyze-material/route.ts`;
 - `lib/pipeline/`: caseImport (z testem), analyzeMaterial;
 - `lib/osint/`: clickIds, landerConfig, adLibrary (z testami);
-- `lib/media/`: addressBar, imageEmbed, speaker, face (z testami);
+- `lib/media/`: addressBar, imageEmbed, speaker (galeria głosów), voiceEval, face (z testami);
 - `lib/text/`: addressBar, uiChrome (z testami);
 - `lib/graph/`: testy levels, screenshotLink, adLibraryVoice;
-- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, setup-speaker.sh, face_embed.py, face_threshold.py, setup-face.sh;
+- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, build_voice_index.py, setup-speaker.sh, face_embed.py, face_threshold.py, setup-face.sh;
 - `tests/analyzeMaterial.offline.test.ts`.
 
 Zmienione pliki (41; razem z nowymi śledzonymi `git diff --stat` daje 62 pliki, +4191/−147):
@@ -257,6 +259,7 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i14c | ślady zestawu stron nie sumują się w kampanię, biblioteka landerów „666”, konflikt kont wygrywa z silnym `path_id` |
 | i2 | nowy interfejs: zakładki „Analizuj materiał”, „Kampanie”, „Porównaj”, „Graf powiązań”, „Jak to działa”, API zadań (`/api/material`), moduły `lib/viewer`, dymki pomocy |
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
+| i15 | galeria głosów osób publicznych: `--speaker` z dopasowaniem okien (`voices`), `data/voices`, `scripts/py/build_voice_index.py`, `bun run voice:eval`, próg z pomiaru |
 | i5 | persona z twarzy: `--faces` (OpenCV YuNet + SFace), zamknięta lista 8 osób publicznych (`data/osoby-publiczne.json`, `data/faces`), `scripts/py/face_embed.py`, `setup-face.sh`, próg z pomiaru |
 | i7 | `bun run base`, `bun run demo`, obraz Dockera z narzędziami do mediów, profile `full`/`llm`/`ct`, limity API (`ANALYZE_RATE_LIMIT`, `MATERIAL_MAX_MB`), `cache:freeze` |
 | i8 | dokumentacja: README, `docs/METODYKA.md`, `LICENCJE.md`, `LICENSE`, `bun run licenses` |

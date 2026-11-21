@@ -66,5 +66,5 @@ RUN python3 -m venv /opt/venv-speaker \
     && /opt/venv-speaker/bin/pip install --no-cache-dir --extra-index-url https://download.pytorch.org/whl/cpu torch torchaudio \
     && /opt/venv-speaker/bin/pip install --no-cache-dir -r /tmp/requirements-full.txt
 USER node
-# models are mounted from the host (see docker-compose.yml): WHISPER_MODEL, SPEAKER_MODEL_DIR
-ENV SPEAKER_PYTHON=/opt/venv-speaker/bin/python WHISPER_MODEL=/models/whisper/ggml-large-v3-turbo.bin SPEAKER_MODEL_DIR=/models/speechbrain/spkrec-ecapa-voxceleb
+# models are mounted from the host (see docker-compose.yml): WHISPER_MODEL, SPEAKER_MODEL_DIR, SPEAKER_VAD_DIR (speech vs music in the voice gallery match; the gallery itself, data/voices/index.json, is in the image)
+ENV SPEAKER_PYTHON=/opt/venv-speaker/bin/python WHISPER_MODEL=/models/whisper/ggml-large-v3-turbo.bin SPEAKER_MODEL_DIR=/models/speechbrain/spkrec-ecapa-voxceleb SPEAKER_VAD_DIR=/models/speechbrain/vad-crdnn-libriparty

@@ -34,6 +34,8 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   click_server: "#0f766e",
   meta_ad: "#1d4ed8",
   ad_payer: "#0f766e",
+  comment_block: "#57534e",
+  technique: "#7e22ce",
 };
 
 const CAMPAIGN_COLORS = [

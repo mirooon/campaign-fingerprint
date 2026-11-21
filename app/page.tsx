@@ -1,7 +1,7 @@
 import { connection } from "next/server";
 import { Suspense } from "react";
-import Viewer from "@/components/viewer/Viewer";
-import { loadViewerData } from "@/lib/viewer/data";
+import Shell from "@/components/viewer/Shell";
+import { loadViewerData, SAMPLE_BASE } from "@/lib/viewer/data";
 
 /** Reads the pipeline outputs on every request: a new run (or VIEWER_DATA_DIR) shows up without a rebuild. */
 async function ViewerWithData() {
@@ -15,7 +15,7 @@ async function ViewerWithData() {
       </main>
     );
   }
-  return <Viewer graph={graph} campaigns={campaigns} summaries={summaries} />;
+  return <Shell graph={graph} campaigns={campaigns} summaries={summaries} synthetic={SAMPLE_BASE} />;
 }
 
 export default function Home() {

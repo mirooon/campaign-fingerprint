@@ -16,12 +16,16 @@ const VERDICT_STYLE: Record<MaterialItemResult["verdict"], string> = {
   known_campaign: "bg-emerald-50 text-emerald-900",
   similar_campaigns: "bg-violet-50 text-violet-900",
   new_campaign: "bg-slate-100 text-slate-800",
+  duplicate: "bg-sky-50 text-sky-900",
+  insufficient: "bg-slate-100 text-slate-700",
 };
 
 const VERDICT_LABEL: Record<MaterialItemResult["verdict"], string> = {
   known_campaign: "znana kampania",
   similar_campaigns: "nowa kampania, podobna do znanych",
   new_campaign: "nowa kampania",
+  duplicate: "duplikat",
+  insufficient: "za mało danych",
 };
 
 const RULE_LABEL: Record<string, string> = {

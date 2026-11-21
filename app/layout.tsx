@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Graf kampanii — starter OSINT",
+  title: "Analiza kampanii",
   description: "Łączenie pojedynczych reklam w kampanie na podstawie śladów infrastruktury, obrazów i treści.",
 };
 

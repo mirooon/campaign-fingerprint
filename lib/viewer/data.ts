@@ -35,3 +35,6 @@ export function loadViewerData(): ViewerData {
     return { graph: null, campaigns: null, summaries: {}, error: `Nie udało się wczytać danych: ${(e as Error).message}` };
   }
 }
+
+/** The base is the bundled sample (synthetic data): no VIEWER_DATA_DIR, or one that points at the project's own data/. */
+export const SAMPLE_BASE = !process.env.VIEWER_DATA_DIR || DATA_DIR === path.join(process.cwd(), "data");

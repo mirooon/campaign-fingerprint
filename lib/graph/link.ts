@@ -17,7 +17,13 @@ import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { affiliateIdsFromUrls, type AffiliateId } from "../osint/affiliateIds";
 import { verificationTokens } from "../osint/extract";
+<<<<<<< HEAD
 import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
+=======
+import { leadFlowLabel } from "../osint/leadFlow";
+import { asSeenOn, despaceText, hasSpacedText } from "../osint/pageTraits";
+import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+>>>>>>> linia-f
 import { companyIdsOfMaterial } from "../text/companyIds";
 import { applyShopContext } from "../osint/shopSignals";
 import { evaluateCompanyRegistry } from "../osint/companyRegistry";
@@ -263,6 +269,13 @@ export function buildEvidenceGraph(
     const add = (pivot: string, type: EntityType, path: string[], relation: number, how: string) => {
       if (relation > 0) facts.push({ pivot, type, path, relation, how });
     };
+    /** Adds a lead-funnel node (B-332) for one token (`form:<uuid>`, `flow:…`, `key:…`, `evhost:…`, `src:<suuid>`) of the item or its page. */
+    const addLeadFlow = (from: string, basePath: string[], token: string, relation: number) => {
+      const label = leadFlowLabel(token);
+      const id = g.node("lead_flow", token, label, { kind: token.split(":")[0] });
+      g.edge(from, id, "mentions", `lejek leadów platformy stron: ${label}`);
+      add(id, "lead_flow", [...basePath, id], relation, `ten sam lejek leadów platformy stron (${label})`);
+    };
     const enr = dataset.perItem[item.id];
     const advertiser = item.advertiser ?? enr?.advertiserOcr ?? null;
     /** Pivot of the advertiser's display name (no library account), dropped below for a taken-over account. */
@@ -287,7 +300,12 @@ export function buildEvidenceGraph(
     if (item.extra?.case) itemData.case = item.extra.case;
 
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
-    const ui = enr?.ocrText ? stripUiChrome(enr.ocrText) : null;
+    // Text spaced out letter by letter (B-337): an attribute, and the OCR text is glued back before any matching
+    if (hasSpacedText(enr?.ocrText) || hasSpacedText(item.text)) itemData.spacedText = true;
+    const ui = enr?.ocrText ? stripUiChrome(despaceText(enr.ocrText)) : null;
+    // Fake "as seen on" strip of media logos (B-338): an attribute of the material
+    const seenOn = asSeenOn([item.text, ui?.text].filter(Boolean).join("\n"));
+    if (seenOn.length) itemData.asSeenOn = seenOn;
     if (ui?.view) itemData.uiView = ui.view;
     if (enr?.advertiserImpersonates) {
       itemData.advertiserImpersonates = enr.advertiserImpersonates.id;
@@ -1015,6 +1033,14 @@ export function buildEvidenceGraph(
           g.edge(finalUrlNode, id, "mentions", `komunikat programisty w skrypcie strony: „${quote}”`);
           add(id, "kit_string", [...finalPath, id], rel, `ten sam komunikat ze skryptu zestawu stron „${quote}”`);
         }
+        // Lead funnel of the landing-page platform (B-332, notAloneKinds): form, flows, key id, event host
+        for (const tok of kit.leadFlow ?? []) addLeadFlow(finalUrlNode, finalPath, tok, rel);
+        // Back-trap library and a script hidden in an SVG (B-335, B-334): attributes; the SVG's addresses are ordinary url nodes
+        if (kit.backLib?.length) itemData.backLib = kit.backLib;
+        if (kit.svgScript) {
+          itemData.svgScript = true;
+          for (const u of kit.svgScript.urls) addUrlInfra(u, finalPath, rel * 0.5);
+        }
         if (kit.localizedUi?.length) itemData.localizedUi = kit.localizedUi;
         // Techniques: the same modus operandi (second level only, campaignRules.familyOnlyKinds)
         for (const t of kit.techniques ?? []) {
@@ -1179,6 +1205,8 @@ export function buildEvidenceGraph(
         add(id, "platform_campaign", [itemNode, id], 1, `ta sama kampania na platformie stron (cuuid ${c})`);
       }
       if (linkIds.sourceIds.length) itemData.platformSourceIds = linkIds.sourceIds;
+      // suuid of a showcase link is a lead-funnel trace too (B-332)
+      for (const sid of linkIds.sourceIds) addLeadFlow(itemNode, [itemNode], `src:${sid}`, 1);
       if (linkIds.ownerIds.length && !itemData.platformAccount) {
         itemData.platformAccount = linkIds.ownerIds[0];
         itemData.platformAccountSource = "launcher";
@@ -1269,6 +1297,10 @@ export function buildEvidenceGraph(
 
     // Narrative (topic, hook, IHC label): an attribute of the material and a trait of the group, never a pivot
     const pageEx = landingPage?.extract;
+    if (!itemData.asSeenOn) {
+      const pageSeenOn = asSeenOn(pageEx?.visibleText);
+      if (pageSeenOn.length) itemData.asSeenOn = pageSeenOn;
+    }
     const narrative = detectNarrative({
       headline: [pageEx?.title, pageEx?.ogTitle, item.text?.split("\n")[0]].filter(Boolean).join("\n"),
       body: [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n"),

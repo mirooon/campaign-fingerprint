@@ -462,6 +462,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // shared template or one hand, but an address is easy to copy from another shop's footer, so it only supports
     // a link (campaignRules.notAloneKinds). Virtual offices are listed in lists.postalAddressExclusions.
     postal_address: 0.5,
+    // Lead funnel of a landing-page platform (B-332): the same form, flows, key id or event host name one
+    // network or offer, not one buyer: a page-kit trait (campaignRules.notAloneKinds), counted for groups.
+    lead_flow: 0.5,
   },
   strongThreshold: 0.7,
   nonStrongTypes: ["bank_account"],
@@ -473,7 +476,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
+<<<<<<< HEAD
     notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "affiliate_team"],
+=======
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "lead_flow"],
+>>>>>>> linia-f
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
     // claim belongs to the script of the scheme, which many operators copy
     familyOnlyKinds: ["technique", "persona", "profit_claim"],

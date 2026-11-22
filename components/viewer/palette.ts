@@ -48,6 +48,7 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   template_phrase: "#854d0e",
   profit_claim: "#a16207",
   kit_string: "#713f12",
+  lead_flow: "#0e7490",
   company_id: "#0e7490",
   bank_account: "#b91c1c",
   postal_address: "#9a3412",

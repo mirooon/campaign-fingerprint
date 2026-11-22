@@ -143,13 +143,40 @@ function urlQuery(url: string): string {
   return `page.url:"${url.replace(/#.*$/, "").replace(/(["\\])/g, "\\$1")}"`;
 }
 
+/** One scan a free-form search found (the scan scheduler's view; `lookup` works from an address instead). */
+export interface UrlscanScan {
+  id: string;
+  /** Address of the scanned page. */
+  url: string;
+  /** The urlscan result page. */
+  sourceUrl: string;
+  /** ISO time of the scan. */
+  capturedAt: string;
+  meta: NonNullable<ArchivedCopy["meta"]>;
+  /** Requests the page made (with resource hashes); only when asked for. */
+  requests?: NonNullable<ArchivedCopy["requests"]>;
+  /** Why the request list is missing when it was asked for (limit, error status). */
+  notes?: string[];
+}
+
+/** The urlscan source: an `ArchiveSource` that can also be asked a free-form query. */
+export interface UrlscanSource extends ArchiveSource {
+  name: "urlscan";
+  /**
+   * Scans matching a urlscan query (e.g. `filename:"/sdk/main.js"`, `domain:x.example`), newest first, at most
+   * `limit` (default: one page of results). `withRequests` adds the request list of each (one more request
+   * per scan, through the same queue and limit). Throws ArchiveLookupError when urlscan could not answer.
+   */
+  searchScans(query: string, opts?: { withRequests?: boolean; limit?: number }): Promise<UrlscanScan[]>;
+}
+
 /**
  * urlscan source. `lookup` returns the scans of the same page (full address, or the same path with
  * another query), exact matches first, then the nearest in time to `before`. Only the best copy is
  * completed with the request list, screenshot and (with a key) the DOM; what could not be fetched is
  * named in the copy's `notes`.
  */
-export function createUrlscanSource(opts: UrlscanOptions = {}): ArchiveSource {
+export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
   const http = opts.http ?? fetchHttp;
   const now = opts.now ?? (() => new Date());
   const config = opts.config ?? DEFAULT_ARCHIVE_CONFIG;
@@ -242,6 +269,27 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): ArchiveSource {
 
   return {
     name: "urlscan",
+    async searchScans(query, o = {}) {
+      const records = (await search(query)).sort((a, b) => Date.parse(b.time) - Date.parse(a.time)).slice(0, o.limit ?? config.urlscanPageSize);
+      const scans: UrlscanScan[] = records.map((r) => ({ id: r.id, url: r.pageUrl, sourceUrl: `${API}/result/${r.id}/`, capturedAt: r.time, meta: r.meta }));
+      if (o.withRequests) {
+        for (const scan of scans) {
+          try {
+            const res = await request(scan.sourceUrl);
+            if (res.status !== 200) scan.notes = [`brak: lista żądań (HTTP ${res.status})`];
+            else {
+              const requests = parseResultRequests(res.body.toString("utf8"));
+              if (requests.length) scan.requests = requests;
+              else scan.notes = ["lista żądań: nie rozpoznano strony wyniku urlscan"];
+            }
+          } catch (e) {
+            if (!(e instanceof ArchiveLookupError)) throw e;
+            scan.notes = [`brak: lista żądań (${e.reason})`];
+          }
+        }
+      }
+      return scans;
+    },
     available: async () => {
       if (now().getTime() < blockedUntil) return { ok: false, reason: pausedReason(), howToGetAccess: SIGNUP };
       return apiKey ? { ok: true } : { ok: true, reason: "bez klucza: wyszukiwanie działa, DOM zapisanych stron pominięty", howToGetAccess: SIGNUP };

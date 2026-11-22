@@ -77,8 +77,21 @@ export interface MaterialContext {
    */
   archive?: { sources: ArchiveSource[]; skipReason?: string } | null;
   log?: (m: string) => void;
+  /**
+   * Called once at the end with the new records and their enrichment, exactly what the comparison used, so that
+   * `addToBase` can put them into the base without computing the traits again.
+   */
+  onAnalyzed?: (analyzed: AnalyzedMaterial) => void;
   /** Progress per case and step (import, media, lookups, graph, campaign rules, verdicts). */
   onProgress?: (e: MaterialProgress) => void;
+}
+
+/** What an analysis computed for the new records: the records, their enrichment and the folder their files are relative to. */
+export interface AnalyzedMaterial {
+  items: Item[];
+  enriched: EnrichedDataset;
+  /** Folder of the import: relative paths of the records (screenshots, videos) are resolved against it. */
+  importDir: string;
 }
 
 export type MaterialVerdict = "known_campaign" | "similar_campaigns" | "new_campaign" | "duplicate" | "insufficient";
@@ -238,7 +251,8 @@ function hybridSources(fixtureDir: string, live: EnrichmentSources | null): Enri
   };
 }
 
-function mergeDatasets(base: EnrichedDataset, extra: EnrichedDataset): EnrichedDataset {
+/** The existing dataset with the records of `extra` (items, per-item data, pages, hosts, domains, IPs) appended. */
+export function mergeDatasets(base: EnrichedDataset, extra: EnrichedDataset): EnrichedDataset {
   return {
     ...base,
     items: [...base.items, ...extra.items],
@@ -255,7 +269,7 @@ function bareRecord(input: MaterialInput): Item {
 }
 
 /** Folder the image paths of a dataset are relative to: absolute, or relative to the working directory or the run folder. */
-function resolveBaseDir(baseDir: string, dataDir: string): string {
+export function resolveBaseDir(baseDir: string, dataDir: string): string {
   if (path.isAbsolute(baseDir)) return baseDir;
   const fromCwd = path.resolve(baseDir);
   return existsSync(fromCwd) ? fromCwd : path.resolve(dataDir, baseDir);
@@ -671,6 +685,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const v = results.filter((r) => r.caseId === c).map((r) => r.verdict);
     progress(c, "group", "done", [...new Set(v)].join(", "));
   }
+  ctx.onAnalyzed?.({ items: extra.items, enriched: extra, importDir });
   return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, steps, notes };
 }
 

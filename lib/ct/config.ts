@@ -139,3 +139,13 @@ export function loadCtConfig(file: string | null | undefined): CtWatchConfig {
   if (!file || !existsSync(file)) return mergeCtConfig(null);
   return mergeCtConfig(JSON.parse(readFileSync(file, "utf8")));
 }
+
+/** Confirmation of a CT candidate by the infrastructure of its campaign (lib/ct/confirm.ts). */
+export const CT_CONFIRM_CONFIG = {
+  /** Kinds of shared infrastructure (NS pair, registrar, registration hour, IP, page hash) that make a candidate `confirmed`. */
+  minKinds: 2,
+  /** Hours added on each side of the window in which the campaign's domains were registered (UTC). */
+  hourMargin: 1,
+  /** A campaign whose registrations spread over more hours than this has no registration-hour window (it would match anything). */
+  maxHourSpan: 6,
+} as const;

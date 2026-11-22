@@ -5,16 +5,14 @@
  * data/ct-watch.jsonl as candidates. No page is fetched unless --fetch-page is given.
  */
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { DEFAULT_FEED_FILE } from "../lib/ct/feed";
 import { replayCertstream, runCtStream } from "../lib/ct/stream";
 import { CtWatcher } from "../lib/ct/watch";
 import { fixtureSources, liveSources } from "../lib/pipeline/sources";
 import { DEFAULTS } from "../lib/pipeline/steps";
-import { loadFingerprints, printFingerprints } from "./_ct";
+import { LOCAL_STREAM, PUBLIC_STREAM, loadCampaignInfra, loadFingerprints, printFingerprints } from "./_ct";
 import { cli, main } from "./_cli";
-
-const LOCAL_STREAM = "ws://127.0.0.1:8181/";
-const PUBLIC_STREAM = "wss://certstream.calidog.io/";
 
 const args = cli(
   {
@@ -55,6 +53,7 @@ void main(async () => {
     feedFile,
     source: args.replay ? "replay" : "certstream",
     stream: args.replay ?? null,
+    infra: loadCampaignInfra(path.dirname(args.campaigns ?? DEFAULTS.campaigns), args.campaigns ?? DEFAULTS.campaigns),
     enrich: args["no-enrich"] ? null : { sources, fetchPage: Boolean(args["fetch-page"]), maxPerMinute },
     log: (m) => console.log(m),
   });

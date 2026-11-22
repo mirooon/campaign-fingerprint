@@ -168,3 +168,27 @@ describe("urlscan source", () => {
     expect(calls.every((c) => !/\/api\/v1\/scan\/?(\?|$)/.test(c.url))).toBe(true);
   });
 });
+
+describe("searchScans (search by query, for the scan scheduler)", () => {
+  it("returns the scans a query found, newest first, with the address, the result page and the scan time", async () => {
+    const { src, calls } = source(baseRoutes);
+    const scans = await src.searchScans("filename:\"/sdk/main.js\"");
+    expect(scans.length).toBeGreaterThan(0);
+    expect(scans[0]).toMatchObject({ id: expect.any(String), sourceUrl: expect.stringContaining("/result/"), url: expect.stringContaining("https://") });
+    expect([...scans].map((s) => s.capturedAt)).toEqual([...scans].map((s) => s.capturedAt).sort().reverse());
+    expect(decodeURIComponent(calls[0].url)).toContain('q=filename:"/sdk/main.js"');
+  });
+
+  it("adds the request list of each scan only when asked, at most `limit` scans", async () => {
+    const { src, calls } = source([["/api/v1/search/", ok(search)], ["/result/", ok(resultPage)]]);
+    const scans = await src.searchScans("page.domain:promo.example", { withRequests: true, limit: 1 });
+    expect(scans).toHaveLength(1);
+    expect(scans[0].requests?.length).toBeGreaterThan(0);
+    expect(calls.filter((c) => c.url.includes("/result/"))).toHaveLength(1);
+  });
+
+  it("says why it could not search: the limit (HTTP 429) is an ArchiveLookupError", async () => {
+    const { src } = source([["/api/v1/search/", { status: 429, headers: { "retry-after": "60" }, body: Buffer.from("") }]]);
+    await expect(src.searchScans("x")).rejects.toBeInstanceOf(ArchiveLookupError);
+  });
+});

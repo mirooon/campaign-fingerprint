@@ -4,7 +4,7 @@
  */
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync } from "node:fs";
 import path from "node:path";
-import type { CtMatchKind } from "./labels";
+import type { CtFeedKind } from "./labels";
 
 export const DEFAULT_FEED_FILE = "data/ct-watch.jsonl";
 
@@ -25,8 +25,8 @@ export interface CtFeedRecord {
   v: 1;
   type: "ct_candidate";
   observed_utc: string;
-  source: "certstream" | "crtsh-backfill" | "replay";
-  /** Stream URL, crt.sh pattern or replay file. */
+  source: "certstream" | "crtsh-backfill" | "replay" | "watch";
+  /** Stream URL, crt.sh pattern, replay file or the scheduler (`watch`: the source and recipe of the row). */
   stream: string | null;
   domain: string;
   /** Certificate names under this registrable domain. */
@@ -47,14 +47,17 @@ export interface CtFeedRecord {
     campaign_id: string;
     campaign_label: string;
     score: number;
-    kind: CtMatchKind;
+    kind: CtFeedKind;
     template: string | null;
     similar_domains: string[];
     tokens: string[];
     evidence: string[];
+    /** Infrastructure shared with the campaign (same NS pair, registration hour, IP, page hash); see confirm.ts. */
+    confirmations?: string[];
   };
   enrichment: CandidateEnrichment | null;
-  status: "candidate";
+  /** `confirmed`: enough kinds of the campaign's infrastructure were found (confirmations); otherwise a candidate for a human to check. */
+  status: "candidate" | "confirmed";
   note: string;
 }
 

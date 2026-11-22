@@ -10,11 +10,13 @@ import { detectAsr } from "../media/asr";
 import { detectFpcalc } from "../media/audioFp";
 import { detectClip } from "../media/imageEmbed";
 import { detectOcr } from "../media/ocr";
+import { ctLexiconFile, lexiconFromGraph } from "../ct/lexiconFromBase";
+import type { EvidenceGraph } from "../graph/model";
 import { importCases } from "./caseImport";
 import { liveLookups } from "./liveLookups";
 import { readJson, runBuildGraph, runEnrich, runIngest, writeJson } from "./steps";
 
-export type BaseStepName = "import-cases" | "lookups" | "ingest" | "enrich" | "ocr" | "asr" | "audio" | "clip" | "build-graph";
+export type BaseStepName = "import-cases" | "lookups" | "ingest" | "enrich" | "ocr" | "asr" | "audio" | "clip" | "build-graph" | "ct-lexicon";
 
 export interface BaseStep {
   step: BaseStepName;
@@ -136,6 +138,10 @@ export async function runBase(o: BaseOptions): Promise<BaseResult> {
   // The analysis of new material reads `<base>/linking.json`, so it uses the weights the base was built with.
   if (configFile && existsSync(configFile) && path.resolve(configFile) !== p("linking.json")) copyFileSync(configFile, p("linking.json"));
   steps.push({ step: "build-graph", status: "ok", detail: configFile ? `wagi: ${configFile}` : "wagi wbudowane (DEFAULT_LINK_CONFIG)" });
+  // The CT watchers (ct:watch, ct:backfill, watch) read the brands of this base from <base>/ct-lexicon.json.
+  const brands = lexiconFromGraph(readJson<EvidenceGraph>(p("graph.json"))).brands;
+  writeJson(p("ct-lexicon.json"), ctLexiconFile(brands, new Date()));
+  steps.push({ step: "ct-lexicon", status: "ok", detail: `marki i nazwy landerów z bazy: ${brands.length}` });
 
   const result: BaseResult = { version: 1, generatedAt: new Date().toISOString(), offline: !!o.offline, cases: imp.cases.length, steps, configFile, skippedCases: imp.skipped };
   writeJson(p("base.json"), result);

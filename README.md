@@ -77,7 +77,28 @@ bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wyni
 
 Minimum plików (pomiar na 111 wariantach 25 spraw, [docs/METODYKA.md](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)): zapisana strona (HTML albo HAR) wystarcza do przypisania do znanej kampanii; sam zrzut albo samo wideo bez strony zwykle nie, i wtedy narzędzie zgłasza brak danych (`insufficient`, „podobne kampanie” albo „nowa kampania”) z listą braków w `missing_data` (link do strony, plik HAR, zrzut reklamy) zamiast zgadywać; żaden wariant nie trafił do cudzej kampanii. Obrazy w formacie HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
 
-Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
+Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`, `--add-to-base` (z `--force`). Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
+
+**Baza rośnie.** Z `--add-to-base` po analizie materiały wchodzą do bazy z `--data` (rekordy i dane z porównania, graf i kampanie przebudowane offline, bez sieci), więc drugi materiał nowej kampanii znajduje pierwszy. Istniejące kampanie zachowują numery, nowe dostają kolejne. Duplikat nie jest dopisywany, „za mało danych” tylko z `--force`. Poprzednie pliki bazy: `<baza>/historia/<czas>/`, wpisy: `<baza>/dodane.jsonl`.
+
+```bash
+bun run analyze-material -- --case sprawa/ --data dane/baza --add-to-base
+```
+
+### Harmonogram skanów: nowe domeny i reklamy znanych kampanii
+
+`bun run watch` co jakiś czas pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Lista Ostrzeżeń CERT) o nowe adresy, każdy przepuszcza przez analizę względem bazy i dopisuje wiersz `{ts, source, url, verdict, campaign}` do `data/watch.jsonl` (widoczny w zakładce feedu CT). Źródło bez sieci albo klucza jest pomijane z powodem, reszta działa dalej.
+
+```bash
+# demo bez internetu: zapisane wiadomości CertStream i przykładowe (syntetyczne) przepisy
+bun run watch -- --data data --once --sources ct --replay data/sample/ct-stream.jsonl --recipes data/examples/watch-przepisy.example.json
+# w kontenerze, bez sieci
+docker compose run --rm app bun run watch -- --data /dane/baza --once --sources ct --replay /dane/ct-stream.jsonl
+# na żywo, co 30 minut (potrzebny lokalny strumień: docker compose --profile ct up -d certstream)
+bun run watch -- --data dane/baza --every 30m --recipes przepisy.json --add-to-base
+```
+
+Klucz urlscan (`URLSCAN_API_KEY`, darmowe konto, sekcja 6) jest opcjonalny. Przepisy wyszukiwania (zapytanie, źródło, filtr potwierdzający, częstotliwość) to plik JSON wskazany `--recipes` albo `WATCH_RECIPES`; format pokazuje `data/examples/watch-przepisy.example.json`, a przepisy z wartościami prawdziwych kampanii trzymaj poza repozytorium (`--seed-recipes plik.json` robi je z bazy). `--add-to-base` dopisuje do bazy tylko trafienia z werdyktem z `--add-verdicts` (domyślnie `known_campaign`).
 
 ### Jak zebrać materiał
 
@@ -309,10 +330,11 @@ lib/pipeline/   ingest, caseImport, sources (live/fixtures), enrich, steps, anal
                 materialCsv, base, demoScenario, freeze, summary
 lib/viewer/     logika widoków (siła, kompletność, rozbrajanie adresów, widok kampanii i materiału, zadania, wgrywanie)
 lib/evidence/   paczka dowodów (JSON, Markdown, lista CERT, zgłoszenie DSA, manifest)
-lib/ct/         watcher CT: konfiguracja (leksykon), odciski, strumień, feed, wzbogacanie
+lib/ct/         watcher CT: konfiguracja (leksykon), odciski, strumień, feed, wzbogacanie, potwierdzenie infrastrukturą
+lib/watch/      harmonogram skanów: przepisy, źródła (CT, biblioteki reklam, urlscan, lista CERT), cykl i wiersze watch.jsonl
 lib/licenses.ts logika skryptu licencji pakietów
 scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-graph, evaluate, pipeline, analyze-material,
-                summarize, evidence, cache-freeze, ct-watch, ct-backfill, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
+                summarize, evidence, cache-freeze, ct-watch, ct-backfill, watch, backtest-ct, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
 app/, components/viewer/   przeglądarka i API (`/api/analyze-material`, `/api/material`, `/api/analyze`, `/api/image`, `/api/ct-feed`)
 docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl

@@ -30,7 +30,9 @@
     "demo-batch": "bun scripts/demo-batch.ts",
     "demo": "bun scripts/demo.ts",
     "licenses": "bun scripts/licenses.ts",
-    "adlib": "bun scripts/adlib.ts"
+    "adlib": "bun scripts/adlib.ts",
+    "watch": "bun scripts/watch.ts",
+    "backtest:ct": "bun scripts/backtest-ct.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

@@ -7,6 +7,7 @@
 import pLimit from "p-limit";
 import type { CtResult } from "../osint/ct";
 import type { EnrichmentSources } from "../pipeline/sources";
+import { confirmCandidate, type CampaignInfra } from "./confirm";
 import { enrichCandidate } from "./enrich";
 import { appendFeed, feedDomains, type CandidateEnrichment, type CtFeedRecord } from "./feed";
 import { matchDomain, registrableOfName, type CtMatch, type FingerprintSet } from "./fingerprint";
@@ -22,6 +23,8 @@ export interface CtWatcherOptions {
   stream?: string | null;
   /** Passive enrichment of matches; null/undefined disables it. */
   enrich?: { sources: EnrichmentSources; fetchPage?: boolean; maxPerMinute?: number; concurrency?: number } | null;
+  /** Infrastructure of the campaigns (see confirm.ts); with it and the enrichment a candidate can become `confirmed`. */
+  infra?: Map<string, CampaignInfra> | null;
   now?: () => Date;
   log?: (message: string) => void;
   onCandidate?: (record: CtFeedRecord) => void;
@@ -106,6 +109,8 @@ export class CtWatcher {
         }
       }
     }
+    const campaignInfra = this.opts.infra?.get(m.campaignId);
+    const confirmation = enrichment && campaignInfra ? confirmCandidate(enrichment, campaignInfra) : null;
     const record: CtFeedRecord = {
       v: 1,
       type: "ct_candidate",
@@ -135,9 +140,10 @@ export class CtWatcher {
         similar_domains: m.similarDomains,
         tokens: m.tokens,
         evidence: m.evidence,
+        ...(confirmation?.confirmations.length ? { confirmations: confirmation.confirmations } : {}),
       },
       enrichment,
-      status: "candidate",
+      status: confirmation?.confirmed ? "confirmed" : "candidate",
       note: CANDIDATE_NOTE,
     };
     if (this.opts.feedFile) appendFeed(this.opts.feedFile, record);

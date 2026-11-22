@@ -1,0 +1,56 @@
+{
+  "_comment": "Przykład syntetyczny przepisów harmonogramu (bun run watch --recipes). Domeny .test i wartości wymyślone. Przepisy z wartościami prawdziwych kampanii (najemcy, hashe, domeny, pary NS) trzymaj poza repozytorium i wskaż flagą --recipes albo WATCH_RECIPES.",
+  "version": 1,
+  "recipes": [
+    {
+      "id": "sdk-platformy-stron",
+      "description": "Strony z SDK platformy stron (ogólny przepis: bez listy najemców każdy skan jest trafieniem do analizy)",
+      "source": "urlscan",
+      "query": "filename:\"/sdk/main.js\"",
+      "every": "1d",
+      "limit": 50
+    },
+    {
+      "id": "najemca-platformy",
+      "description": "Skany platformy, w których najemca z żądań strony jest na liście kampanii (lista wymyślona)",
+      "source": "urlscan",
+      "query": "filename:\"/sdk/main.js\"",
+      "every": "1d",
+      "feature": { "name": "najemca", "regex": "landing-cdn/([0-9a-f-]{36})/", "alarm": ["00000000-0000-4000-8000-000000000001"] }
+    },
+    {
+      "id": "tytul-narracji",
+      "description": "Narracja kampanii w tytule strony (tytuł jest tylko zapytaniem; o kampanii decyduje infrastruktura, nie tytuł)",
+      "source": "urlscan",
+      "query": "page.title:\"Kamil Demonstracyjny\"",
+      "every": "7d"
+    },
+    {
+      "id": "seria-rejestracji",
+      "description": "Nowe domeny z Listy Ostrzeżeń CERT o wzorcu serii, tylko z tym samym rejestratorem, parą NS i porą rejestracji",
+      "source": "certlist",
+      "query": "^(?:smart|health)[a-z]{3,9}q?\\.test$",
+      "every": "1d",
+      "confirm": {
+        "registrars": ["Registrar Przykladowy"],
+        "nameserverPairs": [["ns1.dns-przyklad.test", "ns2.dns-przyklad.test"]],
+        "registeredHoursUtc": { "from": 18, "to": 19 },
+        "minMatches": 2
+      }
+    },
+    {
+      "id": "nazwy-w-ct",
+      "description": "Nazwy z certyfikatów pasujące do wzorca serii (obok odcisków kampanii z bazy)",
+      "source": "ct",
+      "query": "^zwrot[0-9]{2}-[a-z]+[0-9]{2}\\.example$"
+    },
+    {
+      "id": "reklamy-slowo",
+      "description": "Biblioteka reklam: słowo kluczowe z narracji kampanii",
+      "source": "adlibrary",
+      "query": "rozdajemy 1000 zł",
+      "platform": "meta",
+      "limit": 25
+    }
+  ]
+}

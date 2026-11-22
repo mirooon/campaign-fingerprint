@@ -3,6 +3,9 @@
 #   docker compose run --rm app bun run base -- --cases /dane/probka      # base of known campaigns from ./dane/probka
 #   docker compose run --rm app bun run analyze-material -- --cases /dane/nowe --csv /dane/wynik.csv
 # ./dane on the host is /dane in the container (cases in, base in ./dane/baza, results out).
+# Scan scheduler (public sources -> analysis against the base -> data/watch.jsonl):
+#   docker compose run --rm app bun run watch -- --data /dane/baza --once --sources ct --replay /dane/ct-stream.jsonl   # offline demo (works with --network none)
+#   docker compose run --rm -e URLSCAN_API_KEY -e WATCH_RECIPES=/dane/przepisy.json app bun run watch -- --data /dane/baza --every 30m --add-to-base
 # Optional profiles: full (ASR + speaker voice), llm (Ollama), ct (certstream).
 services:
   app:
@@ -26,6 +29,10 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # `bun run watch` (scan scheduler): optional urlscan key, recipes file and rows file (default data/watch.jsonl)
+      URLSCAN_API_KEY: ${URLSCAN_API_KEY:-}
+      WATCH_RECIPES: ${WATCH_RECIPES:-}
+      WATCH_FILE: ${WATCH_FILE:-}
     restart: unless-stopped
 
   # Profile `full`: the same GUI and CLI plus ASR (whisper.cpp) and speaker voice (SpeechBrain, CPU).

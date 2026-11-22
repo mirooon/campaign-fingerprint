@@ -47,7 +47,7 @@ describe("runBase", () => {
   });
 
   it("reports every step, and every skipped step with a reason", () => {
-    expect(res.steps.map((s) => s.step)).toEqual(["import-cases", "lookups", "ingest", "enrich", "ocr", "asr", "audio", "clip", "build-graph"]);
+    expect(res.steps.map((s) => s.step)).toEqual(["import-cases", "lookups", "ingest", "enrich", "ocr", "asr", "audio", "clip", "build-graph", "ct-lexicon"]);
     const lookups = res.steps.find((s) => s.step === "lookups")!;
     expect(lookups.status).toBe("skipped");
     expect(lookups.reason).toMatch(/offline/);

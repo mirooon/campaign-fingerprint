@@ -1322,7 +1322,7 @@ export function buildEvidenceGraph(
     if (nameStyle) itemData.advertiserNameStyle = nameStyle;
     // A title that is a bare infinitive ("Czytać") betrays machine translation (B-328): an attribute, never a trace
     const infinitive = infinitiveCta(item.extra.ad_title ?? item.extra.title);
-    if (infinitive) itemData.translationArtifacts = [...((itemData.translationArtifacts as Array<{ kind: string; text: string }> | undefined) ?? []), { kind: "infinitive_cta", text: infinitive }];
+    if (infinitive) { itemData.translationArtifacts = { ...((itemData.translationArtifacts as Record<string, number> | undefined) ?? {}), infinitive_cta: 1 }; itemData.infinitiveCta = infinitive; }
     const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
     if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
 

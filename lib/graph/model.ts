@@ -47,6 +47,9 @@ export const ENTITY_TYPES = [
   // technique names (modus operandi, second level only)
   "comment_block",
   "technique",
+  // identifiers of a company on a page (NIP, REGON, KRS, VAT, UK number) and bank accounts (IBAN, NRB)
+  "company_id",
+  "bank_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -87,6 +90,8 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   ad_payer: "Płatnik reklamy (biblioteka reklam, DSA)",
   comment_block: "Blok fałszywych komentarzy",
   technique: "Technika strony",
+  company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
+  bank_account: "Rachunek bankowy (IBAN, NRB)",
 };
 
 export type EdgeType =

@@ -34,6 +34,12 @@ export interface LinkConfig {
   typeWeights: Record<EntityType, number>;
   /** Pivot weight (type x list factor) needed for union-find (merging) evidence. */
   strongThreshold: number;
+  /**
+   * Pivot types that are never strong, whatever their weight: the trace weighs above `strongThreshold`
+   * (a shared bank account is a strong hint), yet it can be copied or shared between unrelated groups,
+   * so it only supports a link and `campaignRules.notAloneKinds` keeps it from joining a campaign.
+   */
+  nonStrongTypes?: EntityType[];
   /** An entity shared by more than this fraction of all items is never strong. */
   maxStrongDfRatio: number;
   /**
@@ -293,6 +299,11 @@ export interface LinkConfig {
      * that many unrelated schemes reuse; a key ending in "*" is a prefix ("immediate*").
      */
     genericScamBrands?: ListRule[];
+    /**
+     * Pivot keys ("nip:7792308495", an IBAN) of intermediaries that stand in the footer of many unrelated
+     * shops: payment operators, couriers, shop platforms. Factor 0: the identifier links nothing.
+     */
+    companyIdIntermediaries?: ListRule[];
     /** Exact `name:shape` part of a link template (param_schema) that is the link format of a tracker product. */
     paramSchemaPlatformParts?: ListRule[];
     /** Hidden input names ignored when building the hidden-field set (CSRF, form-service keys ...). */
@@ -368,8 +379,16 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Technique of the page (fake app store, back trap, fake social post, fake comments): the same
     // modus operandi, counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
     technique: 0.2,
+    // Company number (NIP, REGON, KRS, VAT) given on a page: a firm's data can be copied from another
+    // page, so it only supports a link (campaignRules.notAloneKinds). A made-up number with a wrong
+    // checksum counts too: the same invented number on two pages is one template.
+    company_id: 0.5,
+    // The same bank account (IBAN, NRB): a shared recipient of money, stronger than a company number,
+    // but mule accounts are shared between unrelated groups, so it never joins a campaign alone either.
+    bank_account: 0.8,
   },
   strongThreshold: 0.7,
+  nonStrongTypes: ["bank_account"],
   maxStrongDfRatio: 0.5,
   maxStrongDf: 20,
   maxPivotDf: 400,
@@ -378,7 +397,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "company_id", "bank_account"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators
     familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
@@ -804,6 +823,13 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       factor: 0.2,
       reason: "ogólna nazwa „platformy inwestycyjnej” używana przez wiele niezwiązanych oszustw",
     })),
+    // seed from public registers (KRS), to be completed by the owner of the data: firms that many unrelated shops name in the footer
+    companyIdIntermediaries: [
+      { match: "nip:7792308495", name: "PayU S.A." },
+      { match: "nip:7792369887", name: "PayPro S.A. (Przelewy24)" },
+      { match: "nip:6793087624", name: "InPost S.A." },
+      { match: "nip:5260250995", name: "Poczta Polska S.A." },
+    ].map(({ match, name }) => ({ match, factor: 0, reason: `identyfikator pośrednika (${name}): występuje w stopkach wielu niezwiązanych sklepów` })),
     paramSchemaPlatformParts: [
       { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora", platform: "binom" },
       { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora", platform: "aio" },

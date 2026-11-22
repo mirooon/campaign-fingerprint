@@ -6,6 +6,7 @@ import type { CampaignParam, CampaignParamName } from "../osint/campaignParams";
 import type { PageExtract, TrackerId } from "../osint/extract";
 import { normalizeEndpointPath, type EndpointRef, type PageKit } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
+import { extractCompanyIds } from "../text/companyIds";
 import { personaSlug, type PersonaMatch } from "../text/persona";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
 
@@ -187,6 +188,8 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           emails: s.emails ?? [],
           phones: s.phones ?? [],
           wallets: s.wallets ?? [],
+          // as extractFromHtml reads them from the visible text
+          ...(s.pageText ? (({ companyIds, legalEntities }) => ({ companyIds, legalEntities }))(extractCompanyIds({ text: s.pageText })) : {}),
         }),
         favicon:
           s.faviconMmh3 === undefined

@@ -5,6 +5,7 @@
  * Pure functions over data the pipeline already holds; nothing is fetched here.
  */
 import { AD_LIBRARY_ID_RE, adLibraryUrl, type AdLibraryInfo } from "../osint/adLibrary";
+import { isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerKind } from "../osint/payerKind";
 import type { Item, ItemEnrichment } from "../pipeline/types";
 import { stripUiChrome } from "../text/uiChrome";
 
@@ -31,6 +32,13 @@ export interface AdLibraryFacts {
   /** Declared payer(s) joined with "; ", null without a record. */
   payer: string | null;
   beneficiary: string | null;
+  /** Kinds of the declared payers and beneficiaries (lib/osint/payerKind.ts); null when the ad declares none. A hint: the declaration is the advertiser's own. */
+  payerKinds: PayerKind[] | null;
+  /** Payer and beneficiary are declared and the same name; null when the ad declares none. */
+  payerEqualsBeneficiary: boolean | null;
+  payerSuspicious: boolean | null;
+  /** Cautions of the kinds present (e.g. a private person may be a victim of identity theft); empty when none apply. */
+  payerNotes: string[];
   /** Records without an error; null when none was fetched. */
   records: RepositoryRecord[] | null;
 }
@@ -71,11 +79,22 @@ export function adLibraryFacts(item: Item, enr: ItemEnrichment | undefined): AdL
       ...good.map((r) => r.id),
     ]),
   ];
+  const listColumn = (v: string | undefined): string[] => (v ? v.split(" | ").map((s) => s.trim()).filter(Boolean) : []);
+  const payers = [...good.flatMap((r) => r.payers), ...listColumn(item.extra.ad_payers)];
+  const beneficiaries = good.flatMap((r) => r.beneficiaries);
+  const summary = summarizePayers(
+    { payers, beneficiaries },
+    { pageName: item.advertiser ?? good.find((r) => r.pageName)?.pageName ?? null, polishAd: isPolishAd(item.text, [...listColumn(item.extra.ad_regions), ...good.flatMap((r) => r.locations)]) },
+  );
   return {
     ids,
     urls: ids.map(adLibraryUrl),
     payer: joined(good.flatMap((r) => r.payers)),
-    beneficiary: joined(good.flatMap((r) => r.beneficiaries)),
+    beneficiary: joined(beneficiaries),
+    payerKinds: summary?.payerKinds ?? null,
+    payerEqualsBeneficiary: summary?.payerEqualsBeneficiary ?? null,
+    payerSuspicious: summary?.payerSuspicious ?? null,
+    payerNotes: (summary?.payerKinds ?? []).flatMap((k) => PAYER_KIND_NOTES_PL[k] ?? []),
     records: good.length ? good.map(toRecord) : null,
   };
 }

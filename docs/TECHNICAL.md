@@ -153,6 +153,7 @@ Dane węzła reklamy (`lib/graph/link.ts`) zawierają oprócz pól `Item` także
 | `ct.ts` | crt.sh JSON: wyszukiwanie domeny (`lookupCt`, `ct.ts`) i wzorca z `%` (`searchCt`) | domena lub wzorzec → `CtResult \| null` | wspólna pętla zapytań `queryCrtSh`: limit 30 s, 3 ponowienia, backoff `2 s·2^próba + jitter ≤ 0,5 s`, `Retry-After` ≤ 60 s; ponawia przy 429/5xx, błędzie sieci i odpowiedzi nie-JSON; inne 4xx → `null`; scala precert/leaf po numerze seryjnym; ≤ 200 certyfikatów, dla wzorca ≤ 1000 i `exclude=expired`; wzorzec: `%` tylko na początku lub końcu, strona crt.sh „Unsupported use of '%'” kończy zapytanie bez ponowień (`CrtShQueryError`); cache 1 dzień, tylko wyniki nie-null |
 | `asn.ts` | Team Cymru przez DNS TXT | IP → `AsnInfo \| null` | zapytania `<odwrócone IP>.origin.asn.cymru.com` / `origin6` i `AS<n>.asn.cymru.com` (`asn.ts`); nazwa AS w osobnym wpisie cache; cache 7 dni |
 | `archive/` | kopie martwych stron: `wayback.ts` (CDX + wariant `id_`), `urlscan.ts` (wyszukiwanie skanów, strona wyniku), `index.ts` (wybór i ocena kopii), `http.ts`, `config.ts` | adres (+ `before`/`after`) → `ArchivedCopy[]` (`source`, `url`, `sourceUrl`, `capturedAt`, `fetchedAt`, `html?`, `requests?`, `screenshotPath?`, `meta?`, `rejected?`, `notes?`) | zob. §3.1a |
+| `payerKind.ts` | rodzaj płatnika i beneficjenta z biblioteki reklam (`classifyPayer`, `summarizePayers`, `isPolishAd`) | nazwa + kontekst reklamy → `{kind, reasons}`; reklama → `payerKinds`, `payerEqualsBeneficiary`, `payerSuspicious` | kolejność rodzajów: `placeholder`, `gibberish`, `person_foreign_script`, `person`, `generic_corp`, `matches_page`, `registered_form`, `other` (pierwszy pasujący wygrywa); słowniki w `DEFAULT_PAYER_KIND_CONFIG`, ogólne, nie z napisów ze spraw; płatnik to samodeklaracja (§4.17) |
 
 ### 3.1a Krok archiwalny (`lib/osint/archive/*`, `lib/pipeline/archiveContext.ts`, od 22.11.2026, zadanie i22)
 
@@ -207,6 +208,7 @@ Plik `<CACHE_DIR>/<namespace>/<h[0:2]>/<sha256(klucz)>.json` z zawartością `{k
 
 ### 3.4 `lib/text/*`
 
+- `companyIds.ts` `extractCompanyIds`, `companyIdsOfMaterial`: NIP, REGON, KRS, IBAN i NRB, unijny VAT, numer spółki w UK, LEI i nazwy podmiotów z formą prawną z tekstu, kodu (jednoprzebiegowy `splitMarkup`: bez regexów po całym HTML, bo strony są niezaufane), JSON-LD i OCR; sumy kontrolne (§4.17). Wynik `CompanyId = { kind, value, valid, check, source, quote }`, `check` mówi, czy `valid` to suma kontrolna, czy tylko format.
 - `normalize.ts` `normalizeForMatching`, kolejne kroki:
   1. NFKC i małe litery.
   2. Usunięcie URL-i (też `hxxp`) i e-maili.
@@ -337,6 +339,8 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `domain_pattern` | szablon nazwy domeny (`zwrot<n>-<lorem><n>.example`) i wariant bez TLD (`….*`), tylko gdy obejmuje ≥ 2 domeny |  | 0.6; wariant `.*` ×0.85 | nie |
 | `asset` | własny plik JS/CSS: ścieżka (ta sama domena) albo host+ścieżka |  | 0.55 | nie |
 | `favicon` | `mmh3:<int>` |  | 0.5 | nie |
+| `company_id` | `<rodzaj>:<numer>` (`nip:1234563218`; VAT z prefiksem PL to `nip`, inne kraje `vat:DE…`, `krs`, `regon`, `uk_company`, `lei`), numer znormalizowany; także z błędną sumą kontrolną | `link.ts` (cechy strony i OCR) | 0.5 | nie (§4.17) |
+| `bank_account` | IBAN wielkimi literami bez spacji (polski NRB jako `PL` + 26 cyfr) | `link.ts` | 0.8 | nie: `nonStrongTypes` (§4.17) |
 | `nameserver` | **zbiór** NS domeny, posortowany i złączony ` + ` |  | 0.35 | nie |
 | `persona` | slug imienia i nazwiska (`adam-testowy`) |  | 0.1 | nie (zawsze poniżej `minLinkScore`, §4.8) |
 | `registrar` | nazwa małymi literami; seria rejestracji: `<rejestrator>\|<data pierwszej>` | ,  | 0.05; seria 0.3 (`config.ts`) | nie |
@@ -689,6 +693,20 @@ Walidacja na materiałach spoza próbki (zadanie I4, publiczne skany) pokazała 
 | Dane referencyjne, 25 spraw (28 rekordów) | P = 0,814, R = 1, F1 = 0,897, 14 kampanii, 2 grupy (2 i 11; 2 i 4), 89 par | to samo, partycja i grupy identyczne; 91 par (2 nowe pary poniżej progu przez `campaign_param`) |
 | Nowe materiały (10 spraw, 12 rekordów) | znana 3, nowa 7, duplikat 2 | to samo, 0 różnic |
 | Walidacja, 212 materiałów | (a) 0/78, (b) 134/134, (b′) 0, (c) B-cubed F1 0,494, pary F1 0,224 | (a) 34/78, (b) 134/134, (b′) 0, (c) 0,494, pary F1 0,427 |
+
+### 4.17 Rodzaj płatnika i identyfikatory firm (22.11.2026, zadanie I24)
+
+**Rodzaj płatnika** (`lib/osint/payerKind.ts`). Płatnik i beneficjent z biblioteki reklam (DSA art. 26 i 39) to samodeklaracja: reklamodawca wpisuje je sam, platforma ich nie weryfikuje. `classifyPayer(nazwa, {pageName, polishAd})` zwraca `{kind, reasons}`; rodzaje w kolejności sprawdzania: `placeholder` (≤ 3 znaki albo słowo ze słownika), `gibberish` (jedno słowo: sekwencja 5 klawiszy z jednego rzędu, litery wymieszane z cyframi, brak samogłosek, wysoka entropia przy małym udziale samogłosek), `person_foreign_script` (2–4 słowa imienia i nazwiska w innym alfabecie albo z pisownią wietnamską, tylko na reklamie po polsku), `person`, `generic_corp`, `matches_page`, `registered_form`, `other`. Imię i nazwisko w obcym alfabecie na reklamie nie po polsku to `person` (specyfikacja tego nie rozstrzyga). Reklama po polsku: region PL/Polska/Poland w rekordzie albo co najmniej 2 polskie litery w tekście (`isPolishAd`).
+
+Atrybuty materiału (`itemData`, widoczne w GUI jako cechy i w paczce): `payerKinds`, `payerEqualsBeneficiary` (prawda tylko gdy oba są podane i równe), `payerSuspicious` (`placeholder`, `gibberish` albo `person_foreign_script`). Węzeł `ad_payer` ma `payerKind`, `payerKindReasons` i dla `person` `payerNote` (dopisek o możliwej kradzieży tożsamości). **Reguła pivota:** płatnik `placeholder` nie tworzy węzła `ad_payer` ani krawędzi `paid_by` (w obu miejscach `link.ts`: rekord biblioteki i `--ad-library`), bo tę samą zaślepkę wpisują niezwiązani reklamodawcy; rodzaj zostaje w atrybutach materiału. Pozostałe rodzaje bez zmian (`ad_payer` 0,65, `notAloneKinds`).
+
+**Identyfikatory firm** (`lib/text/companyIds.ts`). Numer czytamy przy etykiecie w odległości do `labelGap` (16) znaków; bez etykiety tylko IBAN z poprawną sumą (z etykietą także błędny, jako `valid: false`). Sumy: NIP (wagi 6,5,7,2,3,4,5,6,7, mod 11, reszta 10 = błędny), REGON 9 i 14 cyfr (wagi 8,9,2,3,4,5,6,7 oraz 2,4,8,5,0,9,7,3,6,1,2,4,8; reszta 10 → 0), IBAN i NRB mod 97 z długością kraju, LEI mod 97. KRS, VAT poza Polską i numer UK tylko po formacie (`check: "format"`); VAT i numer UK wymagają etykiety. VAT z prefiksem PL zapisujemy jako `nip`. Źródła: `text` (widoczny tekst), `html` (to, czego tekst nie zawiera: ukryte elementy, komentarze), `jsonld` (`vatID`, `taxID`, `leiCode`, `identifier` jako PropertyValue, `legalName`), `ocr`; ten sam numer raz, pierwszeństwo w tej kolejności. Blok JSON-LD, który nie jest JSON, jest pominięty z powodem w `companyIdNotes`. `extractFromHtml` zapisuje wynik w `PageExtract` (`companyIds`, `legalEntities`, `companyIdNotes`, pola opcjonalne dla starszych plików), OCR dokłada `companyIdsOfMaterial` w `link.ts` i w paczce.
+
+Graf: `company_id` (waga 0,5) i `bank_account` (0,8), oba w `campaignRules.notAloneKinds`. Rachunek waży 0,8 ≥ `strongThreshold`, a silny link omija `notAloneKinds` (`campaignLinkVerdict`, ta sama przyczyna co w §4.12 dla `ad_payer`), więc dodano `nonStrongTypes: ["bank_account"]` (`pivotWeight`: `strong = false`); waga i IDF działają jak dla innych śladów, `maxPivotDf` też. Lista wyłączeń `lists.companyIdIntermediaries` (czynnik 0, klucz węzła, np. `nip:7792308495`): operatorzy płatności i kurierzy, którzy stoją w stopkach wielu sklepów; ziarno z czterema numerami z publicznych rejestrów, sprawdzonymi sumą kontrolną, do uzupełnienia i weryfikacji w KRS przez właściciela danych. Zmyślony NIP z błędną sumą też tworzy węzeł (wspólny zmyślony numer to wspólny szablon), atrybut `companyIdInvalid`.
+
+Paczka dowodów: przy reklamie `payer_kinds`, `payer_equals_beneficiary`, `payer_suspicious`, `payer_notes`, `company_identifiers` (z `checksum_valid`, `check`, `source`, `quote`) i `legal_entities`; `evidence.md` ma sekcję „Płatnik i dane firmy (wskazówki)”.
+
+**Regresja.** Próbka syntetyczna: bez zmian (P = R = F1 = 1, 10 kampanii). 25 spraw bez `--ad-library`: F1 par 0,885, 14 kampanii, 2 grupy, przypisania identyczne jak przed zmianą; trafień identyfikatorów firm 0 (nazwy podmiotów z formą prawną znaleziono na 4 stronach z 22), płatnika w tym przebiegu nie ma (wymaga `--ad-library`).
 
 ## 5. Klastrowanie
 
@@ -1174,6 +1192,10 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 
 | Plik | Testy | Pokrycie |
 |---|---|---|
+| `lib/osint/payerKind.test.ts` | 14 | rodzaje płatnika (zaślepka, bełkot, obcy alfabet, osoba, ogólna firma, równy nazwie strony, forma prawna), kolejność sprawdzania, atrybuty reklamy |
+| `lib/graph/payerKindTraits.test.ts` | 9 | zaślepka bez węzła `ad_payer` (Meta i rekord biblioteki), rzadki bełkot z drugim śladem łączy, osoba z dopiskiem, obcy alfabet tylko na reklamie po polsku |
+| `lib/text/companyIds.test.ts` | 21 | sumy kontrolne NIP, REGON, IBAN; etykiety i formaty; VAT, numer UK, nazwy z formą prawną; JSON-LD, markup, OCR; liniowość na patologicznym HTML |
+| `lib/graph/companyIdTraits.test.ts` | 11 | `company_id` i `bank_account`: nie łączą same, łączą z drugim śladem, lista pośredników, zmyślony NIP, OCR |
 | `lib/osint/extract.test.ts` | 40 | trackery (pozytywne i negatywne), encje HTML, e-maile, telefony PL, Telegram, WhatsApp, realistyczna strona, przypadki brzegowe (w tym 2 MB patologicznego HTML w czasie liniowym) |
 | `lib/text/persona.test.ts` | 30 | odmiana polska, slug, lista obserwowanych, tryb przybliżony („Rafałem Brzosku” → „Rafał Brzoska”, bez nadmiernych dopasowań), kolumna wejściowa, NER z mockiem LLM |
 | `lib/osint/pagekit.test.ts` | 28 | form/fetch/XHR/axios/jQuery i literały API, `<base href>`, normalizacja ścieżek, simhash DOM, ukryte pola, pliki, komentarze i cyrylica, odporność na zepsuty HTML |

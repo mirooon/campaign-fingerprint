@@ -17,6 +17,8 @@ import { extractCampaignParams, paramSchema } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+import { companyIdsOfMaterial } from "../text/companyIds";
+import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerContext } from "../osint/payerKind";
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { celebBaitLabel, detectNarrative, type MaterialNarrative } from "../text/narrative";
@@ -107,6 +109,12 @@ function shortUrl(url: string, max = 64): string {
 
 function normAdvertiser(name: string): string {
   return name.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Data of a payer node from its kind: the kind, why, and a note when the kind needs a caution (a person may be a victim of identity theft). */
+function payerKindData(c: ReturnType<typeof classifyPayer>): Record<string, unknown> {
+  const note = PAYER_KIND_NOTES_PL[c.kind];
+  return { payerKind: c.kind, payerKindReasons: c.reasons, ...(note ? { payerNote: note } : {}) };
 }
 
 function shortAddr(a: string): string {
@@ -241,6 +249,8 @@ export function buildEvidenceGraph(
     // Record of a public ad library (lib/adlib): the library ID of platforms other than Meta (Meta's is read above)
     // and the payer named by the library
     const libRecord = readAdRecordTraces(item.extra);
+    // what the ad says about its advertiser, to tell the kinds of the declared payer apart (lib/osint/payerKind.ts)
+    const payerCtx = (regions: string[]): PayerContext => ({ pageName: advertiser ?? enr?.adLibrary?.find((r) => r.pageName)?.pageName ?? null, polishAd: isPolishAd(item.text, regions) });
     if (libRecord) {
       // flat, readable values: they are the features of the material in the GUI and the evidence pack
       itemData.adPlatform = libRecord.platform;
@@ -267,9 +277,12 @@ export function buildEvidenceGraph(
       for (const name of libRecord.payers) {
         const key = normAdvertiser(name);
         if (!key) continue;
+        const payerClass = classifyPayer(name, payerCtx(libRecord.regions));
+        // a stub ("Test", "xyz") is typed in by unrelated advertisers: it ties no ads, the kind stays on the item
+        if (payerClass.kind === "placeholder") continue;
         const payerKey = adPayerKey(libRecord.platform, key);
         const prev = (g.nodes.get(nodeId("ad_payer", payerKey))?.data.adLibraryIds as string[] | undefined) ?? [];
-        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev });
+        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev, ...payerKindData(payerClass) });
         g.edge(itemNode, payerNode, "paid_by", `płatnik reklamy według biblioteki reklam (${libRecord.platform})`);
         add(payerNode, "ad_payer", [itemNode, payerNode], 1, `ten sam płatnik reklamy w bibliotece reklam („${name}”)`);
       }
@@ -294,26 +307,36 @@ export function buildEvidenceGraph(
       if (lib.some((r) => r.takenDown)) itemData.adTakenDown = true;
       const started = lib.map((r) => r.creative?.startedAt).filter((t): t is string => !!t).sort()[0];
       if (started && !itemData.adFirstShown) itemData.adFirstShown = started;
-      const names = new Map<string, { label: string; roles: Set<string> }>();
+      const names = new Map<string, { label: string; roles: Set<string>; payerClass: ReturnType<typeof classifyPayer> }>();
       for (const r of lib) {
         for (const [role, list] of [["płatnik", r.payers], ["beneficjent", r.beneficiaries]] as const) {
           for (const n of list) {
             const key = normAdvertiser(n);
             if (!key) continue;
-            const e = names.get(key) ?? { label: n, roles: new Set<string>() };
+            const payerClass = classifyPayer(n, payerCtx(r.locations));
+            if (payerClass.kind === "placeholder") continue; // a stub ties no ads (see the library record above)
+            const e = names.get(key) ?? { label: n, roles: new Set<string>(), payerClass };
             e.roles.add(role);
             names.set(key, e);
           }
         }
       }
-      for (const [key, { label, roles }] of names) {
+      for (const [key, { label, roles, payerClass }] of names) {
         const prev = (g.nodes.get(nodeId("ad_payer", key))?.data.adLibraryIds as string[] | undefined) ?? [];
-        const id = g.node("ad_payer", key, label, { name: label, adLibraryIds: [...new Set([...prev, ...lib.map((r) => r.id)])] });
+        const id = g.node("ad_payer", key, label, { name: label, adLibraryIds: [...new Set([...prev, ...lib.map((r) => r.id)])], ...payerKindData(payerClass) });
         const roleTxt = [...roles].join(" i ");
         g.edge(itemNode, id, "paid_by", `${roleTxt} reklamy według biblioteki reklam Mety (przejrzystość DSA)`);
         add(id, "ad_payer", [itemNode, id], 1, `ten sam ${roleTxt} reklamy w bibliotece reklam („${label}”)`);
       }
     }
+
+    // kinds of the declared payers and beneficiaries as features of the ad (the payer is a self-declaration, not a fact about who paid)
+    const declared = {
+      payers: [...(libRecord?.payers ?? []), ...lib.flatMap((r) => r.payers)],
+      beneficiaries: lib.flatMap((r) => r.beneficiaries),
+    };
+    const payerSummary = summarizePayers(declared, payerCtx([...(libRecord?.regions ?? []), ...lib.flatMap((r) => r.locations)]));
+    if (payerSummary) Object.assign(itemData, payerSummary);
 
     // library account of the advertiser: from a library record, or the Meta page read by `--ad-library`
     const metaPage = lib.find((r) => r.pageId);
@@ -978,6 +1001,22 @@ export function buildEvidenceGraph(
       const id = g.node("campaign_param", `scam_brand=${b.key}`, `marka oszustwa: ${b.name}`, { canonicalName: "scam_brand", name: "marka oszustwa", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
       g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
       add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
+    }
+    // Company identifiers and bank accounts of the page and of the screenshots: a trace that only supports a link
+    // (campaignRules.notAloneKinds), since a firm's data can be copied; a made-up number still ties the pages that share it
+    const { companyIds, legalEntities, companyIdInvalid, notes: companyNotes } = companyIdsOfMaterial(pageEx, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));
+    if (companyIds.length) itemData.companyIds = companyIds;
+    if (legalEntities.length) itemData.legalEntities = legalEntities;
+    if (companyIdInvalid) itemData.companyIdInvalid = true;
+    if (companyNotes.length) itemData.companyIdNotes = companyNotes;
+    for (const c of companyIds) {
+      const isAccount = c.kind === "iban" || c.kind === "nrb";
+      const type = isAccount ? "bank_account" : "company_id";
+      const key = isAccount ? c.value : `${c.kind}:${c.value}`;
+      const label = isAccount ? `rachunek ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;
+      const id = g.node(type, key, label, { kind: c.kind, value: c.value, valid: c.valid, check: c.check });
+      g.edge(itemNode, id, "mentions", `${isAccount ? "rachunek bankowy" : "identyfikator firmy"} na ${c.source === "ocr" ? "zrzucie ekranu (OCR)" : "stronie"}${c.valid ? "" : " (nie przechodzi sprawdzenia)"}`);
+      add(id, type, [itemNode, id], 1, isAccount ? `ten sam rachunek bankowy ${c.value}` : `ten sam identyfikator firmy ${c.kind.toUpperCase()} ${c.value}`);
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
     if (narrative) {

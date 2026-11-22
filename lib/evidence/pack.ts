@@ -19,6 +19,7 @@ import { normalizeUrl, registrableDomain } from "../osint/urls";
 import type { CampaignSummary } from "../pipeline/summary";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
 import { buildCustodyLog, timestampFields } from "./custody";
+import { companyIdsOfMaterial } from "../text/companyIds";
 import { adLibraryFacts, pageUrl } from "./adRecords";
 import type { CampaignFacts } from "./facts";
 import { recipientFiles } from "./recipients";
@@ -263,6 +264,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     }
     const adUrlColumns = Object.entries(item.extra).filter(([k]) => /url|link|permalink|snapshot/i.test(k));
     const library = adLibraryFacts(item, enr);
+    const companyFacts = companyIdsOfMaterial(page?.extract, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));
     const inputs = caseFilesOf(opts.provenance, item.id);
     // input files of the case with the checksums taken at import; the copy in the pack is checked against them
     const sourceFiles = inputs.files.map((f) => {
@@ -315,6 +317,13 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       advertiser_displayed: item.advertiser,
       payer_displayed: library.payer ?? item.extra.ad_payers ?? null,
       beneficiary_displayed: library.beneficiary,
+      // a hint from the look of the declared names, not a fact about who paid: the advertiser types them in and the platform does not verify them
+      payer_kinds: library.payerKinds,
+      payer_equals_beneficiary: library.payerEqualsBeneficiary,
+      payer_suspicious: library.payerSuspicious,
+      payer_notes: library.payerNotes,
+      company_identifiers: companyFacts.companyIds.map((c) => ({ kind: c.kind, value: c.value, checksum_valid: c.valid, check: c.check, source: c.source, quote: c.quote })),
+      legal_entities: companyFacts.legalEntities,
       repository_record: library.records,
       first_seen_utc: utc(item.firstSeen),
       last_seen_utc: utc(item.lastSeen ?? item.firstSeen),
@@ -739,6 +748,39 @@ function libraryAccount(ads: Item[]): LibraryAccount | null {
   return null;
 }
 
+/** Names of the kinds of declared payer, for the reader of evidence.md. */
+const PAYER_KIND_NAME_PL: Record<string, string> = {
+  placeholder: "zaślepka",
+  gibberish: "bełkot z klawiatury",
+  person_foreign_script: "imię i nazwisko w obcym alfabecie",
+  person: "osoba prywatna",
+  generic_corp: "ogólna nazwa firmowa",
+  matches_page: "równy nazwie strony reklamodawcy",
+  registered_form: "nazwa z formą prawną",
+  other: "inny",
+};
+
+/**
+ * The part of evidence.md on who the ad says pays and which company data the page gives: kinds of the
+ * declared payer (a self-declaration under the DSA, which the platform does not verify: a hint, not proof of who paid)
+ * and the company identifiers and accounts of the page with the result of their checksum. Empty when no ad has any.
+ */
+function renderAdIdentity(ads: Array<Record<string, unknown>>): string {
+  const lines: string[] = [];
+  for (const a of ads) {
+    const kinds = a.payer_kinds as string[] | null;
+    if (kinds?.length) {
+      const notes = (a.payer_notes as string[] | undefined) ?? [];
+      lines.push(`- ${a.item_id}: płatnik zadeklarowany w repozytorium reklam: ${kinds.map((k) => PAYER_KIND_NAME_PL[k] ?? k).join(", ")}; ${a.payer_equals_beneficiary ? "płatnik równy beneficjentowi" : "beneficjent inny niż płatnik albo niepodany"}${a.payer_suspicious ? "; nazwa wygląda na wymyśloną" : ""}. To deklaracja reklamodawcy, nie dowód, kto płacił.${notes.length ? ` ${notes.join(" ")}` : ""}`);
+    }
+    const ids = (a.company_identifiers as Array<{ kind: string; value: string; checksum_valid: boolean; check: string; source: string }> | undefined) ?? [];
+    for (const c of ids) {
+      lines.push(`- ${a.item_id}: ${c.kind.toUpperCase()} ${c.value} (źródło: ${c.source}; ${c.check === "checksum" ? `suma kontrolna ${c.checksum_valid ? "poprawna" : "błędna: numer zmyślony albo przepisany z błędem"}` : `format ${c.checksum_valid ? "poprawny" : "błędny"}, bez sumy kontrolnej`})`);
+    }
+  }
+  return lines.length ? `#### Płatnik i dane firmy (wskazówki)\n\n${lines.join("\n")}\n\nIdentyfikatory firm i rachunki tylko wspierają powiązanie: dane firmy da się skopiować z cudzej strony.\n\n` : "";
+}
+
 /** evidence.md: the record in tables for a reader, in plain Polish names, with dates as `YYYY-MM-DD HH:MM UTC` and addresses defanged (raw only in evidence.json and the DSA notices). */
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
@@ -806,7 +848,7 @@ ${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.adve
 
 ${obs.ads.map((a) => `- ${a.item_id}: ${a.ad_text ? `„${cell(String(a.ad_text).slice(0, 300))}”` : "brak tekstu"}`).join("\n")}
 
-### Domeny
+${renderAdIdentity(obs.ads)}### Domeny
 
 | Domena | Rejestrator | Utworzona (UTC) | NS | IP (ASN) |
 |---|---|---|---|---|

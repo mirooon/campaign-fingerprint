@@ -13,6 +13,7 @@
  * No HTML parser dependency: a small linear tag/attribute scanner is used, and
  * the regexes are deliberately conservative. Never throws on malformed HTML.
  */
+import { extractCompanyIds, type CompanyId } from "../text/companyIds";
 import { findWallets, type WalletMatch } from "./crypto";
 import { extractUrlsFromText, hostOf, normalizeUrl, registrableDomain, resolveUrl } from "./urls";
 
@@ -60,6 +61,12 @@ export interface PageExtract {
   jsRedirects: string[];
   visibleText: string;
   generator: string | null;
+  /** Company identifiers and bank accounts of the page (lib/text/companyIds.ts); absent in files written before they were read. */
+  companyIds?: CompanyId[];
+  /** Names with a legal form found on the page. */
+  legalEntities?: string[];
+  /** Why part of the company data was not read (a JSON-LD block that is not JSON). */
+  companyIdNotes?: string[];
 }
 
 export interface TextExtract {
@@ -704,6 +711,9 @@ function emptyExtract(baseUrl?: string): PageExtract {
     jsRedirects: [],
     visibleText: "",
     generator: null,
+    companyIds: [],
+    legalEntities: [],
+    companyIdNotes: [],
   };
 }
 
@@ -804,6 +814,10 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
     result.whatsapp = findWhatsapp(contactText);
     result.wallets = findWallets(contactText);
     result.jsRedirects = findJsRedirects(scriptSources.join("\n"), base);
+    const company = extractCompanyIds({ text: parts.text, html });
+    result.companyIds = company.companyIds;
+    result.legalEntities = company.legalEntities;
+    result.companyIdNotes = company.notes;
   } catch {
     // Malformed input: return whatever was extracted so far.
   }

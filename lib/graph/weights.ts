@@ -253,6 +253,13 @@ export class Discounter {
         if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `pathIdSharedPrefixes:${rule.match}` });
         break;
       }
+      case "company_id":
+      case "bank_account": {
+        // an intermediary (payment operator, courier, shop platform) named in the footers of many unrelated shops
+        const rule = firstRule(lists.companyIdIntermediaries ?? [], (r) => r.match === p.key);
+        if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `companyIdIntermediaries:${rule.match}` });
+        break;
+      }
       case "param_schema": {
         // The link format of a tracker product (e.g. "/click?key=<32 hex>"): a trait of the platform type
         const parts = String(p.data.schema ?? p.key).split("|");
@@ -370,7 +377,7 @@ export function pivotWeight(
   const weight = base * lf * idf * ubiquity;
   const byRatio = Math.max(2, Math.floor(config.maxStrongDfRatio * n));
   const maxStrongDf = config.maxStrongDf ? Math.min(byRatio, Math.max(2, config.maxStrongDf)) : byRatio;
-  const strong = base * lf >= config.strongThreshold && df <= maxStrongDf;
+  const strong = base * lf >= config.strongThreshold && df <= maxStrongDf && !(config.nonStrongTypes ?? []).includes(type);
   return { base, listFactor: lf, idf, ubiquity, weight, strong };
 }
 

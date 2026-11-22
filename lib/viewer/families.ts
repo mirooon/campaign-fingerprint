@@ -58,6 +58,8 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   cname_target: "infra",
   campaign_param: "infra",
   param_schema: "infra",
+  company_id: "infra",
+  bank_account: "infra",
   path_id: "infra",
   platform_account: "infra",
   platform_campaign: "infra",

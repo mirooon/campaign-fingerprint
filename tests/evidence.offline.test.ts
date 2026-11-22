@@ -299,6 +299,28 @@ describe("evidence pack", () => {
     expect(d.cert_warning_list_status.note).toMatch(/brak pliku listy/);
   });
 
+  it("says what kind the declared payer is and what company data the page gives, as hints", () => {
+    const ds = structuredClone(run.ds);
+    ds.perItem["c1-01"].adLibrary = [
+      { id: "1000000000000101", payers: ["Jan Testowy"], beneficiaries: ["Jan Testowy"], takenDown: false, violations: [], euReach: null, ageMin: null, ageMax: null, gender: null, locations: [], pageId: null, pageName: null, pageDeleted: null, pageVerification: null, fetchedAt: null, rawSha256: null, error: null },
+    ];
+    const pageKey = ds.perItem["c1-01"].pageKey!;
+    ds.pages[pageKey].extract!.companyIds = [{ kind: "nip", value: "1234563219", valid: false, check: "checksum", source: "text", quote: "NIP 123-456-32-19" }];
+    ds.pages[pageKey].extract!.legalEntities = ["Fikcyjny Sklep Sp. z o.o."];
+    const res = pack("c1-01", "c1-payer", { enriched: ds });
+    const ad = res.json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-01");
+    expect(ad).toMatchObject({ payer_kinds: ["person"], payer_equals_beneficiary: true, payer_suspicious: false });
+    expect(ad.payer_notes.join(" ")).toMatch(/kradzie/);
+    expect(ad.company_identifiers).toEqual([{ kind: "nip", value: "1234563219", checksum_valid: false, check: "checksum", source: "text", quote: "NIP 123-456-32-19" }]);
+    expect(ad.legal_entities).toEqual(["Fikcyjny Sklep Sp. z o.o."]);
+    const md = res.read("evidence.md");
+    expect(md).toMatch(/płatnik zadeklarowany w repozytorium reklam: osoba prywatna/);
+    expect(md).toMatch(/suma kontrolna błędna/);
+    expect(md).toMatch(/nie dowód, kto płacił/);
+    // an ad without a declared payer says nothing about one
+    expect(res.json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-04").payer_kinds).toBeNull();
+  });
+
   it("puts the ad-library record (payer, removal, reach, page, response SHA-256) and the library link with filters into the pack", () => {
     const ds = structuredClone(run.ds);
     const sha = "ab".repeat(32);

@@ -33,6 +33,9 @@ import { PHONE_CONFIG } from "../osint/phoneConfig";
 import { phoneLineFlags, phoneLineInfo } from "../osint/phoneLine";
 import { profitClaimKey, profitClaims } from "../text/profitClaims";
 import { canonicalExperts, findExpertNames, isPublicPerson, loadPublicPersonForms, type ExpertName } from "../text/fictionalExpert";
+import { foreignPersona, foreignSegments, residueOf } from "../text/residue";
+import { translationArtifacts, typographyOf } from "../text/typography";
+import { advertiserNameKind, brandStyle } from "../text/brandStyle";
 import { celebBaitLabel, DEFAULT_NARRATIVE_CONFIG, detectNarrative, type MaterialNarrative } from "../text/narrative";
 import { scamBrands } from "../text/scamBrand";
 import { stripGenericPhrases, stripUiChrome } from "../text/uiChrome";
@@ -945,7 +948,7 @@ export function buildEvidenceGraph(
         for (const p of tp ? (kit.templatePhrases ?? []).filter((x) => phraseShared(x.key)) : []) {
           const quote = p.text.length > 60 ? `${p.text.slice(0, 59)}…` : p.text;
           const id = g.node("template_phrase", p.key, `zdanie „${quote}”`, { text: p.text, source: p.source, ...(p.oddity ? { oddity: p.oddity } : {}) });
-          g.edge(finalUrlNode, id, "mentions", `zdanie ${p.source === "script" ? "z komunikatu w skrypcie strony" : "z tekstu strony"}: „${quote}”`);
+          g.edge(finalUrlNode, id, "mentions", `zdanie ${p.source === "script" ? "z komunikatu w skrypcie strony" : p.source === "comment" ? "z komentarza w kodzie strony (wykomentowana stara wersja)" : "z tekstu strony"}: „${quote}”`);
           const oddRel = p.oddity && tp ? Math.min(tp.oddityFactor, tp.maxWeight / config.typeWeights.template_phrase) : 1;
           const odd = p.oddity === "repeat" ? ", z tą samą wpadką: powtórzone słowa" : p.oddity === "mixed_script" ? ", z tą samą wpadką: mieszane alfabety" : "";
           add(id, "template_phrase", [...finalPath, id], rel * oddRel, `to samo rzadkie zdanie szablonu „${quote}”${odd}`);
@@ -1024,6 +1027,33 @@ export function buildEvidenceGraph(
     const pageParams = (landingPage?.kit?.pageParams ?? []).filter((cp) => !ownParams.has(paramKey(cp)));
     for (const cp of pageParams) ownParams.add(paramKey(cp));
     const linkParams = extractCampaignParams(outboundUrls).filter((cp) => !ownParams.has(paramKey(cp)));
+    // Text traces that only describe (I25 step 4-5): a commented-out old version, a foreign insert, a foreign persona
+    // in the ad name, typography, translation artifacts and the style of brand names. Never a pivot.
+    {
+      const kitTraits = landingPage?.kit;
+      const textPage = landingPage?.extract;
+      const residue = residueOf(kitTraits?.comments ?? []);
+      if (residue) itemData.residue = { count: residue.count, sample: residue.sample };
+      const nameParams: Array<[string, string]> = [...(enr?.campaignParams ?? []), ...pageParams, ...linkParams].map((cp) => [cp.canonicalName, cp.value]);
+      const segments = foreignSegments({
+        page: textPage?.visibleText,
+        scripts: [...(kitTraits?.kitStrings ?? []).map((k) => k.text), ...(kitTraits?.templatePhrases ?? []).filter((p) => p.source === "script").map((p) => p.text)],
+        comments: kitTraits?.comments,
+        adParams: nameParams.filter(([n]) => n === "ad_name" || n === "adset_name" || n === "campaign_name").map(([, v]) => v),
+      });
+      if (segments.length) itemData.foreignSegments = segments;
+      const persona = foreignPersona(nameParams);
+      if (persona.length) itemData.foreignPersona = persona;
+      const prose = [item.text, textPage?.visibleText].filter(Boolean).join("\n");
+      const typo = typographyOf(prose);
+      if (typo) itemData.typography = typo;
+      const artifacts = translationArtifacts(prose, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));
+      if (artifacts) itemData.translationArtifacts = artifacts;
+      const style = [advertiser, enr?.creativeBrand].map((n) => brandStyle(typeof n === "string" ? n : null)).find(Boolean);
+      if (style) itemData.brandStyle = style;
+      const nameKind = advertiserNameKind(advertiser);
+      if (nameKind) itemData.advertiserNameKind = nameKind;
+    }
     const perClick = new Set(config.lists.campaignParamPerClickNames ?? []);
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {

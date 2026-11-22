@@ -15,8 +15,8 @@ export interface TemplatePhrase {
   key: string;
   /** The sentence as written, cut to LEAD_CONFIG.templatePhrase.maxQuoteChars. */
   text: string;
-  /** Visible text of the page, or a string of its scripts (message after sending the form). */
-  source: "text" | "script";
+  /** Visible text of the page, a string of its scripts (message after sending the form), or a commented-out old text. */
+  source: "text" | "script" | "comment";
   /** A copying error inside the sentence: a doubled run of words or a word mixing alphabets. */
   oddity?: "repeat" | "mixed_script";
 }

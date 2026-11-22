@@ -335,6 +335,12 @@ export const NARRATIVE_LABEL: Record<string, string> = {
   secrecy: "tajemnica (nie mów bankowi ani rodzinie)",
   withdrawal_fee: "opłata lub podatek przed wypłatą",
   urgency_lock: "grożenie blokadą konta w terminie",
+  nationwide: "„cała Polska” (powszechność)",
+  millions_of_poles: "„miliony Polaków”",
+  pharma_villain: "koncerny farmaceutyczne jako winowajca",
+  state_program_pays: "program państwowy pokrywa koszty",
+  custody: "kajdanki lub areszt",
+  video_removed: "nagranie usunięto lub zablokowano",
 };
 
 /** Polish names of the weekdays, Monday first (the index of AdStart.weekday). */
@@ -549,6 +555,47 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
     },
   },
   localizedUi: { name: "Słownik interfejsu w wielu językach", source: "ze skryptu strony (kody języków; lokalizacja platformy stron, nie ślad tekstu, atrybut)", role: "describes" },
+  residue: {
+    name: "Wykomentowana stara wersja",
+    source: "z komentarzy w kodzie strony (atrybut; ten sam stary akapit na dwóch stronach to ślad wspólnego szablonu, nie dowód)",
+    role: "describes",
+    format: (v) => [`wykomentowane teksty: ${(v as { count?: number }).count ?? 0}`, `próbka: „${(v as { sample?: string }).sample ?? ""}”`],
+  },
+  foreignSegments: {
+    name: "Ślad innej wersji (wstawka w innym języku)",
+    source: "z tekstu strony, skryptów, komentarzy lub nazw reklamy (atrybut; kampania może działać też w kraju tego języka, to podpowiedź, nie wniosek o autorze)",
+    role: "describes",
+    format: (v) => (v as Array<{ lang: string; where: string; chars: number }>).map((s) => `język ${s.lang} (${{ page: "strona", script: "skrypt", comment: "komentarz", ad_param: "nazwa reklamy" }[s.where] ?? s.where}, ${s.chars} liter)`),
+  },
+  foreignPersona: {
+    name: "Persona z innego kraju w nazwie reklamy",
+    source: "z parametrów reklamy (ad_name, adset_name, campaign_name) przy kodzie PL (atrybut)",
+    role: "describes",
+    format: (v) => (v as Array<{ title: string; lang: string; param: string }>).map((p) => `${p.title} (${p.lang}) w ${p.param}`),
+  },
+  typography: {
+    name: "Typografia tekstu",
+    source: "z tekstu reklamy i strony (atrybut; ten sam tekst z inną typografią to inna redakcja szablonu, nie inny właściciel)",
+    role: "describes",
+    format: (v) => {
+      const t = v as { quoteStyle?: string | null; per1000?: Record<string, number> };
+      const marks = Object.entries(t.per1000 ?? {}).map(([k, n]) => `${k}: ${n}/1000`);
+      return [...(t.quoteStyle ? [`cudzysłów: ${t.quoteStyle}`] : []), ...marks];
+    },
+  },
+  translationArtifacts: {
+    name: "Ślady tłumaczenia",
+    source: "z tekstu strony i napisów (atrybut; mieszane alfabety, kalki, skoki ty/wy, liczebniki słownie; bez wniosków o narodowości)",
+    role: "describes",
+    format: (v) => Object.entries(v as Record<string, number>).map(([k, n]) => `${{ mixed_alphabet: "słowa z mieszanym alfabetem", calque: "kalki", form_switch: "przeskoki ty/wy", spelled_numbers: "liczebniki słownie w napisach" }[k] ?? k}: ${n}`),
+  },
+  brandStyle: { name: "Styl nazwy marki", source: "z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut)", role: "describes" },
+  advertiserNameKind: {
+    name: "Rodzaj nazwy reklamodawcy",
+    source: "z nazwy reklamodawcy (wygenerowana marka, osoba, lokalny biznes; atrybut)",
+    role: "describes",
+    format: (v) => [{ generated_brand: "wygenerowana marka", person: "nazwa osoby", business: "nazwa lokalnego biznesu" }[v as string] ?? String(v)],
+  },
   adPlatform: { name: "Biblioteka reklam", source: "z rekordu biblioteki", role: "describes" },
   adLibraryAdId: { name: "Identyfikator reklamy w bibliotece", source: "z rekordu biblioteki", role: "links" },
   adAdvertiserId: { name: "Identyfikator reklamodawcy w bibliotece", source: "z rekordu biblioteki", role: "links" },

@@ -9,6 +9,7 @@ import { FAMILY_LABEL } from "@/lib/viewer/families";
 import { ENTITY_LABELS_PL, type EvidenceGraph, type GraphNode, type PairEvidence } from "@/lib/graph/model";
 import { itemOptions, pairLink, sharedEntities, similarityLabel, weightFormula, weightPartsOf, type ItemOption } from "./compare";
 import { pathLabel, type GraphIndex } from "./graphView";
+import { HowComputedLink, ReadHow } from "./Guide";
 
 export interface ComparePanelProps {
   graph: EvidenceGraph;
@@ -147,6 +148,8 @@ export default function ComparePanel({ graph, idx, minLinkScore, a, b, onChange,
       <div>
         <h2 className="text-base font-semibold text-slate-900">Porównaj dwie reklamy</h2>
         <p className="mt-0.5 text-xs text-slate-500">Dlaczego dwie reklamy są (albo nie są) w tej samej kampanii. Wybierz reklamy poniżej albo klikaj reklamy w grafie z wciśniętym Shift.</p>
+        <ReadHow id="compare" />
+        <HowComputedLink />
       </div>
 
       <div className="flex flex-col gap-2 sm:flex-row">

@@ -8,6 +8,7 @@ import { fmtDate } from "@/lib/viewer/format";
 import { typeInfo } from "@/lib/viewer/plain";
 import { evidenceStrength, STRENGTH_INFO } from "@/lib/viewer/strength";
 import { Help } from "./ui";
+import { ReadHow } from "./Guide";
 
 const KIND_LABEL = { ad: "reklama", registered: "rejestracja domeny", cert: "certyfikat" } as const;
 
@@ -94,6 +95,7 @@ export default function CampaignEvolution({ campaign, graph }: { campaign: Campa
           </ol>
         </section>
       )}
+      <ReadHow id="evolution" />
     </div>
   );
 }

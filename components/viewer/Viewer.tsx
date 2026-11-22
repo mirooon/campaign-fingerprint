@@ -16,6 +16,7 @@ import GraphCanvas from "./GraphCanvas";
 import { reducedGraph } from "@/lib/viewer/reducedGraph";
 import { buildIndex, reducedToElements, toElements, visibleNodes } from "./graphView";
 import { TYPE_COLORS } from "./palette";
+import { ReadHow } from "./Guide";
 
 export interface ViewerProps {
   graph: EvidenceGraph;
@@ -179,6 +180,7 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
           <p className="text-xs text-slate-500">
             {graph.stats.items} reklam · {multi} kampanii · {graph.stats.nodes - graph.stats.items} encji · tryb {graph.mode === "offline" ? "offline (fixtures)" : "live"} · podobieństwo tekstu: {graph.textMethod === "embedding" ? "embeddingi" : graph.textMethod === "tfidf" ? "TF-IDF" : "wyłączone"}
           </p>
+          <div className="max-w-xl"><ReadHow id="graph" /></div>
         </div>
         {evaluation && (
           <div className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900" title="Porównanie z kolumną etykiet (label) w danych">

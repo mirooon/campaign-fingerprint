@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { fmtNum } from "@/lib/viewer/format";
 import type { ThresholdRow } from "@/lib/viewer/thresholdPreview";
 import { Help } from "./ui";
+import { ReadHow } from "./Guide";
 
 type State = { status: "loading" } | { status: "ready"; current: number; rows: ThresholdRow[] } | { status: "error"; message: string };
 
@@ -57,6 +58,7 @@ export default function ThresholdPreview() {
           ))}
         </tbody>
       </table>
+      <ReadHow id="threshold" />
     </div>
   );
 }

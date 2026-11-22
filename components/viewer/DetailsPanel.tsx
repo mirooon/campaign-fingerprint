@@ -6,6 +6,7 @@ import { personaMentions, PERSONA_SOURCE_LABELS, weightFormula, weightPartsOf } 
 import { holdersOf, pathLabel, type GraphIndex } from "./graphView";
 import { TYPE_COLORS } from "./palette";
 import { DisablePivotButton, PairCorrection, WrongLinkButton } from "./CorrectionButtons";
+import { ReadHow } from "./Guide";
 
 /** Analyst premises first, so a decision is never cut off by the evidence limit. */
 const analystFirst = (evidence: PairEvidence[]) => [...evidence].sort((x, y) => Number(y.evidence.startsWith("decyzja analityka")) - Number(x.evidence.startsWith("decyzja analityka")));
@@ -366,6 +367,7 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
       {isItem && (
         <section>
           <h3 className="text-sm font-semibold text-slate-900">Dlaczego połączone</h3>
+          <ReadHow id="strength" />
           {links.length === 0 && <p className="mt-1 text-xs text-slate-500">Brak dowodów łączących tę reklamę z innymi.</p>}
           <ul className="mt-2 space-y-3">
             {links.slice(0, 12).map((l) => {

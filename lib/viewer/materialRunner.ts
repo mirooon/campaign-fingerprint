@@ -61,6 +61,7 @@ async function main(): Promise<void> {
       dataDir,
       workDir: spec.workDir,
       fixtures: spec.fixtures,
+      casesDir: process.env.CASES_DIR || undefined,
       live: spec.live ? liveSources({ skipCt: true }) : null,
       archive: archiveStepOptions({ enabled: !!spec.archive, screenshotDir: path.join(spec.workDir, "archiwum") }),
       config: loadLinkConfig(configFile ?? undefined),

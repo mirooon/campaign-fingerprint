@@ -24,6 +24,7 @@ import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./cas
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
+import { resolveCasePath } from "./casePath";
 import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
 import type { EnrichedDataset, Item } from "./types";
 import { contentWords } from "../text/uiChrome";
@@ -65,6 +66,8 @@ export interface MaterialContext {
   workDir: string;
   /** Recorded fixtures for a link without a captured page (offline demo on the sample dataset). */
   fixtures?: string;
+  /** CASES_DIR: the evaluator's copy of the cases; resolves the relative image paths of a run from the non-public data pack. */
+  casesDir?: string;
   /** Live passive lookups (DNS, RDAP, ASN) and one GET for a page the material does not hold; null = offline. */
   live?: EnrichmentSources | null;
   config?: LinkConfig;
@@ -589,16 +592,21 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   // 5. Duplicates: the same ad collected again (against the run and the earlier records of the batch)
   const baseDir = resolveBaseDir(base.baseDir, ctx.dataDir);
   const itemById = new Map(merged.items.map((it) => [it.id, it]));
+  const unresolvedImages = new Map<string, string>();
+  /** Features the duplicate finder compares for one record; an image that cannot be found (CASES_DIR not set) is left out and reported once in the notes. */
   const traitsOf = (id: string) => {
     const it = itemById.get(id);
     const dir = newIds.has(id) ? importDir : baseDir;
-    const img = it?.imagePath ? (path.isAbsolute(it.imagePath) ? it.imagePath : path.join(dir, it.imagePath)) : null;
+    const found = it?.imagePath ? resolveCasePath(it.imagePath, { baseDir: dir, casesDir: ctx.casesDir, exists: existsSync }) : null;
+    if (found?.reason) unresolvedImages.set(id, found.reason);
+    const img = found?.file ?? null;
     return duplicateTraits(id, nodeData.get(id) ?? {}, it?.landingUrl ?? merged.perItem[id]?.landing?.url ?? null, img, duplicateMedia(merged, id));
   };
   const dups = await new DuplicateFinder().find(
     [...newIds].map(traitsOf),
     base.items.map((it) => traitsOf(it.id)),
   );
+  if (unresolvedImages.size) notes.push(`porównanie obrazów pominięte dla ${unresolvedImages.size} rekordów (${[...unresolvedImages.values()][0]})`);
   const byId = new Map(results.map((r) => [r.id, r]));
   // a case whose every file is in an earlier case of the batch (the order the records are compared in)
   const filesOf = caseIds.filter((c) => caseDirOf.has(c)).map((c) => readCaseFiles(c, caseDirOf.get(c)!, notes));

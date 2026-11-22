@@ -16,6 +16,23 @@ describe("fileKind", () => {
     expect(fileKind("dane.json")).toBe("dataset");
     expect(fileKind("notatka.txt")).toBe("unsupported");
   });
+  it("files inside resources/ or _files/ are parts of the page, like the importer reads them", () => {
+    const pkg = packageDirsOf(f("cap/manifest.json", "cap/dom.html"));
+    expect(fileKind("cap/resources/image/logo_1.png", pkg)).toBe("page_part");
+    expect(fileKind("cap/resources/document/index_1.html", pkg)).toBe("page_part");
+    expect(fileKind("cap/resources/script/app_1.js", pkg)).toBe("page_part");
+    expect(fileKind("cap/resources/media/output_000_1.ts", pkg)).toBe("page_part");
+    expect(fileKind("strona_files/tv.png")).toBe("page_part");
+  });
+  it("HLS streams, loose web assets and system files", () => {
+    expect(fileKind("output.m3u8")).toBe("stream");
+    expect(fileKind("output_000.ts")).toBe("stream");
+    expect(fileKind("app.js")).toBe("page_part");
+    expect(fileKind("jquery.min.js.pobrane")).toBe("page_part");
+    expect(fileKind("style.css")).toBe("page_part");
+    expect(fileKind("a/.DS_Store")).toBe("system");
+    expect(fileKind("._zrzut.png")).toBe("system");
+  });
   it("manifest.json of a page-save package is part of the page", () => {
     const files = f("cap/manifest.json", "cap/dom.html", "cap/shot.png");
     const pkg = packageDirsOf(files);
@@ -74,6 +91,22 @@ describe("detectCases", () => {
     expect(c.analyzable).toBe(false);
     expect(c.notes).toContain("brak plików do analizy");
     expect(c.notes.some((n) => n.startsWith("nieobsługiwany plik"))).toBe(true);
+  });
+  it("a capture bundle with an HLS video and .DS_Store has nothing unsupported", () => {
+    const [c] = detectCases(
+      f("14/.DS_Store", "14/nagranie.MP4", "14/IMG_1.PNG", "14/cap/cap/.DS_Store", "14/cap/cap/manifest.json", "14/cap/cap/dom.html", "14/cap/cap/page.har", "14/cap/cap/page.mhtml", "14/cap/cap/screenshot.png", "14/cap/cap/resources/image/a_1.png", "14/cap/cap/resources/media/output_000_1.ts", "14/cap/cap/resources/media/output_1.m3u8", "14/cap/cap/resources/script/app_1.js"),
+      "single",
+    );
+    expect(c.counts.unsupported).toBeUndefined();
+    expect(c.counts.screenshot).toBe(1);
+    expect(c.files.some((x) => x.path.endsWith(".DS_Store"))).toBe(false);
+    expect(c.notes.some((n) => n.startsWith("nieobsługiwany plik"))).toBe(false);
+  });
+  it("files: loose page assets go with the only loose page; an HLS stream gets a note", () => {
+    const cases = detectCases(f("strona.html", "app.js", "z.png"), "files");
+    expect(cases.map((c) => [c.name, c.files.length])).toEqual([["strona", 2], ["z", 1]]);
+    const [s] = detectCases(f("v/output.m3u8", "v/output_000.ts"), "single");
+    expect(s.notes.some((n) => n.startsWith("wideo HLS"))).toBe(true);
   });
   it("unique names", () => {
     const cases = detectCases(f("a/x.png", "b/x.png", "x.png", "x.jpg"), "files");

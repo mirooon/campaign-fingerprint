@@ -68,12 +68,13 @@ describe("speaker similarity", () => {
   it("joins a campaign together with other evidence", () => {
     const graph = buildEvidenceGraph(
       makeDataset([
-        { id: "v1", speakerEmbedding: [1, 0, 0], advertiser: "Inwestor Testowy" },
-        { id: "v2", speakerEmbedding: [0.95, 0.3122, 0], advertiser: "Inwestor Testowy" },
-      ]),
+        // an advertiser's display name no longer joins (I23): the other evidence is a shared name server
+        { id: "v1", url: "https://glos-a.example/", speakerEmbedding: [1, 0, 0] },
+        { id: "v2", url: "https://glos-b.test/", speakerEmbedding: [0.95, 0.3122, 0] },
+      ], { ns: { "glos-a.example": ["ns1.dns-operatora.test"], "glos-b.test": ["ns1.dns-operatora.test"] } }),
       { textMethod: "none" },
     );
-    expect(pairOf(graph, "v1", "v2")!.evidence.map((e) => e.pivotType ?? e.edgeType).sort()).toEqual(["advertiser", "similar_voice"]);
+    expect(pairOf(graph, "v1", "v2")!.evidence.map((e) => e.pivotType ?? e.edgeType).sort()).toEqual(["nameserver", "similar_voice"]);
     const { campaigns } = clusterCampaigns(graph);
     expect(campaigns.assignments.v1).toBe(campaigns.assignments.v2);
   });

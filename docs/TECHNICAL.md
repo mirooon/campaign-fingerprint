@@ -341,6 +341,9 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `persona` | slug imienia i nazwiska (`adam-testowy`) |  | 0.1 | nie (zawsze poniżej `minLinkScore`, §4.8) |
 | `registrar` | nazwa małymi literami; seria rejestracji: `<rejestrator>\|<data pierwszej>` | ,  | 0.05; seria 0.3 (`config.ts`) | nie |
 | `asn` | `AS<n>` | `link.ts` | 0.05 | nie |
+| `crm_key` | sha256 klucza API CRM / sieci afiliacyjnej (etykieta: skrót `abcd…wxyz`, §4.17) | `lib/osint/crmKey.ts` | 0.95 | tak |
+| `template_phrase` | znormalizowane zdanie szablonu, tylko gdy ≥ 2 domeny (§4.17) | `lib/text/templatePhrases.ts` | 0.45; z `oddity` ×1,3, maks. 0,65 | nie (`notAloneKinds`) |
+| `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 
 ### 4.2 Krawędzie (`model.ts`)
 
@@ -689,6 +692,31 @@ Walidacja na materiałach spoza próbki (zadanie I4, publiczne skany) pokazała 
 | Dane referencyjne, 25 spraw (28 rekordów) | P = 0,814, R = 1, F1 = 0,897, 14 kampanii, 2 grupy (2 i 11; 2 i 4), 89 par | to samo, partycja i grupy identyczne; 91 par (2 nowe pary poniżej progu przez `campaign_param`) |
 | Nowe materiały (10 spraw, 12 rekordów) | znana 3, nowa 7, duplikat 2 | to samo, 0 różnic |
 | Walidacja, 212 materiałów | (a) 0/78, (b) 134/134, (b′) 0, (c) B-cubed F1 0,494, pary F1 0,224 | (a) 34/78, (b) 134/134, (b′) 0, (c) 0,494, pary F1 0,427 |
+
+### 4.17 Ślady firmy leadowej (22.11.2026, zadanie I23)
+
+Uzasadnienie metody: `docs/METODYKA.md` §4b. Listy i progi ekstrakcji są w `lib/osint/leadConfig.ts` (`LEAD_CONFIG`), wagi i reguły grafu w `lib/graph/config.ts`.
+
+**Nowe pola**
+
+| Pole | Gdzie | Znaczenie |
+|---|---|---|
+| `CampaignParam.origin` | `lib/osint/campaignParams.ts`; `PageKit.pageParams` | `"url"` (brak pola = adres, jak przed I23), `"form"` (ukryte pole formularza), `"script"` (obiekt konfiguracji w skrypcie: `affiliateId`, `offerId`, `flowId`, `partnerId`, `landingId`, `source`). Węzeł grafu ten sam (`campaign_param`), etykieta dowodu „(z formularza)” / „(ze skryptu strony)”. |
+| `PageKit.crmKeys` | `lib/osint/crmKey.ts` | `{ sha256, preview, name, via }`: klucz API z obiektu w skrypcie, nagłówka `fetch`/`XMLHttpRequest`/`$.ajax` (`x-api-key`, `Authorization: Bearer`) albo ukrytego pola. Pełny klucz nie jest zapisywany nigdzie. Wykluczenia: `LEAD_CONFIG.crmKey` (klucze map, reCAPTCHA, Stripe/Mapbox publiczne, identyfikatory analityki, tokeny CSRF, < 16 znaków, entropia < 3 bity na znak). |
+| `PageKit.templatePhrases` | `lib/text/templatePhrases.ts` | `{ key, text, source, oddity? }`: zdania 6–40 słów z widocznego tekstu i z napisów w skryptach przy `success`, `thank`, `dziękujemy`, `zadzwoni`, `alert(`, `innerHTML =` (ta sama instrukcja). `oddity`: `"repeat"` (powtórzony ciąg ≥ 3 słów) albo `"mixed_script"` (łacinka z cyrylicą w jednym słowie). |
+| `PageExtract.phoneExamples` | `lib/osint/extract.ts` | numery z `placeholder`, `value` pola `type=tel`, `<label>` i tekstu z „np.”, „na przykład”, „przykład”, „e.g.”, „format” do 40 znaków przed numerem. Węzeł `page_template` z kluczem `phone_example:<E.164>`, nie `phone`. Numery sztuczne (`isArtificialPhone`) odrzucane. |
+| `profitClaims` (dane węzła reklamy, cecha materiału) | `lib/text/profitClaims.ts` | `{ amount, currency, period, quote }[]` z tekstu reklamy, OCR, ASR i strony; `currency` `null`, gdy brak; wpłaty i kwoty standardowe (250) poza kluczem węzła `profit_claim`. |
+| `advertiserMismatch`, `advertiserMismatchKind` (dane węzła reklamy, cecha materiału) | `lib/text/advertiserMismatch.ts` | `true` i `"business"`/`"person"`, gdy narracja jest finansowa (`financialTopics` z I10), a nazwa reklamodawcy wygląda na lokalną firmę albo osobę prywatną. Paczka: `advertiser_note` „konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)”. Pivot nazwy reklamodawcy takiej reklamy jest usuwany; konto z biblioteki reklam zostaje. |
+
+**Reguły i konfiguracja**
+
+- Aliasy parametrów: `pid`, `partner`, `partner_id`, `wm`, `wm_id`, `webmaster`, `webmaster_id` → `aff_id`; `stream`, `stream_id`, `flow`, `flow_id` → `flow_id`; `source_id`; `landing_id`, `lp_id` → `landing_id`; `buyer_id` → `buyer_account`; `aff_click_id` → `click_id`; `s1`–`s5` → `sub1`–`sub5`. Krótkie nazwy (`pid`, `partner`, `wm`, `flow`, `stream`, `s1`–`s5`, `source`, `landing`) wymagają wartości z cyfrą i ≥ 3 znakami (`NAME_VALUE_FORMAT`).
+- `lists.campaignParamPerClickNames` (`["click_id"]`): parametr nowy przy każdym kliknięciu nie tworzy węzła (zostaje w `campaignParams` materiału).
+- `templatePhrase: { minDomains: 2, oddityFactor: 1.3, maxWeight: 0.65 }` (`null` wyłącza ślad). Rzadkość: zwykłe IDF i `maxPivotDf`.
+- Rodzaj reguły `advertiser_name` (`evidenceKind` w `cluster.ts`, `isAdvertiserAccountKey` w `adLibraryTraces.ts`): węzeł `advertiser` z kluczem nazwy (bez `platforma:` / `extra:`) jest w `campaignRules.notAloneKinds`; konto z biblioteki i `extraPivots` łączą jak dotąd.
+- Adresy API leadów (`/api/lead`, `/leads`, `/v1/lead`, `/postback`) już wcześniej zasilały `endpoint` (`LITERAL_MARKERS` i wywołania `fetch`/XHR/`$.ajax` w `pagekit.ts`).
+
+**Regresja.** Próbka syntetyczna: bez zmian (P = R = F1 = 1, 10 kampanii, 154 pary). 25 spraw: P = 0,814, R = 1, F1 = 0,897, 14 kampanii (bez zmian); grupy (2, 2) → (2, 3): jedna kampania dołącza do grupy przez wspólny przykładowy numer z szablonu formularza (`page_template`), wynik pary 0,316 przy różnych kontach platformy stron. `template_phrase`: 260 węzłów, wszystkie powiązania wewnątrz tych samych etykiet.
 
 ## 5. Klastrowanie
 

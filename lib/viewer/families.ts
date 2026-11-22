@@ -27,6 +27,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   // Treść
   advertiser: "content",
   persona: "content",
+  profit_claim: "content",
   similar_text: "content",
   // Wygląd
   imagehash: "look",
@@ -44,6 +45,8 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   page_template: "page",
   comment_block: "page",
   technique: "page",
+  crm_key: "page",
+  template_phrase: "page",
   // Infrastruktura
   url: "infra",
   host: "infra",
@@ -79,6 +82,8 @@ export const FEATURE_FAMILY: Record<string, FeatureFamily> = {
   personas: "content",
   adLibraryIds: "content",
   advertiserImpersonatesName: "content",
+  advertiserMismatch: "content",
+  profitClaims: "content",
   adPlatform: "content",
   adLibraryAdId: "infra",
   adAdvertiserId: "infra",

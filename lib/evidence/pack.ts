@@ -181,6 +181,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       ad_urls: adUrlColumns.map(([, v]) => v),
       ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))) },
       advertiser_displayed: item.advertiser,
+      advertiser_note: nodeById.get(`item:${item.id}`)?.data.advertiserMismatch === true ? "konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)" : null,
       payer_displayed: item.extra.ad_payers ?? null,
       repository_record: item.extra.ad_library_url ?? null,
       first_seen_utc: utc(item.firstSeen),
@@ -192,7 +193,9 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         : [],
       landing_fetched_utc: page ? utc(page.fetch.fetchedAt) : null,
       landing_user_agent: page?.fetch.userAgent ?? null,
-      campaign_params: (enr?.campaignParams ?? []).map((p) => ({ name: p.name, value: p.value, source_url: p.sourceUrl, cyrillic: p.cyrillic })),
+      campaign_params: [...(enr?.campaignParams ?? []), ...(page?.kit?.pageParams ?? [])].map((p) => ({ name: p.name, value: p.value, source_url: p.sourceUrl, cyrillic: p.cyrillic, origin: p.origin ?? "url" })),
+      // the key itself is never written: preview (first and last characters) and SHA-256 only
+      crm_keys: (page?.kit?.crmKeys ?? []).map((k) => ({ preview: k.preview, sha256: k.sha256, field: k.name, via: k.via })),
       creative_files: creatives,
     };
   });

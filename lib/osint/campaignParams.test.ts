@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canonicalParamName, extractCampaignParams, paramSchema } from "./campaignParams";
+import { canonicalParamName, extractCampaignParams, paramSchema, extractPageCampaignParams } from "./campaignParams";
 
 describe("canonicalParamName", () => {
   it.each([
@@ -134,5 +134,57 @@ describe("aliases of tracker and TDS parameters (B-140)", () => {
 describe("Google Ads campaign ID (B-159)", () => {
   it("reads gad_campaignid as the advertiser's Google campaign", () => {
     expect(extractCampaignParams(["https://lp.example/?gad_source=1&gad_campaignid=21987654321&gclid=Cj0KCQ"]).map((p) => [p.canonicalName, p.value])).toEqual([["google_campaign", "21987654321"]]);
+  });
+});
+
+describe("affiliate-network and tracker aliases (I23)", () => {
+  it("maps network names to their canonical parameter", () => {
+    const ps = extractCampaignParams(["https://lp.example/?pid=77201&partner_id=p4410&stream=st9182&wm_id=wm5521&lp_id=lp-3301&s2=cr7719&aff_click_id=c8f1e2d3a4b5"]);
+    const byName = Object.fromEntries(ps.map((p) => [p.name, p.canonicalName]));
+    expect(byName).toEqual({ pid: "aff_id", partner_id: "aff_id", stream: "flow_id", wm_id: "aff_id", lp_id: "landing_id", s2: "sub2", aff_click_id: "click_id" });
+  });
+
+  it("short common names count only with an identifier-like value", () => {
+    const ps = extractCampaignParams(["https://lp.example/?pid=1&flow=default&s1={sub1}&partner=test&wm=ab"]);
+    expect(ps).toEqual([]);
+  });
+});
+
+describe("campaign parameters in the lead form and the page scripts (I23)", () => {
+  const html = `<html><body>
+<form action="/api/lead" method="post">
+  <input type="hidden" name="aff_id" value="aff-58213">
+  <input type="hidden" name="offer" value="off-7731">
+  <input type="hidden" name="flow" value="fl-2209">
+  <input type="hidden" name="source" value="src-4410">
+  <input type="hidden" name="landing" value="lnd-118">
+  <input type="hidden" name="csrf" value="9f8e7d6c5b4a">
+  <input name="phone" type="tel">
+</form>
+<script>
+  window.leadCfg = { affiliateId: "aff-58213", offerId: 'off-9902', flowId: "fl-3310", partnerId: "pt-8812", landingId: "lnd-551", source: "facebook" };
+</script>
+</body></html>`;
+
+  it("reads hidden fields and config objects with their origin", () => {
+    const ps = extractPageCampaignParams(html, "https://alpha.example/");
+    const got = ps.map((p) => `${p.origin}:${p.canonicalName}=${p.value}`).sort();
+    expect(got).toEqual(
+      [
+        "form:aff_id=aff-58213",
+        "form:offer_id=off-7731",
+        "form:flow_id=fl-2209",
+        "form:source_id=src-4410",
+        "form:landing_id=lnd-118",
+        "script:offer_id=off-9902",
+        "script:flow_id=fl-3310",
+        "script:aff_id=pt-8812",
+        "script:landing_id=lnd-551",
+      ].sort(),
+    );
+  });
+
+  it("URL parameters keep their shape (no origin field means url)", () => {
+    expect(extractCampaignParams(["https://lp.example/?utm_campaign=wiosna_7"])[0].origin).toBeUndefined();
   });
 });

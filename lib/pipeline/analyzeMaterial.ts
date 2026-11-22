@@ -281,10 +281,10 @@ export function resolveBaseDir(baseDir: string, dataDir: string): string {
 
 const FEATURE_KEYS = [
   "landingUrl", "finalUrl", "landingSource", "landingFragment", "observedUrls", "inAppBrowser", "advertiser", "uiView", "adLibraryIds",
-  "advertiserImpersonatesName", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
+  "advertiserImpersonatesName", "advertiserMismatch", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "narrative", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "narrative", "profitClaims", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
 ];
 
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */

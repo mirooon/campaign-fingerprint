@@ -46,6 +46,8 @@ const FEATURE_LABEL: Record<string, string> = {
   uiView: "Widok na zrzucie",
   adLibraryIds: "Identyfikator biblioteki reklam",
   advertiserImpersonatesName: "Reklamodawca podszywa się pod osobę",
+  advertiserMismatch: "Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)",
+  profitClaims: "Obiecywany zysk (kwota i okres)",
   adPlatform: "Biblioteka reklam",
   adLibraryAdId: "Identyfikator reklamy w bibliotece",
   adAdvertiserId: "Identyfikator reklamodawcy",

@@ -4,9 +4,13 @@
  * Media buyers reuse their naming templates, so these values link campaigns
  * (Bitdefender 2026 linked 310 campaigns by UTM and pixel signatures).
  *
+ * The same identifiers travel with the lead: hidden fields of the form and config objects of the page
+ * scripts carry the affiliate, offer and flow of the network that buys the leads (I23).
+ *
  * Extraction only: deciding which values are generic (facebook, cpc, …) is the
  * graph layer's job. Pure functions, no network access.
  */
+import { scanTags, splitHtml } from "./extract";
 
 export type CampaignParamName =
   | "utm_source"
@@ -36,7 +40,15 @@ export type CampaignParamName =
   // ad placement (utm_placement=Facebook_Mobile_Feed): a platform value, weak (B-140)
   | "placement"
   // campaign of the advertiser in Google Ads (gad_campaignid=), appended by Google to the ad's link (B-159)
-  | "google_campaign";
+  | "google_campaign"
+  // affiliate-network names (I23): the flow (stream) of one affiliate to one offer, the traffic source
+  // of the affiliate and the landing page of the offer
+  | "flow_id"
+  | "source_id"
+  | "landing_id";
+
+/** Where a campaign parameter was found: the address, a hidden field of the lead form or a page script. */
+export type ParamOrigin = "url" | "form" | "script";
 
 export interface CampaignParam {
   /** Parameter name as it appeared in the URL. */
@@ -50,6 +62,8 @@ export interface CampaignParam {
   cyrillic: boolean;
   /** Value is an unresolved template macro such as {{campaign.name}}. */
   macro: boolean;
+  /** Where the value was found; missing means "url" (all parameters extracted before I23). */
+  origin?: ParamOrigin;
 }
 
 const MAX_VALUE = 120;
@@ -131,7 +145,53 @@ const ALIASES: Record<string, CampaignParamName> = {
   // campaign key of a tracker product (Binom: "/click?key=<32 hex>", also under the renamed "f7nx2")
   key: "tracker_campaign",
   f7nx2: "tracker_campaign",
+  // affiliate networks and their trackers (I23): partner, webmaster (wm) and pid name the affiliate
+  pid: "aff_id",
+  partner: "aff_id",
+  partner_id: "aff_id",
+  wm: "aff_id",
+  wm_id: "aff_id",
+  webmaster: "aff_id",
+  webmaster_id: "aff_id",
+  source_id: "source_id",
+  aff_click_id: "click_id",
+  stream: "flow_id",
+  stream_id: "flow_id",
+  flow: "flow_id",
+  flow_id: "flow_id",
+  buyer_id: "buyer_account",
+  landing_id: "landing_id",
+  lp_id: "landing_id",
+  s1: "sub1",
+  s2: "sub2",
+  s3: "sub3",
+  s4: "sub4",
+  s5: "sub5",
 };
+
+/**
+ * Names that mean a campaign parameter only in a lead form or a page script: "source" and "landing" of
+ * an address are too common (referrers, page names), in the hidden fields of the form they are the
+ * network's source and landing IDs.
+ */
+const FORM_ALIASES: Record<string, CampaignParamName> = {
+  source: "source_id",
+  landing: "landing_id",
+};
+
+/** Keys of page-script config objects (`{ affiliateId: "…" }`), lower-cased, with their canonical name. */
+const SCRIPT_KEYS: Record<string, CampaignParamName> = {
+  affiliateid: "aff_id",
+  affid: "aff_id",
+  partnerid: "aff_id",
+  webmasterid: "aff_id",
+  offerid: "offer_id",
+  flowid: "flow_id",
+  streamid: "flow_id",
+  landingid: "landing_id",
+  source: "source_id",
+};
+const SCRIPT_KEY_RE = /(?<![\w$])["']?(affiliateId|affId|partnerId|webmasterId|offerId|flowId|streamId|landingId|source)["']?\s*[:=]\s*(["'`])([^"'`\n]{1,120})\2/gi;
 
 /**
  * Value format a parameter must have to count, by canonical name. "key" is a common name (API keys,
@@ -140,6 +200,16 @@ const ALIASES: Record<string, CampaignParamName> = {
 const VALUE_FORMAT: Partial<Record<CampaignParamName, RegExp>> = {
   tracker_campaign: /^[0-9a-f]{32}$/i,
 };
+
+/**
+ * Value format by raw (lower-cased) name for short, common names (pid, flow, s1, partner, source …):
+ * many sites use them for their own page or product numbers and test values, so only an identifier with
+ * a digit and at least 3 characters counts ("1", "test", "default" and macros do not).
+ */
+const IDENTIFIER_VALUE = /^(?=.*\d)[A-Za-z0-9_.-]{3,64}$/;
+const NAME_VALUE_FORMAT: Record<string, RegExp> = Object.fromEntries(
+  ["pid", "partner", "wm", "webmaster", "flow", "stream", "s1", "s2", "s3", "s4", "s5", "source", "landing"].map((n) => [n, IDENTIFIER_VALUE]),
+);
 
 const CYRILLIC = /[Ѐ-ӿ]/;
 const MACRO_PATTERNS = [/\{\{[^{}]*\}\}/, /\{[A-Za-z0-9_.]+\}/, /\[\[[^[\]]*\]\]/, /%%[^%]+%%/];
@@ -152,6 +222,20 @@ export function canonicalParamName(raw: string): CampaignParamName | null {
 
 function isMacro(value: string): boolean {
   return MACRO_PATTERNS.some((re) => re.test(value));
+}
+
+/**
+ * Builds a campaign parameter from a raw name and value, or returns null when the value is empty or
+ * outside the format of its parameter (VALUE_FORMAT by canonical name, NAME_VALUE_FORMAT by raw name).
+ * The value is whitespace-collapsed and cut to MAX_VALUE characters.
+ */
+function makeParam(name: string, canonicalName: CampaignParamName, rawValue: string, sourceUrl: string, origin?: ParamOrigin): CampaignParam | null {
+  const value = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_VALUE);
+  if (!value) return null;
+  if (VALUE_FORMAT[canonicalName] && !VALUE_FORMAT[canonicalName].test(value)) return null;
+  const nameFormat = NAME_VALUE_FORMAT[name.trim().toLowerCase()];
+  if (nameFormat && !nameFormat.test(value)) return null;
+  return { name, canonicalName, value, sourceUrl, cyrillic: CYRILLIC.test(value), macro: isMacro(value), ...(origin ? { origin } : {}) };
 }
 
 /** Query-like parameters carried in the fragment ("#utm_campaign=x&sub1=y" or "#?…"). */
@@ -189,21 +273,47 @@ export function extractCampaignParams(urls: Array<string | null | undefined>): C
       for (const [name, rawValue] of params) {
         const canonicalName = canonicalParamName(name);
         if (!canonicalName) continue;
-        const value = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_VALUE);
-        if (!value) continue;
-        if (VALUE_FORMAT[canonicalName] && !VALUE_FORMAT[canonicalName].test(value)) continue;
-        const key = `${canonicalName}\u0000${value.toLowerCase()}`;
+        const param = makeParam(name, canonicalName, rawValue, raw.trim());
+        if (!param) continue;
+        const key = `${canonicalName}\u0000${param.value.toLowerCase()}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({
-          name,
-          canonicalName,
-          value,
-          sourceUrl: raw.trim(),
-          cyrillic: CYRILLIC.test(value),
-          macro: isMacro(value),
-        });
+        out.push(param);
       }
+    }
+  }
+  return out;
+}
+
+/**
+ * Campaign parameters written into the page itself: hidden fields of its forms (`<input type=hidden
+ * name="aff_id" value="…">`, also "offer", "flow", "source", "landing") and keys of config objects in
+ * its inline scripts (`affiliateId`, `offerId`, `flowId`, `partnerId`, `landingId`, `source`). The lead
+ * goes to the CRM with these IDs, so they name the affiliate and offer as reliably as the link does.
+ * `pageUrl` becomes the source URL. Deduplicated by canonical name and case-insensitive value, form
+ * fields first; values outside the parameter's format are skipped like in addresses.
+ */
+export function extractPageCampaignParams(html: string, pageUrl: string): CampaignParam[] {
+  if (!html) return [];
+  const out: CampaignParam[] = [];
+  const seen = new Set<string>();
+  const push = (p: CampaignParam | null) => {
+    if (!p) return;
+    const key = `${p.canonicalName}\u0000${p.value.toLowerCase()}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(p);
+  };
+  for (const tag of scanTags(html)) {
+    if (tag.name !== "input" || (tag.attrs.type ?? "").toLowerCase() !== "hidden") continue;
+    const name = (tag.attrs.name ?? "").trim();
+    const canonical = canonicalParamName(name) ?? FORM_ALIASES[name.toLowerCase()] ?? null;
+    if (canonical) push(makeParam(name, canonical, tag.attrs.value ?? "", pageUrl, "form"));
+  }
+  for (const script of splitHtml(html).scripts) {
+    for (const m of script.matchAll(SCRIPT_KEY_RE)) {
+      const canonical = SCRIPT_KEYS[m[1].toLowerCase()];
+      if (canonical) push(makeParam(m[1], canonical, m[3], pageUrl, "script"));
     }
   }
   return out;

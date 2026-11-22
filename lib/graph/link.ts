@@ -13,12 +13,14 @@ import { stripHallucinations } from "../media/asr";
 import { fingerprintSimilarity } from "../media/audioFp";
 import { speakerSimilarity } from "../media/speaker";
 import { hammingDistance } from "../media/imageHash";
-import { extractCampaignParams, paramSchema } from "../osint/campaignParams";
+import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
 import { rdapSuspended } from "../osint/rdap";
-import { celebBaitLabel, detectNarrative, type MaterialNarrative } from "../text/narrative";
+import { advertiserMismatch } from "../text/advertiserMismatch";
+import { profitClaimKey, profitClaims } from "../text/profitClaims";
+import { celebBaitLabel, DEFAULT_NARRATIVE_CONFIG, detectNarrative, type MaterialNarrative } from "../text/narrative";
 import { scamBrands } from "../text/scamBrand";
 import { stripGenericPhrases, stripUiChrome } from "../text/uiChrome";
 import { domainAgeAt } from "../osint/domainAge";
@@ -164,6 +166,21 @@ export function buildEvidenceGraph(
   /** Items whose creative is a screenshot of an ad-library view: mostly interface, so the picture is not compared. */
   const libraryViews = new Set<string>();
 
+  // Template sentences (I23): only a sentence carried by pages in several registrable domains is a trace
+  // of a shared template; one site repeats its own text on all its pages.
+  const phraseDomains = new Map<string, Set<string>>();
+  for (const item of items) {
+    const e = dataset.perItem[item.id];
+    const page = e?.pageKey ? dataset.pages[e.pageKey] : null;
+    const domain = page ? registrableDomain(page.fetch.finalUrl) ?? normalizeUrl(page.fetch.finalUrl)?.host ?? null : null;
+    if (!domain) continue;
+    for (const p of page?.kit?.templatePhrases ?? []) {
+      if (!phraseDomains.has(p.key)) phraseDomains.set(p.key, new Set());
+      phraseDomains.get(p.key)!.add(domain);
+    }
+  }
+  const phraseShared = (key: string) => !!config.templatePhrase && (phraseDomains.get(key)?.size ?? 0) >= config.templatePhrase.minDomains;
+
   // Tenants of the landing-page platform (landing-cdn/<uuid>) seen together with an owner_uuid: a page
   // that has only the tenant (no page code) is then attributed to that account. A tenant seen with two
   // different owners is ambiguous and not mapped.
@@ -187,6 +204,8 @@ export function buildEvidenceGraph(
     };
     const enr = dataset.perItem[item.id];
     const advertiser = item.advertiser ?? enr?.advertiserOcr ?? null;
+    /** Pivot of the advertiser's display name (no library account), dropped below for a taken-over account. */
+    let advertiserNamePivot: string | null = null;
     const itemNode = g.node("item", item.id, advertiser ? `${item.id} · ${advertiser}` : item.id, {
       platform: item.platform,
       advertiser,
@@ -344,6 +363,7 @@ export function buildEvidenceGraph(
       const a = g.node("advertiser", normAdvertiser(advertiser), advertiser);
       g.edge(itemNode, a, "posted_by", "reklamodawca podany w danych reklamy");
       add(a, "advertiser", [itemNode, a], 1, `ten sam reklamodawca „${advertiser}”`);
+      advertiserNamePivot = a;
     }
 
     // Input columns outside the mapping: shown as input data, and linking only for columns named in config.extraPivots
@@ -631,6 +651,13 @@ export function buildEvidenceGraph(
           add(id, "favicon", [...finalPath, id], rel, `identyczny favicon (mmh3 ${fav.hashes.mmh3})`);
         }
         addContacts(finalUrlNode, finalPath, ex, "na stronie docelowej", rel);
+        // The example number of the form field travels with the template to every site built on it:
+        // a template trace (page_template, notAloneKinds), never a shared phone line (I23, 3b).
+        for (const p of ex.phoneExamples ?? []) {
+          const id = g.node("page_template", `phone_example:${p}`, `przykładowy numer z formularza ${p}`, { phoneExample: p });
+          g.edge(finalUrlNode, id, "built_on", "przykładowy numer w polu formularza (placeholder, „np. …”)");
+          add(id, "page_template", [...finalPath, id], rel, `ten sam przykładowy numer z szablonu formularza ${p}`);
+        }
         for (const d of ex.outboundDomains) {
           const disc = discounter.domainDiscount(d);
           if (disc && disc.factor === 0) continue;
@@ -808,6 +835,24 @@ export function buildEvidenceGraph(
           itemData.commentBlock = id;
           itemData.fakeCommentCount = Math.max(Number(itemData.fakeCommentCount ?? 0), cb.count);
         }
+        // The key of the CRM / lead API the form posts with: one account of the buyer of the leads (I23).
+        // Only the hash and a preview ever reach the graph, the report and the evidence pack.
+        for (const k of kit.crmKeys ?? []) {
+          const id = g.node("crm_key", k.sha256, `klucz API CRM ${k.preview}`, { sha256: k.sha256, preview: k.preview, field: k.name, via: k.via });
+          g.edge(finalUrlNode, id, "posts_to", `formularz wysyła zgłoszenia z kluczem API (${k.name}, ${k.preview})`);
+          add(id, "crm_key", [...finalPath, id], rel, `ten sam klucz API CRM / sieci afiliacyjnej (${k.preview}, sha256 ${k.sha256.slice(0, 12)}…)`);
+        }
+        // Rare sentences of the template (page text, thank-you message of the scripts): notAloneKinds (I23).
+        // A copying error shared by two pages is rarer than a correct sentence: a higher relation, capped.
+        const tp = config.templatePhrase;
+        for (const p of tp ? (kit.templatePhrases ?? []).filter((x) => phraseShared(x.key)) : []) {
+          const quote = p.text.length > 60 ? `${p.text.slice(0, 59)}…` : p.text;
+          const id = g.node("template_phrase", p.key, `zdanie „${quote}”`, { text: p.text, source: p.source, ...(p.oddity ? { oddity: p.oddity } : {}) });
+          g.edge(finalUrlNode, id, "mentions", `zdanie ${p.source === "script" ? "z komunikatu w skrypcie strony" : "z tekstu strony"}: „${quote}”`);
+          const oddRel = p.oddity && tp ? Math.min(tp.oddityFactor, tp.maxWeight / config.typeWeights.template_phrase) : 1;
+          const odd = p.oddity === "repeat" ? ", z tą samą wpadką: powtórzone słowa" : p.oddity === "mixed_script" ? ", z tą samą wpadką: mieszane alfabety" : "";
+          add(id, "template_phrase", [...finalPath, id], rel * oddRel, `to samo rzadkie zdanie szablonu „${quote}”${odd}`);
+        }
         // Techniques: the same modus operandi (second level only, campaignRules.familyOnlyKinds)
         for (const t of kit.techniques ?? []) {
           const id = g.node("technique", t, TECHNIQUE_LABELS[t] ?? t, { technique: t });
@@ -835,10 +880,20 @@ export function buildEvidenceGraph(
 
     // Campaign parameters leaking into URLs (UTM, sub1-5, click/offer/campaign/ad/pixel IDs); those only in
     // the page's outbound links come with the outbound relation
-    const ownParams = new Set((enr?.campaignParams ?? []).map((cp) => `${cp.canonicalName}=${cp.value.trim().toLowerCase()}`));
-    const linkParams = extractCampaignParams(outboundUrls).filter((cp) => !ownParams.has(`${cp.canonicalName}=${cp.value.trim().toLowerCase()}`));
-    for (const [cp, relation] of [...(enr?.campaignParams ?? []).map((cp) => [cp, 1] as const), ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
+    // the page's own form fields and script config carry the same IDs (origin form/script, I23)
+    const paramKey = (cp: CampaignParam) => `${cp.canonicalName}=${cp.value.trim().toLowerCase()}`;
+    const ownParams = new Set((enr?.campaignParams ?? []).map(paramKey));
+    const pageParams = (landingPage?.kit?.pageParams ?? []).filter((cp) => !ownParams.has(paramKey(cp)));
+    for (const cp of pageParams) ownParams.add(paramKey(cp));
+    const linkParams = extractCampaignParams(outboundUrls).filter((cp) => !ownParams.has(paramKey(cp)));
+    const perClick = new Set(config.lists.campaignParamPerClickNames ?? []);
+    const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
+    for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
+      if (cp.cyrillic) itemData.cyrillic = true;
+      // a value new for every click is shared only by one visit: no pivot between materials
+      if (perClick.has(cp.canonicalName)) continue;
       const value = cp.value.trim();
+      const origin = cp.origin === "form" ? " (z formularza)" : cp.origin === "script" ? " (ze skryptu strony)" : "";
       // An internal number of a tracker (campaign_id=319) names a campaign only on one tracker server:
       // every installation counts from 1, so with an xid the machine goes into the key.
       const scope = scopedParams.has(cp.canonicalName) && /^\d+$/.test(value) && machines.length ? machines : [null];
@@ -853,19 +908,20 @@ export function buildEvidenceGraph(
           cyrillic: cp.cyrillic,
           macro: cp.macro,
           sourceUrl: cp.sourceUrl,
+          ...(cp.origin ? { origin: cp.origin } : {}),
           ...(machine ? { machine } : {}),
           ...(trackerCampaign ? { trackerCampaign: true } : {}),
         });
-        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w ${relation < 1 ? "linku wychodzącym strony" : "URL"} ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
+        const where = relation < 1 ? "linku wychodzącym strony" : cp.origin === "form" ? "ukrytym polu formularza strony" : cp.origin === "script" ? "skrypcie strony" : "URL";
+        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w ${where} ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
         const what =
           cp.canonicalName === "tracker_campaign"
             ? `ten sam klucz kampanii w trackerze (${cp.name}=${value})`
             : machine
               ? `ta sama kampania na tym samym serwerze trackera (${cp.canonicalName}=${value}, maszyna ${machine})`
-              : `ten sam parametr kampanii ${cp.canonicalName}=${value}`;
+              : `ten sam parametr kampanii ${cp.canonicalName}=${value}${origin}`;
         add(id, "campaign_param", [itemNode, id], relation, relation < 1 ? `${what} (w linku wychodzącym strony)` : what);
       }
-      if (cp.cyrillic) itemData.cyrillic = true;
       // A Meta ad ID in the link's parameters (utm_content={{ad.id}}, ad_id=) is the same clicked ad as the
       // adid inside an fbclid: one meta_ad node for both (B-156)
       if (relation === 1 && META_AD_ID_PARAMS.has(cp.canonicalName) && /^\d{15,19}$/.test(value)) {
@@ -977,10 +1033,32 @@ export function buildEvidenceGraph(
       add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
+    // Profit claims (amount + period) of the copy, OCR, transcript and page: an attribute, and a trace of the
+    // scheme's script for groups only (campaignRules.familyOnlyKinds); standard deposits stay out of the key (I23)
+    const claims = profitClaims(brandBody);
+    if (claims.length) {
+      itemData.profitClaims = claims.map(({ amount, currency, period, quote }) => ({ amount, currency, period, quote }));
+      const key = profitClaimKey(claims);
+      if (key) {
+        const id = g.node("profit_claim", key, `obiecywany zysk ${key.replaceAll("|", ", ")}`, { pairs: key.split("|") });
+        g.edge(itemNode, id, "mentions", `kwoty zysku w treści (${claims.filter((c) => !c.standard).map((c) => c.quote).join("; ")})`);
+        add(id, "profit_claim", [itemNode, id], 1, `te same kwoty obiecywanego zysku (${key.replaceAll("|", ", ")})`);
+      }
+    }
     if (narrative) {
       const label = celebBaitLabel(narrative, { persona: personaHows.size > 0, fakeMedia: !!(itemData.impersonatedBrand || itemData.advertiserImpersonates || enr?.creativeBrand) });
       const stored: MaterialNarrative = { ...narrative, date: item.firstSeen, ...(label ? { label } : {}) };
       itemData.narrative = stored;
+    }
+    // Investment ad from an account named like a guest house or a person: most likely a taken-over account
+    // paid with a victim's card (I23). The name is the victim's, so it links nothing; the library account
+    // ID, when known, stays (the operator controls that account while the ads run).
+    const mismatch = advertiserMismatch(advertiser, !!narrative?.topics.some((t) => DEFAULT_NARRATIVE_CONFIG.financialTopics.includes(t.id)));
+    if (mismatch) {
+      itemData.advertiserMismatch = true;
+      itemData.advertiserMismatchKind = mismatch.kind;
+      const drop = facts.findIndex((f) => f.pivot === advertiserNamePivot);
+      if (drop >= 0) facts.splice(drop, 1);
     }
 
     // Addresses seen in the browser address bar of screenshots and recordings

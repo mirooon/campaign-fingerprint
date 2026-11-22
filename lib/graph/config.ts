@@ -173,6 +173,13 @@ export interface LinkConfig {
   extraPivots?: Record<string, EntityType>;
   /** A bridge (Campaign.bridge) splits the campaign into parts of at least this many members each. */
   bridgeMinPartSize?: number;
+  /**
+   * Template sentences of the page (template_phrase, I23): a sentence becomes a pivot only when pages in at
+   * least `minDomains` registrable domains carry it (one site repeats its own text on every page). A
+   * sentence with a copying error (oddity) weighs `oddityFactor` times more, at most `maxWeight` (kept
+   * below strongThreshold: an error is copied with the template too). null turns the pivot off.
+   */
+  templatePhrase?: { minDomains: number; oddityFactor: number; maxWeight: number } | null;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -309,6 +316,11 @@ export interface LinkConfig {
     campaignParamGenericValues: string[];
     /** Canonical parameter names whose values are rarely specific (utm_source, utm_medium). */
     campaignParamWeakNames: ListRule[];
+    /**
+     * Canonical parameter names whose value is new for every click (click_id, also aff_click_id): two
+     * materials never share it unless they are one visit, so it makes no pivot (kept in the material).
+     */
+    campaignParamPerClickNames?: string[];
   };
 }
 
@@ -327,6 +339,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     telegram: 0.9,
     cert: 0.8,
     imagehash: 0.65,
+    // A display name of the advertiser alone does not merge campaigns (rule kind advertiser_name in
+    // campaignRules.notAloneKinds, I23): ad accounts are stolen and resold, the name may be a victim's.
     advertiser: 0.6,
     ip: 0.6,
     favicon: 0.5,
@@ -368,6 +382,15 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Technique of the page (fake app store, back trap, fake social post, fake comments): the same
     // modus operandi, counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
     technique: 0.2,
+    // Secret key or token of the CRM / lead API the form sends the lead to (I23): one key is one account
+    // of the buyer of the leads, as strong as the form backend itself (endpoint). Only its hash is kept.
+    crm_key: 0.95,
+    // A rare sentence of the page text or of its thank-you message (I23): a template trace like
+    // page_template and comment_block, one template can have many operators (campaignRules.notAloneKinds).
+    template_phrase: 0.45,
+    // The amount and period the copy promises ("3 tys. w ciągu dnia"): a trait of the script of the scheme,
+    // counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
+    profit_claim: 0.2,
   },
   strongThreshold: 0.7,
   maxStrongDfRatio: 0.5,
@@ -378,9 +401,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher"],
-    // a persona (impersonated public figure) appears in campaigns of many unrelated operators
-    familyOnlyKinds: ["technique", "persona"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name"],
+    // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
+    // claim belongs to the script of the scheme, which many operators copy
+    familyOnlyKinds: ["technique", "persona", "profit_claim"],
     accountConflict: true,
     accountConflictOverStrongKinds: ["path_id"],
     discountedMinWeight: 0.3,
@@ -412,6 +436,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   },
   creativeFileWeight: 0.95,
   commentBlockNames: { minBlocks: 5, floor: 0.3 },
+  templatePhrase: { minDomains: 2, oddityFactor: 1.3, maxWeight: 0.65 },
   trackerCampaignWeight: 0.6,
   personaPairWeight: 0.35,
   trackerHostWeight: 0.25,
@@ -1055,6 +1080,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { match: "utm_medium", factor: 0.2, reason: "utm_medium zwykle wskazuje tylko typ ruchu" },
       { match: "placement", factor: 0.1, reason: "miejsce wyświetlenia reklamy (wartość platformy, np. Facebook_Mobile_Feed)" },
     ],
+    campaignParamPerClickNames: ["click_id"],
   },
 };
 

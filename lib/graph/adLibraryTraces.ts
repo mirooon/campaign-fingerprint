@@ -55,6 +55,15 @@ export function advertiserIdKey(platform: string, advertiserId: string): string 
 }
 
 /**
+ * True when an advertiser node key is an account ID ("meta:123", advertiserIdKey) or an input column named
+ * in extraPivots ("extra:page_id=…"), false for a display name ("pensjonat pod górą"): names have spaces or
+ * no "namespace:" prefix.
+ */
+export function isAdvertiserAccountKey(key: string): boolean {
+  return /^[a-z_]+:\S+$/.test(key);
+}
+
+/**
  * Key of a payer node. Meta keeps the bare normalised name (the payers read by `--ad-library` use the
  * same key); other platforms get a platform prefix so that a payer name does not link records of
  * different libraries on its own.

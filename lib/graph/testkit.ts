@@ -31,6 +31,8 @@ export interface TestItemSpec {
   outboundUrls?: string[];
   emails?: string[];
   phones?: string[];
+  /** Example numbers of the lead form (placeholder, "np. …" help text), as the page extract keeps them. */
+  phoneExamples?: string[];
   wallets?: Array<{ kind: "btc" | "eth" | "tron"; address: string }>;
   redirects?: string[];
   persona?: string;
@@ -186,6 +188,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           outboundUrls: s.outboundUrls ?? [],
           emails: s.emails ?? [],
           phones: s.phones ?? [],
+          phoneExamples: s.phoneExamples ?? [],
           wallets: s.wallets ?? [],
         }),
         favicon:

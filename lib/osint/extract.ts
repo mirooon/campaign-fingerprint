@@ -14,6 +14,7 @@
  * the regexes are deliberately conservative. Never throws on malformed HTML.
  */
 import { findWallets, type WalletMatch } from "./crypto";
+import { LEAD_CONFIG } from "./leadConfig";
 import { extractUrlsFromText, hostOf, normalizeUrl, registrableDomain, resolveUrl } from "./urls";
 
 export type TrackerKind =
@@ -53,6 +54,12 @@ export interface PageExtract {
   outboundUrls: string[];
   emails: string[];
   phones: string[];
+  /**
+   * Example numbers of the lead form (placeholder, value of a tel field, label, "np. …" help text): a
+   * trait of the page template, kept apart from `phones` so that a template does not look like a shared
+   * phone line. Missing in extracts saved before this field existed.
+   */
+  phoneExamples?: string[];
   telegram: string[];
   whatsapp: string[];
   wallets: WalletMatch[];
@@ -217,7 +224,7 @@ function isAsciiLetter(code: number): boolean {
 const RAW_TEXT_TAGS = new Set(["script", "style", "textarea", "title", "xmp"]);
 
 /** Scans start tags with their (entity-decoded) attributes. Skips comments and raw-text element bodies. */
-function scanTags(html: string): Tag[] {
+export function scanTags(html: string): Tag[] {
   const tags: Tag[] = [];
   const n = html.length;
   let i = 0;
@@ -481,8 +488,27 @@ const PL_LANDLINE_RE =
   /(?<![\w+])(?<!\d[ .-])(?:\((\d{2})\)|(\d{2}))[ .-]?(\d{3})[ .-](\d{2})[ .-](\d{2})(?![ .-]?\d)(?!\w)/g;
 const TEL_LINK_RE = /tel:\s*(\+?[\d\s().-]{6,24}\d)/gi;
 
+/**
+ * True for a number no operator would publish as a contact: one digit repeated, an ascending or
+ * descending run (LEAD_CONFIG.phoneExamples.artificialNationals). Takes E.164; other countries pass.
+ */
+function isArtificialPhone(e164: string): boolean {
+  if (!e164.startsWith("+48")) return false;
+  const national = e164.slice(3);
+  return LEAD_CONFIG.phoneExamples.artificialNationals.some((re) => re.test(national));
+}
+
 /** Finds (mostly Polish) phone numbers and returns them in E.164, deduped, in order of appearance. */
 export function findPolishPhones(text: string): string[] {
+  return uniqueInOrder(findPolishPhoneHits(text).map((h) => h.phone));
+}
+
+/**
+ * Every occurrence of a (mostly Polish) phone number in `text`, with its start offset, sorted by offset
+ * and not deduped (the same number may occur once as an example and once as a contact). Artificial
+ * numbers (isArtificialPhone) are left out.
+ */
+function findPolishPhoneHits(text: string): Array<{ index: number; phone: string }> {
   if (!text) return [];
   const hits: Array<{ index: number; phone: string }> = [];
 
@@ -517,7 +543,42 @@ export function findPolishPhones(text: string): string[] {
   }
 
   hits.sort((a, b) => a.index - b.index);
-  return uniqueInOrder(hits.map((h) => h.phone));
+  return hits.filter((h) => !isArtificialPhone(h.phone));
+}
+
+/**
+ * Splits the phone numbers of a page into contacts and examples of the lead form. An occurrence in the
+ * visible text is an example when an example marker ("np.", "na przykład", "format" …) stands just
+ * before it or when the number sits in a <label>; `exampleAttrs` (placeholder, value of a tel field) are
+ * examples, `contactAttrs` (tel: links, titles …) contacts. A number with more contact occurrences than
+ * label occurrences stays a contact, so a hotline repeated in the footer is not lost.
+ * Returns E.164 numbers, deduped in order of appearance; an example never repeats a contact.
+ */
+function splitPagePhones(
+  visibleText: string,
+  labelTexts: string[],
+  contactAttrs: string[],
+  exampleAttrs: string[],
+): { phones: string[]; examples: string[] } {
+  const { markers, windowChars } = LEAD_CONFIG.phoneExamples;
+  const inLabels = new Map<string, number>();
+  for (const label of labelTexts) for (const h of findPolishPhoneHits(label)) inLabels.set(h.phone, (inLabels.get(h.phone) ?? 0) + 1);
+  const contactCount = new Map<string, number>();
+  const examples: string[] = [];
+  const order: string[] = [];
+  for (const h of findPolishPhoneHits(visibleText)) {
+    order.push(h.phone);
+    if (markers.test(visibleText.slice(Math.max(0, h.index - windowChars), h.index))) examples.push(h.phone);
+    else contactCount.set(h.phone, (contactCount.get(h.phone) ?? 0) + 1);
+  }
+  for (const h of findPolishPhoneHits(contactAttrs.join("\n"))) {
+    order.push(h.phone);
+    contactCount.set(h.phone, (contactCount.get(h.phone) ?? 0) + 1);
+  }
+  for (const h of findPolishPhoneHits(exampleAttrs.join("\n"))) examples.push(h.phone);
+  const phones = uniqueInOrder(order).filter((p) => (contactCount.get(p) ?? 0) > (inLabels.get(p) ?? 0));
+  for (const p of inLabels.keys()) examples.push(p);
+  return { phones, examples: uniqueInOrder(examples).filter((p) => !phones.includes(p)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -613,7 +674,7 @@ const NON_VISIBLE_OPEN_RE = /<!--|<(script|style|noscript|template|title)\b[^<>]
  * first title. Every search moves forward, so pathological input (millions of
  * "<", unclosed comments or tags) stays O(n).
  */
-function splitHtml(html: string): HtmlParts {
+export function splitHtml(html: string): HtmlParts {
   const textParts: string[] = [];
   const scripts: string[] = [];
   let title: string | null = null;
@@ -697,6 +758,7 @@ function emptyExtract(baseUrl?: string): PageExtract {
     outboundUrls: [],
     emails: [],
     phones: [],
+    phoneExamples: [],
     telegram: [],
     whatsapp: [],
     wallets: [],
@@ -709,6 +771,7 @@ function emptyExtract(baseUrl?: string): PageExtract {
 
 const CONTACT_ATTRS = new Set(["href", "action", "content", "title", "alt", "value", "data-href"]);
 const URL_ATTRS = ["href", "src", "action", "data-href"];
+const LABEL_RE = /<label\b[^>]*>([\s\S]*?)<\/label>/gi;
 
 function iconPriority(rel: string[]): number {
   if (rel.includes("icon")) return 1; // "icon", "shortcut icon"
@@ -770,6 +833,8 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
     const ownKey = base ? registrableDomain(base) ?? hostOf(base) : null;
     const outbound: string[] = [];
     const contactSources: string[] = [];
+    // numbers written into form fields come with the template: kept apart from the contacts (I23, 3b)
+    const phoneExampleSources: string[] = [];
     // Inline JS for static redirect hints: <script> bodies, on* handlers, javascript: hrefs.
     const scriptSources: string[] = [...parts.scripts];
     for (const tag of tags) {
@@ -782,8 +847,10 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
         const key = registrableDomain(normalized) ?? hostOf(normalized);
         if (key && key !== ownKey) outbound.push(normalized);
       }
+      const telField = tag.name === "input" && (tag.attrs.type ?? "").toLowerCase() === "tel";
       for (const [name, value] of Object.entries(tag.attrs)) {
         if (!value) continue;
+        if (name === "placeholder" || (telField && name === "value")) phoneExampleSources.push(value);
         if (CONTACT_ATTRS.has(name) || name.startsWith("data-")) contactSources.push(value);
         if (name.startsWith("on") || (name === "href" && /^\s*javascript:/i.test(value))) scriptSources.push(value);
       }
@@ -799,7 +866,15 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
     // Contacts come from the full (untruncated) visible text plus attribute values.
     const contactText = [parts.text, ...contactSources].join("\n");
     result.emails = findEmails(contactText);
-    result.phones = findPolishPhones(contactText);
+    const labelTexts = [...html.matchAll(LABEL_RE)].map((m) => decodeHtmlEntities(m[1].replace(/<[^>]*>/g, " ")));
+    const split = splitPagePhones(
+      parts.text,
+      labelTexts,
+      contactSources.filter((v) => !phoneExampleSources.includes(v)),
+      phoneExampleSources,
+    );
+    result.phones = split.phones;
+    result.phoneExamples = split.examples;
     result.telegram = findTelegram(contactText);
     result.whatsapp = findWhatsapp(contactText);
     result.wallets = findWallets(contactText);

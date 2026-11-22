@@ -53,7 +53,8 @@ describe("content without infrastructure", () => {
       { id: "b", text: TEXT_2, personas: ["Jan Testowy"] },
     ]);
     const l = res.graph.links.find((x) => x.a === "a" && x.b === "b")!;
-    expect(l.evidence.map((e) => e.edgeType ?? e.pivotType).sort()).toEqual(["persona", "similar_text"]);
+    // the copy promises the same profit: a trace for groups only (familyOnlyKinds), like the persona
+    expect(l.evidence.map((e) => e.edgeType ?? e.pivotType).sort()).toEqual(["persona", "profit_claim", "similar_text"]);
     expect(same(res, "a", "b")).toBe(false);
   });
 });
@@ -76,7 +77,7 @@ describe("content between pages with infrastructure", () => {
       { id: "b", url: "https://kurier-beta.test/", text: TEXT },
     ]);
     const l = res.graph.links.find((x) => x.a === "a" && x.b === "b")!;
-    expect(l.evidence.map((e) => e.edgeType)).toEqual(["similar_text"]);
+    expect(l.evidence.map((e) => e.edgeType ?? e.pivotType).sort()).toEqual(["profit_claim", "similar_text"]);
     expect(l.score).toBeGreaterThanOrEqual(0.5);
     expect(same(res, "a", "b")).toBe(false);
     expect(campaignOf(res, "a").attributes.basis).toBe("infrastructure");

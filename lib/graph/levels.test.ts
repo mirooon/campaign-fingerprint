@@ -95,7 +95,10 @@ describe("campaignLinkVerdict", () => {
     expect(campaignLinkVerdict(link([ev("comment", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("single_kind");
     expect(campaignLinkVerdict(link([ev("similar_dom", 0.3), ev("nameserver", 0.3)]), DEFAULT_LINK_CONFIG)).toBe("campaign");
     // a kind of evidence that is neither content nor a kit trait still stands alone
-    expect(campaignLinkVerdict(link([ev("advertiser", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("campaign");
+    expect(campaignLinkVerdict(link([ev("email", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("campaign");
+    // an advertiser's display name does not (stolen and resold ad accounts, I23); a library account ID does
+    expect(campaignLinkVerdict(link([ev("advertiser", 0.6)], 0.6), DEFAULT_LINK_CONFIG)).toBe("single_kind");
+    expect(campaignLinkVerdict(link([{ ...ev("advertiser", 0.6), pivot: "advertiser:meta:100200300" }], 0.6), DEFAULT_LINK_CONFIG)).toBe("campaign");
   });
 
   it("joins content only between ads without infrastructure, by two kinds of content", () => {

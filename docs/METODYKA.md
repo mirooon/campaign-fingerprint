@@ -48,17 +48,17 @@ Każdy ślad (encja, np. konkretny tracker) dostaje wagę. Waga to iloczyn trzec
 
 Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − Π(1 − wᵢ)`. Dwie niezależne przesłanki po 0,5 dają 0,75. Wynik rośnie z każdą kolejną przesłanką, ale nigdy nie przekracza 1. Przesłanka o wadze ≥ 0,7, której ślad występuje w mniej niż połowie zbioru, jest **silna** (patrz punkt 4).
 
-### Wagi typów (stan po zadaniu I14; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
+### Wagi typów (stan po zadaniu I23; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
 
 | Typ | Waga | Typ | Waga |
 |---|---|---|---|
 | url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
-| host, domain, endpoint (backend), meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
+| host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
 | email, phone, telegram, platform_account | 0,9 | asset | 0,55 |
 | path_id | 0,85 | favicon | 0,5 |
-| cert, campaign_param | 0,8 | comment_block | 0,45 |
+| cert, campaign_param | 0,8 | comment_block, template_phrase | 0,45 |
 | ad_payer | 0,7 | nameserver, page_template | 0,35 |
-| | | technique | 0,2 |
+| | | technique, profit_claim | 0,2 |
 | | | param_schema | 0,12 |
 | | | persona | 0,1 |
 | | | registrar, asn | 0,05 |
@@ -117,6 +117,28 @@ Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (w
 ```
 
 Wartość kolumny `page_id` staje się wtedy węzłem typu `advertiser` (klucz `extra:page_id=<wartość>`) z wagą, zniżkami i regułami tego typu.
+
+## 4b. Operator jako firma leadowa (zadanie I23, 22.11.2026)
+
+Publiczne opisy branży (raport RIVSEC „Fałszywe inwestycje w internecie. Schematy działania i zaplecze przestępcze”, marzec 2026, omówiony w podcaście Techstorie #157, Wyborcza, 13.10.2026) pokazują operatora jak firmę, która kupuje i sprzedaje zgłoszenia (leady). Strona docelowa ma jeden interaktywny element, formularz (imię, nazwisko, telefon), a dane trafiają na żywo do CRM. Leady są pakowane według kraju i kanału, więc każde zgłoszenie niesie identyfikator źródła, a pośrodku stoi sieć afiliacyjna („manager do spraw afiliacji”). Z tego wynikają ślady i reguły:
+
+- **Identyfikator afiliacyjny i klucz CRM łączą kampanię.** Identyfikator afiliacji, oferty i strumienia (`aff_id`, `pid`, `partner_id`, `wm_id`, `offer_id`, `flow_id`/`stream`, `landing_id`, `s1`–`s5`) siedzi w adresie, w ukrytych polach formularza i w obiektach konfiguracji skryptów strony. To ten sam węzeł `campaign_param` (0,8) z pochodzeniem „z adresu / z formularza / ze skryptu”, bo zgłoszenie idzie do CRM z tymi samymi identyfikatorami co link. Krótkie, pospolite nazwy (`pid`, `flow`, `s1`, `partner`) liczą się tylko z wartością przypominającą identyfikator (cyfra, co najmniej 3 znaki), więc `1`, `test`, `default` i makra nie łączą. Identyfikator kliknięcia (`click_id`, `aff_click_id`) jest nowy przy każdym kliknięciu i nie łączy materiałów. Tajny klucz API, z którym formularz wysyła zgłoszenie (`crm_key`, 0,95), należy do jednego konta odbiorcy leadów: jest tak mocny jak wspólny backend formularza. Narzędzie zapisuje z klucza tylko skrót (4 pierwsze i 4 ostatnie znaki oraz sha256), nigdy cały klucz, i pomija klucze usług publicznych (mapy, reCAPTCHA, analityka), tokeny CSRF oraz wartości krótkie lub mało losowe.
+- **Zdanie szablonu tylko wspiera.** Rzadkie zdanie (≥ 6 słów) z tekstu strony albo z podziękowania zapisanego w skrypcie („Nasz opiekun zadzwoni do Ciebie …”) obecne w co najmniej dwóch domenach to `template_phrase` (0,45). Ten sam szablon kupuje wielu operatorów, więc jest w `notAloneKinds` jak szablon strony i blok komentarzy. Wspólna wpadka w zdaniu (powtórzony ciąg trzech słów, słowo z łacinką i cyrylicą) jest rzadsza niż poprawne zdanie i waży 1,3 raza więcej, ale poniżej progu silnego dowodu. Zgody RODO, cookies, stopki i ostrzeżenia o ryzyku są pomijane.
+- **Przykładowy numer z formularza to szablon, nie telefon.** Numer z `placeholder`, z wartości pola telefonu, z etykiety albo z podpowiedzi „np. …”, „na przykład …”, „format …” jest kopiowany z szablonem na każdą stronę. Nie tworzy węzła `phone` (0,9), tylko ślad szablonu (`page_template`, klucz `phone_example:`). Numery oczywiście sztuczne (same powtórzenia, `123456789`) nie są ani telefonem, ani przykładem.
+- **Nazwa konta reklamowego tylko wspiera.** Reklamy idą z przejętych kont opłacanych kartami wcześniejszych ofiar (np. konto pensjonatu), więc nazwa reklamodawcy często należy do ofiary. Nazwa bez konta z biblioteki reklam (rodzaj reguły `advertiser_name`) jest w `notAloneKinds`, jak płatnik reklamy. Stały identyfikator konta z biblioteki reklam łączy jak dotąd. Reklama inwestycyjna z konta nazwanego jak lokalna firma albo osoba prywatna dostaje atrybut „konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)” i jej nazwa nie daje żadnego śladu.
+- **Persona nie dzieli kampanii.** Operator robi testy A/B twarzy (aktor czy polityk, deepfake czy nie), więc w jednej kampanii persona się zmienia. Persona jest tylko cechą grupy: różne twarze przy tym samym backendzie formularza to jedna kampania, ta sama twarz na różnej infrastrukturze to dwie kampanie, najwyżej w jednej grupie.
+- **Kwoty zysku opisują scenariusz.** Wiarygodne kwoty z okresem („3 tys. w ciągu dnia”, „4000 zł tygodniowo”) z tekstu, strony, OCR i transkrypcji są atrybutem `profitClaims`. Zestaw par kwota i okres (`profit_claim`, 0,2) łączy tylko w grupę (`familyOnlyKinds`). Standardowa wpłata (250 USD/EUR, „minimalny depozyt”) zostaje w atrybucie, ale nie w śladzie.
+
+| Ślad | Waga | Reguła |
+|---|---|---|
+| `campaign_param` z formularza albo skryptu | 0,8 | jak parametr z adresu; `click_id` bez śladu |
+| `crm_key` (skrót klucza API CRM) | 0,95 | łączy sam |
+| `template_phrase` (zdanie szablonu, ≥ 2 domeny) | 0,45 (z wpadką ×1,3, maks. 0,65) | `notAloneKinds` |
+| `page_template` z przykładowego numeru | 0,35 | `notAloneKinds` |
+| `advertiser` z samej nazwy | 0,6 | `notAloneKinds` (`advertiser_name`) |
+| `profit_claim` (kwota + okres) | 0,2 | `familyOnlyKinds` |
+
+Na 25 sprawach jury F1 par się nie zmienił (0,897, 14 kampanii); jedna grupa podobnych kampanii urosła o kampanię, którą łączy z nią przykładowy numer z tego samego szablonu formularza (liczby: Raport I23).
 
 ## 5. Duplikaty i „za mało danych”
 

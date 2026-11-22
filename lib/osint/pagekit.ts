@@ -17,7 +17,10 @@ import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformL
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
 import { clickIdsFromUrls } from "./clickIds";
-import { findTrackers, type TrackerId } from "./extract";
+import { extractPageCampaignParams, type CampaignParam } from "./campaignParams";
+import { findCrmKeys, type CrmKey } from "./crmKey";
+import { findTrackers, splitHtml, type TrackerId } from "./extract";
+import { templatePhrases, type TemplatePhrase } from "../text/templatePhrases";
 import { registrableDomain, toAsciiHost } from "./urls";
 
 export type EndpointVia = "form" | "fetch" | "xhr" | "axios" | "jquery" | "literal";
@@ -97,6 +100,12 @@ export interface PageKit {
   commentBlock?: CommentBlock | null;
   /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
   techniques?: PageTechnique[];
+  /** Campaign parameters in the hidden fields of the lead form and in page-script config objects (origin form/script, I23). */
+  pageParams?: CampaignParam[];
+  /** Keys of the CRM / lead API in the page (hash and preview only, I23). */
+  crmKeys?: CrmKey[];
+  /** Sentences of the page text and of the messages in its scripts that may come from a template (I23). */
+  templatePhrases?: TemplatePhrase[];
 }
 
 export interface PathId {
@@ -981,10 +990,28 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
+      ...leadTracesOf(html, pageUrl),
     };
   } catch {
     return emptyKit();
   }
+}
+
+/**
+ * The lead-company fields of a page kit (I23): campaign parameters of the form and scripts, the CRM
+ * keys and the template sentences, each omitted when the page has none (kits saved before stay the
+ * same shape).
+ */
+function leadTracesOf(html: string, pageUrl: string): Pick<PageKit, "pageParams" | "crmKeys" | "templatePhrases"> {
+  const pageParams = extractPageCampaignParams(html, pageUrl);
+  const crmKeys = findCrmKeys(html);
+  const parts = splitHtml(html);
+  const phrases = templatePhrases(parts.text, parts.scripts);
+  return {
+    ...(pageParams.length ? { pageParams } : {}),
+    ...(crmKeys.length ? { crmKeys } : {}),
+    ...(phrases.length ? { templatePhrases: phrases } : {}),
+  };
 }
 
 function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {

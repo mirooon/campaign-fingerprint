@@ -47,6 +47,11 @@ export const ENTITY_TYPES = [
   // technique names (modus operandi, second level only)
   "comment_block",
   "technique",
+  // lead-company traces (I23): the key of the CRM / lead API (hashed), a sentence of the page template,
+  // and the profit claims of the copy (amount + period, second level only)
+  "crm_key",
+  "template_phrase",
+  "profit_claim",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -87,6 +92,9 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   ad_payer: "Płatnik reklamy (biblioteka reklam, DSA)",
   comment_block: "Blok fałszywych komentarzy",
   technique: "Technika strony",
+  crm_key: "Klucz API CRM / sieci afiliacyjnej",
+  template_phrase: "Zdanie szablonu strony",
+  profit_claim: "Obiecywany zysk (kwota i okres)",
 };
 
 export type EdgeType =

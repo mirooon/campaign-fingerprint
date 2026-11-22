@@ -23,7 +23,10 @@ export type PageTechnique =
   | "fake_comments"
   | "fake_security_alert"
   | "remote_access_tool"
-  | "clickfix_paste";
+  | "clickfix_paste"
+  | "scarcity_counter"
+  | "anti_devtools"
+  | `kit:${string}`;
 
 /**
  * The command a fake verification copies to the clipboard (ClickFix). Only its kind and SHA-256 are kept:
@@ -373,6 +376,53 @@ function clickfixFrom(html: string, tags: Tag[]): { command: ClickfixCommand | n
   return { command: cmd && kind ? { kind, sha256: createHash("sha256").update(cmd).digest("hex") } : null };
 }
 
+/** Names of the hidden inputs among the scanned tags (max 200). */
+function hiddenInputNames(tags: Tag[]): string[] {
+  const out: string[] = [];
+  for (const t of tags) {
+    if (t.name !== "input" || !/\btype\s*=\s*["']?hidden/i.test(t.attrs)) continue;
+    const n = /\bname\s*=\s*["']?([^"'\s>]{1,60})/i.exec(t.attrs);
+    if (n) out.push(n[1]);
+    if (out.length >= 200) break;
+  }
+  return out;
+}
+
+/**
+ * Whether the text shows a pressure counter ("Liczba pozostałych miejsc 99", "only 3 left"). A plain number
+ * without such a phrase is not one. Works on page text and on the OCR of a creative (B-346).
+ */
+export function scarcityCounter(text: string): boolean {
+  const t = (text ?? "").slice(0, 200_000);
+  return TECHNIQUE_CONFIG.scarcity.patterns.some((re) => re.test(t));
+}
+
+/**
+ * Whether the page's scripts block the developer tools: the F12 key (code 123) together with another
+ * shortcut of the inspector or a handler of the context menu (B-340).
+ */
+export function antiDevtools(html: string): boolean {
+  const doc = (html ?? "").slice(0, MAX_CHARS);
+  const c = TECHNIQUE_CONFIG.antiDevtools;
+  return c.f12.test(doc) && (c.inspectShortcut.test(doc) || c.contextMenu.test(doc));
+}
+
+/**
+ * Names of the lead-form kit families the page carries, e.g. "formFb" of an affiliate network (B-348).
+ * `hidden` are the names of the page's hidden form fields. A family needs a class or field marker in the
+ * source, or most of its hidden fields.
+ */
+export function kitFamilies(html: string, hidden: string[] = []): string[] {
+  const doc = (html ?? "").slice(0, MAX_CHARS);
+  const names = new Set(hidden.map((h) => h.toLowerCase()));
+  const out: string[] = [];
+  for (const f of TECHNIQUE_CONFIG.kitFamilies) {
+    const fields = f.hiddenFields.filter((x) => names.has(x.toLowerCase())).length;
+    if (f.markers.some((re) => re.test(doc)) || fields >= f.minHiddenFields) out.push(f.name);
+  }
+  return out;
+}
+
 /**
  * All techniques of a page in one pass over its HTML, with the comment block and the kind and hash of a
  * ClickFix command. `pageUrl` is the address of the page (a store host or a remote-tool site is not a fake).
@@ -391,5 +441,8 @@ export function detectPageTechniques(html: string, pageUrl: string): PageTechniq
   if (remoteAccessFrom(doc, tags, pageUrl)) techniques.push("remote_access_tool");
   const clickfix = clickfixFrom(doc, tags);
   if (clickfix) techniques.push("clickfix_paste");
+  if (scarcityCounter(pageText(doc, tags))) techniques.push("scarcity_counter");
+  if (antiDevtools(doc)) techniques.push("anti_devtools");
+  for (const k of kitFamilies(doc, hiddenInputNames(tags))) techniques.push(`kit:${k}`);
   return { techniques, commentBlock: block, clickfix: clickfix?.command ?? null };
 }

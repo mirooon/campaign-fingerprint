@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createHash } from "node:crypto";
-import { backTrap, clickfixPaste, commentBlock, detectPageTechniques, fakeAppStore, fakeSecurityAlert, fakeSocialPost, normaliseAuthor, remoteAccessTool } from "./pageTechniques";
+import { antiDevtools, kitFamilies, scarcityCounter, backTrap, clickfixPaste, commentBlock, detectPageTechniques, fakeAppStore, fakeSecurityAlert, fakeSocialPost, normaliseAuthor, remoteAccessTool } from "./pageTechniques";
 
 const comment = (author: string, text: string) =>
   `<div class="fb-comment"><img class="avatar" src="a.jpg"><div class="comment-main"><span class="comment-author">${author}</span><p class="comment-text">${text}</p><span class="meta-action">Lubię to</span> · <span class="meta-action">Odpowiedz</span> · 2 godz. temu</div></div>`;
@@ -158,5 +158,28 @@ describe("clickfixPaste", () => {
     expect(clickfixPaste(`<div class="g-recaptcha" data-sitekey="k"></div><p>Verify you are human</p>`)).toBeNull();
     expect(clickfixPaste(`<h1>Instalacja</h1><button onclick="navigator.clipboard.writeText('powershell -File setup.ps1')">Kopiuj</button>`)).toBeNull();
     expect(detectPageTechniques(`<h1>Skróty</h1><p>Win+R otwiera okno Uruchom.</p>`, "https://x.example/").techniques).not.toContain("clickfix_paste");
+  });
+});
+
+describe("scarcity, devtools blocking and kit families (B-346, B-340, B-348)", () => {
+  it("reads a pressure counter from text or OCR, not a plain number", () => {
+    expect(scarcityCounter("LICZBA POZOSTAŁYCH MIEJSC 99")).toBe(true);
+    expect(scarcityCounter("Zostało tylko 7 sztuk w magazynie")).toBe(true);
+    expect(scarcityCounter("Mamy 99 klientów i 7 sklepów")).toBe(false);
+  });
+
+  it("finds a script that blocks F12 and the context menu", () => {
+    const js = `<script>document.addEventListener("keydown",e=>{if(e.keyCode==123||(e.ctrlKey&&e.shiftKey&&e.keyCode==73))e.preventDefault()});document.addEventListener("contextmenu",e=>e.preventDefault())</script>`;
+    expect(antiDevtools(js)).toBe(true);
+    expect(antiDevtools(`<script>if(e.keyCode==13)submit()</script>`)).toBe(false);
+    expect(detectPageTechniques(js, "https://x.example/").techniques).toContain("anti_devtools");
+  });
+
+  it("names the kit family from classes, field markers or hidden fields", () => {
+    expect(kitFamilies(`<form class="formFb__wrap"></form>`)).toEqual(["formFb"]);
+    expect(kitFamilies(`<script>var oldPriceAndLabelForLandingInfoApi = 1;</script>`)).toEqual(["formFb"]);
+    const hidden = ["sid", "x_id", "sub1", "fbtoken"].map((n) => `<input type="hidden" name="${n}">`).join("");
+    expect(detectPageTechniques(`<form>${hidden}</form>`, "https://x.example/").techniques).toContain("kit:formFb");
+    expect(kitFamilies(`<form class="contact"><input type="hidden" name="sid"></form>`)).toEqual([]);
   });
 });

@@ -26,6 +26,7 @@ import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { adStart } from "../text/adStart";
+import { scarcityCounter } from "../osint/pageTechniques";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";
 import { idnConfusableInUrl } from "../osint/idnConfusable";
@@ -107,6 +108,9 @@ const TECHNIQUE_LABELS: Record<string, string> = {
   fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
   remote_access_tool: "program do zdalnego pulpitu do pobrania",
   clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
+  scarcity_counter: "licznik presji („zostało N miejsc”)",
+  anti_devtools: "blokada narzędzi deweloperskich (F12, menu kontekstowe)",
+  "kit:formFb": "kit formularza sieci CPA (formFb)",
 };
 
 /** Canonical link parameters that carry the ID of the Meta ad in templates ({{ad.id}}). */
@@ -1134,6 +1138,8 @@ export function buildEvidenceGraph(
     if (confusable) itemData.idnConfusable = confusable;
     const started = adStart(typeof itemData.adFirstShown === "string" ? itemData.adFirstShown : null);
     if (started) itemData.adStartWeekday = started;
+    // A pressure counter ("N places left") in the creative's OCR or the ad text: a technique attribute (B-346)
+    if (scarcityCounter([item.text, enr?.ocrText].filter(Boolean).join("\n"))) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "scarcity_counter"])];
     const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
     if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
 

@@ -39,7 +39,8 @@
     "adlib": "bun scripts/adlib.ts",
     "watch": "bun scripts/watch.ts",
     "backtest:ct": "bun scripts/backtest-ct.ts",
-    "voice:eval": "bun scripts/voice-eval.ts"
+    "voice:eval": "bun scripts/voice-eval.ts",
+    "features:catalog": "bun scripts/features-catalog.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

@@ -292,7 +292,7 @@ Rozszerzanie znanej kampanii: `bun run adlib -- expand --campaign K01 --data dan
 | Dane | Skąd | Czy trafia do repozytorium |
 |---|---|---|
 | Próbka `data/sample/`, testy, fixtures | wygenerowane skryptem `scripts/gen-sample.ts`, w całości syntetyczne (fikcyjne osoby, domeny `.example`/`.test`, adresy IP z puli dokumentacyjnej) | tak |
-| Próbka dostarczona przez właściciela danych (sprawy z zapowiedzi zadania, paczka od jury) | organizator zadania | **nie**: tylko lokalnie, poza repozytorium i jego historią; wartości z niej w testach zastąpiono syntetycznymi |
+| Próbka dostarczona przez właściciela danych (sprawy z zapowiedzi zadania, sprawy od organizatora) | organizator zadania | **nie**: tylko lokalnie, poza repozytorium i jego historią; wartości z niej w testach zastąpiono syntetycznymi |
 | Skany **urlscan.io** (zrzut, lista żądań odtworzona jako HAR, strona wyniku) | publiczne wyniki wyszukiwania | nie; każdy materiał zebrany z sieci ma plik `zrodlo.json` z adresem źródła i datą dostępu |
 | **Certificate Transparency** (crt.sh, strumień CT) | publiczne logi | nie (tylko `.cache/` i `data/work/`, poza repozytorium) |
 | **RDAP** (`rdap.org`) i **DNS**, Team Cymru (ASN) | publiczne zapytania pasywne | nie (`.cache/`); w trybie importu spraw odpowiedzi zapisuje `provenance.json` (data, czy były zapytania, domeny bez odpowiedzi) |

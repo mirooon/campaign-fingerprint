@@ -132,6 +132,8 @@ Zależności deweloperskie (`devDependencies`, tylko do budowy, testów i kontro
 | eslint-config-next | 16.4.6 | MIT | reguły eslint |
 | @types/node | 20.19.43 | MIT | typy |
 | @types/react, @types/react-dom | 19.3.0 | MIT | typy |
+| qrcode | 1.5.4 | MIT | generowanie kodów QR w testach dekodera (`jsqr`) |
+| @types/qrcode | 1.5.6 | MIT | typy |
 
 Ich zależności przechodnie nie są tu rozpisane (`bun run licenses` obejmuje tylko pakiety produkcyjne).
 
@@ -210,6 +212,7 @@ Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Do
 
 ## 7. Oświadczenie o braku wad prawnych
 
+- **Co obejmuje przeniesienie praw, a co nie (§4 regulaminu zadania).** Przeniesienie autorskich praw majątkowych obejmuje kod, dokumentację, testy i dane syntetyczne stworzone przez zespół. Nie obejmuje utworów osób trzecich, które pozostają na swoich licencjach i z których nabywca korzysta na tych licencjach: (a) zdjęć referencyjnych w `data/faces` (autorzy z Wikimedia Commons; CC BY, CC BY-SA, CC0 i domena publiczna; przycięte kopie są opracowaniami na licencji oryginału, przy CC BY-SA z obowiązkiem share-alike dla tych plików; każdy plik można usunąć i zastąpić własnym bez zmiany kodu); (b) wektorów głosu w `data/voices/index.json`, wyliczonych z publicznych nagrań na standardowej licencji YouTube (samych nagrań nie ma w repozytorium; podstawa prawna wyliczania wektorów z takich nagrań nie została zbadana prawnie, zob. [docs/ZGODNOSC.md](docs/ZGODNOSC.md); nabywca może ten plik usunąć i zbudować galerię z nagrań, do których ma prawa, skryptem `scripts/py/build_voice_index.py`); (c) modeli, bibliotek i narzędzi z punktów 1–4, w tym modelu VAD `speechbrain/vad-crdnn-libriparty` o niepotwierdzonej licencji wag, który jest opcjonalny, domyślnie nieużywany i do zastąpienia przed użyciem komercyjnym (§9). Autorzy nie znają roszczeń osób trzecich do żadnej z tych części; pozycje niepewne wymienia §9.
 - Repozytorium nie zawiera materiałów udostępnionych przez organizatora ani ich fragmentów; dane przykładowe i testowe są syntetyczne ([README.md](README.md#pochodzenie-danych)).
 - Wszystkie składniki z punktów 1–3 są używane zgodnie z ich licencjami; składniki copyleft działają jako osobne procesy albo dynamicznie ładowane biblioteki.
 - Galeria głosów (`data/voices`, zamknięta lista 10 osób): **w repozytorium i w obrazie są tylko wektory cech głosu (192 liczby na nagranie) i lista źródeł [data/voices/ZRODLA.md](data/voices/ZRODLA.md)**: adres każdego nagrania (YouTube), kanał (autor), fragment, licencja filmu albo podstawa użycia (standardowa licencja YouTube: nagrania publicznych wystąpień służą wyłącznie do wyliczenia wektora, nie są przechowywane w repozytorium ani publikowane; 6 z 76 fragmentów ma licencję Creative Commons Attribution) i data pobrania. Nagrania leżą poza repozytorium i nie trafiają do obrazu. Wektor nie pozwala odtworzyć głosu. Demucs nie jest użyty. Brak wad prawnych oznacza tu zgodność z warunkami licencji; prawo do wykorzystania głosu jako danych biometrycznych: [docs/ZGODNOSC.md](docs/ZGODNOSC.md).

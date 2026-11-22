@@ -19,6 +19,7 @@ import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
 import { clickIdsFromUrls } from "./clickIds";
 import { extractPageCampaignParams, type CampaignParam } from "./campaignParams";
+import { affiliateIdsFromHtml, type AffiliateId } from "./affiliateIds";
 import { findCrmKeys, type CrmKey } from "./crmKey";
 import { findContactIds, type ContactIds } from "./contactIds";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
@@ -116,6 +117,8 @@ export interface PageKit {
   pageParams?: CampaignParam[];
   /** Keys of the CRM / lead API in the page (hash and preview only, I23). */
   crmKeys?: CrmKey[];
+  /** Affiliate-network accounts in the page's forms and links, scoped to the network host (B-330; api_key as SHA-256 only). */
+  affiliateIds?: AffiliateId[];
   /** Sentences of the page text and of the messages in its scripts that may come from a template (I23). */
   templatePhrases?: TemplatePhrase[];
   /** Developer messages of the page's own scripts, inline and external, without SDK and library files (I25). */
@@ -1048,14 +1051,15 @@ export function ownScriptUrls(kit: PageKit, pageUrl: string): string[] {
 
 /**
  * The lead-company and text-fingerprint fields of a page kit (I23, I25): campaign parameters of the form
- * and scripts, the CRM keys, the template sentences and the developer messages, each omitted when the page
+ * and scripts, the CRM keys, the affiliate-network accounts (B-330), the template sentences and the developer messages, each omitted when the page
  * has none (kits saved before stay the same shape). Scripts of the platform SDK, framework bundles and
  * libraries (`isMaskedScript`) and interface dictionaries (`localizedUi`) never feed the text traces:
  * their strings are the same on every page of the platform. `external` are the page's own script files
  * (at most TEXT_CONFIG.kitStrings.maxScriptsPerPage).
  */
-function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "pageParams" | "crmKeys" | "templatePhrases" | "kitStrings" | "localizedUi"> {
+function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "pageParams" | "crmKeys" | "affiliateIds" | "templatePhrases" | "kitStrings" | "localizedUi"> {
   const pageParams = extractPageCampaignParams(html, pageUrl);
+  const affiliateIds = affiliateIdsFromHtml(html, pageUrl);
   const crmKeys = findCrmKeys(html);
   const parts = splitHtml(html);
   const own = external.slice(0, TEXT_CONFIG.kitStrings.maxScriptsPerPage).filter((s) => !isMaskedScript(s.url)).map((s) => s.body);
@@ -1071,6 +1075,7 @@ function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pi
   return {
     ...(pageParams.length ? { pageParams } : {}),
     ...(crmKeys.length ? { crmKeys } : {}),
+    ...(affiliateIds.length ? { affiliateIds } : {}),
     ...(phrases.length ? { templatePhrases: phrases } : {}),
     ...(kitStrings.length ? { kitStrings } : {}),
     ...(localized.size ? { localizedUi: [...localized].sort() } : {}),

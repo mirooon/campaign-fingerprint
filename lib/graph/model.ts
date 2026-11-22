@@ -71,6 +71,8 @@ export const ENTITY_TYPES = [
   // the ads were launched from, when it differs from the page owner
   "cloaker_account",
   "launcher_account",
+  // account of an affiliate network (B-330): team+user pair, stream or offer UUID, scoped to the network host
+  "affiliate_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -125,6 +127,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   postal_address: "Adres siedziby sklepu",
   cloaker_account: "Konto klienta cloakera",
   launcher_account: "Konto narzędzia do uruchamiania reklam",
+  affiliate_account: "Konto w sieci afiliacyjnej",
 };
 
 export type EdgeType =

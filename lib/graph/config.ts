@@ -386,6 +386,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     c2_host: 0.95,
     // A made-up "dr"/"prof." (B-313): invented by one operator, stronger than a persona (0.1); IDF and maxPivotDf damp a frequent name
     fictional_expert: 0.75,
+    // Account of an affiliate network (B-330): stream_id and offer_uuid at one network host name one
+    // affiliate's flow; the team_id+user_id pair is rule kind "affiliate_team" in campaignRules.notAloneKinds.
+    affiliate_account: 0.9,
     cert: 0.8,
     imagehash: 0.65,
     // A display name of the advertiser alone does not merge campaigns (rule kind advertiser_name in
@@ -470,7 +473,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "affiliate_team"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
     // claim belongs to the script of the scheme, which many operators copy
     familyOnlyKinds: ["technique", "persona", "profit_claim"],

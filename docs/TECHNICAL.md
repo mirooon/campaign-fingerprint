@@ -364,6 +364,7 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `messenger_invite` | klucz `usługa:id` zaproszenia lub konta (discord, signal, signal_group, viber, line) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `cloaker_account` | `<cl_domain>/<cl_sid>` z `window.aio.visit.fields` (cloaker Cloakerson, §4.22); sam sid albo sama domena to atrybut | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
 | `launcher_account` | UUID `visit.fields.launcher` / `visit.launcher`, tylko gdy różny od `owner_uuid` (§4.22) | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
+| `affiliate_account` | klucz `team\|stream\|offer_uuid:host_sieci:wartość` (B-330, §4.19) | `lib/osint/affiliateIds.ts` | 0.9 | tak; para team/user ×0,7, reguła `affiliate_team` w `notAloneKinds` |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 
 ### 4.2 Krawędzie (`model.ts`)
@@ -760,6 +761,8 @@ Import skryptów do fixtures (`caseImport.ts`): skrypty z folderu `<nazwa>_files
 Podcasty śledcze (OSINT Podcast, Fraud Forward) opisują lejek „pomocy technicznej”, ClickFix, udostępnione dokumenty i czaty. Prawie wszystko to atrybuty materiału; ślady łączące są tylko trzy (§4.1). Opis metody: `docs/METODYKA.md` §4d.
 
 **Nowe ślady** (`lib/osint/contactIds.ts`, listy w `lib/osint/contactConfig.ts`): `findContactIds(tekst)` zwraca `{ sharedDocs, onion, onionV2, messengers }`. Źródła: `PageExtract` (tekst widoczny i atrybuty), `TextExtract` (tekst reklamy i OCR), `PageKit.requestContacts` (adresy żądań z HAR). W `link.ts` (`addContacts`) idą do węzłów `shared_doc`, `onion`, `messenger_invite` z wagą 0,9 jak `telegram`; IDF i `maxPivotDf` bez zmian. Identyfikatory przykładowe z dokumentacji i serwery społeczności platform są pomijane. `onionV2` trafia do danych materiału (`onionV2`), nie do grafu.
+
+**Konto w sieci afiliacyjnej (B-330).** `lib/osint/affiliateIds.ts`: `affiliateIdsFromHtml(html, pageUrl)` (ukryte pola każdego formularza w zakresie hosta akcji, linki `<a href>` i akcje formularzy; zapis w `PageKit.affiliateIds`) i `affiliateIdsFromUrls(urls)` (adres reklamy, przekierowania, adres końcowy, linki wychodzące; parametr `referer` dekodowany z base64 do 2 poziomów). Rodzaje: `team_user` (`42/13`), `stream`, `offer_uuid`, `api_key` (tylko SHA-256; w `link.ts` idzie do węzła `crm_key`, bez podwójnego liczenia z kluczem z formularza). `stream_id` powiązany przez `affiliate_account` nie tworzy już globalnego `campaign_param` `flow_id`. `maskUrl` zamienia wartość `api_key=` na skrót. Paczka: `ads[].affiliate_accounts`.
 
 **Nowe techniki strony** (`lib/osint/pageTechniques.ts`, słowniki w `lib/osint/techniqueConfig.ts`), dopisane do `techniques[]` (węzeł `technique`, 0,2, `familyOnlyKinds`): `fake_security_alert`, `remote_access_tool`, `clickfix_paste`. `detectPageTechniques` zwraca też `clickfix: { kind, sha256 } | null` (polecenie nigdy nie jest zapisywane; `PageKit.clickfix`, dane materiału `clickfix`). W kodzie nie ma atrybutu roli strony w lejku (`funnel_role`), więc „telefon zamiast formularza” jest tylko techniką.
 

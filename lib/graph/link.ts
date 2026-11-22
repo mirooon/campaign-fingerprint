@@ -15,6 +15,7 @@ import { speakerSimilarity } from "../media/speaker";
 import { hammingDistance } from "../media/imageHash";
 import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
+import { affiliateIdsFromUrls, type AffiliateId } from "../osint/affiliateIds";
 import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
 import { companyIdsOfMaterial } from "../text/companyIds";
@@ -1107,11 +1108,18 @@ export function buildEvidenceGraph(
       if (nameKind) itemData.advertiserNameKind = nameKind;
     }
     const perClick = new Set(config.lists.campaignParamPerClickNames ?? []);
+    // Affiliate-network accounts (B-330): scoped to the network host, so a stream_id they carry is not also
+    // counted as a global campaign_param
+    const affStreams = linkAffiliateIds(g, add, itemNode, [
+      ...(landingPage?.kit?.affiliateIds ?? []),
+      ...affiliateIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...outboundUrls]),
+    ], new Set((landingPage?.kit?.crmKeys ?? []).map((k) => k.sha256)));
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
       if (cp.cyrillic) itemData.cyrillic = true;
       // a value new for every click is shared only by one visit: no pivot between materials
       if (perClick.has(cp.canonicalName)) continue;
+      if (cp.name.toLowerCase() === "stream_id" && affStreams.has(cp.value.trim().toLowerCase())) continue;
       const value = cp.value.trim();
       const origin = cp.origin === "form" ? " (z formularza)" : cp.origin === "script" ? " (ze skryptu strony)" : "";
       // An internal number of a tracker (campaign_id=319) names a campaign only on one tracker server:
@@ -1916,4 +1924,53 @@ export function impersonatedBrand(title: string | null | undefined, pageUrl: str
 
 function round(x: number): number {
   return Math.round(x * 1e4) / 1e4;
+}
+
+/** Relation of the team_id+user_id pair (B-330): 0.9 x 0.7 stays below strongThreshold, so it never merges alone. */
+const AFFILIATE_TEAM_RELATION = 0.7;
+
+/** Polish reader label of an affiliate-network ID kind (B-330). */
+const AFFILIATE_KIND_LABEL: Record<AffiliateId["kind"], string> = {
+  team_user: "zespół i użytkownik",
+  stream: "strumień (stream_id)",
+  offer_uuid: "oferta (offer_uuid)",
+  api_key: "klucz API",
+};
+
+/**
+ * Adds the affiliate-network accounts of one item (B-330): an `affiliate_account` node keyed by kind, network
+ * host and value for the team_id+user_id pair, stream_id and offer_uuid. An api_key becomes the `crm_key`
+ * node of its SHA-256 (the same account as a key in the form, never counted twice; skipped when the page's
+ * crm keys already hold it). Returns the lower-cased stream values linked here, so the caller does not count
+ * them again as a global campaign_param.
+ */
+function linkAffiliateIds(
+  g: GraphBuilder,
+  add: (pivot: string, type: EntityType, path: string[], relation: number, how: string) => void,
+  itemNode: string,
+  ids: AffiliateId[],
+  crmHashes: Set<string>,
+): Set<string> {
+  const streams = new Set<string>();
+  const seen = new Set<string>();
+  for (const a of ids) {
+    const key = `${a.kind === "team_user" ? "team" : a.kind}:${a.host}:${a.value.toLowerCase()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const where = a.via === "form" ? "ukrytym polu formularza" : a.via === "referer" ? "zakodowanym parametrze referer linku" : "linku zamówienia";
+    if (a.kind === "api_key") {
+      if (crmHashes.has(a.value)) continue;
+      const id = g.node("crm_key", a.value, `klucz API sieci afiliacyjnej (sha256 ${a.value.slice(0, 12)}…)`, { sha256: a.value, field: "api_key", via: a.via, host: a.host });
+      g.edge(itemNode, id, "posts_to", `klucz API sieci afiliacyjnej ${a.host} w ${where} (sha256 ${a.value.slice(0, 12)}…)`);
+      add(id, "crm_key", [itemNode, id], 1, `ten sam klucz API sieci afiliacyjnej (sha256 ${a.value.slice(0, 12)}…)`);
+      continue;
+    }
+    if (a.kind === "stream") streams.add(a.value.toLowerCase());
+    const what = AFFILIATE_KIND_LABEL[a.kind];
+    const id = g.node("affiliate_account", key, `${a.host} · ${what} ${a.value}`, { kind: a.kind, host: a.host, value: a.value, via: a.via, ...(a.attrs ? { attrs: a.attrs } : {}) });
+    g.edge(itemNode, id, "carries_param", `konto sieci afiliacyjnej ${a.host} (${what} ${a.value}) w ${where}`);
+    // the team+user pair is two small numbers: below strongThreshold, it only supports a link (rule kind affiliate_team)
+    add(id, "affiliate_account", [itemNode, id], a.kind === "team_user" ? AFFILIATE_TEAM_RELATION : 1, `to samo konto w sieci afiliacyjnej ${a.host}: ${what} ${a.value}`);
+  }
+  return streams;
 }

@@ -344,6 +344,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       campaign_params: [...(enr?.campaignParams ?? []), ...(page?.kit?.pageParams ?? [])].map((p) => ({ name: p.name, value: p.value, source_url: p.sourceUrl, cyrillic: p.cyrillic, origin: p.origin ?? "url" })),
       // the key itself is never written: preview (first and last characters) and SHA-256 only
       crm_keys: (page?.kit?.crmKeys ?? []).map((k) => ({ preview: k.preview, sha256: k.sha256, field: k.name, via: k.via })),
+      // affiliate-network accounts of the page's forms and links (B-330); an api_key appears as its SHA-256 only
+      affiliate_accounts: (page?.kit?.affiliateIds ?? []).map((a) => ({ kind: a.kind, network_host: a.host, value: a.value, via: a.via, ...(a.attrs ? { attrs: a.attrs } : {}) })),
       // techniques of the landing page (attributes of the scheme, not links) with where they were read
       page_techniques: ((data.techniques as string[] | undefined) ?? []).map((t) => ({
         technique: t,

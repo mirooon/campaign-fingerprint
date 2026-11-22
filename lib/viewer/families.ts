@@ -82,6 +82,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   c2_host: "infra",
   cloaker_account: "infra",
   launcher_account: "infra",
+  affiliate_account: "infra",
 };
 
 /** Feature keys of a material (`MaterialItemResult.features`, item node data) and their family. */

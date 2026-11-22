@@ -84,11 +84,13 @@ export function isSecretParam(name: string, value: string): boolean {
   return META_QUERY_VALUE.test(value) || (name.toLowerCase() === "ip" && isIP(value) !== 0);
 }
 
-/** Masks Meta tokens and the analyst's IP (`ip=`) in the query values of every address inside `text`. */
+/** Masks Meta tokens, the analyst's IP (`ip=`) and affiliate API keys (`api_key=`, as a hash) in the query values of every address inside `text`. */
 function maskQueries(text: string): string {
   return text.replace(QUERY_PAIR, (whole, sep: string, name: string, value: string) => {
     if (META_QUERY_VALUE.test(value)) return `${sep}${name}=${maskMetaToken(value)}`;
     if (name.toLowerCase() === "ip" && isIP(value)) return `${sep}${name}=${REDACTED}`;
+    // an affiliate network's API key in a link is a secret: only its hash is kept (B-330)
+    if (name.toLowerCase() === "api_key" && value.length >= 16) return `${sep}${name}=[sha256:${createHash("sha256").update(value).digest("hex").slice(0, 12)}]`;
     return whole;
   });
 }

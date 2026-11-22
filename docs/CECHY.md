@@ -91,6 +91,7 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `text` | Tekst reklamy | pomaga | z materiału |
 | `dhash` | Odcisk obrazu | łączy | ze zrzutu |
 | `domSimhash` | Odcisk budowy strony | pomaga | z HAR albo zapisu strony |
+| `platformSourceIds` | Identyfikatory źródeł ruchu na platformie | łączy | z linków platformy stron (parametr suuid) |
 
 ## 2. Atrybuty materiału i kampanii
 
@@ -166,6 +167,23 @@ Opisują materiał, nie łączą go z innymi.
 | `firstSeen` | Pierwsza obserwacja | z materiału |
 | `cyrillic` | Cyrylica w kodzie strony | z kodu strony |
 | `cloakingSuspected` | Podejrzenie cloakingu | z dwóch pobrań strony |
+| `personaCategories` | Rodzaje osób w reklamie | z listy osób publicznych (np. polityk, prezenter, lekarz) dla osób rozpoznanych w materiale |
+| `cloakerInSource` | Cloaker w kodzie strony | z kodu strony albo nazwy źródła ruchu: oznaczenie, że strona działa przez cloaker (atrybut, nie dowód kampanii) |
+| `platformAccountSource` | Skąd wiadomo, które to konto platformy | z kodu strony: konto z adresu najemcy (tenant) albo z owner_uuid (atrybut) |
+| `platformAccountWarning` | Ostrzeżenie o niespójnym koncie platformy | z kodu strony: najemca w adresie różni się od owner_uuid, więc przypisano konto według owner_uuid (atrybut) |
+| `platformTenants` | Najemcy platformy w adresach plików strony | z adresów plików strony (landing-cdn): identyfikatory kont, na których stoi strona |
+| `infrastructure` | Wspólna infrastruktura reklam (opis) | z podsumowania kampanii: domeny, trackery, IP, kontakty i portfele łączące reklamy (tylko opis) |
+| `techniques` | Techniki strony | z kodu i treści strony: lista rozpoznanych technik oszustwa, np. fałszywe komentarze (atrybut, nie dowód kampanii) |
+| `creativeBrand` | Marka rozpoznana na obrazie reklamy | z porównania obrazu reklamy ze wzorcami marek (atrybut, prawdopodobieństwo, nie dowód kampanii) |
+| `domainAgeDays` | Wiek domeny w dniach | z daty rejestracji domeny (RDAP) i daty pierwszej obserwacji materiału; bardzo młoda domena to słaba wskazówka |
+| `certAgeDays` | Wiek pierwszego certyfikatu w dniach | z dziennika certyfikatów (CT) i daty pierwszej obserwacji materiału; świeży certyfikat to słaba wskazówka |
+| `pagePlatforms` | Platformy budowy strony | z kodu strony: rozpoznane platformy i narzędzia (np. aio, binom), na których zbudowano stronę (atrybut, nie dowód kampanii) |
+| `inputExtra` | Dodatkowe kolumny z danych wejściowych | z kolumn pliku wejściowego spoza standardowego mapowania (łączą tylko kolumny wskazane w konfiguracji) |
+| `namingMixedScript` | Nazwa z mieszanych alfabetów | z nazw w panelu platformy: litery łacińskie wymieszane z cyrylicą (słaba wskazówka) |
+| `codeCommentLang` | Język komentarzy w kodzie strony | z komentarzy w kodzie strony: ukraiński albo rosyjski (atrybut, nie dowód kampanii) |
+| `landerSlugStyle` | Styl ścieżki adresu strony | z ścieżki adresu: ciąg spółgłosek albo lista losowych słów (atrybut, nie dowód kampanii) |
+| `advertiserNameStyle` | Styl nazwy reklamodawcy | z nazwy reklamodawcy: losowa „marka” albo zagraniczne imię i nazwisko (atrybut, nie dowód kampanii) |
+| `adCreatedApprox` | Przybliżona data utworzenia reklamy | z identyfikatora reklamy Meta i innych reklam o znanych datach (szacunek, atrybut) |
 
 ## 3. Techniki manipulacji
 
@@ -176,19 +194,19 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 | `fake_security_alert` | fałszywy alarm bezpieczeństwa z numerem telefonu | Strona straszy wirusem, zablokowanym komputerem albo zhakowanym kontem, podaje numer telefonu jako jedyne wyjście i nie pozwala łatwo jej opuścić (pełny ekran, okna alertu, pułapka „wstecz”, dźwięk alarmu). |
 | `remote_access_tool` | program do zdalnego pulpitu do pobrania | Link albo instrukcja pobrania programu do zdalnego pulpitu (np. AnyDesk, TeamViewer QuickSupport) z prośbą o podanie kodu dostępu. |
 | `clickfix_paste` | fałszywa weryfikacja z poleceniem do wklejenia | Fałszywy CAPTCHA albo „weryfikacja, że nie jesteś robotem” każe nacisnąć skrót (np. Win+R) i wkleić polecenie, które strona skopiowała do schowka. |
-| `fake_comments` | fałszywe komentarze |  |
-| `fake_app_store` | fałszywy sklep z aplikacjami |  |
-| `back_trap` | pułapka „wstecz” |  |
-| `fake_social_post` | udawany post w serwisie społecznościowym |  |
-| `recent_purchase_popup` | wyskakujące „ktoś właśnie kupił” (sklep) |  |
-| `low_stock_claim` | „ostatnie sztuki” i „ogląda N osób” (sklep) |  |
-| `countdown_timer` | licznik czasu przy ofercie (sklep) |  |
-| `closing_down_story` | historia o likwidacji sklepu (sklep) |  |
-| `crypto_discount` | dodatkowy rabat za płatność kryptowalutą (sklep) |  |
-| `waitlist_upsell` | rabat jako zapis na listę oczekujących z dopłatą (sklep) |  |
-| `trial_subscription` | okres próbny z automatycznym odnowieniem subskrypcji (sklep) |  |
-| `blik_via_messenger` | kod BLIK przez komunikator (sklep) |  |
-| `fake_courier_payment` | strona udająca kuriera z polem karty i wyborem paczkomatu (sklep) |  |
+| `fake_comments` | fałszywe komentarze | Pod artykułem albo reklamą jest sekcja komentarzy, w której rzekomi czytelnicy chwalą produkt albo pokazują zarobki, ale wpisano ją w kod strony, a nie pochodzi z prawdziwej wtyczki serwisu. |
+| `fake_app_store` | fałszywy sklep z aplikacjami | Strona udaje sklep z aplikacjami (Google Play, App Store) z oceną, liczbą pobrań i przyciskiem „Zainstaluj”. |
+| `back_trap` | pułapka „wstecz” | Strona przejmuje przycisk „wstecz” przeglądarki, więc po jego naciśnięciu zostajemy na niej albo trafiamy na kolejną stronę oszusta. |
+| `fake_social_post` | udawany post w serwisie społecznościowym | Strona wygląda jak post z serwisu społecznościowego (Facebook, X) z polubieniami i komentarzami, choć jest zwykłą stroną oszusta. |
+| `recent_purchase_popup` | wyskakujące „ktoś właśnie kupił” (sklep) | Na stronie wyskakują okienka, że ktoś przed chwilą kupił produkt („Anna z Poznania kupiła 2 min temu”). |
+| `low_stock_claim` | „ostatnie sztuki” i „ogląda N osób” (sklep) | Strona twierdzi, że zostały ostatnie sztuki albo że produkt ogląda w tej chwili wiele osób. |
+| `countdown_timer` | licznik czasu przy ofercie (sklep) | Przy ofercie widać licznik, który odlicza czas do końca promocji. |
+| `closing_down_story` | historia o likwidacji sklepu (sklep) | Strona opowiada, że sklep się likwiduje, zamyka albo jest wyprzedaż przed zamknięciem, i dlatego ceny są bardzo niskie. |
+| `crypto_discount` | dodatkowy rabat za płatność kryptowalutą (sklep) | Strona oferuje dodatkowy rabat za zapłatę kryptowalutą. |
+| `waitlist_upsell` | rabat jako zapis na listę oczekujących z dopłatą (sklep) | Rabat jest przedstawiony jako zapis na listę oczekujących, a po zapisie pojawia się dopłata albo dodatkowa usługa. |
+| `trial_subscription` | okres próbny z automatycznym odnowieniem subskrypcji (sklep) | Oferta „za 1 zł” albo darmowy okres próbny, po którym płatność odnawia się automatycznie jako droga subskrypcja. |
+| `blik_via_messenger` | kod BLIK przez komunikator (sklep) | Strona każe podać kod BLIK albo zapłacić przez rozmowę w komunikatorze (np. Messenger). |
+| `fake_courier_payment` | strona udająca kuriera z polem karty i wyborem paczkomatu (sklep) | Strona udaje kuriera (np. InPost, DHL): prosi o dopłatę do paczki, ma pole karty i wybór paczkomatu. |
 
 ## 4. Tematy i haczyki narracji
 
@@ -234,48 +252,18 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 
 ## Bez opisu
 
-- atrybut: personaCategories (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: platformSourceIds (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: cloakerInSource (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: platformAccountSource (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: platformAccountWarning (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: platformTenants (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: infrastructure (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: techniques (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: creativeBrand (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: domainAgeDays (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: certAgeDays (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: pagePlatforms (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: inputExtra (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: namingMixedScript (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: codeCommentLang (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: landerSlugStyle (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: advertiserNameStyle (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- atrybut: adCreatedApprox (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
-- technika: fake_comments (brak wpisu w TECHNIQUE_INFO)
-- technika: fake_app_store (brak wpisu w TECHNIQUE_INFO)
-- technika: back_trap (brak wpisu w TECHNIQUE_INFO)
-- technika: fake_social_post (brak wpisu w TECHNIQUE_INFO)
-- technika: recent_purchase_popup (brak wpisu w TECHNIQUE_INFO)
-- technika: low_stock_claim (brak wpisu w TECHNIQUE_INFO)
-- technika: countdown_timer (brak wpisu w TECHNIQUE_INFO)
-- technika: closing_down_story (brak wpisu w TECHNIQUE_INFO)
-- technika: crypto_discount (brak wpisu w TECHNIQUE_INFO)
-- technika: waitlist_upsell (brak wpisu w TECHNIQUE_INFO)
-- technika: trial_subscription (brak wpisu w TECHNIQUE_INFO)
-- technika: blik_via_messenger (brak wpisu w TECHNIQUE_INFO)
-- technika: fake_courier_payment (brak wpisu w TECHNIQUE_INFO)
+Wszystko w rejestrach ma polską nazwę i opis.
 
 ## 5. Podsumowanie
 
 | Sekcja | Liczba |
 |---|---|
 | Ślady łączące (typy) | 59 (kampania: 31, grupa: 3, tylko z innym śladem: 25) |
-| Cechy materiału łączące albo pomagające | 17 |
-| Atrybuty materiału i kampanii | 86 |
+| Cechy materiału łączące albo pomagające | 18 |
+| Atrybuty materiału i kampanii | 85 |
 | Techniki manipulacji | 16 |
 | Tematy narracji | 22 |
 | Haczyki narracji | 12 |
-| Bez opisu | 31 |
+| Bez opisu | 0 |
 
-Wygenerowano: 2026-11-22, commit `4c01d2a`.
+Wygenerowano: 2026-11-22, commit `ecbcd35`.

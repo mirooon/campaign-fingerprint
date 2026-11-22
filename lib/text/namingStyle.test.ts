@@ -20,7 +20,7 @@ describe("commentLanguage", () => {
 
 describe("landerSlugStyle", () => {
   it("recognises vowelless and wordlist slugs", () => {
-    expect(landerSlugStyle("/prstt-pl-rmxlfrtm-svshnnk-x-tw/index.html")).toBe("consonant_slug");
+    expect(landerSlugStyle("/krwst-pl-mnbvrtk-zdrfnn-x-qw/index.html")).toBe("consonant_slug");
     expect(landerSlugStyle("/wood_music_soda_treasure_reaction_skirt/")).toBe("wordlist_slug");
     expect(landerSlugStyle("/blog/how-to-lose-weight/")).toBeNull();
   });
@@ -29,12 +29,12 @@ describe("landerSlugStyle", () => {
 describe("advertiserNameStyle", () => {
   const pl = "Odchudzanie bez wysiłku, to się sprawdza";
   it("flags a random brand and a foreign person name in a Polish ad", () => {
-    expect(advertiserNameStyle("Sustain Studio", pl)).toBe("random_brand");
-    expect(advertiserNameStyle("Sharon Coleman", pl)).toBe("foreign_person_name");
+    expect(advertiserNameStyle("Velvet Studio", pl)).toBe("random_brand");
+    expect(advertiserNameStyle("Linda Harper", pl)).toBe("foreign_person_name");
   });
   it("ignores English ads and names that occur in the ad", () => {
-    expect(advertiserNameStyle("Sustain Studio", "Lose weight fast with this")).toBeNull();
-    expect(advertiserNameStyle("Sustain Studio", `${pl} Sustain`)).toBeNull();
+    expect(advertiserNameStyle("Velvet Studio", "Lose weight fast with this")).toBeNull();
+    expect(advertiserNameStyle("Velvet Studio", `${pl} Velvet`)).toBeNull();
     expect(advertiserNameStyle("Jan Kowalski", pl)).toBeNull();
   });
 });

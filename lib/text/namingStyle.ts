@@ -43,7 +43,7 @@ export function commentLanguage(text: string): "uk" | "ru" | null {
 
 /**
  * Style of the folder name in a landing-page path: `consonant_slug` (at least three hyphen-separated parts
- * without vowels, "prstt-pl-rmxlfrtm") or `wordlist_slug` (five or more short lowercase words joined by `_` or
+ * without vowels, "krwst-pl-mnbvrtk") or `wordlist_slug` (five or more short lowercase words joined by `_` or
  * `-`, "wood_music_soda_treasure_reaction"). Null for an ordinary path (B-341).
  */
 export function landerSlugStyle(path: string): "consonant_slug" | "wordlist_slug" | null {

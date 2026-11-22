@@ -89,7 +89,7 @@ export const LEAD_CONFIG = {
     /** A private person's name: two or three capitalised words of letters ("Jan Kowalski", "Anna Nowak-Lis"). */
     personName: /^\p{Lu}\p{Ll}+(?:[ -]\p{Lu}\p{Ll}+){1,2}$/u,
     /**
-     * Words of page and brand names that look like a person's name only by their shape ("Boss Stream",
+     * Words of page and brand names that look like a person's name only by their shape ("Smart Media",
      * "Daily Studio"): a name with one of them is no private person (folded, whole words).
      */
     brandWords: [

@@ -17,8 +17,37 @@ import { isIP } from "node:net";
 /** Placeholder written in place of a redacted value. */
 export const REDACTED = "[zredagowane]";
 
-/** Keys of the visitor record the pipeline needs and that carry no data about the visitor. */
-export const VISIT_KEEP_KEYS = ["campaign_human_id"];
+/**
+ * Keys of the visitor record that describe the operator, not the visitor: the campaign number, the
+ * site and its account (`launcher` is the owner of the platform account), landers, flows, forms,
+ * destinations, the advertiser and the ad accounts and pixels the page reports to. They are the
+ * evidence that links campaigns, so they stay; every other key of the record is redacted.
+ */
+export const VISIT_KEEP_KEYS = [
+  "campaign_human_id", "campaign_type", "campaign_feature", "created_at",
+  "domain", "domain_uuid", "uuid", "launcher", "path", "initial_path",
+  "landing_uuids", "landing_human_ids", "landing_type_uuids", "landing_showcase_uuid", "landing_name", "landing_language", "landing_country", "landing_geo", "landing_theme", "landing_celebrity",
+  "flow_uuid", "flow_uuids", "form_uuid", "destination_uuid", "destination_url", "destination_external_id", "advertiser_uuid",
+  "brand_name", "client_name", "offer_name", "offer_name_registry", "buyer_utm", "bridge_buyer_utm", "buying_team", "traffic_source", "aio_source_campaign",
+  "creative", "creative_celebrity", "celebrity_1", "pwa_app_name", "pwa_icon_url",
+  "fb_pixel", "fb_pixel_domain", "fb_account_id", "fb_campaign_id", "fb_campaign_name", "fb_ad_set_id", "fb_ad_set_name", "fb_ad_id", "fb_ad_name", "fb_placement", "fb_site_source_name",
+  "tt_pixel", "tt_campaign_id", "tt_campaign_name", "tt_adgroup_id", "tt_adgroup_name", "tt_ad_id", "tt_ad_name", "tt_creative_id", "tt_creative_name",
+  "cgpt_pixel_id", "cgpt_account_id", "cgpt_campaign_id", "cgpt_ad_group_id", "cgpt_ad_id",
+  "gl_gtag_id", "gl_gtag_conversion_id", "gl_gtag_conversion_label", "gl_campaignid", "gl_adgroupid", "gl_creative",
+  "snap_pixel", "snap_campaign_id", "bigo_pixel_id", "taboola_pixel", "quora_pixel", "rdt_pixel", "x_pixel_id", "brand_pixel",
+];
+
+/**
+ * Keys of the visitor record that identify the analyst (network, browser, location, session,
+ * cookies, what was typed into the form). Their values are also removed from the rest of the page;
+ * values of other redacted keys (click ids, the visit query, tokens) are removed only in place, so
+ * that the address of the page and the paths of its assets, which may repeat them, stay evidence.
+ */
+export const VISIT_ANALYST_KEYS = [
+  "ip_address", "fingerprint", "ja3_hash", "ja4", "useragent", "user_agent", "session", "fbp", "fbc",
+  "email", "phone", "first_name", "last_name", "password",
+  "location_city", "location_postal_code", "location_subdivisions", "asn_organization",
+];
 
 /** Keys that are the analyst's browser or network wherever they appear (outside `visit` too, e.g. the POST of the platform). */
 export const VISITOR_KEYS = ["ip_address", "visitor_ip", "client_ip", "ja3_hash", "ja3", "ja4", "fingerprint", "zip_code", "postal_code"];
@@ -82,36 +111,38 @@ const JSON_PAIR = /("([^"\\]+)"\s*:\s*)("(?:[^"\\]|\\.)*"|\{[^{}]*\}|\[[^\]]*\]|
 const scalar = (raw: string): string | null => (raw.startsWith('"') ? raw.slice(1, -1) : /^[^{[]/.test(raw) && raw !== "null" ? raw : null);
 
 /** Collects a value to be removed from the rest of the text too (a short value would hit ordinary text, so it is skipped). */
-function remember(found: Set<string>, raw: string): void {
+function remember(found: Set<string> | null, raw: string): void {
+  if (!found) return;
   const v = scalar(raw);
   if (v && v.length >= MIN_GLOBAL_VALUE && v !== REDACTED) found.add(v);
 }
 
-/** Redacts the values of the given keys in JSON text (`"key": value`); returns the new text. */
-function redactJsonPairs(text: string, shouldRedact: (key: string) => boolean, found: Set<string>): string {
+/** Redacts the values of the given keys in JSON text (`"key": value`); values of keys for which `global` is true are collected into `found` to be removed elsewhere too. */
+function redactJsonPairs(text: string, shouldRedact: (key: string) => boolean, found: Set<string>, global: (key: string) => boolean = () => true): string {
   return text.replace(JSON_PAIR, (whole, head: string, key: string, raw: string) => {
     if (!shouldRedact(key) || raw === `"${REDACTED}"`) return whole;
-    remember(found, raw);
+    remember(global(key) ? found : null, raw);
     return `${head}"${REDACTED}"`;
   });
 }
 
 /**
  * Page code (saved HTML, response body of a HAR) without the analyst's visit data: the `visit`
- * record of the platform (all but its campaign number), the browser-identifying keys wherever they
- * stand, JavaScript assignments `visit.<key> = …`, every other occurrence of a removed value, and
+ * record of the platform (all but the operator's keys), the browser-identifying keys wherever they
+ * stand, JavaScript assignments `visit.<key> = …`, every other occurrence of the analyst's values, and
  * Meta tokens and `ip=` in links. `changed` tells whether anything was replaced.
  */
 export function redactPageHtml(html: string): { text: string; changed: boolean } {
   const found = new Set<string>();
   let out = html;
-  // 1. the visitor record: every key except the campaign number
+  const analyst = (k: string) => VISIT_ANALYST_KEYS.includes(k) || VISITOR_KEYS.includes(k.toLowerCase());
+  // 1. the visitor record: every key except the operator's (only the analyst's values are removed elsewhere too)
   const visitStart = /"visit"\s*:\s*\{/g;
   for (let m = visitStart.exec(out); m; m = visitStart.exec(out)) {
     const open = m.index + m[0].length - 1;
     const close = closingBrace(out, open);
     if (close < 0) continue;
-    const inner = redactJsonPairs(out.slice(open + 1, close), (k) => !VISIT_KEEP_KEYS.includes(k), found);
+    const inner = redactJsonPairs(out.slice(open + 1, close), (k) => !VISIT_KEEP_KEYS.includes(k), found, analyst);
     out = `${out.slice(0, open + 1)}${inner}${out.slice(close)}`;
     visitStart.lastIndex = open + 1 + inner.length;
   }
@@ -120,10 +151,10 @@ export function redactPageHtml(html: string): { text: string; changed: boolean }
   // 3. the same record written as JavaScript assignments
   out = out.replace(/(\bvisit\.([A-Za-z0-9_]+)\s*=\s*)("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|[^;\s,)]+)/g, (whole, head: string, key: string, raw: string) => {
     if (VISIT_KEEP_KEYS.includes(key)) return whole;
-    remember(found, raw.replace(/^'|'$/g, '"'));
+    remember(analyst(key) ? found : null, raw.replace(/^'|'$/g, '"'));
     return `${head}"${REDACTED}"`;
   });
-  // 4. the removed values elsewhere in the text
+  // 4. the analyst's removed values elsewhere in the text
   for (const v of found) out = out.split(v).join(REDACTED);
   out = maskText(out);
   return { text: out, changed: out !== html };

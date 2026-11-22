@@ -50,6 +50,16 @@ describe("redactPageHtml", () => {
     expect(js.text).not.toContain("zz-999999");
   });
 
+  it("keeps the operator's keys of the visitor record and their repetitions in the page, removing only the analyst's values everywhere", () => {
+    const lander = "/landers/22222222-2222-4222-8222-222222222222/";
+    const v = { campaign_human_id: 5, domain: "strona.example", launcher: "33333333-3333-4333-8333-333333333333", path: lander, landing_uuids: ["22222222-2222-4222-8222-222222222222"], query: "?fbclid=klik-123456", ip_address: "192.0.2.44", useragent: "Mozilla/5.0 Analityk", location_city: "Testowo-Dolne" };
+    const page = `<!-- saved from url=(0040)https://strona.example${lander}?fbclid=klik-123456 --><script>window.aio = ${JSON.stringify({ visit: v })};</script><script src="${lander}app.js"></script><p>Mozilla/5.0 Analityk 192.0.2.44 Testowo-Dolne</p>`;
+    const out = redactPageHtml(page).text;
+    for (const keep of ['"domain":"strona.example"', '"launcher":"33333333-3333-4333-8333-333333333333"', `"path":"${lander}"`, `src="${lander}app.js"`, `saved from url=(0040)https://strona.example${lander}?fbclid=klik-123456`]) expect(out, keep).toContain(keep);
+    expect(out).toContain(`"query":"[zredagowane]"`);
+    for (const gone of ["192.0.2.44", "Mozilla/5.0 Analityk", "Testowo-Dolne"]) expect(out, gone).not.toContain(gone);
+  });
+
   it("reports no change for a page without such data", () => {
     const plain = "<html><body>nic</body></html>";
     expect(redactPageHtml(plain)).toEqual({ text: plain, changed: false });

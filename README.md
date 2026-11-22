@@ -43,55 +43,6 @@ Wynik: `odcisk-kampanii-sample-data/wynik-wlasne.csv` (werdykt dla każdego mate
 
 Szczegóły i opcje (inny port, zrzuty Waszych spraw w GUI, skrypty pomiarów w `pomiary/`): `README.md` w paczce. Bez paczki narzędzie uruchomisz według sekcji 1 poniżej.
 
-## Dla jury: pierwsze uruchomienie w 5 minut
-
-Potrzebny jest Docker Desktop (albo Docker z Compose v2). Narzędzie działa bez internetu i bez kluczy. Na Windowsie polecenia uruchom w WSL albo Git Bash, a jeśli to nie działa, użyj [poleceń bez skryptu](#1-szybki-start-w-dockerze).
-
-**Krok 1. Demo na danych syntetycznych z repozytorium** (pierwszy raz ok. 3 min, bo budowany jest obraz; potem kilka sekund)
-
-```bash
-git clone <adres repozytorium> && cd odcisk-kampanii
-./jury.sh demo
-```
-
-Przeglądarka otworzy http://localhost:3000. W terminalu zobaczysz osiem materiałów i pięć różnych werdyktów:
-
-```
-1-znana-kampania    known_campaign     K01  Należy do kampanii K01 (silny dowód: ten sam host …)
-2-podobne-kampanie  similar_campaigns  -    Nowa kampania, podobna do K06, K07 …
-3-duplikat          duplicate          K02  Duplikat materiału baza-c2-a: identyczny obraz …
-4-za-malo-danych    insufficient       -    Za mało danych do porównania: brak adresu strony …
-6-ewolucja-1..3     new_campaign       N1   Nowa kampania … Razem z: 6-ewolucja-2, 6-ewolucja-3
-```
-
-**Krok 2. Baza z Waszej próbki** (np. sprawy przekazane zespołom; folder albo zip, każda sprawa w osobnym podfolderze)
-
-```bash
-./jury.sh baza ~/Pobrane/probka          # ok. 10 s na 15 spraw; GUI pokaże kampanie z próbki
-```
-
-**Krok 3. Ocena nowych materiałów względem tej bazy** (np. zbiór ukryty)
-
-```bash
-./jury.sh analizuj ~/Pobrane/nowe        # ok. 40 s na 10 spraw
-```
-
-Wynik: `./dane/wynik-<nazwa>.csv`, czyli jeden wiersz na materiał: werdykt, kampania, siła przesłanek i najsilniejsza przesłanka prostym językiem ([kolumny](#wynik-kolumny-csv)). Terminal podsumowuje werdykty. Karty wyników z pełnymi przesłankami zobaczysz w GUI: wgraj te same pliki w zakładce „Analizuj materiał”, a w zakładce „Kampanie” obejrzysz bazę.
-
-Duże zbiory (wiele GB) można wgrać także w GUI: pliki idą pojedynczo i strumieniowo na dysk (`./dane/praca`), bez limitu rozmiaru i liczby plików, z paskiem postępu.
-
-Układ danych wejściowych rozpoznawany jest sam: podfolder to sprawa, luźny plik to osobny materiał, zip jest rozpakowywany. Pliki są kopiowane do `./dane/jury/` (kontener widzi tylko `./dane`), a oryginały zostają nietknięte.
-
-| Gdy | Zrób |
-|---|---|
-| port 3000 jest zajęty | `PORT=3100 ./jury.sh demo` |
-| widzisz komunikaty `skipped` (asr, clip, lookups) | to normalne: kontener działa bez sieci i bez dużych modeli; powód jest w wyniku |
-| widzisz `pominiętych: N` przy imporcie | to podstrony w sprawach bez adresu strony, a nie całe sprawy (liczba spraw podana obok) |
-| chcesz zatrzymać | `./jury.sh stop` |
-| zmieniono kod | `REBUILD=1 ./jury.sh demo` |
-
-Gdzie w GUI i w kodzie widać każde z kryteriów oceny: [sekcja 4](#4-kryteria-oceny-gdzie-to-zobaczyć). Metodyka na jednej stronie: [sekcja 3](#3-metodyka-w-10-zdaniach).
-
 ## 1. Szybki start w Dockerze
 
 Wymagania: Docker z Compose v2. Pierwsza budowa obrazu trwa 3–5 minut, zależnie od maszyny (2,5–3 min w pomiarze z I7, 4 min 53 s na obciążonej maszynie 22.11), kolejne ok. 40–50 sekund; gdy obraz już jest, `up -d` startuje od razu. Obraz `odcisk-kampanii:latest` ma ok. 3,3 GB na dysku i zawiera bun, zbudowany interfejs, tesseract (polski), ffmpeg, chromaprint i Pythona. Pliki wymieniasz z kontenerem przez katalog `./dane` (w kontenerze `/dane`).
@@ -115,7 +66,7 @@ docker compose run --rm app bun run analyze-material -- --cases /dane/syntetyczn
 
 `demo` pokazuje werdykty `known_campaign`, `similar_campaigns`, `duplicate`, `insufficient` i `new_campaign`, m.in. martwą stronę (tylko zrzut z paskiem adresu; ma werdykt `new_campaign` z cechami z nagranych RDAP/DNS) i trzy strony jednej nowej kampanii ze zmienionymi domenami i twarzami. Bazę z `demo` obejrzysz w GUI: `VIEWER_DATA_DIR=/dane/demo/baza docker compose up -d`.
 
-Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Modele twarzy (YuNet, SFace, ok. 40 MB) są w obrazie, więc `--faces` działa też w kontenerze. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
+Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Modele twarzy (YuNet, SFace, ok. 40 MB) są w obrazie, więc `--faces` działa też w kontenerze. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). `pominiętych: N` przy imporcie to podstrony w sprawach bez adresu strony, a nie całe sprawy (liczba spraw jest podana obok). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
 
 ### Wynik: kolumny CSV
 
@@ -138,7 +89,7 @@ Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca ekspor
 
 ## 2. Jak przeanalizować własne materiały
 
-**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Karta wyniku pokazuje też trasę kliknięcia (reklama → link śledzący → przekierowania → strona-przynęta) i „Dodaj do bazy” (działa na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu). Zakładka „Kampanie” pokazuje bazę, a w karcie kampanii macierz wspólnych śladów, ewolucję (co się zmieniło, a co zostało) i oś czasu; „Celowo nie połączone” pokazuje pary podobne, ale celowo nie połączone w kampanię (z regułą i powodem; plik `near-misses.json` obok `campaigns.json`); „Porównaj” zestawia dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” to pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md). Z przeglądarki analiza wykonuje OCR, odczyt paska adresu, stronę i HAR, DNS/RDAP i, po włączeniu, transkrypcję mowy; twarze, CLIP, odcisk audio, galerię głosów i archiwum uruchamia się z wiersza poleceń (`bun run analyze-material -- --faces --clip --audio --speaker --archive …`), zob. [docs/GUI.md](docs/GUI.md).
+**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Duże zbiory (wiele GB) też: pliki idą pojedynczo i strumieniowo na dysk (`./dane/praca`), bez limitu rozmiaru i liczby plików, z paskiem postępu. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Karta wyniku pokazuje też trasę kliknięcia (reklama → link śledzący → przekierowania → strona-przynęta) i „Dodaj do bazy” (działa na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu). Zakładka „Kampanie” pokazuje bazę, a w karcie kampanii macierz wspólnych śladów, ewolucję (co się zmieniło, a co zostało) i oś czasu; „Celowo nie połączone” pokazuje pary podobne, ale celowo nie połączone w kampanię (z regułą i powodem; plik `near-misses.json` obok `campaigns.json`); „Porównaj” zestawia dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” to pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md). Z przeglądarki analiza wykonuje OCR, odczyt paska adresu, stronę i HAR, DNS/RDAP i, po włączeniu, transkrypcję mowy; twarze, CLIP, odcisk audio, galerię głosów i archiwum uruchamia się z wiersza poleceń (`bun run analyze-material -- --faces --clip --audio --speaker --archive …`), zob. [docs/GUI.md](docs/GUI.md).
 
 **Wiersz poleceń** (`analyze-material`; w Dockerze poprzedź `docker compose run --rm app`):
 

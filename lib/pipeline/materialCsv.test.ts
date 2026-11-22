@@ -52,6 +52,23 @@ describe("materialConfidence", () => {
 });
 
 describe("materialCsv", () => {
+  it("adds an insufficient row for a case the import skipped, none for a case with another record", () => {
+    const csv = materialCsv({
+      items: [item({ id: "m1", caseId: "sprawa-1" })],
+      skipped: [
+        { id: "sprawa-2/strona.html", reason: "brak adresu strony" },
+        { id: "sprawa-2/druga.html", reason: "brak adresu strony" },
+        { id: "sprawa-2/stara.har", reason: "HAR bez treści dokumentu" },
+        { id: "sprawa-1/kopia.mhtml", reason: "brak adresu strony" },
+      ],
+    });
+    const rows = csv.trim().split("\n");
+    expect(rows).toHaveLength(3);
+    expect(rows[2].split(",")).toEqual(["sprawa-2", "sprawa-2", "insufficient", "", "", "", "", "uncertain", "", "", "brak adresu strony; HAR bez treści dokumentu", ""]);
+    expect(csv).not.toContain("kopia.mhtml");
+    expect(materialCsv({ items: [item({})] }).trim().split("\n")).toHaveLength(2);
+  });
+
   it("writes the fixed columns in order, one row per record, quoted where needed", () => {
     const csv = materialCsv({
       items: [

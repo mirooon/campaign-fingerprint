@@ -1,6 +1,7 @@
 /**
- * Batch result of the material analysis as one CSV row per record. The viewer exports the same
- * format, so the column names and their order are fixed.
+ * Batch result of the material analysis as one CSV row per record, plus one row per case the import
+ * could not turn into a record (`skippedCsvRows`). The viewer exports the same format, so the column
+ * names and their order are fixed.
  */
 import type { MaterialItemResult, MaterialLink, MaterialResult } from "./analyzeMaterial";
 
@@ -84,7 +85,34 @@ export function materialCsvRow(item: MaterialItemResult): string[] {
   ];
 }
 
-export function materialCsv(result: Pick<MaterialResult, "items">): string {
-  const rows = [MATERIAL_CSV_COLUMNS as readonly string[], ...result.items.map(materialCsvRow)];
+/** Input of the CSV: the records, and the import's skipped entries when the caller has them. */
+export type MaterialCsvInput = Pick<MaterialResult, "items"> & Partial<Pick<MaterialResult, "skipped">>;
+
+/** Case of a skipped import entry: the importer names a skipped capture `<case>/<file>`. */
+function skippedCase(id: string): string {
+  return id.split("/")[0];
+}
+
+/**
+ * One row per case that the import did not turn into a record (e.g. a saved page without an address
+ * when no HAR fits): verdict `insufficient`, confidence `uncertain`, the importer's reasons in
+ * `missing_data`. A case with another capture that did import gets no extra row. Without these rows
+ * a material of a hidden test set would vanish from the batch result without a trace.
+ */
+export function skippedCsvRows(result: MaterialCsvInput): string[][] {
+  const present = new Set(result.items.map((it) => it.caseId ?? it.id));
+  const reasons = new Map<string, string[]>();
+  for (const s of result.skipped ?? []) {
+    const c = skippedCase(s.id);
+    if (present.has(c)) continue;
+    const list = reasons.get(c) ?? [];
+    if (!list.includes(s.reason)) list.push(s.reason);
+    reasons.set(c, list);
+  }
+  return [...reasons.entries()].map(([c, why]) => [c, c, "insufficient", "", "", "", "", "uncertain", "", "", why.join("; "), ""]);
+}
+
+export function materialCsv(result: MaterialCsvInput): string {
+  const rows = [MATERIAL_CSV_COLUMNS as readonly string[], ...result.items.map(materialCsvRow), ...skippedCsvRows(result)];
   return `${rows.map((r) => r.map(cell).join(",")).join("\n")}\n`;
 }

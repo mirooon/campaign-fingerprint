@@ -373,7 +373,7 @@ Każde powiązanie zmienione decyzją zostaje w grafie z dopiskiem „decyzja an
 - **Martwa strona**: gdy jest tylko zrzut z paskiem adresu, domena z paska staje się adresem; cechy pochodzą z nagranych odpowiedzi DNS/RDAP (lub z zapytań, jeśli włączono `--lookups`).
 - **Sam zrzut** bez adresu: zostają obraz, tekst z OCR i identyfikator biblioteki reklam, jeśli jest widoczny. Przypisanie opiera się wtedy na kreacji, więc werdykt to zwykle wariant (niższa pewność) albo „za mało danych”.
 - **Brak RDAP**: znika seria rejestracji i data utworzenia domeny; reszta cech działa.
-- **Kroki pominięte** (brak narzędzia, modelu, sieci, pliku) mają w wyniku status `skipped` i powód (`steps` w JSON, `base.json` w bazie). Nigdy nie są pomijane po cichu.
+- **Kroki pominięte** (brak narzędzia, modelu, sieci, pliku) mają w wyniku status `skipped` i powód (`steps` w JSON, `base.json` w bazie). Nigdy nie są pomijane po cichu. Dotyczy to także całej sprawy, której import nie zamienił w rekord (np. zapisana strona bez adresu, gdy żaden HAR nie pasuje): ma wpis `skipped` z powodem w JSON, a w CSV wiersz `insufficient` z tym powodem w `missing_data`, więc materiał nie znika z wyniku partii.
 
 ### Strony niedostępne
 

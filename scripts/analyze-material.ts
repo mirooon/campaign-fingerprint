@@ -9,7 +9,7 @@ import path from "node:path";
 import { addToBase } from "../lib/pipeline/addToBase";
 import { analyzeMaterial, type AnalyzedMaterial } from "../lib/pipeline/analyzeMaterial";
 import { batchCaseDirs } from "../lib/pipeline/caseBatch";
-import { materialCsv } from "../lib/pipeline/materialCsv";
+import { materialCsv, skippedCsvRows } from "../lib/pipeline/materialCsv";
 import { liveSources } from "../lib/pipeline/sources";
 import { archiveStepOptions } from "../lib/pipeline/archiveContext";
 import { loadLinkConfig } from "../lib/pipeline/steps";
@@ -89,7 +89,8 @@ void main(async () => {
   if (args.out) writeFileSync(args.out, JSON.stringify(res));
   if (args.csv) {
     writeFileSync(args.csv, materialCsv(res));
-    log(`CSV: ${args.csv} (${res.items.length} wierszy)`);
+    const noRecord = skippedCsvRows(res).length;
+    log(`CSV: ${args.csv} (${res.items.length + noRecord} wierszy${noRecord ? `, w tym ${noRecord} spraw bez rekordu z importu jako insufficient` : ""})`);
   }
   if (args.json === "-") {
     process.stdout.write(JSON.stringify(res));

@@ -70,7 +70,7 @@ Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagaj
 
 ### Wynik: kolumny CSV
 
-Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca eksport z GUI):
+Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca eksport z GUI). Sprawa, z której import nie zrobił rekordu (np. zapisana strona bez adresu), też ma wiersz: `insufficient` z powodem w `missing_data`.
 
 | Kolumna | Znaczenie |
 |---|---|

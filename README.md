@@ -6,7 +6,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne. Skąd pochodzą dane i z jakich źródeł narzędzie korzysta: [Pochodzenie danych](#pochodzenie-danych).
 
-**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia).
+**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia). · [docs/CECHY.md](docs/CECHY.md) (katalog wszystkich śladów i cech, generowany: `bun run features:catalog`).
 
 ## 1. Szybki start w Dockerze
 

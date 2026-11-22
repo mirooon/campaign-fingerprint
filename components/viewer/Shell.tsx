@@ -26,6 +26,8 @@ export interface ShellProps {
   summaries: Record<string, CampaignSummary>;
   /** The comparison base is the bundled sample: every result screen carries the "dane syntetyczne" label. */
   synthetic: boolean;
+  /** The server runs with ANALYZE_OFFLINE=1: the analysis never looks domains up, so the form locks that option off. */
+  serverOffline: boolean;
 }
 
 type Tab = "analyze" | "campaigns" | "graph" | "compare" | "apart" | "how" | "ct" | "people" | "quality" | "expert";
@@ -95,7 +97,7 @@ function useViewMode(): [ViewMode, (m: ViewMode) => void] {
 }
 
 /** Application frame: header with the base summary, tabs, and the view of the chosen tab; state lives in the address (`?tab=`, `?job=`, `?a=&b=`, `?k=`). */
-export default function Shell({ graph, campaigns, nearMisses, summaries, synthetic }: ShellProps) {
+export default function Shell({ graph, campaigns, nearMisses, summaries, synthetic, serverOffline }: ShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -170,6 +172,7 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
             minLinkScore={campaigns.method.minLinkScore}
             rules={campaigns.method.rules ?? []}
             syntheticBase={synthetic}
+            serverOffline={serverOffline}
             jobId={jobId}
             onJob={(id) => go(id ? { tab: "analyze", job: id } : { tab: "analyze" })}
             onShowCampaign={(id) => go({ tab: "campaigns", k: id })}

@@ -18,6 +18,7 @@ import { safeCaseName } from "@/lib/viewer/caseDetect";
 import { DATA_DIR, SAMPLE_BASE } from "@/lib/viewer/data";
 import { rateLimitResponse } from "@/lib/viewer/rateLimit";
 import { newJobId, registerJob, startJob, workRoot, type Job, type JobCase } from "@/lib/viewer/jobs";
+import { serverOffline } from "@/lib/viewer/liveLookups";
 import { extractZip, limitLabel, maxBytes, maxFiles, safeRelative, UploadError } from "@/lib/viewer/upload";
 import { closeUploadSession, getUploadSession, unpackZipOnDisk } from "@/lib/viewer/uploadSession";
 
@@ -47,7 +48,7 @@ export async function POST(request: Request): Promise<Response> {
   const url = String(form.get("url") ?? "").trim().slice(0, 2048);
   const text = String(form.get("text") ?? "").trim().slice(0, 5000);
   // ANALYZE_OFFLINE=1 (the container default) switches the passive lookups off whatever the form asks for.
-  const live = form.get("live") !== "0" && process.env.ANALYZE_OFFLINE !== "1";
+  const live = form.get("live") !== "0" && !serverOffline(process.env);
   const uploadId = String(form.get("uploadId") ?? "");
   const session = uploadId ? getUploadSession(uploadId) : undefined;
   if (uploadId && !session) return Response.json({ error: "Nie ma takiej sesji wgrywania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });

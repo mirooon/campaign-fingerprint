@@ -65,3 +65,4 @@ export const TRACE: [string, string, string] = ["wspólny ślad", "wspólne śla
 export const FEATURE: [string, string, string] = ["cecha", "cechy", "cech"];
 export const PREMISE: [string, string, string] = ["przesłanka", "przesłanki", "przesłanek"];
 export const GROUP: [string, string, string] = ["grupa podobnych", "grupy podobnych", "grup podobnych"];
+export const ERROR: [string, string, string] = ["błąd", "błędy", "błędów"];

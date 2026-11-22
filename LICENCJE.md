@@ -2,7 +2,7 @@
 
 Kod tego repozytorium: MIT ([LICENSE](LICENSE)). Poniżej licencje bibliotek, modeli, narzędzi i usług, z których narzędzie korzysta. Pole „Sposób użycia” mówi, czy składnik działa jako biblioteka w procesie aplikacji, czy jako osobny proces (wywołanie programu, kontener). Dla licencji copyleft ma to znaczenie: osobny proces nie czyni kodu repozytorium dziełem pochodnym.
 
-Stan na 21.11.2026. Wersje bibliotek npm pochodzą z zainstalowanego `node_modules`, wersje narzędzi z obrazu Dockera (`odcisk-kampanii:latest`) albo z kart modeli. Wiersze dla funkcji, których jeszcze nie ma w kodzie (twarze, galeria głosów, inne biblioteki reklam), dopisze zadanie, które je wprowadzi.
+Stan na 22.11.2026. Wersje bibliotek npm pochodzą z zainstalowanego `node_modules`, wersje narzędzi z obrazu Dockera (`odcisk-kampanii:latest`) albo z kart modeli. Twarze i galeria głosów już są w kodzie i mają swoje wiersze (punkt 2 i 3); zasady ich użycia: [docs/ZGODNOSC.md](docs/ZGODNOSC.md). Punkt „Do sprawdzenia” na końcu zbiera rzeczy niepewne albo niepermisywne.
 
 ## 1. Pakiety produkcyjne (npm)
 
@@ -119,13 +119,29 @@ Uwagi do tabeli:
 - `caniuse-lite` (dane, CC-BY-4.0) jest zależnością Next.js (dane o przeglądarkach do budowy), nie jest dołączane do wyniku analizy.
 - `tldts` korzysta z listy Public Suffix List (MPL-2.0), dołączonej do pakietu jako dane.
 
+Zależności deweloperskie (`devDependencies`, tylko do budowy, testów i kontroli kodu; nie trafiają do działającej aplikacji ani do obrazu uruchomieniowego). Licencje z `node_modules/<pakiet>/package.json`:
+
+| Składnik | Wersja | Licencja | Rola |
+|---|---|---|---|
+| @tailwindcss/turbopack | 4.3.3 | MIT | budowa stylów |
+| tailwindcss | 4.3.3 | MIT | style |
+| typescript | 5.9.3 | Apache-2.0 | kontrola typów |
+| vitest | 5.1.1 | MIT | testy |
+| eslint | 9.39.5 | MIT | kontrola kodu |
+| eslint-config-next | 16.4.6 | MIT | reguły eslint |
+| @types/node | 20.19.43 | MIT | typy |
+| @types/react, @types/react-dom | 19.3.0 | MIT | typy |
+
+Ich zależności przechodnie nie są tu rozpisane (`bun run licenses` obejmuje tylko pakiety produkcyjne).
+
 ## 2. Modele
 
 | Składnik | Wersja | Licencja | Rola | Sposób użycia | Źródło |
 |---|---|---|---|---|---|
 | Whisper large-v3-turbo (wagi `ggml-large-v3-turbo.bin`) | large-v3-turbo | MIT | transkrypcja mowy (`--asr`), opcjonalna | model w pliku, czytany przez osobny proces `whisper-cli` | [openai/whisper-large-v3-turbo](https://huggingface.co/openai/whisper-large-v3-turbo), [ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) |
-| CLIP ViT-B/32 w wariancie ONNX `Xenova/clip-vit-base-patch32` | – | MIT (karta modelu Xenova; oryginał OpenAI CLIP: MIT) | embedding kreacji i 8 klatek wideo (`--clip`): podobieństwo wyglądu, cosinus ≥ 0,9, waga 0,45; to cecha wyglądu, nie ocena fałszerstwa; wieża tekstowa tego samego modelu (`text_model.onnx`) do rozpoznania podrabianej marki zero-shot (atrybut, nie dowód) | biblioteka w procesie (`@huggingface/transformers`, ONNX Runtime), model lokalny, w obrazie Dockera nieobecny | [Xenova/clip-vit-base-patch32](https://huggingface.co/Xenova/clip-vit-base-patch32) |
+| CLIP ViT-B/32 w wariancie ONNX `Xenova/clip-vit-base-patch32` | – | MIT (karta modelu Xenova; oryginał OpenAI CLIP: MIT) | embedding kreacji i 8 klatek wideo (`--clip`): podobieństwo wyglądu, cosinus ≥ 0,9, waga 0,45; to cecha wyglądu, nie ocena fałszerstwa; wieża tekstowa tego samego modelu (`text_model.onnx`) do rozpoznania podrabianej marki zero-shot (atrybut, nie dowód) | biblioteka w procesie (`@huggingface/transformers`, ONNX Runtime); **model (ok. 350 MB) pobiera się z Hugging Face Hub przy pierwszym użyciu `--clip`**, potem działa offline z pamięci podręcznej; z `HF_HUB_OFFLINE=1` (obraz Dockera) pobierania nie ma i CLIP jest niedostępny | [Xenova/clip-vit-base-patch32](https://huggingface.co/Xenova/clip-vit-base-patch32) |
 | Silero VAD v5.1.2 dla whisper.cpp (`ggml-silero-v5.1.2.bin`, ok. 0,9 MB) | 5.1.2 | MIT (Silero VAD; konwersja ggml z repozytorium whisper.cpp: MIT) | wykrywanie mowy przed transkrypcją (`--asr` z `whisper-cli --vad`): muzyka i cisza nie są transkrybowane, więc whisper nie dopisuje do nich halucynacji; opcjonalny | plik czytany przez proces `whisper-cli` (`WHISPER_VAD_MODEL`, domyślnie `~/models/whisper/`), poza repozytorium i obrazem | [ggml-org/whisper-vad](https://huggingface.co/ggml-org/whisper-vad), [snakers4/silero-vad](https://github.com/snakers4/silero-vad) |
+| `mlx-community/whisper-large-v3-turbo` (konwersja Whispera do MLX) | – | **brak pola licencji na karcie** (sprawdzona w lokalnej pamięci Hugging Face); model bazowy OpenAI Whisper: MIT | zapasowa transkrypcja na Apple Silicon (`MLX_WHISPER_MODEL`), tylko gdy brak `whisper-cli` i model jest już lokalnie; opcjonalna | osobny proces `mlx_whisper`, bez pobierania w trakcie analizy | [mlx-community/whisper-large-v3-turbo](https://huggingface.co/mlx-community/whisper-large-v3-turbo) |
 | `speechbrain/spkrec-ecapa-voxceleb` (ECAPA-TDNN) | – | Apache-2.0 (trenowany na VoxCeleb; nie na polskiej mowie) | wektor głosu mówcy (192 liczby, `--speaker`), opcjonalny | osobny proces Pythona | [karta modelu](https://huggingface.co/speechbrain/spkrec-ecapa-voxceleb) |
 | `speechbrain/vad-crdnn-libriparty` (CRDNN) | – | **licencja wag niepodana na karcie modelu**; kod SpeechBrain: Apache-2.0; model trenowany na LibriParty z szumem UrbanSound8K (CC BY-NC) | detekcja mowy (odróżnia głos od muzyki) przed dopasowaniem głosu do galerii (`--speaker`), opcjonalna | osobny proces Pythona, model poza repozytorium i poza obrazem domyślnym (`SPEAKER_VAD_DIR`, profil `full`) | [karta modelu](https://huggingface.co/speechbrain/vad-crdnn-libriparty); **do potwierdzenia przed użyciem komercyjnym**, zastępnik: inny VAD o jasnej licencji |
 | OpenCV YuNet `face_detection_yunet_2023mar.onnx` (OpenCV Zoo) | 2023mar | MIT | wykrywanie twarzy (`--faces`): ramka i wynik detektora | plik ONNX poza repozytorium (`FACE_MODEL_DIR`, w obrazie Dockera pobierany przy budowie), czytany przez osobny proces Pythona | [opencv_zoo/face_detection_yunet](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet) |
@@ -135,7 +151,7 @@ Uwagi do tabeli:
 | bge-m3 (BAAI) | – | MIT | embeddingi tekstu (`--text embedding`), opcjonalne | Ollama (osobny proces) | [BAAI/bge-m3](https://huggingface.co/BAAI/bge-m3) |
 | Claude `claude-opus-5-5` (Anthropic API) | – | warunki komercyjne Anthropic (usługa, nie wagi) | opcjonalny dostawca LLM (`LLM_PROVIDER=anthropic`, klucz); dane wychodzą na zewnątrz | zapytania do API | [anthropic.com](https://www.anthropic.com) |
 
-Domyślnie (bez flag i kluczy) nie jest używany żaden model. Wszystkie modele są pobierane ręcznie lub przez Ollamę, nic nie jest pobierane automatycznie w trakcie analizy (`HF_HUB_OFFLINE=1` w obrazie).
+Domyślnie (bez flag i kluczy) nie jest używany żaden model. Modele są pobierane ręcznie lub przez Ollamę. Wyjątek: CLIP (`--clip`) pobiera się sam z Hugging Face Hub przy pierwszym użyciu, o ile nie ustawiono `HF_HUB_OFFLINE=1` (w obrazie Dockera jest ustawione).
 
 ## 3. Narzędzia zewnętrzne
 
@@ -146,6 +162,7 @@ Domyślnie (bez flag i kluczy) nie jest używany żaden model. Wszystkie modele 
 | Chromaprint (`fpcalc`) | 1.5.1 (obraz Dockera) | LGPL-2.1-or-later | odcisk dźwięku (`--audio`) | osobny proces | [acoustid.org/chromaprint](https://acoustid.org/chromaprint) |
 | whisper.cpp (`whisper-cli`) | 1.7.6 (profil `full`) | MIT | transkrypcja (`--asr`) | osobny proces, budowany w obrazie `full` | [github.com/ggml-org/whisper.cpp](https://github.com/ggml-org/whisper.cpp) |
 | yt-dlp | 2026.08.19 (lokalnie) | Unlicense | kreacja reklamy z biblioteki Mety na żądanie (`--ad-library`, `adlib get`): `yt-dlp --skip-download --dump-json --ignore-no-formats-error`, tylko metadane, bez pobierania plików; `scripts/py/build_voice_index.py` pobiera nim fragmenty dźwięku nagrań do galerii głosów (narzędzie deweloperskie, nie działa przy analizie materiału); poza tym kod czyta plik `.info.json`, który użytkownik sam wygenerował (reklamodawca, identyfikator biblioteki reklam). Korzysta z publicznej strony biblioteki (to samo ryzyko co MetaAdsCollector) | osobny proces, opcjonalny | [github.com/yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp) |
+| mlx-whisper (`mlx_whisper`) | 0.4.3 (lokalnie, `uv tool`) | MIT (pole `License` w metadanych pakietu) | zapasowy ASR na Apple Silicon, tylko z modelem już obecnym lokalnie | osobny proces, opcjonalny; poza obrazem Dockera | [pypi.org/project/mlx-whisper](https://pypi.org/project/mlx-whisper/) |
 | Python | 3.11.2 (obraz), 3.12 (`setup-speaker.sh`, `setup-face.sh`) | PSF-2.0 | uruchomienie adapterów Pythona | osobny proces | [python.org](https://www.python.org) |
 | `google-cloud-bigquery` (z `scripts/py/requirements.txt`) | >=3.25,<4 | Apache-2.0 | klient BigQuery dla `scripts/py/google_atc.py` (Google Ads Transparency Center, publiczny zbiór); wymaga poświadczeń ADC, bez nich skrypt używa CLI `bq` albo zgłasza brak dostępu | osobny proces Pythona, venv `/opt/venv` | [pypi.org/project/google-cloud-bigquery](https://pypi.org/project/google-cloud-bigquery/) |
 | Google Cloud SDK (`bq`, `gcloud`) | – | Apache-2.0 (SDK); usługi: Google Cloud Terms | zapasowy dostęp do BigQuery bez ADC (`bq query` z limitem `--maximum_bytes_billed`), tylko na komputerze użytkownika | osobny proces, opcjonalny | [cloud.google.com/sdk](https://cloud.google.com/sdk) |
@@ -167,6 +184,7 @@ Domyślnie narzędzie nie wysyła żadnych zapytań (`ANALYZE_OFFLINE=1` w obraz
 
 | Usługa | Licencja lub warunki | Rola | Sposób użycia | Źródło |
 |---|---|---|---|---|
+| Strony z reklam (bezpośrednie GET, `--live`; z `--cloaking` dwa dodatkowe GET z innym User-Agent) | zależnie od właściciela strony; to nie jest usługa z umową | ostatnia strona docelowa, łańcuch przekierowań, odcisk DOM | `lib/osint/fetchPage.ts`: jeden GET na ogniwo, bez JavaScriptu, ochrona przed SSRF, limit bajtów; w teście cloakingu nagłówek `facebookexternalhit` (`lib/pipeline/enrich.ts`) i mobilny. Patrz „Do sprawdzenia” | – |
 | DNS (resolver systemowy lub `DNS_SERVERS`) | usługa publiczna | rekordy A/AAAA/CNAME/NS/MX/TXT | zapytania pasywne | – |
 | RDAP przez `rdap.org` | usługa publiczna, bezpłatna | rejestrator, daty rejestracji (seria rejestracji) | zapytania pasywne | [rdap.org](https://rdap.org) |
 | crt.sh | usługa publiczna, bezpłatna | certyfikaty z logów CT | zapytania pasywne | [crt.sh](https://crt.sh) |
@@ -312,3 +330,21 @@ Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Do
 | Baza odcisków technologii `webappanalyzer` (następca Wappalyzera) | GPL-3.0 | wymusiłaby GPL na kodzie, który ją dołącza; atrybut platformy powstaje z własnych wzorców (`lib/osint`, `lib/graph/config.ts`) |
 | httpx (ProjectDiscovery) | MIT | licencja nie jest problemem; odrzucony, bo aktywne sondowanie hostów łamie zasadę pasywności narzędzia |
 | DeepFace z domyślnym modelem, InsightFace | modele na licencjach niekomercyjnych | nie używane; ewentualny adapter twarzy musi mieć model o licencji pozwalającej na użycie |
+
+## 9. Do sprawdzenia
+
+Rzeczy niepermisywne, niejasne albo takie, których nie dało się zweryfikować w repozytorium. Nie blokują użycia lokalnego i niekomercyjnego; przed wdrożeniem w instytucji powinien je przejrzeć prawnik.
+
+| Pozycja | Co jest niejasne | Zalecenie |
+|---|---|---|
+| `speechbrain/vad-crdnn-libriparty` | karta modelu nie podaje licencji wag; dane treningowe zawierają szum UrbanSound8K (CC BY-NC) | przed użyciem komercyjnym potwierdzić z autorami albo zastąpić innym VAD (jest opcjonalny; domyślnie nieużywany) |
+| `mlx-community/whisper-large-v3-turbo` | brak pola licencji na karcie konwersji (lokalnie sprawdzona karta ma tylko `library_name` i `pipeline_tag`) | uznajemy za pochodną OpenAI Whisper (MIT); potwierdzić w repozytorium modelu |
+| `speechbrain/spkrec-ecapa-voxceleb` | wagi na Apache-2.0, ale trenowane na VoxCeleb, którego dane mają własne warunki (badania) | przed użyciem komercyjnym przeczytać warunki VoxCeleb |
+| FFmpeg (Debian, `--enable-gpl`) | GPL-2.0-or-later | działa jako osobny proces i nie jest linkowany; przy rozpowszechnianiu obrazu Dockera dołączyć źródła lub ofertę źródeł zgodnie z GPL |
+| `@img/sharp-libvips-*` | LGPL-3.0-or-later | dynamiczne ładowanie, bez modyfikacji; przy rozpowszechnianiu zachować komunikat o licencji |
+| `caniuse-lite` | CC-BY-4.0 (dane) | wymaga uznania autorstwa przy rozpowszechnianiu; jest zależnością Next.js do budowy |
+| `meta-ads-collector` i publiczne RPC Google Ads Transparency | nieoficjalne endpointy; regulamin serwisów może zabraniać automatycznego odpytywania | tylko na flagach (`--ad-library`, `ADLIB_GOOGLE_RPC=1`), decyzja użytkownika |
+| Lista Ostrzeżeń CERT Polska, BigQuery (zbiór Google Ads Transparency) | warunki użycia nie były czytane | sprawdzić przy pierwszym użyciu |
+| Test cloakingu z nagłówkiem `facebookexternalhit` | podszywanie się pod crawler Mety może naruszać regulamin odwiedzanej strony | opcjonalne (`--cloaking`); pozostawić decyzji wdrażającego |
+| Ollama `latest` | `docker-compose.yml` bierze obraz `ollama/ollama:latest`, wersja nie jest przypięta; tabela podaje 0.40 | przypiąć `OLLAMA_IMAGE_TAG` przy wdrożeniu |
+| Wersje tabeli „Narzędzia zewnętrzne” | wersje z obrazu Dockera (Tesseract 5.3.0, FFmpeg 5.1.9) nie były uruchamiane ponownie 22.11; lokalnie na komputerze autora są nowsze (Tesseract 5.5.3, FFmpeg 9.0.2) | licencje te same rodziny; przy zmianie obrazu przeliczyć |

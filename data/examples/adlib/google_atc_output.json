@@ -1,0 +1,45 @@
+{
+  "backend": "client",
+  "bytesEstimated": 21122000000,
+  "detail": "regions",
+  "rows": [
+    {
+      "advertiser_id": "AR0000000000000000001",
+      "creative_id": "CR0000000000000000101",
+      "creative_page_url": "https://atc.example/advertiser/AR0000000000000000001/creative/CR0000000000000000101",
+      "ad_format_type": "VIDEO",
+      "advertiser_location": "PL",
+      "ad_funded_by": "Fundator Testowy",
+      "advertiser_disclosed_name": "Nazwa Wyswietlana Pierwsza",
+      "advertiser_legal_name": "Fikcyjna Firma Sp. z o.o.",
+      "advertiser_verification_status": "VERIFIED",
+      "regions": ["PL", "DE"]
+    },
+    {
+      "advertiser_id": "AR0000000000000000001",
+      "creative_id": "CR0000000000000000102",
+      "creative_page_url": "https://atc.example/advertiser/AR0000000000000000001/creative/CR0000000000000000102",
+      "ad_format_type": "TEXT",
+      "advertiser_location": "PL",
+      "ad_funded_by": "fikcyjna firma sp. z o.o.",
+      "advertiser_disclosed_name": "Nazwa Wyswietlana Druga",
+      "advertiser_legal_name": "Fikcyjna Firma Sp. z o.o.",
+      "advertiser_verification_status": "VERIFIED",
+      "regions": ["PL"]
+    },
+    {
+      "advertiser_id": "AR0000000000000000002",
+      "creative_id": "CR0000000000000000201",
+      "creative_page_url": "https://atc.example/advertiser/AR0000000000000000002/creative/CR0000000000000000201",
+      "ad_format_type": "IMAGE",
+      "advertiser_location": "CY",
+      "ad_funded_by": null,
+      "advertiser_disclosed_name": null,
+      "advertiser_legal_name": "Druga Firma Ltd",
+      "advertiser_verification_status": "UNVERIFIED",
+      "regions": ["PL", "CZ"],
+      "first_shown": "2026-10-01",
+      "last_shown": "2026-11-15"
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "ads": {
+    "1000000000000101": {
+      "payers": ["Testowa Spolka"], "beneficiaries": ["Testowa Spolka"], "takenDown": true, "violations": ["Prohibited Commercial Practices"],
+      "euReach": 123456, "ageMin": 35, "ageMax": 64, "gender": "All", "locations": ["Poland"],
+      "pageId": "900000000001", "pageName": "Inwestycje Przykladowe", "pageDeleted": true, "pageVerification": "NOT_VERIFIED"
+    },
+    "1000000000000303": { "error": "rate limited" }
+  }
+}

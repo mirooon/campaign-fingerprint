@@ -229,6 +229,32 @@ Plik `<CACHE_DIR>/<namespace>/<h[0:2]>/<sha256(klucz)>.json` z zawartością `{k
 | `unionFind.ts` | union-find (kompresja ścieżek, łączenie wg rozmiaru) |
 | `testkit.ts` | budowanie małych zbiorów `EnrichedDataset` w testach (także kit, persony, parametry, CNAME) |
 
+### 3.11 Biblioteki reklam (`lib/adlib/*`, `scripts/adlib.ts`, `scripts/py/google_atc.py`, `scripts/py/ad_library_search.py`, od 22.11.2026, zadanie i13)
+
+Wspólny interfejs do publicznych bibliotek reklam: wyszukiwanie po frazie, reklamodawcy, kraju i dacie oraz zamiana rekordu biblioteki (`AdRecord`) na materiał do analizy. Zakres według decyzji właściciela: Google i Meta; adaptery TikTok i X (P2) są i działają na syntetycznych danych, ale formaty ich odpowiedzi nie były sprawdzone na żywo ([ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md)).
+
+| Plik | Rola |
+|---|---|
+| `types.ts` | `AdRecord`, `AdSearchQuery`, `AdLibrarySource` (`available`, `search`, `getAd`) |
+| `index.ts` | `createSources`, `searchSources` (źródło niedostępne trafia na listę `skipped` z powodem; błąd jednego źródła nie zatrzymuje reszty), `defaultQueries` (domyślne frazy z `config.ts` i nazwiska z listy osób) |
+| `meta.ts` | Meta: `search` przez `ad_library_search.py` (MetaAdsCollector, bez klucza), `getAd` przez istniejący `lib/osint/adLibrary.ts`, opcjonalnie kreacja z yt-dlp (`ytdlp.ts`) |
+| `google.ts`, `scripts/py/google_atc.py` | Google: publiczny zbiór BigQuery; limit bajtów, poziomy szczegółowości, pamięć podręczna wyniku per zapytanie (`lib/cache.ts`, TTL 24 h); bez poświadczeń `available() = false` z instrukcją |
+| `tiktok.ts` | TikTok: token klienta z kluczy aplikacji i zapytanie do API biblioteki; bez kluczy `available() = false` z instrukcją wniosku; format niesprawdzony na żywo |
+| `x.ts` | X: import pliku CSV z repozytorium reklam (`X_ADS_FILE`, `--x-file`); kolumny dopasowane luźno, niesprawdzone na prawdziwym eksporcie |
+| `toItem.ts` | rekord → kolumny → `Item` (przez `normalizeRecords`, bez drugiego parsera) |
+| `caseDir.ts` | `adRecordToCaseDir`: folder sprawy z `adlib.json` i lokalnymi kreacjami, czytany przez `caseImport.ts` (adres docelowy z rekordu, kolumny `ad_*` i `advertiser_*` w `input.json`) |
+| `record.ts` | wczytanie `AdRecord` z JSON-a |
+| `config.ts` | limity, listy i domyślne frazy (bez liczb w kodzie adapterów) |
+| `testkit.ts` | ścieżka nagranych odpowiedzi: `data/examples/adlib/` (poza `data/sample/`, które `sample:generate` kasuje i buduje od nowa) |
+
+**Graf: wybór bez nowego typu węzła.** `meta_ad` to identyfikator reklamy z `fbclid` (Marketing API), a nie identyfikator biblioteki, więc go nie rozszerzamy. Identyfikator reklamy w bibliotece już jest `campaign_param` `ad_library_id=<id>` (Meta, z OCR zrzutu); inne platformy dostają ten sam typ z platformą w kluczu: `ad_library_id=google:CR…` (ten sam identyfikator na jednej platformie to duplikat, ten sam ciąg na dwóch platformach to dwie różne reklamy). Reklamodawca ma stały klucz `<platforma>:<id konta>` (u Google `AR…`) zamiast nazwy; nazwy wyświetlane zbierają się w `names`, a `legalName`, `location`, `verified` są atrybutami węzła, widocznymi w GUI jako cechy materiału (`adAdvertiser*`) i w paczce dowodów (`observations.accounts[].library_account`). Płatnik z biblioteki zasila `ad_payer`: Meta bez zmian (klucz = nazwa), inne platformy z prefiksem platformy; `ad_payer` jest w `notAloneKinds`, więc nie łączy kampanii sam. Wagi bez zmian (`advertiser` 0,6; `ad_payer` 0,65). Nowych typów węzłów nie ma, więc słowniki GUI (etykiety, kolory) nie wymagały wpisów; nowe cechy materiału mają etykiety w `lib/viewer/plain.ts`, `lib/viewer/families.ts` i `components/viewer/AnalyzeForm.tsx`.
+
+**Google: koszt.** BigQuery liczy całe kolumny, więc skrypt wybiera najbogatszy poziom szczegółowości (`dates`, `regions`, `identity`, `lean`), który według próbnego uruchomienia (dry run, bez kosztu) mieści się w `ADLIB_BQ_MAX_BYTES` (domyślnie 10 GiB), i uruchamia zapytanie z `maximum_bytes_billed` równym temu limitowi. Gdy nie mieści się nawet `lean`, kończy komunikatem z szacunkiem. Pomiary i rozmiary kolumn: [ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md). Domyślne zapytania (`adlib search` bez `--keyword` i `--advertiser`) omijają Google.
+
+**Dodatki (P2).** B-062: reklamodawca z biblioteki ma klucz po identyfikatorze strony (`meta:<page_id>`: z `--ad-library`, z `uploader_id` pliku `.info.json` yt-dlp albo z rekordu), więc zmiana nazwy strony go nie rozdziela; atrybuty węzła: `names`, `pageDeleted` (strona wyłączona = konto jednorazowe), `adsTakenDown` (liczba zdjętych reklam). B-298: gdy nazwa reklamodawcy zawiera imię i nazwisko albo pseudonim z listy osób, materiał dostaje atrybut `advertiserImpersonates` (id osoby; w GUI cecha „Reklamodawca podszywa się pod osobę”): atrybut, nie dowód kampanii, bez wpływu na łączenie (`ItemEnrichment.advertiserImpersonates`, `enrich.ts`). B-064: daty emisji z biblioteki są w `AdRecord.firstSeen/lastSeen` i w kolumnach `ad_first_shown`/`ad_last_shown` (cechy `adFirstShown`/`adLastShown`, osobno od daty zgłoszenia; start z yt-dlp dla reklamy znalezionej po identyfikatorze). B-063: `googleRpc.ts` (nieoficjalne RPC, domyślnie wyłączone) i `expand.ts`/`adlib expand`.
+
+**Testy:** `lib/adlib/*.test.ts` (nagrane odpowiedzi w `data/examples/adlib/`), `lib/adlib/python.test.ts` (uruchamia `unittest` skryptów Pythona), `lib/graph/adLibraryTraces.test.ts`, `tests/adlibCrossPlatform.test.ts` (rekordy Mety i Google w jednej kampanii przez wspólną infrastrukturę), `tests/adlibPipeline.offline.test.ts` (wyszukiwanie → sprawy → `analyze-material`).
+
 ### 3.6 `lib/llm/*`
 
 `ollama.ts` (czat, structured, embeddingi), `anthropic.ts` (Claude), `index.ts` (wybór przez `LLM_PROVIDER`, `embed()` zawsze przez Ollamę), `types.ts` (`LlmProvider`, `LlmError` z podpowiedzią). Szczegóły w §7.
@@ -297,11 +323,11 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `phone` | E.164 (też WhatsApp `wa.me`) |  | 0.9 | tak |
 | `telegram` | `t.me/<nazwa>` lub zaproszenie; **zaproszenia do grup WhatsApp też trafiają tu** |  | 0.9 | tak |
 | `endpoint` | backend formularza: `host+szablon ścieżki` (`leads-gate.test/api/v1/submit/<uuid>/`) albo `*szablon` dla ścieżki na tej samej domenie (`*/api/lead`) |  | 0.95 | tak dla innej domeny bez zniżki; ścieżka na tej samej domenie dostaje ×0.4, więc nigdy |
-| `campaign_param` | `nazwa_kanoniczna=wartość` (wartość małymi literami) |  | 0.8 | tak, gdy wartość nie jest zdyskontowana |
+| `campaign_param` | `nazwa_kanoniczna=wartość` (wartość małymi literami); identyfikator reklamy w bibliotece: `ad_library_id=<id>` (Meta) albo `ad_library_id=<platforma>:<id>` (§3.11) |  | 0.8 | tak, gdy wartość nie jest zdyskontowana |
 | `cert` | numer seryjny (lub id crt.sh), tylko certyfikaty, których SAN obejmuje ≥ 2 różne eTLD+1 |  | 0.8 | tak, ale darmowy CA daje ×0.6 → 0.48 |
 | `imagehash` | dHash hex (identyczny obraz) |  | 0.65 | nie |
 | `cname_target` | domena rejestrowalna celu CNAME; cel na sufiksie prywatnym PSL (np. `d123.cloudfront.net`) daje osobny węzeł na klienta, ale lista `cnameTargets` i tak go dyskontuje |  | 0.65 | nie |
-| `advertiser` | nazwa reklamodawcy (NFKC, małe litery) |  | 0.6 | nie |
+| `advertiser` | nazwa reklamodawcy (NFKC, małe litery); dla rekordu biblioteki reklam z identyfikatorem konta `<platforma>:<id>` (np. `google:AR…`), stały mimo zmiany nazwy; atrybuty `legalName`, `location`, `verified`, `names` (§3.11) |  | 0.6 | nie |
 | `ip` | IP kanoniczny |  | 0.6 | nie |
 | `hidden_fields` | posortowane nazwy ukrytych pól po odrzuceniu ogólnych, tylko gdy zostają ≥ 2 |  | 0.6 | nie |
 | `comment` | znormalizowany komentarz HTML/JS |  | 0.6 | nie |
@@ -752,6 +778,7 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | Skrypt | Flagi (domyślnie) | Przykład |
 |---|---|---|
 | `analyze-material` (archiwum) | `--archive` (kopie martwych stron z urlscan i Wayback); `enrich`/`pipeline`: `--archive-lookup` | `bun run analyze-material -- --url https://oferta.example/ --archive` |
+| `adlib` | `search --platform <meta\|google\|tiktok\|x\|all>` z `--keyword`, `--advertiser`, `--from`, `--to`, `--country` (PL), `--limit`, `--personas` (lista osób do domyślnych zapytań), `--out` (katalog spraw, wymagane); `get --platform <p> --id <identyfikator> --out <katalog>`. Źródło bez dostępu jest wypisane z powodem i instrukcją, kod 0 (§3.11) | `bun run adlib -- search --platform all --keyword inwestycja --out dane/adlib` |
 | `import-cases` | `--cases` (katalog spraw, wymagane), `--out` (katalog roboczy, wymagane), `--lookups` (pasywne DNS, RDAP, ASN dla domen stron), `--ct` (także crt.sh) | `bun run import-cases -- --cases sprawy/ --out praca/ --lookups` |
 | `ingest` | `--input` (`data/sample/ads.csv`), `--mapping` (`data/sample/mapping.json` tylko bez `--input`; z `--input` mapowanie automatyczne), `--out` (`data/work/items.json`), `--base-dir` (katalog pliku) | `bun run ingest -- --input nask.csv --mapping nask-mapping.json --base-dir ./nask` |
 | `enrich` | `--items`, `--out` (`data/work/enriched.json`), `--offline`, `--fixtures` (`data/sample/fixtures`), `--concurrency` (4), `--skip` (lista: `page,favicon,image,dns,rdap,ct,asn`), `--personas` (bez `--items`: `data/sample/personas.json`), `--ner`, `--cloaking`, `--ocr`, `--asr`, `--audio`, `--archive` (`data/work/archive`) / `--no-archive` | `bun run enrich -- --skip ct` · `bun run enrich -- --offline --cloaking --ocr --audio` |
@@ -843,6 +870,12 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 | `SPEAKER_PYTHON` | `.venv-speaker/bin/python` | `lib/media/speaker.ts` | interpreter z SpeechBrain dla `--speaker` |
 | `SPEAKER_MODEL_DIR` | `~/models/speechbrain/spkrec-ecapa-voxceleb` | `lib/media/speaker.ts` | katalog modelu ECAPA |
 | `META_ADS_PYTHON` | interpreter z shebangu `meta-ads-collector` w `PATH` | `lib/osint/adLibrary.ts` | Python z MetaAdsCollector dla `--ad-library` |
+| `ADLIB_BQ_MAX_BYTES` | 10 GiB (`lib/adlib/config.ts`) | `lib/adlib/config.ts` | limit bajtów jednego zapytania BigQuery (`20GB`, `512MB`, liczba bajtów); zob. §3.11 |
+| `ADLIB_PYTHON` | `python3` | `lib/adlib/google.ts` | Python z `google-cloud-bigquery` dla `scripts/py/google_atc.py` |
+| `GOOGLE_CLOUD_PROJECT` | projekt z `gcloud config` | `scripts/py/google_atc.py` | projekt BigQuery (sandbox) dla źródła Google |
+| `TIKTOK_CLIENT_KEY`, `TIKTOK_CLIENT_SECRET` | – | `lib/adlib/tiktok.ts` | klucze API TikTok Commercial Content Library |
+| `X_ADS_FILE` | – | `lib/adlib/x.ts` | plik CSV z repozytorium reklam X |
+| `ADLIB_GOOGLE_RPC` | wyłączone | `lib/adlib/googleRpc.ts` | `1` włącza nieoficjalne RPC Google (wyszukiwanie po domenie) |
 
 `.env.example` opisuje zmienne LLM, grafu, wzbogacania, API, adapterów mediów (`WHISPER_MODEL`, `MLX_WHISPER_MODEL`) i watchera CT (`CT_STREAM_URL`, `CT_FEED_FILE`).
 

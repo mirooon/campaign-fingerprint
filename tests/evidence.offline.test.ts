@@ -56,6 +56,25 @@ describe("evidence pack", () => {
     expect(JSON.stringify(json.observations)).not.toMatch(/"score"|deepfake|llm/i);
   });
 
+  it("carries the ad-library record: library address, payer and the advertiser account with its attributes", () => {
+    const campaignId = run.campaigns.assignments["c1-01"];
+    const members = run.campaigns.campaigns.find((c) => c.id === campaignId)!.members;
+    const libraryColumns = { ad_platform: "google", ad_id: "CR1", ad_library_url: "https://atc.example/creative/CR1", advertiser_id: "AR0001", advertiser_legal_name: "Fikcyjna Firma Sp. z o.o.", advertiser_location: "PL", advertiser_verified: "true", ad_payers: "Fundator Testowy" };
+    const enriched = { ...run.ds, items: run.ds.items.map((it) => (it.id === "c1-01" ? { ...it, extra: { ...it.extra, ...libraryColumns } } : it)) };
+    const res = exportEvidencePack({
+      campaignId, graph: run.graph, campaigns: run.campaigns, enriched, config: run.config, outDir: path.join(tmp, "c1-lib"),
+      submitter: { name: "Analityk Testowy", email: "analityk@example.org" }, packageId: "00000000-0000-4000-8000-000000000002",
+      now: () => new Date("2026-11-19T12:00:00Z"), toolVersion: { name: "starter-test", version: "0.0.0", gitCommit: null },
+    });
+    expect(members).toContain("c1-01");
+    const json = JSON.parse(readFileSync(path.join(res.outDir, "evidence.json"), "utf8"));
+    const ad = json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-01");
+    expect(ad).toMatchObject({ repository_record: "https://atc.example/creative/CR1", payer_displayed: "Fundator Testowy" });
+    const account = json.observations.accounts.find((a: { library_account: unknown }) => a.library_account);
+    expect(account.library_account).toEqual({ platform: "google", advertiser_id: "AR0001", legal_name: "Fikcyjna Firma Sp. z o.o.", location: "PL", verified: true });
+    expect(readFileSync(path.join(res.outDir, "evidence.md"), "utf8")).toContain("Fikcyjna Firma Sp. z o.o.");
+  });
+
   it("lists every ad with IDs, URLs and UTC timestamps, and the domains with registration data", () => {
     const { json } = pack("c1-01", "c1-ads");
     expect(json.observations.ads).toHaveLength(9);

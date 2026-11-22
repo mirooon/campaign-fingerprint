@@ -23,6 +23,9 @@
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { adRecordColumns } from "../adlib/toItem";
+import { parseAdRecord } from "../adlib/record";
+import { AD_RECORD_FILE, type AdRecord } from "../adlib/types";
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
@@ -86,6 +89,10 @@ export interface ImportedCase {
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
+  /** Page ID of the advertiser from the library ad's description (`uploader_id`), or null. */
+  adPageId: string | null;
+  /** Record of a public ad library (`adlib.json`, written by `adRecordToCaseDir`), or null. */
+  adRecord: AdRecord | null;
   firstSeen: string | null;
   /** Public sources of a collected folder (address, type, entry and access dates). */
   sources: CollectedSource[];
@@ -345,6 +352,8 @@ interface CaseScan {
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
+  adPageId: string | null;
+  adRecord: AdRecord | null;
   infoTime: string | null;
   notes: string[];
   collected: Collected | null;
@@ -468,17 +477,27 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   if (videos.length > 1) notes.push(`kilka plików wideo, użyty pierwszy: ${videos[0].name}`);
   let advertiser: string | null = null;
   let adLibraryId: string | null = null;
+  let adPageId: string | null = null;
   let infoTime: string | null = null;
   const info = rootMedia.find((f) => /\.info\.json$/i.test(f.name));
   if (info) {
     try {
-      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number };
+      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number; uploader_id?: string };
       adLibraryId = /\/ads\/library\/?\?(?:.*&)?id=(\d{6,})/.exec(j.webpage_url ?? "")?.[1] ?? null;
       advertiser = j.playlist_uploader ?? j.uploader ?? null;
+      // the uploader of a library ad is its advertiser page: a stable ID, unlike the name
+      adPageId = adLibraryId && /^\d+$/.test(j.uploader_id ?? "") ? (j.uploader_id ?? null) : null;
       infoTime = typeof j.epoch === "number" ? new Date(j.epoch * 1000).toISOString() : null;
     } catch {
       notes.push(`${info.name}: nieczytelny plik opisu`);
     }
+  }
+  let adRecord: AdRecord | null = null;
+  const adFile = files.find((f) => f.dir === "" && f.name === AD_RECORD_FILE);
+  if (adFile) {
+    const parsed = parseAdRecord(readJsonNote(abs(adFile), adFile.name, notes));
+    adRecord = parsed.record;
+    if (parsed.error) notes.push(`${AD_RECORD_FILE}: pominięty (${parsed.error})`);
   }
   return {
     id,
@@ -490,6 +509,8 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     video: videos[0] ? abs(videos[0]) : null,
     advertiser,
     adLibraryId,
+    adPageId,
+    adRecord,
     infoTime,
     notes,
     collected,
@@ -542,10 +563,12 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       video: s.video,
       advertiser: s.advertiser,
       adLibraryId: s.adLibraryId,
+      adPageId: s.adPageId,
+      adRecord: s.adRecord,
       sources: s.collected?.sources ?? [],
       scan: s.collected?.scan ?? null,
     };
-    const hasMedia = !!(media.screenshot || media.video || media.adLibraryId);
+    const hasMedia = !!(media.screenshot || media.video || media.adLibraryId || media.adRecord);
     if (!s.captures.length && !hasMedia) continue; // not a case folder
 
     // The same page saved twice (same address and title) is one capture; the copy with a HAR wins.
@@ -576,22 +599,27 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     const ids = new Set<string>();
     const push = (rec: ImportedCase) => {
       cases.push(rec);
+      // columns of a library record first: the case's own fields below win where both are known
+      const libraryColumns: Record<string, string> = rec.adRecord ? adRecordColumns(rec.adRecord) : {};
+      delete libraryColumns.id;
       records.push({
+        ...libraryColumns,
         id: rec.id,
         landing_url: rec.landingUrl,
         screenshot: rec.screenshot,
-        first_seen: rec.firstSeen,
+        first_seen: rec.firstSeen ?? libraryColumns.first_seen ?? null,
         ...(rec.id !== rec.caseId ? { case: rec.caseId } : {}),
         ...(rec.moreScreenshots.length ? { more_screenshots: rec.moreScreenshots } : {}),
         ...(rec.video ? { video: rec.video } : {}),
         ...(rec.advertiser ? { advertiser: rec.advertiser } : {}),
         ...(rec.adLibraryId ? { ad_library_id: rec.adLibraryId } : {}),
+        ...(rec.adPageId ? { advertiser_id: rec.adPageId, ad_platform: "meta" } : {}),
       });
     };
 
     if (!pages.length) {
       // a collected folder names its target even when no copy of the page survived (press images only)
-      const target = s.collected?.target ?? null;
+      const target = s.collected?.target ?? s.adRecord?.landingUrl ?? null;
       const targetHost = target ? normalizeUrl(target)?.host : null;
       if (targetHost) landingHosts.add(targetHost);
       push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, firstSeen: mediaTime ?? s.infoTime });
@@ -780,6 +808,10 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     ...(has("more_screenshots") ? { extraImagePaths: "more_screenshots" } : {}),
     ...(has("video") ? { videoPath: "video" } : {}),
     ...(has("advertiser") ? { advertiser: "advertiser" } : {}),
+    ...(has("text") ? { text: "text" } : {}),
+    ...(has("platform") ? { platform: "platform" } : {}),
+    ...(has("image_url") ? { imageUrl: "image_url" } : {}),
+    ...(has("last_seen") ? { lastSeen: "last_seen" } : {}),
   };
   write(path.join(o.outDir, "mapping.json"), JSON.stringify(mapping, null, 1));
   write(path.join(o.outDir, "provenance.json"), JSON.stringify({ generatedAt: new Date().toISOString(), lookups: !!o.lookups, cases, skipped, failedLookups }, null, 1));

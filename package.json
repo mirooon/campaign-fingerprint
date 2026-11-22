@@ -29,7 +29,8 @@
     "cache:freeze": "bun scripts/cache-freeze.ts",
     "demo-batch": "bun scripts/demo-batch.ts",
     "demo": "bun scripts/demo.ts",
-    "licenses": "bun scripts/licenses.ts"
+    "licenses": "bun scripts/licenses.ts",
+    "adlib": "bun scripts/adlib.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

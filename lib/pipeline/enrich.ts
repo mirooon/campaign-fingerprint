@@ -21,6 +21,7 @@ import { hashFavicon, hashImage } from "../media/imageHash";
 import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo } from "../media/imageEmbed";
 import { detectOcr, ocrImage } from "../media/ocr";
 import { detectSpeaker, embedSpeakers } from "../media/speaker";
+import { fetchAdCreative } from "../adlib/ytdlp";
 import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
 import { copyProvenance, findArchivedCopy, type ArchiveConfig, type ArchivedCopy, type ArchiveSource } from "../osint/archive";
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
@@ -529,6 +530,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           ...(text?.urls ?? []),
         ]);
 
+        // a name or pseudonym from the list inside the advertiser's name: a possible fake profile of that person
+        const advertiserName = item.advertiser ?? advertiserOcr;
+        const impersonated = opts.personas && advertiserName ? matchPersonas(advertiserName, opts.personas)[0] : undefined;
+
         perItem[item.id] = {
           itemId: item.id,
           landing,
@@ -542,6 +547,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           ...(observed.length ? { observedUrls: observed } : {}),
           landingSource,
           ...(advertiserOcr ? { advertiserOcr } : {}),
+          ...(impersonated ? { advertiserImpersonates: { id: impersonated.id, name: impersonated.name } } : {}),
           asrText,
           audioFp,
           ...(imageEmbedding ? { imageEmbedding } : {}),
@@ -622,6 +628,13 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           log(`biblioteka reklam: MetaAdsCollector, ${todo.length} identyfikatorów`);
           const fresh = await lookupAdLibrary(todo, { python: st.python! });
           for (const [id, rec] of Object.entries(fresh)) {
+            // creative of the ad (text, picture, start time) from the library page; the DSA record stays when yt-dlp is missing
+            const got = rec.error ? null : await fetchAdCreative(id);
+            if (got) {
+              rec.creative = got.creative;
+              rec.creativeNote = got.error;
+              if (got.error) log(`kreacja z biblioteki reklam pominięta (${id}): ${got.error}`);
+            }
             info[id] = rec;
             if (!rec.error) await libCache.set(id, rec);
           }

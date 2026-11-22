@@ -22,6 +22,7 @@ import { simhashDistance } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain, toUnicodeHost } from "../osint/urls";
 import type { EnrichedDataset, Item } from "../pipeline/types";
 import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/similarity";
+import { adLibraryIdKey, adPayerKey, advertiserIdKey, readAdRecordTraces } from "./adLibraryTraces";
 import { commentNameFactors } from "./commentNames";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import {
@@ -187,6 +188,10 @@ export function buildEvidenceGraph(
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
     const ui = enr?.ocrText ? stripUiChrome(enr.ocrText) : null;
     if (ui?.view) itemData.uiView = ui.view;
+    if (enr?.advertiserImpersonates) {
+      itemData.advertiserImpersonates = enr.advertiserImpersonates.id;
+      itemData.advertiserImpersonatesName = enr.advertiserImpersonates.name;
+    }
     if (ui?.view === "ad_library") libraryViews.add(item.id);
     // The library ID also comes from the further screenshots of the case and from the input (e.g. a yt-dlp description of the ad)
     const libraryIds = [
@@ -212,6 +217,43 @@ export function buildEvidenceGraph(
       add(id, "campaign_param", [itemNode, id], 1, `ten sam identyfikator w bibliotece reklam (${libId}): ta sama reklama`);
     }
 
+    // Record of a public ad library (lib/adlib): the library ID of platforms other than Meta (Meta's is read above)
+    // and the payer named by the library
+    const libRecord = readAdRecordTraces(item.extra);
+    if (libRecord) {
+      // flat, readable values: they are the features of the material in the GUI and the evidence pack
+      itemData.adPlatform = libRecord.platform;
+      if (libRecord.adId) itemData.adLibraryAdId = libRecord.adId;
+      if (libRecord.advertiserId) itemData.adAdvertiserId = libRecord.advertiserId;
+      if (libRecord.legalName) itemData.adAdvertiserLegalName = libRecord.legalName;
+      if (libRecord.location) itemData.adAdvertiserLocation = libRecord.location;
+      if (libRecord.verified !== null) itemData.adAdvertiserVerified = libRecord.verified ? "tak" : "nie";
+      if (libRecord.regions.length) itemData.adRegions = libRecord.regions;
+      if (libRecord.firstShown) itemData.adFirstShown = libRecord.firstShown;
+      if (libRecord.lastShown) itemData.adLastShown = libRecord.lastShown;
+      if (libRecord.platform !== "meta" && libRecord.adId) {
+        const idNode = g.node("campaign_param", adLibraryIdKey(libRecord.platform, libRecord.adId), adLibraryIdKey(libRecord.platform, libRecord.adId), {
+          canonicalName: "ad_library_id",
+          name: `identyfikator reklamy w bibliotece ${libRecord.platform}`,
+          value: `${libRecord.platform}:${libRecord.adId}`,
+          cyrillic: false,
+          macro: false,
+          sourceUrl: libRecord.libraryUrl,
+        });
+        g.edge(itemNode, idNode, "carries_param", `identyfikator reklamy w bibliotece reklam (${libRecord.platform})`);
+        add(idNode, "campaign_param", [itemNode, idNode], 1, `ten sam identyfikator w bibliotece reklam (${libRecord.platform}: ${libRecord.adId}): ta sama reklama`);
+      }
+      for (const name of libRecord.payers) {
+        const key = normAdvertiser(name);
+        if (!key) continue;
+        const payerKey = adPayerKey(libRecord.platform, key);
+        const prev = (g.nodes.get(nodeId("ad_payer", payerKey))?.data.adLibraryIds as string[] | undefined) ?? [];
+        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev });
+        g.edge(itemNode, payerNode, "paid_by", `płatnik reklamy według biblioteki reklam (${libRecord.platform})`);
+        add(payerNode, "ad_payer", [itemNode, payerNode], 1, `ten sam płatnik reklamy w bibliotece reklam („${name}”)`);
+      }
+    }
+
     // Meta Ad Library details (opt-in): DSA payer/beneficiary as a pivot, takedown and reach on the item
     const lib = (enr?.adLibrary ?? []).filter((r) => !r.error);
     if (lib.length) {
@@ -225,8 +267,12 @@ export function buildEvidenceGraph(
         audience: r.ageMin !== null || r.ageMax !== null ? `${r.ageMin ?? "?"}–${r.ageMax ?? "?"} lat${r.gender && r.gender !== "All" ? `, ${r.gender}` : ""}` : null,
         locations: r.locations,
         pageName: r.pageName,
+        creativeText: r.creative?.text ?? null,
+        startedAt: r.creative?.startedAt ?? null,
       }));
       if (lib.some((r) => r.takenDown)) itemData.adTakenDown = true;
+      const started = lib.map((r) => r.creative?.startedAt).filter((t): t is string => !!t).sort()[0];
+      if (started && !itemData.adFirstShown) itemData.adFirstShown = started;
       const names = new Map<string, { label: string; roles: Set<string> }>();
       for (const r of lib) {
         for (const [role, list] of [["płatnik", r.payers], ["beneficjent", r.beneficiaries]] as const) {
@@ -248,7 +294,34 @@ export function buildEvidenceGraph(
       }
     }
 
-    if (advertiser) {
+    // library account of the advertiser: from a library record, or the Meta page read by `--ad-library`
+    const metaPage = lib.find((r) => r.pageId);
+    const account = libRecord?.advertiserId
+      ? { platform: libRecord.platform, id: libRecord.advertiserId }
+      : metaPage?.pageId
+        ? { platform: "meta", id: metaPage.pageId }
+        : null;
+    if (account) {
+      // the library's account ID is stable while the display name changes (a taken-over or renamed account)
+      const key = advertiserIdKey(account.platform, account.id);
+      const prev = g.nodes.get(nodeId("advertiser", key))?.data;
+      const names = [...new Set([...((prev?.names as string[] | undefined) ?? []), ...(advertiser ? [advertiser] : [])])];
+      // emission of the page: a deleted page is a disposable account; takedowns are counted per distinct library ad
+      const takenDownIds = [...new Set([...((prev?.takenDownIds as string[] | undefined) ?? []), ...(account.platform === "meta" ? lib.filter((r) => r.takenDown).map((r) => r.id) : [])])];
+      const a = g.node("advertiser", key, advertiser ?? libRecord?.legalName ?? account.id, {
+        platform: account.platform,
+        advertiserId: account.id,
+        names,
+        legalName: libRecord?.legalName ?? prev?.legalName ?? null,
+        location: libRecord?.location ?? prev?.location ?? null,
+        verified: libRecord?.verified ?? (prev?.verified as boolean | null | undefined) ?? null,
+        ...(metaPage?.pageDeleted != null ? { pageDeleted: metaPage.pageDeleted } : {}),
+        ...(metaPage?.pageVerification ? { pageVerification: metaPage.pageVerification } : {}),
+        ...(takenDownIds.length ? { takenDownIds, adsTakenDown: takenDownIds.length } : {}),
+      });
+      g.edge(itemNode, a, "posted_by", `reklamodawca według biblioteki reklam (${account.platform}), identyfikator ${account.id}`);
+      add(a, "advertiser", [itemNode, a], 1, `to samo konto reklamodawcy w bibliotece reklam (${account.platform}: ${account.id}${libRecord?.legalName ? `, „${libRecord.legalName}”` : ""})`);
+    } else if (advertiser) {
       const a = g.node("advertiser", normAdvertiser(advertiser), advertiser);
       g.edge(itemNode, a, "posted_by", "reklamodawca podany w danych reklamy");
       add(a, "advertiser", [itemNode, a], 1, `ten sam reklamodawca „${advertiser}”`);

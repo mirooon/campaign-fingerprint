@@ -1,0 +1,5 @@
+{
+  "error": "zapytanie przetworzyłoby 25.0 GB, limit to 10.0 GB. Zawęź zapytanie (kraj, daty, nazwa) albo podnieś ADLIB_BQ_MAX_BYTES.",
+  "kind": "over_limit",
+  "bytesEstimated": 26843545600
+}

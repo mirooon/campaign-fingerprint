@@ -1,0 +1,36 @@
+{
+  "ads": [
+    {
+      "id": "1000000000000501",
+      "pageId": "900000000001",
+      "pageName": "Inwestycje Przykladowe",
+      "pageVerified": false,
+      "pageDeleted": false,
+      "deliveryStart": "2026-11-02T08:00:00+00:00",
+      "deliveryStop": "2026-11-09T08:00:00+00:00",
+      "bodies": ["Zarabiaj z platforma AI, zobacz jak"],
+      "titles": ["Platforma AI"],
+      "linkUrls": ["https://oferta-przyklad.example/lp?utm_source=fb"],
+      "imageUrls": ["https://cdn.example/meta/501.jpg"],
+      "videoUrls": [],
+      "payers": ["Testowa Spolka"],
+      "countries": ["PL"]
+    },
+    {
+      "id": "1000000000000502",
+      "pageId": "900000000002",
+      "pageName": "Strona Druga",
+      "pageVerified": null,
+      "pageDeleted": true,
+      "deliveryStart": "2026-11-03T08:00:00+00:00",
+      "deliveryStop": null,
+      "bodies": [],
+      "titles": [],
+      "linkUrls": [],
+      "imageUrls": [],
+      "videoUrls": ["https://cdn.example/meta/502.mp4"],
+      "payers": [],
+      "countries": ["PL", "DE"]
+    }
+  ]
+}

@@ -14,6 +14,8 @@ export interface TestItemSpec {
   url?: string;
   text?: string;
   advertiser?: string;
+  /** Unmapped input columns (`Item.extra`), e.g. the columns of an ad-library record. */
+  extra?: Record<string, string>;
   label?: string;
   firstSeen?: string;
   dhash?: string;
@@ -137,7 +139,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
       persona: s.persona ?? null,
       deepfakeScore: s.deepfakeScore ?? null,
       videoPath: null,
-      extra: {},
+      extra: s.extra ?? {},
     };
     ds.items.push(item);
     const landing = s.url ? normalizeUrl(s.url) : null;

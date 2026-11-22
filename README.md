@@ -137,7 +137,9 @@ bun run test && bun run lint && bun run typecheck
 | `fpcalc` (odcisk dźwięku, `--audio`) | `brew install chromaprint` | `sudo apt install libchromaprint-tools` | krok `--audio` `skipped` |
 | whisper-cli i model (transkrypcja, `--asr`) | `brew install whisper-cpp`; model `ggml-large-v3-turbo.bin` (ok. 1,5 GB) do `~/models/whisper/` | zbuduj [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`cmake`); ten sam model | krok `--asr` `skipped` |
 | SpeechBrain i model głosu (`--speaker`) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
-| MetaAdsCollector (biblioteka reklam, `--ad-library`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped` |
+| MetaAdsCollector (biblioteka reklam, `--ad-library`, `adlib`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped`, `adlib` wypisuje Metę jako niedostępną |
+| yt-dlp (kreacja reklamy z biblioteki Mety, `--ad-library`, `adlib get`) | `brew install yt-dlp` | `pipx install yt-dlp` | rekord bez kreacji, powód w wyniku |
+| `google-cloud-bigquery` i konto Google (Google Ads Transparency, `adlib`) | `pip install google-cloud-bigquery` (w obrazie Dockera jest) oraz `gcloud auth application-default login` | to samo | źródło Google niedostępne, instrukcja w wyniku |
 | model CLIP (`--clip`) | pobierany raz przy pierwszym użyciu (`Xenova/clip-vit-base-patch32`, ok. 350 MB) | to samo | krok `--clip` `skipped` (w Dockerze brak modelu) |
 | Ollama (streszczenia, NER, `--text embedding`) | `brew install ollama`, `ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M`, `ollama pull bge-m3` | [ollama.com/download](https://ollama.com/download) | `summarize` i `--ner` kończą się błędem połączenia; graf działa bez LLM |
 
@@ -158,10 +160,32 @@ Wszystkie opcjonalne. Domyślna konfiguracja nie wymaga żadnego klucza ani kont
 
 Klucze trzymaj w `.env` (jest w `.gitignore`). W repozytorium jest tylko `.env.example` bez wartości.
 
+### Biblioteki reklam: jak uzyskać dostęp
+
+Publiczne biblioteki reklam (repozytoria wymagane przez DSA) dają identyfikator reklamy, reklamodawcę, daty emisji i kreacje. Polecenie `adlib` szuka w nich i zapisuje wyniki jako sprawy dla `analyze-material`, więc reklamy z różnych platform łączą się w kampanie po infrastrukturze, a wyszukiwanie daje nowe materiały do sprawdzenia. **Żadna z bibliotek nie obiecuje trafień:** wyszukiwanie w Google Ads Transparency nie dało materiałów dla rodzin kampanii z próbki.
+
+```bash
+bun run adlib -- search --platform all --keyword "inwestycja" --country PL --out dane/adlib   # bez --keyword: domyślne frazy i nazwiska z listy osób
+bun run adlib -- search --platform google --advertiser AR0123456789012345678 --out dane/adlib   # wszystkie reklamy tego reklamodawcy w EOG
+bun run adlib -- get --platform meta --id <identyfikator biblioteki> --out dane/adlib          # jedna reklama (z kreacją, gdy jest yt-dlp)
+bun run analyze-material -- --cases dane/adlib --csv wynik.csv
+```
+
+Źródło bez dostępu jest wypisane z powodem i instrukcją, a polecenie kończy się kodem 0 (też bez sieci i bez kluczy).
+
+Rozszerzanie znanej kampanii: `bun run adlib -- expand --campaign K01 --data dane/baza --out dane/adlib` szuka po kontach reklamodawców z bibliotek reklam, a po domenach kampanii tylko przez nieoficjalne RPC Google (`ADLIB_GOOGLE_RPC=1`, domyślnie wyłączone, ryzyko warunków serwisu: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)).
+
+| Biblioteka | Jak uzyskać dostęp | Uwagi |
+|---|---|---|
+| **Meta Ad Library** | bez klucza: `uv tool install meta-ads-collector` (MetaAdsCollector, nieoficjalny publiczny endpoint, ryzyko opisane w [LICENCJE.md](LICENCJE.md)); albo token oficjalnego API (weryfikacja tożsamości na facebook.com/id; nieużywany w kodzie) | wyszukiwanie po frazie, stronie, kraju i dacie; `get` po identyfikatorze biblioteki |
+| **Google Ads Transparency Center** | konto Google i projekt z sandboxem BigQuery: `gcloud auth application-default login` i `gcloud config set project <projekt>`; bez ADC działa CLI `bq` (`gcloud auth login`) | publiczny zbiór BigQuery (EOG i Turcja), bez scrapingu; sandbox: 1 TiB miesięcznie; zapytanie jest liczone za przetworzone kolumny, więc każde ma limit `ADLIB_BQ_MAX_BYTES` (domyślnie 10 GiB; szczegóły i rozmiary kolumn: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)). Zbiór nie ma domeny docelowej ani tekstu reklamy |
+| **TikTok Commercial Content Library** | wniosek o dostęp do API (odpowiedź do 2 dni roboczych, możliwe tylko dla badaczy); potem `TIKTOK_CLIENT_KEY` i `TIKTOK_CLIENT_SECRET` w `.env` | adapter na syntetycznych odpowiedziach, nie sprawdzony na żywo ([docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)) |
+| **X (repozytorium reklam DSA)** | ręcznie pobierz eksport CSV z repozytorium reklam X (konto, kraj, zakres dat; opis: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)) i podaj plik: `--x-file eksport.csv` albo `X_ADS_FILE` | program niczego nie pobiera z X; kolumny eksportu nie sprawdzono na prawdziwym pliku |
+
 ## 7. Bezpieczeństwo i dane
 
 - **Przetwarzanie lokalne.** Materiały nie opuszczają komputera. Wyjątek: dostawca Anthropic (opt-in, klucz) wysyła teksty do zewnętrznego API.
-- **Zapytania wychodzące tylko na wyraźne żądanie:** `--live` (jedno pobranie strony, której nie ma w materiale, oraz DNS, RDAP, ASN), `--lookups` (DNS, RDAP, ASN przy imporcie spraw; `--ct` dodaje crt.sh), `--ad-library` (biblioteka reklam Mety), `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami; domyślnie wyłączone, nie jest metodą wykrywania, zob. metodyka). Obraz Dockera ma `ANALYZE_OFFLINE=1`, a żądania z przeglądarki nie mogą tego wyłączyć.
+- **Zapytania wychodzące tylko na wyraźne żądanie:** `--live` (jedno pobranie strony, której nie ma w materiale, oraz DNS, RDAP, ASN), `--lookups` (DNS, RDAP, ASN przy imporcie spraw; `--ct` dodaje crt.sh), `--ad-library` (biblioteka reklam Mety, kreacja przez yt-dlp), `adlib` (biblioteki reklam: Meta przez MetaAdsCollector, Google przez publiczny zbiór BigQuery), `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami; domyślnie wyłączone, nie jest metodą wykrywania, zob. metodyka). Obraz Dockera ma `ANALYZE_OFFLINE=1`, a żądania z przeglądarki nie mogą tego wyłączyć.
 - **Nie renderujemy stron i nie wykonujemy JavaScriptu.** Adresy przekierowań i backendy są czytane statycznie. Pobieranie stron ma ochronę SSRF (blokada adresów prywatnych, loopback, metadanych chmury).
 - **Rozbrojone adresy.** Adresy z materiałów są w interfejsie pokazywane w formie nieklikalnej (`hxxps://oferta[.]example`), żeby przypadkowe kliknięcie nie otworzyło strony.
 - **Gdzie leżą pliki:** `./dane` (wejście, baza, wyniki, `./dane/praca` z wgraniami z GUI), `.cache/` (odpowiedzi sieciowe i wektory głosu, TTL od 1 dnia do 28 dni), `data/work/` (archiwum stron). Usunięcie: `rm -rf dane/praca .cache data/work`; wektory głosu: `rm -rf .cache/speaker`.

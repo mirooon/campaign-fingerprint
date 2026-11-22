@@ -143,6 +143,11 @@ export interface ItemEnrichment {
   landingSource?: "input" | "ad_text" | "address_bar" | null;
   /** Advertiser name read from the screenshot (the line above "Sponsored"), when the input gives none. */
   advertiserOcr?: string | null;
+  /**
+   * The advertiser's name (input, library or screenshot) holds a name or a pseudonym of a person from the
+   * list: a possible fake profile of that person. An attribute, not evidence of a campaign.
+   */
+  advertiserImpersonates?: { id: string; name: string };
   /** Transcript of the video/audio creative (opt-in ASR). */
   asrText: string | null;
   /** Chromaprint fingerprint of the video/audio creative (opt-in). */

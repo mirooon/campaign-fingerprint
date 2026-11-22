@@ -9,6 +9,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { readAdRecordTraces } from "../graph/adLibraryTraces";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { isSimilarityEdge, type Campaign, type CampaignsFile, type EvidenceGraph, type ItemLink } from "../graph/model";
 import { Discounter } from "../graph/weights";
@@ -179,8 +180,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       ad_urls: adUrlColumns.map(([, v]) => v),
       ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))) },
       advertiser_displayed: item.advertiser,
-      payer_displayed: null,
-      repository_record: null,
+      payer_displayed: item.extra.ad_payers ?? null,
+      repository_record: item.extra.ad_library_url ?? null,
       first_seen_utc: utc(item.firstSeen),
       last_seen_utc: utc(item.lastSeen ?? item.firstSeen),
       ad_text: item.text,
@@ -314,6 +315,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     advertiser_displayed: name,
     platforms: [...new Set(members.filter((m) => m.advertiser === name).map((m) => m.platform).filter(Boolean))],
     ads: members.filter((m) => m.advertiser === name).map((m) => m.id),
+    library_account: libraryAccount(members.filter((m) => m.advertiser === name)),
   }));
 
   // ---------------------------------------------------------------- observations vs analysis
@@ -488,12 +490,34 @@ ${GOOD_FAITH_STATEMENT}
 `;
 }
 
+/** Advertiser account named by an ad library (stable ID, legal name, country, verification), as written in the pack. */
+interface LibraryAccount {
+  platform: string;
+  advertiser_id: string;
+  legal_name: string | null;
+  location: string | null;
+  verified: boolean | null;
+}
+
+/**
+ * The library account of the ads under one displayed advertiser name: the first ad with an account ID
+ * decides (ads of one displayed name that name different accounts are rare, and the ads list keeps each ID).
+ * Null when none of the ads comes from an ad-library record.
+ */
+function libraryAccount(ads: Item[]): LibraryAccount | null {
+  for (const ad of ads) {
+    const t = readAdRecordTraces(ad.extra);
+    if (t?.advertiserId) return { platform: t.platform, advertiser_id: t.advertiserId, legal_name: t.legalName, location: t.location, verified: t.verified };
+  }
+  return null;
+}
+
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
     shared_identifiers: Array<{ type: string; value: string; ads_with_identifier: number }>;
     ads: Array<Record<string, unknown>>;
     domains: Array<Record<string, unknown>>;
-    accounts: Array<{ advertiser_displayed: string; ads: string[] }>;
+    accounts: Array<{ advertiser_displayed: string; ads: string[]; library_account: LibraryAccount | null }>;
   };
   const integrity = record.integrity as { manifest: ManifestEntry[]; manifest_sha256: string; limitations: string[]; excluded_from_cert_list: Array<{ domain: string; reason: string }> };
   const personas = record.impersonated_person as Array<{ impersonated_person: string; public_role: string | null; match_basis: string[]; consent_status: string; biometric_data: string }>;
@@ -551,7 +575,7 @@ ${obs.domains
 
 ### Konta reklamodawców
 
-${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")}`).join("\n") || "- brak"}
+${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")}${a.library_account ? `; konto w bibliotece reklam (${a.library_account.platform}): ${a.library_account.advertiser_id}${a.library_account.legal_name ? `, nazwa prawna „${a.library_account.legal_name}”` : ""}${a.library_account.location ? `, kraj ${a.library_account.location}` : ""}${a.library_account.verified === null ? "" : a.library_account.verified ? ", zweryfikowany" : ", niezweryfikowany"}` : ""}`).join("\n") || "- brak"}
 
 ## Analiza (wyniki modeli i heurystyk — wskazówki)
 

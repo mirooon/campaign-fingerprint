@@ -547,6 +547,17 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   payerKinds: { name: "Rodzaj płatnika z biblioteki reklam", source: "z nazwy płatnika i beneficjenta (samodeklaracja z DSA, platforma jej nie weryfikuje)", role: "describes" },
   payerSuspicious: { name: "Podejrzany płatnik reklamy", source: "z nazwy płatnika (zaślepka, bełkot z klawiatury albo imię i nazwisko w obcym alfabecie)", role: "describes" },
   payerEqualsBeneficiary: { name: "Płatnik równy beneficjentowi", source: "z biblioteki reklam", role: "describes" },
+  companyRegistry: {
+    name: "Rejestry firm (biała lista VAT, KRS)",
+    source: "z rejestrów publicznych dla NIP i KRS ze strony (opcja --company-registry; nazwa, siedziba, status, data wpisu, bez danych osób); niezgodność nazwy lub adresu, wykreślenie, młoda firma i wiek firmy względem domeny to wyjaśnienia, nie dowód kampanii",
+    role: "describes",
+    format: (v) => {
+      const c = v as { records?: Array<{ source: string; id: string; found: boolean; name: string | null; status: string | null; registeredAt: string | null; error: string | null }>; details?: Record<string, string> };
+      const lines = (c.records ?? []).map((r) => `${r.source === "vat" ? "NIP" : "KRS"} ${r.id}: ${r.error ? `błąd zapytania (${r.error})` : r.found ? `${r.name ?? "bez nazwy"}, ${r.status ?? "brak statusu"}${r.registeredAt ? `, wpis ${r.registeredAt}` : ""}` : "brak w rejestrze"}`);
+      const labels: Record<string, string> = { companyNameMismatch: "inna nazwa niż na stronie", companyAddressMismatch: "inna siedziba niż na stronie", companyRemoved: "firma wykreślona", companyRecent: "młoda firma", companyYoungerThanDomain: "firma młodsza niż domena", domainYoungerThanCompany: "stara firma, nowa domena" };
+      return [...lines, ...Object.entries(c.details ?? {}).map(([k, d]) => `${labels[k] ?? k}: ${d}`)];
+    },
+  },
   companyIds: { name: "Identyfikatory firm i rachunki na stronie", source: "z tekstu strony, kodu, JSON-LD albo zrzutu (OCR)", role: "links" },
   legalEntities: { name: "Nazwy podmiotów z formą prawną", source: "z tekstu strony, kodu, JSON-LD albo zrzutu (OCR)", role: "describes" },
   emailDomainKinds: { name: "Rodzaj domeny adresów e-mail", source: "z adresów e-mail na stronie (darmowa skrzynka, domena sklepu albo inna domena)", role: "describes" },

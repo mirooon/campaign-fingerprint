@@ -106,6 +106,8 @@ export interface EnrichStepOptions {
   facesOnly?: string;
   /** Meta Ad Library details for ad-library IDs (MetaAdsCollector, live mode). */
   adLibrary?: boolean;
+  /** Opt-in company registers (VAT white list, KRS), live mode only. */
+  companyRegistry?: boolean;
   /** Directory for archived HTML; null disables archiving. */
   archive?: string | null;
   /** Opt-in archive lookup (urlscan, Wayback) for landing pages that do not answer; ARCHIVE_SOURCES picks the sources. */
@@ -145,6 +147,7 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
     faces: !!o.faces,
     facesOnly: o.facesOnly,
     adLibrary: !!o.adLibrary,
+    companyRegistry: !!o.companyRegistry,
     archiveDir: o.archive === undefined ? DEFAULTS.archive : o.archive,
     archive: archiveStep ? { ...archiveStep, isBlockPage: (texts) => parking.isParked(texts) } : null,
     log: (m) => console.log(`[enrich] ${m}`),

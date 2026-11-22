@@ -28,10 +28,11 @@ const args = cli(
     faces: { type: "boolean" },
     "verify-person": { type: "string" },
     "ad-library": { type: "boolean" },
+    "company-registry": { type: "boolean" },
     "archive-lookup": { type: "boolean" },
   } as const,
   `Użycie: bun run pipeline [--offline] [--input plik] [--mapping mapping.json] [--fixtures dir] [--config linking.json] [--text tfidf|embedding|none] [--skip ct,...]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--archive-lookup]
+  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--company-registry] [--archive-lookup]
 Kroki: ingest -> enrich -> build-graph -> evaluate (jeśli są etykiety).`,
 );
 
@@ -60,6 +61,7 @@ void main(async () => {
     faces: !!args.faces,
     facesOnly: args["verify-person"],
     adLibrary: !!args["ad-library"],
+    companyRegistry: !!args["company-registry"],
     archiveLookup: !!args["archive-lookup"],
   });
   const config = args.config ?? (usingSample && existsSync(DEFAULTS.config) ? DEFAULTS.config : undefined);

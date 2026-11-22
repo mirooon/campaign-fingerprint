@@ -3,6 +3,9 @@
 import { GLOSSARY, type TermId } from "@/lib/viewer/plain";
 import { STRENGTH_INFO, STRENGTH_ORDER } from "@/lib/viewer/strength";
 import { StrengthBadge } from "./ui";
+import { useEffect } from "react";
+import { METHOD_ANCHOR } from "@/lib/viewer/copy";
+import type { CampaignsFile } from "@/lib/graph/model";
 
 const STAGES: Array<{ name: string; text: string }> = [
   { name: "Wejście", text: "wczytujemy pliki materiału (zrzuty, stronę, HAR, wideo) albo link." },
@@ -21,8 +24,15 @@ const RULES = [
   "Pominięte ślady się nie liczą.",
 ];
 
-/** "Jak to działa": five stages, the rules in plain words, the strength scale and the glossary. */
-export default function HowItWorks({ rules }: { rules: string[] }) {
+/**
+ * "Jak to działa": five stages, the rules in plain words with the base's thresholds (the "Jak to policzyliśmy?" anchor),
+ * the strength scale and the glossary. Opened with `#jak-policzylismy`, it scrolls to the methodology section.
+ */
+export default function HowItWorks({ rules, method }: { rules: string[]; method?: CampaignsFile["method"] }) {
+  useEffect(() => {
+    const id = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+    if (id) document.getElementById(id)?.scrollIntoView({ block: "start" });
+  }, []);
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-4">
       <h2 className="text-xl font-semibold text-slate-900">Jak narzędzie dochodzi do wyniku?</h2>
@@ -34,8 +44,13 @@ export default function HowItWorks({ rules }: { rules: string[] }) {
           </li>
         ))}
       </ol>
-      <section>
-        <h3 className="mb-1.5 font-semibold">Reguły zwykłymi słowami</h3>
+      <section id={METHOD_ANCHOR} className="scroll-mt-4">
+        <h3 className="mb-1.5 font-semibold">Jak to policzyliśmy? Reguły zwykłymi słowami</h3>
+        {method && (
+          <p className="mb-1.5 rounded border border-slate-200 bg-white p-2 text-sm text-slate-800">
+            Progi tej bazy: para materiałów może trafić do jednej kampanii przy wyniku co najmniej <b>{method.minLinkScore}</b> (od 0 do 1); silne dowody łączą od razu ({method.unionFind}). Podział na kampanie: Louvain, rozdzielczość {method.louvain.resolution}, ziarno {method.louvain.seed}{method.louvain.modularity !== null ? `, modularność ${method.louvain.modularity}` : ""}.
+          </p>
+        )}
         <ul className="list-disc space-y-1 pl-5 text-sm text-slate-800">{RULES.map((r) => <li key={r}>{r}</li>)}</ul>
         {rules.length > 0 && (
           <details className="mt-2 text-xs text-slate-600">

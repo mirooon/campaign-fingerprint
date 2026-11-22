@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { CampaignsFile, EvidenceGraph, NearMissesFile } from "@/lib/graph/model";
 import type { CampaignSummary } from "@/lib/pipeline/summary";
 import { fmtDate, count, MATERIAL, CAMPAIGN, GROUP } from "@/lib/viewer/format";
@@ -53,6 +53,47 @@ function tabFromParams(p: URLSearchParams): Tab {
   return "analyze";
 }
 
+/** Tabs of the simple view (B-034); the expert view shows every tab and the expert graph. */
+const SIMPLE_TABS: ReadonlySet<Tab> = new Set(["analyze", "campaigns", "compare", "how"]);
+type ViewMode = "simple" | "expert";
+const VIEW_KEY = "widok";
+
+const viewListeners = new Set<() => void>();
+
+/** Reads the remembered view mode; storage may be unavailable (then the expert view). */
+function readViewMode(): ViewMode {
+  try {
+    return window.localStorage.getItem(VIEW_KEY) === "simple" ? "simple" : "expert";
+  } catch {
+    return "expert";
+  }
+}
+
+/** Subscribes to changes of the view mode (this tab and other tabs). */
+function subscribeViewMode(cb: () => void): () => void {
+  viewListeners.add(cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    viewListeners.delete(cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+/** View mode remembered in this browser (a convenience): the expert view on the server and without storage. */
+function useViewMode(): [ViewMode, (m: ViewMode) => void] {
+  const mode = useSyncExternalStore(subscribeViewMode, readViewMode, () => "expert" as ViewMode);
+  /** Remembers the mode and tells the subscribers. */
+  const set = (m: ViewMode) => {
+    try {
+      window.localStorage.setItem(VIEW_KEY, m);
+    } catch {
+      /* storage unavailable: nothing to remember */
+    }
+    for (const cb of viewListeners) cb();
+  };
+  return [mode, set];
+}
+
 /** Application frame: header with the base summary, tabs, and the view of the chosen tab; state lives in the address (`?tab=`, `?job=`, `?a=&b=`, `?k=`). */
 export default function Shell({ graph, campaigns, nearMisses, summaries, synthetic }: ShellProps) {
   const router = useRouter();
@@ -61,6 +102,8 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
   const idx = useMemo(() => buildIndex(graph, campaigns), [graph, campaigns]);
   const ctFeed = useCtFeed();
   const tab = tabFromParams(params);
+  const [viewMode, setViewMode] = useViewMode();
+  const visibleTabs = TABS.filter((t) => viewMode === "expert" || SIMPLE_TABS.has(t.id) || t.id === tab);
   const jobId = params.get("job");
   const a = validItemKey(idx, params.get("a"));
   const b = validItemKey(idx, params.get("b"));
@@ -94,11 +137,17 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
           {synthetic && <SyntheticBadge />}
           <nav className="ml-auto flex gap-3 text-sm" aria-label="Pomoc i tryb eksperta">
             <button type="button" className="underline" onClick={() => go({ tab: "how" })}>Słowniczek</button>
-            <button type="button" className={`underline ${tab === "expert" ? "font-semibold" : ""}`} onClick={() => go({ tab: "expert" })}>Tryb eksperta</button>
+            <span className="inline-flex items-center gap-1" role="group" aria-label="Widok">
+              Widok:
+              <button type="button" aria-pressed={viewMode === "simple"} className={`rounded px-1.5 ${viewMode === "simple" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("simple")}>prosty</button>
+              <span aria-hidden>/</span>
+              <button type="button" aria-pressed={viewMode === "expert"} className={`rounded px-1.5 ${viewMode === "expert" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("expert")}>ekspercki</button>
+            </span>
+            {viewMode === "expert" && <button type="button" className={`underline ${tab === "expert" ? "font-semibold" : ""}`} onClick={() => go({ tab: "expert" })}>Tryb eksperta</button>}
           </nav>
         </div>
         <div className="mt-1.5 flex flex-wrap gap-1" role="tablist" aria-label="Widoki">
-          {TABS.map((t) => (
+          {visibleTabs.map((t) => (
             <button
               key={t.id}
               type="button"
@@ -149,7 +198,7 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
         {tab === "apart" && <NearMissesView file={nearMisses} onCompare={(x, y) => go({ tab: "compare", a: validItemKey(idx, x), b: validItemKey(idx, y) })} />}
         {tab === "people" && <RecognizedView />}
         {tab === "quality" && <QualityView />}
-        {tab === "how" && <HowItWorks rules={campaigns.method.rules ?? []} />}
+        {tab === "how" && <HowItWorks rules={campaigns.method.rules ?? []} method={campaigns.method} />}
         {tab === "ct" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">
             <h2 className="text-xl font-semibold">Jakie nowe domeny pasują do znanych kampanii?</h2>

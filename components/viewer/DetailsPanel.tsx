@@ -5,6 +5,11 @@ import { type EntityType, type GraphNode, type PairEvidence } from "@/lib/graph/
 import { personaMentions, PERSONA_SOURCE_LABELS, weightFormula, weightPartsOf } from "./compare";
 import { holdersOf, pathLabel, type GraphIndex } from "./graphView";
 import { TYPE_COLORS } from "./palette";
+import { DisablePivotButton, PairCorrection, WrongLinkButton } from "./CorrectionButtons";
+import { ReadHow } from "./Guide";
+
+/** Analyst premises first, so a decision is never cut off by the evidence limit. */
+const analystFirst = (evidence: PairEvidence[]) => [...evidence].sort((x, y) => Number(y.evidence.startsWith("decyzja analityka")) - Number(x.evidence.startsWith("decyzja analityka")));
 
 export interface DetailsPanelProps {
   node: GraphNode | null;
@@ -265,6 +270,7 @@ function Evidence({ ev, idx }: { ev: PairEvidence; idx: GraphIndex }) {
   );
 }
 
+/** Side panel of the selected node: an ad with its evidence and the analyst's corrections (B-281), or a shared entity. */
 export default function DetailsPanel({ node, idx, onSelect, onCompare }: DetailsPanelProps) {
   if (!node) {
     return (
@@ -315,6 +321,7 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
         </div>
       )}
       {isItem && <ItemAttributes node={node} idx={idx} onSelect={onSelect} />}
+      {isItem && <PairCorrection item={node.key} />}
 
       {!isItem && (
         <div className="rounded-md border border-slate-200 p-2 text-xs text-slate-700">
@@ -331,6 +338,9 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
             </div>
           )}
           {note && <p className="mt-1 text-[11px] text-slate-500">{note}</p>}
+          <div className="mt-1.5">
+            <DisablePivotButton pivot={node.id} />
+          </div>
           {node.discounts.length > 0 && (
             <ul className="mt-1 list-disc pl-4 text-amber-700">
               {node.discounts.map((d) => (
@@ -357,6 +367,7 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
       {isItem && (
         <section>
           <h3 className="text-sm font-semibold text-slate-900">Dlaczego połączone</h3>
+          <ReadHow id="strength" />
           {links.length === 0 && <p className="mt-1 text-xs text-slate-500">Brak dowodów łączących tę reklamę z innymi.</p>}
           <ul className="mt-2 space-y-3">
             {links.slice(0, 12).map((l) => {
@@ -380,10 +391,11 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
                     )}
                   </div>
                   <ul className="mt-1 space-y-1">
-                    {l.evidence.slice(0, 4).map((ev, i) => (
+                    {analystFirst(l.evidence).slice(0, 4).map((ev, i) => (
                       <Evidence key={i} ev={ev} idx={idx} />
                     ))}
                   </ul>
+                  <WrongLinkButton a={node.key} b={other} />
                 </li>
               );
             })}

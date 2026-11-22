@@ -6,7 +6,7 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { CACHE_TTL, createCache } from "../cache";
-import { clusterCampaigns } from "../graph/cluster";
+import { clusterWithCorrections, correctionsEmpty, loadCorrections } from "../graph/corrections";
 import { DEFAULT_LINK_CONFIG, mergeConfig, type LinkConfig, type LinkConfigOverride } from "../graph/config";
 import { evaluateClustering, type EvalResult } from "../graph/eval";
 import { campaignEvolution } from "../graph/evolution";
@@ -182,6 +182,8 @@ export interface BuildGraphStepOptions {
   nearMisses?: string;
   config?: string;
   text?: "tfidf" | "embedding" | "none";
+  /** Analyst corrections (B-281); default: `corrections.json` next to `campaigns`, applied when it exists. */
+  corrections?: string;
 }
 
 async function computeEmbeddings(ds: EnrichedDataset): Promise<Record<string, number[]> | null> {
@@ -226,6 +228,10 @@ export async function markDuplicates(graph: EvidenceGraph, ds: EnrichedDataset, 
   return dups.size;
 }
 
+/**
+ * Builds the evidence graph, clusters campaigns (with the analyst's corrections, B-281, when `corrections.json`
+ * exists) and writes graph.json, campaigns.json and near-misses.json.
+ */
 export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: EvidenceGraph; campaigns: CampaignsFile; nearMisses: NearMissesFile }> {
   const ds = readJson<EnrichedDataset>(o.enriched);
   const config = loadLinkConfig(o.config);
@@ -242,7 +248,12 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
   }
   // item pivots feed campaign evolution only; they stay out of graph.json
   const { itemPivots, ...raw } = buildEvidenceGraph(ds, { config, embeddings, textMethod, includeItemPivots: true });
-  const clustered = clusterCampaigns(raw, { config });
+  const correctionsPath = o.corrections ?? path.join(path.dirname(o.campaigns), "corrections.json");
+  const corrections = loadCorrections(correctionsPath);
+  if (!correctionsEmpty(corrections)) {
+    console.log(`[graph] korekty analityka (${correctionsPath}): połącz ${corrections.mustLink.length}, rozdziel ${corrections.cannotLink.length}, wyłączone ślady ${corrections.disabledPivots.length}`);
+  }
+  const clustered = clusterWithCorrections(raw, corrections, { config });
   const dups = await markDuplicates(clustered.graph, ds, path.dirname(o.enriched));
   if (dups) console.log(`[graph] duplikaty (ta sama reklama zebrana ponownie): ${dups}`);
   const campaigns = clustered.campaigns;

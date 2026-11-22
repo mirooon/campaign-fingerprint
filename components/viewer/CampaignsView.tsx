@@ -19,6 +19,8 @@ import ClickRoute from "./ClickRoute";
 import EvidenceButton from "./EvidenceButton";
 import PrintButton from "./PrintButton";
 import { Empty, Help, StrengthLegend } from "./ui";
+import { HowComputedLink, NextSteps } from "./Guide";
+import { campaignNextSteps } from "@/lib/viewer/copy";
 
 export interface CampaignsViewProps {
   campaigns: CampaignsFile;
@@ -71,7 +73,20 @@ function Card({ c, open, minLinkScore, graph, assignments, ctRecords, decision, 
               {c.topEvidence.map((e) => <li key={e.key} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">{typeInfo(e.type)?.name ?? e.type}: {e.label} ×{e.count}</li>)}
               {!c.topEvidence.length && <li className="text-xs text-slate-600">Materiał bez powiązań.</li>}
             </ul>
+            <HowComputedLink className="mt-1" />
           </div>
+          <NextSteps
+            steps={campaignNextSteps(c, decision, minLinkScore)}
+            on={{
+              compare: c.size > 1 ? () => onCompare(c.members[0], c.members[1]) : undefined,
+              weakest: c.weakestMember ? () => onCompare(c.weakestMember!.id, c.members.find((m) => m !== c.weakestMember!.id) ?? null) : undefined,
+            }}
+          />
+          {(c.analystNotes?.length ?? 0) > 0 && (
+            <ul className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-900">
+              {c.analystNotes!.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
           {bridgeNote(c) && <p className="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">{bridgeNote(c)}</p>}
           {weakestLinkNote(c, minLinkScore) && <p className="text-xs text-slate-700">{weakestLinkNote(c, minLinkScore)}</p>}
           {narrativeSummaryLine(c.attributes.narrative) && <p className="text-xs text-slate-700">{narrativeSummaryLine(c.attributes.narrative)}</p>}

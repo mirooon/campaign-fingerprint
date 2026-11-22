@@ -19,6 +19,7 @@ import EvidenceButton from "./EvidenceButton";
 import AddToBaseButton from "./AddToBaseButton";
 import ResultCard, { itemCompleteness, provenanceOf, type ResultContext } from "./ResultCard";
 import { Empty, Help, SyntheticBadge } from "./ui";
+import BuildBasePanel from "./BuildBasePanel";
 
 export interface AnalyzeViewProps {
   campaigns: Campaign[];
@@ -324,6 +325,8 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
       {job && (
         <Progress job={job} now={now} onReset={reset} />
       )}
+
+      {!jobId && <BuildBasePanel />}
 
       {job?.status === "done" && job.result && (
         <BatchResult

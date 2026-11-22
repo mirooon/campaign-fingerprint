@@ -1,5 +1,6 @@
 /**
- * Persona (impersonated public figure) from TEXT only — no biometrics.
+ * Persona (impersonated public figure) from TEXT. A persona from a face (lib/media/face.ts) joins the
+ * same persona node with source "face"; this module does no biometrics.
  *
  * - watchlist matching with simple Polish inflection ("Adama Testowego", "Ewie Przykładowej")
  *   on text folded by normalizeForMatching (diacritics, homoglyphs, case);
@@ -21,6 +22,10 @@ export const PersonaEntrySchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string().min(1)).optional(),
   role: z.string().optional(),
+  /** Group of the public list ("Politycy", "Dziennikarze", "Sportowcy", ...): a trait of the group of ads, never proof of a campaign. */
+  category: z.string().min(1).optional(),
+  /** True when a source documents a forged voice of this person (candidate for the voice gallery). */
+  voiceFake: z.boolean().optional(),
   matchSurnameAlone: z.boolean().optional(),
 });
 
@@ -31,8 +36,12 @@ export interface PersonaMatch {
   name: string;
   /** Matched text in normalised form (lower-case, folded diacritics). */
   matched: string;
-  source: "watchlist" | "ingest" | "ner";
+  source: "watchlist" | "ingest" | "ner" | "face" | "voice";
   role: string | null;
+  /** Group of the public list the person belongs to (e.g. "Dziennikarze"); null or absent when the entry has none. A trait of the group of ads, never proof. */
+  category?: string | null;
+  /** Weighted cosine of the face for source "face" ("a face similar to X (0.xx)") or cosine of the voice for source "voice" ("a voice similar to X (0.xx)"), for review, never proof. */
+  similarity?: number;
   /** True when found by the fuzzy (OCR/ASR-tolerant) matcher. */
   fuzzy?: boolean;
   /** Edit distance between surname stems for fuzzy matches. */
@@ -185,6 +194,9 @@ export function compileWatchlist(entries: PersonaEntry[]): CompiledWatchlist {
   return { entries: compiled };
 }
 
+/** The closed list of public figures shared by the text watchlist, the face reference and the voice gallery (each entry has a public source: a bank or CERT warning). */
+export const PUBLIC_PERSONS_FILE = "data/osoby-publiczne.json";
+
 /** Loads a watchlist: a JSON array of entries (or an object with a "personas" array). */
 export function loadWatchlist(file: string): PersonaEntry[] {
   const data: unknown = JSON.parse(readFileSync(file, "utf8"));
@@ -233,7 +245,7 @@ export function matchPersonas(text: string, wl: CompiledWatchlist, opts: MatchOp
     if (hit) {
       found.push({
         index: hit.index,
-        match: { id: ce.id, name: ce.entry.name, matched: hit.matched, source: "watchlist", role: ce.entry.role ?? null },
+        match: { id: ce.id, name: ce.entry.name, matched: hit.matched, source: "watchlist", role: ce.entry.role ?? null, category: ce.entry.category ?? null },
       });
       continue;
     }
@@ -257,6 +269,7 @@ export function matchPersonas(text: string, wl: CompiledWatchlist, opts: MatchOp
           matched: f.matched,
           source: "watchlist",
           role: ce.entry.role ?? null,
+          category: ce.entry.category ?? null,
           fuzzy: true,
           distance: f.distance,
         },

@@ -1,5 +1,8 @@
 # Python packages of the default container profile (venv in /opt/venv). Add light packages here only:
 # the profile `full` adds torch and SpeechBrain in its own stage (docker/requirements-full.txt).
-# Later tasks add their packages below (face detection with OpenCV, ...).
+# Later tasks add their packages below.
 # BigQuery client of scripts/py/google_atc.py (Google Ads Transparency Center); without credentials the script reports the source as unavailable.
 google-cloud-bigquery>=3.25,<4
+# Face detection and recognition (lib/media/face.ts, scripts/py/face_embed.py): OpenCV YuNet + SFace, Apache-2.0 package.
+opencv-python-headless
+numpy

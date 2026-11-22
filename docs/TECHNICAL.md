@@ -87,6 +87,7 @@ Domyślne ścieżki są w `lib/pipeline/steps.ts` (także lista person, archiwum
 | `ips` | `Record<ip, AsnInfo \| null>` | IP kanoniczny (IPv6 w pełnej postaci) |
 
 - `ItemEnrichment` (`types.ts`): `itemId`, `landing: NormalizedUrl|null`, `pageKey` (klucz do `pages`), `text: TextExtract|null` (kontakty/portfele/URL-e z treści reklamy, OCR i ASR), `image: ImageInfo|null`, `personas: PersonaMatch[]`, `campaignParams: CampaignParam[]`, `ocrText`, `asrText`, `audioFp: AudioFingerprint|null`, `errors: string[]`.
+- `ItemEnrichment.faces` (opcjonalne, `--faces`): `FaceHit[]` (`image`, `x`, `y`, `w`, `h`, i dla podobnej twarzy `persona` oraz `similarity`). Brak wektorów. `image` to ścieżka obrazu albo `wideo#kadrN`. Persona z twarzy trafia też do `personas` (`source: "face"`, `similarity`).
 - `PageInfo` (`types.ts`): `requestedUrl`, `fetch` (= `FetchPageResult` bez `body`), `extract: PageExtract|null`, `favicon: {url, hashes: FaviconHashes|null, error}|null`, `kit: PageKit|null`, `archiveFile` (ścieżka zdekodowanego HTML w archiwum), `cloaking: CloakingCheck|null`.
 - `CloakingCheck` (`types.ts`): `crawler` i `mobile` (`CloakingVariant`, : `userAgent`, `finalUrl`, `status`, `domSimhash`, `bodySha256`, `error`), `finalUrlDiffers`, `domDistance`, `suspected`, `reasons[]`.
 - `HostInfo` (`types.ts`): `host`, `registrableDomain`, `dns: DnsRecords|null`, `ips: string[]`, `cnameChain: string[]` (cele CNAME po kolei, maks. 4 skoki).
@@ -301,7 +302,8 @@ Wszystkie są domyślnie wyłączone i włączane flagami `enrich`/`pipeline` (�
 | lista person (`--personas plik.json`; z próbką domyślnie `data/sample/personas.json`) | dopasowanie nazwisk z odmianą w treści reklamy i strony, przybliżone w tekście z OCR/ASR | `enrich.ts`, §4.8 |
 | NER (`--ner`) | imiona i nazwiska osób z tekstu przez skonfigurowany LLM, wynik w cache `ner` | `enrich.ts`, `persona.ts` |
 | OCR (`--ocr`), ASR (`--asr`), odcisk audio (`--audio`) | adaptery z §3.2; ASR i odcisk tylko dla reklam z `videoPath` | `enrich.ts` |
-| Głos mówcy (`--speaker`) | SpeechBrain ECAPA-TDNN (VoxCeleb) przez `scripts/py/speaker_embed.py` w venv `.venv-speaker` (`scripts/py/setup-speaker.sh`, env `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`); jeden proces na całą partię, cache `.cache/speaker`. Krawędź `similar_voice` przy cosinusie ≥ 0,6 (ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych); para z tą samą ścieżką (Chromaprint) jest pomijana. Rodzaj treści (`campaignRules.contentKinds`, §5.3a pkt 5): sklonowany głos jednej osoby publicznej pasuje między niezależnymi operatorami, więc sam nie łączy | `lib/media/speaker.ts`, `adLibraryVoice.test.ts` |
+| Głos mówcy (`--speaker`; galeria osób: §4.15) | SpeechBrain ECAPA-TDNN (VoxCeleb) i VAD przez `scripts/py/speaker_embed.py` w venv `.venv-speaker` (`scripts/py/setup-speaker.sh`, env `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`); jeden proces na całą partię, cache `.cache/speaker`. Krawędź `similar_voice` przy cosinusie ≥ 0,6 (ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych); para z tą samą ścieżką (Chromaprint) jest pomijana. Rodzaj treści (`campaignRules.contentKinds`, §5.3a pkt 5): sklonowany głos jednej osoby publicznej pasuje między niezależnymi operatorami, więc sam nie łączy | `lib/media/speaker.ts`, `adLibraryVoice.test.ts` |
+| Twarze (`--faces`) | OpenCV YuNet (wykrywanie) i SFace (wektor 128 liczb) przez `scripts/py/face_embed.py` w venv `.venv-face` (`scripts/py/setup-face.sh`, env `FACE_PYTHON`, `FACE_MODEL_DIR`); jeden proces na całą partię, bez cache. Dopasowanie w TS (`matchFaces`) tylko do zamkniętej listy 8 osób (`data/faces/index.json`); wynik to ramka i, dla podobnej twarzy, id osoby i podobieństwo. Szczegóły i próg z pomiaru: §4.14 | `lib/media/face.ts`, `face.test.ts`, `tests/faceGroup.offline.test.ts` |
 | Biblioteka reklam Mety (`--ad-library`, tylko live) | MetaAdsCollector (`uv tool install meta-ads-collector`, env `META_ADS_PYTHON`) przez `scripts/py/ad_library.py`: zapytanie „Zobacz szczegóły reklamy” po samym identyfikatorze biblioteki, bez klucza API, działa też dla zdjętych reklam. Identyfikatory z kolumny `ad_library_id` i z OCR zrzutów. Zwraca płatnika i beneficjenta (DSA), `is_ad_taken_down`, naruszone zasady, zasięg w UE i grupę docelową; cache `.cache/adlibrary` (1 dzień). Płatnik to pivot `ad_payer` (waga 0,65, krawędź `paid_by`; w `notAloneKinds`, więc sam nie łączy kampanii, §4.12); dane trafiają do węzła reklamy (`adLibrary`, `adTakenDown`). Endpoint publicznej strony biblioteki: może przestać działać po zmianach u Mety | `lib/osint/adLibrary.ts`, `adLibraryVoice.test.ts` |
 
 ---
@@ -466,7 +468,7 @@ Cyrylica w komentarzach strony lub w wartości parametru ustawia atrybut `cyrill
 
 ### 4.8 Persona (osoba, pod którą podszywa się reklama)
 
-Persona pochodzi wyłącznie z tekstu albo z danych wejściowych. Starter nie przetwarza twarzy ani głosu i nie przechowuje wzorców biometrycznych.
+Persona pochodzi z tekstu, z danych wejściowych albo, opcjonalnie (`--faces`), z twarzy podobnej do osoby z zamkniętej listy (§4.14). Głos podobny do osoby z galerii (`--speaker`) też daje tę personę, jako cecha grupy (§4.15). Wektory głosu (`--speaker`) służą tylko do porównania materiałów, nie do wskazania osoby.
 
 - **Lista obserwowanych osób** (`lib/text/persona.ts`, plik JSON `[{name, role?, aliases?}]`, schemat `persona.ts`): każde słowo nazwiska dostaje wzorzec prostej odmiany polskiej (`inflectionPattern`, `persona.ts`), np. „Adama Testowego”, „Ewie Przykładowej”, na tekście po `normalizeForMatching` (diakrytyki, homoglify, wielkość liter). Dopasowanie w treści reklamy i strony docelowej (`matchPersonas`, `persona.ts`).
 - **Tryb przybliżony dla OCR/ASR** (`fuzzyMatch`, `persona.ts`): imię musi pasować dokładnie (z odmianą), a temat nazwiska po zdjęciu końcówki (`stemPolish`, `persona.ts`) może różnić się o odległość edycyjną zależną od długości: ≤ 4 znaki 0, 5–7 znaków 1, ≥ 8 znaków 2 (`maxSurnameDistance`, `persona.ts`). Przypadek z transkrypcji whispera „Inwestuj z Rafałem Brzosku” (powiedziano „Brzoską”) pasuje do „Rafał Brzoska” tylko w tym trybie (`lib/text/persona.test.ts`). Tryb przybliżony działa tylko na tekście z OCR i ASR (`lib/pipeline/enrich.ts`).
@@ -559,6 +561,70 @@ Przed = kod sprzed zadania (ten sam commit bez zmian z §4.12), po = obecny kod;
 | Próbka syntetyczna, 43 reklamy | P = R = F1 = 1, B-cubed 1, ARI 1, 10 kampanii | to samo; 0 zmian wag węzłów i wyników 154 par |
 | Dane referencyjne, 25 spraw, pełny przebieg (28 rekordów) | P = 0,814, R = 1, F1 = 0,897 (znany rekord bez etykiety), 14 kampanii, 2 grupy (2 i 11; 2 i 4) | to samo, partycja i grupy identyczne; par 118 → 89, par między różnymi etykietami 83 → 54, silnych między etykietami 2 → 2 |
 | Przypisanie nowych materiałów (10 spraw, 12 rekordów) | znana kampania 3, nowa 7, duplikat 2 | to samo: 0 różnic werdyktu, kampanii i podobnych kampanii; przesłanki trzech przypisań do znanych kampanii bez zmian; łączy 62 → 31 (znikają łącza z samym szablonem linku, plikami i ścieżkami zestawu stron) |
+
+### 4.14 Persona z twarzy (`lib/media/face.ts`, od 21.11.2026, zadanie I5)
+
+**Co to jest.** Opcjonalny krok `--faces` (`enrich`, `pipeline`, `analyze-material`) szuka twarzy w obrazie reklamy, w dalszych zrzutach sprawy i w klatkach wideo (te same klatki co CLIP, `extractFrames`) i porównuje je z **zamkniętą listą osób publicznych** (od I5b 127 wpisów, 31 ze zdjęciami) (`data/osoby-publiczne.json`: `id`, `name`, `aliases`, `role`, `source` = publiczne ostrzeżenie, dla którego osoba jest na liście; 3–5 zdjęć każdej z Wikimedia Commons w `data/faces/<id>/`, autor i licencja w `data/faces/ZRODLA.md`, wektory w `data/faces/index.json`, budowane `face_embed.py --build-index data/faces`). Ta sama lista posłuży galerii głosów i personie z tekstu (`PUBLIC_PERSONS_FILE`; `analyze-material` bierze ją, gdy nie ma innej listy osób).
+
+**Modele.** OpenCV YuNet (`face_detection_yunet_2023mar.onnx`, MIT) i SFace (`face_recognition_sface_2021dec.onnx`, Apache-2.0) z OpenCV Zoo, w `opencv-python-headless` (Apache-2.0). Modele leżą poza repozytorium (`FACE_MODEL_DIR`), w obrazie Dockera są pobierane przy budowie. Bez InsightFace, DeepFace z domyślnymi wagami i innych wag NC.
+
+**Wynik.** „Podobna twarz do X (0,xx)”, nigdy „to jest X”. `FaceHit` ma ramkę i, tylko dla twarzy powyżej progu, `persona` (id osoby) oraz `similarity`. Twarz niedopasowana zostaje ramką bez persony. Wektory (dopasowanych i niedopasowanych) nie opuszczają `face.ts`: nie trafiają do `enriched.json`, cache, grafu, eksportu ani paczki dowodów.
+
+**Wzór dopasowania.** Dla każdej osoby najwyższy cosinus do któregokolwiek jej zdjęcia, razy waga jakości twarzy; wygrywa osoba z najwyższym wynikiem, jeśli osiąga próg. Waga jakości (na wzór MagFace: słaba twarz daje niewiarygodny wektor, więc liczy się mniej) = `min(1, krótszy bok ramki / 80 px) × min(1, wynik detektora / 0,9)`; twarze o krótszym boku < 24 px nie są dopasowywane. Wartości w `DEFAULT_FACE_CONFIG` (`face.ts`).
+
+**Persona z twarzy a graf (decyzja).** Jest to ten sam węzeł persony co z tekstu (`persona:<id>`), z opisem źródła „z twarzy (podobna twarz, 0,xx; do przeglądu przez człowieka)” na krawędzi `mentions_persona`. Osobny typ węzła nie jest potrzebny: osoba jest jedna, a nowy typ wymagałby wpisów w słownikach `lib/viewer` i `components/viewer`. Persona jest w `campaignRules.familyOnlyKinds`, więc **cecha twarzy działa tylko na poziomie grupy podobnych kampanii** (ta sama osoba jako przynęta u wielu operatorów) i nigdy nie łączy dwóch materiałów w kampanię. Test: `tests/faceGroup.offline.test.ts` (dwie kampanie z różną infrastrukturą, ta sama persona z tekstu i z twarzy, wspólna treść → dwie kampanie w jednej grupie).
+
+**Brak adaptera.** Bez venv, modeli albo indeksu `detectFaces` zwraca `{ skipped: "brak adaptera twarzy (scripts/py/setup-face.sh)" }`; w `analyze-material` krok `faces` ma status `skipped` z tym powodem.
+
+**Weryfikacja 1:1 (B-072).** `--faces --verify-person <id>`: porównanie tylko ze zdjęciami wskazanej osoby (`only` w `matchFaces`); nieznane id daje `skipped`.
+
+**Pomiar progu (B-069, `scripts/py/face_threshold.py`).** Zbiór „obcych”: 62 zdjęcia (54 wykryte twarze, największa twarz ze zdjęcia) 26 innych polskich osób publicznych z Wikimedia Commons, **poza repozytorium** (`data/twarze-pomiar`). Ta sama osoba: 30 par typu leave-one-out między zdjęciami bazy (zdjęcie wobec pozostałych zdjęć tej samej osoby, wygrywa właściwa osoba). Wynik z wagą jakości jak w kodzie:
+
+| Próg | Trafienia tej samej osoby (z 30) | Fałszywe trafienia na obcych (z 54) |
+|---|---|---|
+| 0,363 (zalecany dla SFace) | 96,7% | 9,3% (5 twarzy) |
+| 0,40 | 96,7% | 1,9% (1 twarz) |
+| **0,46 (przyjęty)** | **96,7%** | **0% (0 z 54; górna granica 95% ≈ 5,5%)** |
+| 0,50 | 90,0% | 0% |
+| 0,60 | 83,3% | 0% |
+
+Przyjęty próg `matchThreshold` = 0,46: najniższy z zerem fałszywych trafień na tym zbiorze. Zalecany 0,363 dawał ok. co dziesiątą obcą twarz przypisaną do osoby z listy (najwyższe wyniki obcych: 0,44 politycy do dziennikarza z listy, 0,40 do byłego prezydenta), a błędna persona jest gorsza niż jej brak. Ograniczenia: mały zbiór (54 twarze, więc zero oznacza „poniżej ok. 5%”), zdjęcia z Commons są jakościowo lepsze niż zrzuty z reklam (na zrzutach trafień będzie mniej), pary leave-one-out są obciążone tym, że w bazie bywają zdjęcia z jednej sesji.
+
+**Pomiar na danych poufnych** (poza repozytorium, `TWARZE.md` w katalogu danych): w jednej sprawie rozpoznana Monika Olejnik (0,57, twarz ok. 220×288 px), w drugiej 22 małe twarze bez trafienia.
+
+**Rozszerzenie bazy (I5b, 22.11.2026).** Lista `data/osoby-publiczne.json` ma 127 wpisów: 35 osób z rolą (10 z I5/I15 i 25 nowych: tier 1 i 2 z badania podszywanych osób, lekarze z ustaloną tożsamością i źródłem, osoby wymienione w tych samych artykułach, Sekielski z wyjątku właściciela, dwoje sportowców wzmacniających słabą kategorię) oraz 92 osoby z zestawienia NASK z 12.07.2024 bez zdjęć. Nowe pola `category` (grupa z zestawienia NASK) i `voiceFake` (badanie dokumentuje podrobiony głos); `category` trafia do `PersonaMatch`, do węzła persony i do `features.personaCategories` w `analyze-material` (cecha grupy, nie dowód). Osoby z zestawienia NASK dopasowuje się wyłącznie po pełnym imieniu i nazwisku (z odmianą), bez samego nazwiska; nieregularne formy odmiany (celownik, miejscownik) są aliasami. Baza twarzy: 31 osób, 103 zdjęcia (Sołowow i Sutkowski nie mają zdjęcia na wolnej licencji o wystarczającej jakości, Torbicki i Friz mają po 1, Drzyzga 1). Kontrola: mediana kosinusa między zdjęciami tej samej osoby 0,62 (osoby poniżej progu 0,46: Brzoska 0,41 z powodu zdjęcia z profilu, Drzyzga 1 zdjęcie); najbliższa para różnych osób 0,43 (Domański–Sekielski), poniżej progu 0,46. Zdjęcie Drzyzgi z Prokopem usunięto po kontroli (detektor wziął twarz Prokopa, kosinus 0,76). Próg bez zmian.
+
+**Zakres.** Bez crawlera twarzy i bez rozbudowy bazy z sieci poza listą osób ze źródłem podszycia (AI Act art. 5 ust. 1 lit. e); bez detektora deepfake i oceny „czy to prawdziwa osoba”. Uwagi prawne: `docs/ZGODNOSC.md`.
+
+### 4.15 Persona z głosu (`lib/media/speaker.ts`, od 21.11.2026, zadanie I15)
+
+**Co to jest.** Opcjonalny krok `--speaker` (`enrich`, `pipeline`, `analyze-material`) tnie ścieżkę dźwiękową wideo na okna po 4 s (krok 2 s), porównuje każde okno ze **wzorcami osób z galerii głosów** i zapisuje w danych materiału `voices?: Array<{ start, end, persona?, similarity? }>` (sekundy od początku nagrania; `persona` i `similarity` tylko dla głosu podobnego do osoby z listy). Etykieta: **„głos podobny do X (0,57)”**, nigdy „to jest głos X”. Galeria to ta sama zamknięta lista osób publicznych co dla twarzy (`data/osoby-publiczne.json`, wpis ma publiczne ostrzeżenie w `source`), wzorce w `data/voices/index.json` (wektory 192 liczb, po jednym na nagranie; bez nagrań), źródła nagrań w `data/voices/ZRODLA.md`. Do listy dopisano Izabelę Leszczynę i Buddę (źródło: film NASK z kompilacją fałszywych reklam), więc głos ma 10 osób, a twarz 8 (dla dwóch dopisanych osób nie ma zdjęć).
+
+**Model.** SpeechBrain ECAPA-TDNN (`speechbrain/spkrec-ecapa-voxceleb`, Apache-2.0, bez douczania) i SpeechBrain VAD (`speechbrain/vad-crdnn-libriparty`; odróżnia mowę od muzyki i szumu; **karta modelu nie podaje licencji wag**, a model trenowano z szumem z UrbanSound8K na licencji CC BY-NC, więc do potwierdzenia przed użyciem komercyjnym, patrz LICENCJE.md; kod SpeechBrain: Apache-2.0). Oba w venv `.venv-speaker` (`scripts/py/setup-speaker.sh`), modele poza repozytorium (`SPEAKER_MODEL_DIR`, `SPEAKER_VAD_DIR`). Demucs (rozdzielanie źródeł) nie jest użyty: VAD odrzuca okna z samą muzyką bez ciężkich zależności.
+
+**Reguła (`matchVoiceWindows`, czysta funkcja, testy w `speaker.test.ts`).** (1) Okno cichsze niż −45 dBFS albo z prawdopodobieństwem mowy VAD < 0,5 jest odrzucone (cisza, samo tło lub sama muzyka). (2) Wzorzec osoby = znormalizowana średnia jej wektorów z nagrań. (3) Okno nazywa osobę, gdy kosinus do jej wzorca ≥ **0,5** **i** przewaga nad drugą osobą ≥ **0,15**. (4) Persona liczy się, gdy nazywa ją **co najmniej 2 sąsiednie okna** (6 s głosu): pojedyncze okno obcego bywało podobne do kogoś przypadkiem (0,51–0,53). (5) Sąsiednie okna tej samej osoby tworzą przedział `start`/`end`, `similarity` = średnia kosinusów okien. Wartości w `DEFAULT_VOICE_CONFIG`.
+
+**Wzorzec osoby.** `scripts/py/build_voice_index.py`: dla każdej osoby 5–8 polskich nagrań z YouTube (yt-dlp, tylko fragment 90 s dźwięku, do katalogu poza repozytorium), okna, wektor nagrania = średnia okien **mówcy, który pasuje do pozostałych nagrań osoby** (rozmówca albo współprowadzący to druga grupa okien, nie wzorzec). Nagranie, w którym żaden mówca nie ma kosinusa ≥ 0,4 do pozostałych, jest odrzucane i opisane w `ZRODLA.md` (6 z 76). Dodanie osoby: wpis w `osoby-publiczne.json` ze źródłem, wpisy w pliku źródeł i `build_voice_index.py` (README).
+
+**Persona z głosu a graf (decyzja).** Ten sam węzeł persony co z tekstu i twarzy (`persona:<id>`), krawędź `mentions_persona` z opisem „z głosu (głos podobny do osoby, 0,xx; do przeglądu przez człowieka)”, `PersonaMatch.source = "voice"`. Persona jest w `familyOnlyKinds`: **cecha głosu działa tylko na poziomie grupy podobnych kampanii** (ta sama osoba jako przynęta u wielu operatorów), nigdy nie łączy materiałów w kampanię. Test: `tests/faceGroup.offline.test.ts` (druga część: dwie kampanie z różną infrastrukturą, wstrzyknięty wynik adaptera → dwie kampanie w jednej grupie). Wektory okien nie opuszczają `speaker.ts` (w `enriched.json` zostaje tylko całoplikowy `speakerEmbedding`, jak dotąd; nie ma go w grafie ani w eksporcie).
+
+**Brak narzędzi.** Bez venv, modelu mowy albo galerii krok jest pominięty z powodem w logu („głos mówcy pominięty: …”), a w `analyze-material` krok `voice` ma status `skipped` z tym powodem; nic się nie wywraca.
+
+**Pomiar (B-248, `bun run voice:eval -- --work-dir <katalog poza repo>`).** Galeria: 10 osób, 76 nagrań wybranych, 70 użytych (Brzoska 6, Olejnik 8, Glapiński 8, Tusk 8, Morawiecki 8, Stanowski 6, Lewandowski 6, Duda 7, Leszczyna 8, Budda 5). Kosinus między nagraniami tej samej osoby: średnio 0,66–0,86 (minimum 0,52); między wzorcami różnych osób ≤ 0,49 (najbliższe pary: Olejnik–Leszczyna, Glapiński–Brzoska i Morawiecki–Duda po 0,49). Zbiór „obcych”: 22 nagrania 11 innych polskich polityków (po 2, fragmenty 90 s) i 3 utwory muzyczne, wszystko poza repozytorium. Ta sama osoba: leave-one-recording-out (nagranie wobec indeksu bez niego). Dla wybranego ustawienia (0,5 / 0,15 / 2 okna):
+
+| Miara | Wynik |
+|---|---|
+| nagranie osoby z listy nazwane właściwą osobą (co najmniej jeden przedział) | 70/70 |
+| nagranie nazwane inną osobą z listy | 1/70 (1,4%) |
+| nagranie obcego z personą (fałszywe trafienie) | 1/25 (4,0%) |
+| okna obcych w przedziale z personą | 5/824 (0,6%) |
+| utwory muzyczne z personą | 0/3 (VAD: 0–0,07 prawdopodobieństwa mowy; mowa 0,92–0,99) |
+
+Jedyne „fałszywe” trafienie to nagranie z kanału Zero, w którym przez 14 s mówi głos podobny do Krzysztofa Stanowskiego (0,67–0,76; w tym fragmencie jest czytana zapowiedź sponsorów kanału), więc prawdopodobnie jest to naprawdę ten głos, a nie błąd; nie sprawdziłem tego na słuch. Bez tego nagrania 0/24. **Cel FPR ≤ 3,5% nie jest potwierdzony statystycznie**: 25 nagrań daje przy zerze błędów górną granicę 95% ok. 13%. Progi: przy 0,45 i 1 oknie fałszywych trafień było 7/25 (28%), przy 0,55–0,60 spada liczba trafień na osobie z listy (0,55 z 3 oknami: 68/70), więc 0,5 z minimalnie 2 oknami to najniższy próg bez fałszywych trafień poza przypadkiem Stanowskiego.
+
+**Zbiór testowy fałszywek.** Film NASK z kompilacją 5 fałszywych reklam (YouTube `QKYthjXNn08`, 170 s; opis wymienia: Duda, Leszczyna, Lewandowski, Brzoska, Budda), pobrany poza repozytorium, nieużyty w galerii. Wynik (0,5 / 0,15 / 2 okna): **5/5 fałszywek nazwanych właściwą osobą**: Duda 0,69 (58 s), Lewandowski 0,65–0,66, Brzoska 0,60, Budda 0,56, Leszczyna 0,66; żadna inna osoba nie została nazwana. Zastrzeżenie: kolejność i granice fałszywek wzięte z kolejności w opisie filmu i z wyniku, nie z ręcznej etykiety czasów.
+
+**Ograniczenia.** Model nie był trenowany na polskiej mowie (w pomiarze wstępnym wywiad PL 0,57 wobec przemowy EN 0,40–0,43); nagrania galerii to głównie wystąpienia i wywiady, a reklamy mają inną akustykę (kompresja, muzyka pod głosem; VAD przepuszcza mowę z muzyką w tle); lektor zamiast osoby w fałszywce nie da trafienia (jak w pomiarze wstępnym); zbiór obcych jest mały; jest to cecha grupy kampanii, nie detektor klonu głosu ani ocena autentyczności nagrania. Dane biometryczne: `docs/ZGODNOSC.md`.
 
 ## 5. Klastrowanie
 
@@ -796,7 +862,7 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | `backtest:ct` | `--list` (log akcji Listy CERT, NDJSON), `--mode lead|fingerprints`, `--certs` (nagranie certyfikatów JSONL), `--save-certs`, `--sample`, `--seed`, `--data`, `--since`, `--budgets` (10,50,100), `--out` | `bun run backtest:ct -- --list actions_2026.log --mode fingerprints --data dane/baza --since 2026-10-10T00:00:00Z --certs nagranie.jsonl` |
 | `ct:watch` | `--campaigns`, `--graph`, `--lexicon` (`data/sample/ct-lexicon.json`), `--config`, `--url` (`ws://127.0.0.1:8181/,wss://certstream.calidog.io/`; też `CT_STREAM_URL`), `--duration` (s), `--threshold` (0.6), `--feed` (`data/ct-watch.jsonl`; też `CT_FEED_FILE`), `--no-enrich`, `--fetch-page`, `--offline`, `--dry-run`, `--max-enrich-per-min` (30), `--replay plik.jsonl` | `bun run ct:watch -- --duration 300` · `bun run ct:watch -- --replay data/sample/ct-stream.jsonl` |
 | `ct:backfill` | `--pattern` (lista; bez niej z szablonów kampanii), `--since` (7 dni), `--campaigns`, `--graph`, `--lexicon`, `--config`, `--threshold`, `--feed`, `--include-expired`, `--no-enrich`, `--fetch-page`, `--offline`, `--dry-run` | `bun run ct:backfill -- --pattern 'zwrot%' --no-enrich` |
-| `analyze-material` | jedno lub kilka z: `--case` (katalog sprawy), `--cases` (katalog partii: każdy podkatalog to sprawa; `--each-file`: także każdy luźny plik jako osobna sprawa), `--dataset` (plik zbioru `.csv`/`.tsv`/`.json`/`.jsonl`, wiersz = materiał; `--mapping` jak w `ingest`), `--url`, `--text`; `--data` (`VIEWER_DATA_DIR` albo `data/`), `--csv` (wiersz na rekord), `--json` (pełny `MaterialResult`; `-` = stdout), `--out` (to samo, używa przeglądarka), `--work`, `--config`, `--personas`, `--fixtures`, `--live`, `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library` | `bun run analyze-material -- --cases partia/ --csv wynik.csv --json wynik.json` |
+| `analyze-material` | jedno lub kilka z: `--case` (katalog sprawy), `--cases` (katalog partii: każdy podkatalog to sprawa; `--each-file`: także każdy luźny plik jako osobna sprawa), `--dataset` (plik zbioru `.csv`/`.tsv`/`.json`/`.jsonl`, wiersz = materiał; `--mapping` jak w `ingest`), `--url`, `--text`; `--data` (`VIEWER_DATA_DIR` albo `data/`), `--csv` (wiersz na rekord), `--json` (pełny `MaterialResult`; `-` = stdout), `--out` (to samo, używa przeglądarka), `--work`, `--config`, `--personas`, `--fixtures`, `--live`, `--asr`, `--audio`, `--clip`, `--speaker`, `--faces` (z `--verify-person <id>`), `--ad-library` | `bun run analyze-material -- --cases partia/ --csv wynik.csv --json wynik.json` |
 | `llm:smoke` | brak | `OLLAMA_MODEL=SpeakLeash/bielik-11b-v3.0-instruct:Q5_K_M bun run llm:smoke` |
 | `media:smoke` | brak; OCR obrazu z polskim tekstem, ASR mowy z `say -v Zosia` (macOS) po konwersji do WAV 16 kHz, odciski Chromaprint; brakujące narzędzia są zgłaszane i pomijane, kod wyjścia zawsze 0 | `bun run media:smoke` |
 | `sample:generate` | brak; **kasuje i odtwarza `data/sample/`** | `bun run sample:generate && bun run pipeline --offline` |
@@ -873,6 +939,9 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 | `HF_HUB_OFFLINE` | `0` (w kontenerze `1`) | `lib/media/imageEmbed.ts` | `1`: tylko model już na dysku, bez pobierania; bez modelu CLIP jest `skipped` z powodem |
 | `SPEAKER_PYTHON` | `.venv-speaker/bin/python` | `lib/media/speaker.ts` | interpreter z SpeechBrain dla `--speaker` |
 | `SPEAKER_MODEL_DIR` | `~/models/speechbrain/spkrec-ecapa-voxceleb` | `lib/media/speaker.ts` | katalog modelu ECAPA |
+| `SPEAKER_VAD_DIR` | `~/models/speechbrain/vad-crdnn-libriparty` | `lib/media/speaker.ts` | katalog modelu detekcji mowy (galeria głosów, §4.15) |
+| `FACE_PYTHON` | `.venv-face/bin/python` (w obrazie `/opt/venv/bin/python`) | `lib/media/face.ts` | interpreter z `opencv-python-headless` dla `--faces` |
+| `FACE_MODEL_DIR` | `~/models/opencv` (w obrazie `/opt/models/opencv`) | `lib/media/face.ts`, `scripts/py/face_embed.py` | katalog z `face_detection_yunet_2023mar.onnx` i `face_recognition_sface_2021dec.onnx` |
 | `META_ADS_PYTHON` | interpreter z shebangu `meta-ads-collector` w `PATH` | `lib/osint/adLibrary.ts` | Python z MetaAdsCollector dla `--ad-library` |
 | `ADLIB_BQ_MAX_BYTES` | 10 GiB (`lib/adlib/config.ts`) | `lib/adlib/config.ts` | limit bajtów jednego zapytania BigQuery (`20GB`, `512MB`, liczba bajtów); zob. §3.11 |
 | `ADLIB_PYTHON` | `python3` | `lib/adlib/google.ts` | Python z `google-cloud-bigquery` dla `scripts/py/google_atc.py` |
@@ -998,7 +1067,7 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 
 ## 12. Testy
 
-`bun run test`: 638 testów w 73 plikach, wszystkie przechodzą (stan po zadaniu i8, 21.11.2026). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzi brak. Tabela poniżej opisuje pokrycie z pierwotnego zestawu (liczby w kolumnie „Testy” z 19.11.2026 są orientacyjne); nowsze pliki testów leżą obok modułów (`*.test.ts`) i w `tests/`.
+`bun run test`: 658 testów w 75 plikach, wszystkie przechodzą (stan po zadaniu i5, 21.11.2026; i5 dodał `lib/media/face.test.ts`, `tests/faceGroup.offline.test.ts` i testy aliasów `@handle` w `lib/text/persona.test.ts`). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzi brak. Tabela poniżej opisuje pokrycie z pierwotnego zestawu (liczby w kolumnie „Testy” z 19.11.2026 są orientacyjne); nowsze pliki testów leżą obok modułów (`*.test.ts`) i w `tests/`.
 
 | Plik | Testy | Pokrycie |
 |---|---|---|
@@ -1360,6 +1429,7 @@ bun run enrich -- --personas lista.json   # lista obserwowanych osób (z próbk�
 bun run enrich -- --ner                   # nazwiska z tekstu przez skonfigurowany LLM
 bun run enrich -- --cloaking              # dwa zwykłe GET-y: UA crawlera platformy i przeglądarki mobilnej
 bun run enrich -- --ocr --asr --audio     # tesseract (pol), whisper-cli (+ffmpeg), fpcalc
+bun run enrich -- --faces                  # twarze: podobna twarz do osoby z zamkniętej listy osób (OpenCV, scripts/py/setup-face.sh)
 bun run enrich -- --speaker --ad-library  # głos mówcy (SpeechBrain, scripts/py/setup-speaker.sh), biblioteka reklam Mety (MetaAdsCollector)
 bun run enrich -- --clip                  # embeddingi obrazów CLIP (lokalnie, ONNX)
 bun run media:smoke                       # test adapterów na syntetycznym wejściu
@@ -1383,7 +1453,7 @@ brew install ollama && ollama serve &
 ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M
 ollama pull bge-m3
 
-# adaptery w Pythonie: głos mówcy (--speaker) i Biblioteka Reklam Mety (--ad-library); wymaga uv
+# adaptery w Pythonie: głos mówcy (--speaker), twarze (bash scripts/py/setup-face.sh, --faces) i Biblioteka Reklam Mety (--ad-library); wymagają uv
 bash scripts/py/setup-speaker.sh
 
 bun run media:smoke   # sprawdza, które adaptery są dostępne
@@ -1440,6 +1510,7 @@ Narzędzia zewnętrzne są opcjonalne, uruchamiane jako osobne procesy (albo kon
 | mlx-whisper | 0.4.3 | MIT | zapasowy ASR na Apple Silicon, tylko z modelem już obecnym lokalnie (proces zewnętrzny) |
 | SpeechBrain | 1.1.2 | Apache-2.0 | embedding głosu mówcy dla `--speaker` (Python, proces zewnętrzny) |
 | model `speechbrain/spkrec-ecapa-voxceleb` (ECAPA-TDNN) | — | Apache-2.0 (trenowany na VoxCeleb) | wektor głosu (192 wymiary), pobierany raz przez `setup-speaker.sh`; nie był trenowany na polskiej mowie |
+| model `speechbrain/vad-crdnn-libriparty` (CRDNN) | — | licencja wag niepodana na karcie (do potwierdzenia, LICENCJE.md) | detekcja mowy przed dopasowaniem głosu do galerii (`--speaker`), pobierany raz przez `setup-speaker.sh` |
 | PyTorch / torchaudio | 2.15.0 / 2.11.1 | licencje liberalne według metadanych pakietów (PyTorch: Apache-2.0, BSD-2/3-Clause, MIT i in.; torchaudio: BSD) | środowisko wykonawcze SpeechBrain |
 | soundfile, NumPy | 0.14.0 / 2.5.5 | BSD-3-Clause | odczyt WAV, wektory |
 | MetaAdsCollector (`meta-ads-collector`) | 1.7.2 | MIT | dane przejrzystości DSA z Biblioteki Reklam Mety dla `--ad-library`: płatnik, beneficjent, usunięcie, zasięg w UE. Korzysta z publicznego endpointu strony, bez klucza API, więc może przestać działać po zmianie strony; automatyczne odpytywanie może naruszać regulamin Mety |

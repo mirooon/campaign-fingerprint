@@ -826,19 +826,23 @@ export function buildEvidenceGraph(
 
     // Personas (impersonated people): weak signal, mainly for filtering and triage
     // One edge per persona; every way it was found is kept in the edge evidence ("; "-separated).
-    const personaHows = new Map<string, { name: string; role: string | null; hows: string[] }>();
+    const personaHows = new Map<string, { name: string; role: string | null; category: string | null; hows: string[] }>();
     for (const pm of enr?.personas ?? []) {
-      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
-      const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, hows: [] };
+      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.source === "face" ? `z twarzy (podobna twarz${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.source === "voice" ? `z głosu (głos podobny do osoby${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
+      const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, category: pm.category ?? null, hows: [] };
       if (!cur.hows.includes(how)) cur.hows.push(how);
       cur.role ??= pm.role;
+      cur.category ??= pm.category ?? null;
       personaHows.set(pm.id, cur);
     }
     for (const [pid, p] of personaHows) {
-      const id = g.node("persona", pid, p.name, { name: p.name, role: p.role });
+      const id = g.node("persona", pid, p.name, { name: p.name, role: p.role, ...(p.category ? { category: p.category } : {}) });
       g.edge(itemNode, id, "mentions_persona", `persona ${p.hows.join("; ")}`);
       add(id, "persona", [itemNode, id], 1, `ta sama persona: ${p.name}`);
     }
+    // Group of the impersonated person ("podszywa się pod: dziennikarkę"): a trait of the group, only for entries that have one
+    const personaCategories = [...personaHows.values()].filter((p) => p.category).map((p) => ({ name: p.name, category: p.category }));
+    if (personaCategories.length) itemData.personaCategories = personaCategories;
 
     // Addresses seen in the browser address bar of screenshots and recordings
     const observedUrls = enr?.observedUrls ?? [];

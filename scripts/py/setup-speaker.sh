@@ -7,5 +7,7 @@ uv venv --python 3.12 .venv-speaker
 uv pip install --python .venv-speaker/bin/python speechbrain torch torchaudio soundfile
 # fetch the ECAPA model once (~85 MB) so later runs are offline
 .venv-speaker/bin/python -c "from speechbrain.inference.speaker import EncoderClassifier as E; import os; E.from_hparams(source='speechbrain/spkrec-ecapa-voxceleb', savedir=os.environ.get('SPEAKER_MODEL_DIR', os.path.expanduser('~/models/speechbrain/spkrec-ecapa-voxceleb')))"
+# fetch the voice-activity model once (~0.5 MB): it tells speech from music in the voice gallery match
+.venv-speaker/bin/python -c "from speechbrain.inference.VAD import VAD; import os; VAD.from_hparams(source='speechbrain/vad-crdnn-libriparty', savedir=os.environ.get('SPEAKER_VAD_DIR', os.path.expanduser('~/models/speechbrain/vad-crdnn-libriparty')))"
 # Meta Ad Library lookup (lib/osint/adLibrary.ts)
 uv tool install meta-ads-collector || true

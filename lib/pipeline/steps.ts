@@ -100,6 +100,10 @@ export interface EnrichStepOptions {
   clip?: boolean;
   /** SpeechBrain speaker embeddings of video creatives. */
   speaker?: boolean;
+  /** Faces in creatives, screenshots and video frames; persona from a face similar to a public figure of the closed list. */
+  faces?: boolean;
+  /** With `faces`: compare only with this person id (1:1 verification at that person's request). */
+  facesOnly?: string;
   /** Meta Ad Library details for ad-library IDs (MetaAdsCollector, live mode). */
   adLibrary?: boolean;
   /** Directory for archived HTML; null disables archiving. */
@@ -122,7 +126,7 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
   if (watchlist) console.log(`[enrich] lista obserwowanych osób: ${watchlist.entries.length} (${o.personas})`);
   const archiveStep = archiveStepOptions({ enabled: !!o.archiveLookup, offline: o.offline });
   const parking = new Discounter(DEFAULT_LINK_CONFIG);
-  const extras = [archiveStep && "archiwa stron (urlscan, Wayback)", o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "głos (SpeechBrain)", o.adLibrary && "biblioteka reklam"].filter(Boolean);
+  const extras = [archiveStep && "archiwa stron (urlscan, Wayback)", o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "głos (SpeechBrain)", o.faces && "twarze (OpenCV)", o.adLibrary && "biblioteka reklam"].filter(Boolean);
   if (extras.length) console.log(`[enrich] włączone opcje: ${extras.join(", ")}`);
   let lastLog = 0;
   const ds = await enrichItems(itemsFile.items, {
@@ -138,6 +142,8 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
     audio: !!o.audio,
     clip: !!o.clip,
     speaker: !!o.speaker,
+    faces: !!o.faces,
+    facesOnly: o.facesOnly,
     adLibrary: !!o.adLibrary,
     archiveDir: o.archive === undefined ? DEFAULTS.archive : o.archive,
     archive: archiveStep ? { ...archiveStep, isBlockPage: (texts) => parking.isParked(texts) } : null,
@@ -160,7 +166,7 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
   const per = Object.values(ds.perItem);
   const cloaked = pages.filter((p) => p.cloaking?.suspected).length;
   console.log(
-    `[enrich] persony: ${per.filter((e) => e.personas.length).length} reklam, parametry kampanii: ${per.reduce((n, e) => n + e.campaignParams.length, 0)}, backendy formularzy: ${pages.reduce((n, p) => n + (p.kit?.endpoints.length ?? 0), 0)}${o.cloaking ? `, podejrzenie cloakingu: ${cloaked} stron` : ""}${o.ocr ? `, OCR: ${per.filter((e) => e.ocrText).length}` : ""}${o.asr ? `, ASR: ${per.filter((e) => e.asrText).length}` : ""}${o.audio ? `, odciski audio: ${per.filter((e) => e.audioFp).length}` : ""}${o.clip ? `, CLIP: ${per.filter((e) => e.imageEmbedding).length} obrazów, ${per.filter((e) => e.videoEmbedding).length} wideo` : ""}${o.speaker ? `, głos mówcy: ${per.filter((e) => e.speakerEmbedding).length}` : ""}${o.adLibrary ? `, biblioteka reklam: ${per.filter((e) => e.adLibrary?.some((r) => !r.error)).length} reklam (zdjęte przez Metę: ${per.filter((e) => e.adLibrary?.some((r) => r.takenDown)).length})` : ""}`,
+    `[enrich] persony: ${per.filter((e) => e.personas.length).length} reklam, parametry kampanii: ${per.reduce((n, e) => n + e.campaignParams.length, 0)}, backendy formularzy: ${pages.reduce((n, p) => n + (p.kit?.endpoints.length ?? 0), 0)}${o.cloaking ? `, podejrzenie cloakingu: ${cloaked} stron` : ""}${o.ocr ? `, OCR: ${per.filter((e) => e.ocrText).length}` : ""}${o.asr ? `, ASR: ${per.filter((e) => e.asrText).length}` : ""}${o.audio ? `, odciski audio: ${per.filter((e) => e.audioFp).length}` : ""}${o.clip ? `, CLIP: ${per.filter((e) => e.imageEmbedding).length} obrazów, ${per.filter((e) => e.videoEmbedding).length} wideo` : ""}${o.speaker ? `, głos mówcy: ${per.filter((e) => e.speakerEmbedding).length}` : ""}${o.faces ? `, twarze: ${per.reduce((n, e) => n + (e.faces?.length ?? 0), 0)} (podobne do osób z listy: ${per.filter((e) => e.faces?.some((f) => f.persona)).length} reklam)` : ""}${o.adLibrary ? `, biblioteka reklam: ${per.filter((e) => e.adLibrary?.some((r) => !r.error)).length} reklam (zdjęte przez Metę: ${per.filter((e) => e.adLibrary?.some((r) => r.takenDown)).length})` : ""}`,
   );
   return ds;
 }

@@ -586,13 +586,12 @@ describe("importCases: a page video saved as HLS", () => {
 });
 
 /**
- * Known defect found by the final test gate (I19), left for the owner's decision: the visitor record of a
- * landing-page platform also holds the page's own domain and the lander id, which are the operator's data, not
- * the analyst's. The redaction on reading removes every key of the record but the campaign number and then
- * replaces each removed value in the whole page, the "saved from url" comment included, so the page loses its
- * address and the case is dropped. `it.fails` until the redaction keeps such values.
+ * Defect found by the final test gate (I19), fixed in lib/osint/redact.ts: the visitor record of a landing-page
+ * platform also holds the page's own domain and the lander id, which are the operator's data, not the analyst's.
+ * The redaction used to remove every key of the record but the campaign number and replace each removed value in
+ * the whole page, the "saved from url" comment included, so the page lost its address and the case was dropped.
  */
-describe("importCases: saved page whose visitor record holds the page's domain and lander id (known defect)", () => {
+describe("importCases: saved page whose visitor record holds the page's domain and lander id", () => {
   let dir: string;
   let result: Awaited<ReturnType<typeof importCases>>;
   const UUID = "33333333-3333-4333-8333-333333333333";
@@ -608,7 +607,7 @@ describe("importCases: saved page whose visitor record holds the page's domain a
   });
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it.fails("keeps the case with its address and removes only the analyst's IP", () => {
+  it("keeps the case with its address and removes only the analyst's IP", () => {
     expect(result.skipped).toEqual([]);
     const records = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8"));
     expect(records.map((r: { landing_url: string }) => r.landing_url)).toEqual([PAGE]);

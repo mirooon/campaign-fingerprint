@@ -13,6 +13,8 @@
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
 import { detectPageTechniques, type ClickfixCommand, type CommentBlock, type PageTechnique } from "./pageTechniques";
+import { leadFlowTokens } from "./leadFlow";
+import { backLibs, svgScriptInfo } from "./pageTraits";
 import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformLinkIds, type LanderConfig, type PlatformLinkIds } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
@@ -93,6 +95,12 @@ export interface PageKit {
   platformTenants?: string[];
   /** Campaign, source and account of the landing-page platform in its links (cuuid, suuid, launcher) in the page code or requests. */
   platformLinks?: PlatformLinkIds;
+  /** Lead-funnel tokens of the landing-page platform (form, fields, flows, key id, event host; B-332), omitted when none. */
+  leadFlow?: string[];
+  /** Back-trap libraries named in the page or its own scripts (vitBack, BackFix…; B-335), omitted when none. */
+  backLib?: string[];
+  /** A script hidden in an inline SVG of the page and the addresses it names (B-334), omitted when none. */
+  svgScript?: { urls: string[] };
   /** Hosts outside the page's registrable domain that its requests (HAR, scan) contacted, sorted (B-158). */
   requestHosts?: string[];
   /** Tracker IDs in the request addresses: Meta pixel from facebook.com/tr?id= and signals/config/<id> (B-158). */
@@ -1017,6 +1025,8 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       lander: extractLanderConfig(html),
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
+      ...leadFlowOf(html),
+      ...traitsOf(html, opts.scripts ?? []),
       ...techniquesOf(html, pageUrl),
       ...leadTracesOf(html, pageUrl, opts.scripts ?? []),
     };
@@ -1074,6 +1084,19 @@ function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pi
 function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {
   const t = landingCdnTenants(urls);
   return t.length ? { platformTenants: t } : {};
+}
+
+/** The `backLib` and `svgScript` fields of a page kit (B-335, B-334), each omitted when empty. */
+function traitsOf(html: string, scripts: PageScript[]): Pick<PageKit, "backLib" | "svgScript"> {
+  const libs = backLibs([html, ...scripts.slice(0, TEXT_CONFIG.kitStrings.maxScriptsPerPage).map((x) => x.body)].join("\n"));
+  const svg = svgScriptInfo(html);
+  return { ...(libs.length ? { backLib: libs } : {}), ...(svg ? { svgScript: svg } : {}) };
+}
+
+/** The `leadFlow` field of a page kit (B-332), omitted when the page carries no lead-funnel tokens. */
+function leadFlowOf(html: string): Pick<PageKit, "leadFlow"> {
+  const t = leadFlowTokens(html);
+  return t.length ? { leadFlow: t } : {};
 }
 
 /** The `platformLinks` field of a page kit, omitted when there are no platform link identifiers. */

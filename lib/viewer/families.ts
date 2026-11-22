@@ -48,6 +48,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   crm_key: "page",
   template_phrase: "page",
   kit_string: "page",
+  lead_flow: "page",
   // Infrastruktura
   url: "infra",
   host: "infra",

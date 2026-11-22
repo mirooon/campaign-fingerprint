@@ -58,6 +58,8 @@ export const ENTITY_TYPES = [
   "shared_doc",
   "onion",
   "messenger_invite",
+  // shared lead funnel of a landing-page platform (B-332)
+  "lead_flow",
   // identifiers of a company on a page (NIP, REGON, KRS, VAT, UK number) and bank accounts (IBAN, NRB)
   "company_id",
   "bank_account",
@@ -110,6 +112,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   shared_doc: "Dokument, formularz lub czat udostępniony linkiem",
   onion: "Adres .onion",
   messenger_invite: "Zaproszenie lub konto komunikatora",
+  lead_flow: "Wspólny lejek leadów platformy stron",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",

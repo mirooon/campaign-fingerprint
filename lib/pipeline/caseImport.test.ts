@@ -196,7 +196,7 @@ describe("importCases (untidy case folders)", () => {
     writeFileSync(path.join(c7, "Zobacz [111222333444555_3].mp4"), "video");
     writeFileSync(
       path.join(c7, "Zobacz [111222333444555_3].info.json"),
-      JSON.stringify({ webpage_url: "https://www.facebook.com/ads/library/?id=111222333444555", playlist_uploader: "LasTestowy", epoch: 1767953733 }),
+      JSON.stringify({ webpage_url: "https://www.facebook.com/ads/library/?id=111222333444555", playlist_uploader: "LasTestowy", epoch: 1767953733, was_live: true }),
     );
 
     // 42: one ad, three saved pages in sub-folders, all behind one address
@@ -251,7 +251,7 @@ describe("importCases (untidy case folders)", () => {
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it("keeps a case that holds only a video and its yt-dlp description, with the advertiser and the ad-library ID", () => {
-    expect(byId("7")).toMatchObject({ landing_url: null, advertiser: "LasTestowy", ad_library_id: "111222333444555", first_seen: "2026-01-09T10:15:33.000Z" });
+    expect(byId("7")).toMatchObject({ landing_url: null, advertiser: "LasTestowy", ad_library_id: "111222333444555", first_seen: "2026-01-09T10:15:33.000Z", live_status: "was_live" });
     expect(String(byId("7")!.video)).toMatch(/Zobacz \[111222333444555_3\]\.mp4$/);
     expect(JSON.parse(readFileSync(path.join(outDir, "mapping.json"), "utf8"))).toMatchObject({ videoPath: "video", advertiser: "advertiser", extraImagePaths: "more_screenshots" });
   });

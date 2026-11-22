@@ -183,6 +183,10 @@ export interface ItemEnrichment {
   videoOverlay?: SubtitleOverlay;
   /** Name or logo text of the original recording in a corner of the frame (B-327). */
   sourceWatermark?: SourceWatermark;
+  /** Marker of an AI generator found in the creative image's file metadata (C2PA, IPTC, generator name): an attribute, no pixel analysis. */
+  /** Register answers for the "doctors" named in the ad (opt-in plugin, B-314): label only. */
+  expertChecks?: { name: string; registered: boolean }[];
+  aiImageMeta?: { marker: string; detail: string };
   /** L2-normalised SpeechBrain ECAPA speaker embedding of the video/audio creative (opt-in). */
   speakerEmbedding?: number[];
   /** Faces in the creative image, the further screenshots and the video frames (opt-in): box, and for a face similar to someone on the closed list of public figures the persona id and similarity. No vectors. */

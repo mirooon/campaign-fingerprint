@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { defangHost, defangText, maskMetaToken, maskText, maskUrl, redactHar, redactPageHtml } from "./redact";
+import { extractLanderConfig } from "./landerConfig";
 
 const TOKEN = "EAABsbCS1iHgBO7Zx9yQ2testtoken";
 const sha12 = (s: string) => createHash("sha256").update(s).digest("hex").slice(0, 12);
@@ -48,6 +49,28 @@ describe("redactPageHtml", () => {
     const js = redactPageHtml(`<script>window.aio.visit.ip_address = "192.0.2.77"; window.aio.visit.fingerprint = 'zz-999999';</script> adres 192.0.2.77`);
     expect(js.text).not.toContain("192.0.2.77");
     expect(js.text).not.toContain("zz-999999");
+  });
+
+  it("keeps the operator's keys of the visitor record and their repetitions in the page, removing only the analyst's values everywhere", () => {
+    const lander = "/landers/22222222-2222-4222-8222-222222222222/";
+    const v = { campaign_human_id: 5, domain: "strona.example", launcher: "33333333-3333-4333-8333-333333333333", path: lander, landing_uuids: ["22222222-2222-4222-8222-222222222222"], query: "?fbclid=klik-123456", ip_address: "192.0.2.44", useragent: "Mozilla/5.0 Analityk", location_city: "Testowo-Dolne" };
+    const page = `<!-- saved from url=(0040)https://strona.example${lander}?fbclid=klik-123456 --><script>window.aio = ${JSON.stringify({ visit: v })};</script><script src="${lander}app.js"></script><p>Mozilla/5.0 Analityk 192.0.2.44 Testowo-Dolne</p>`;
+    const out = redactPageHtml(page).text;
+    for (const keep of ['"domain":"strona.example"', '"launcher":"33333333-3333-4333-8333-333333333333"', `"path":"${lander}"`, `src="${lander}app.js"`, `saved from url=(0040)https://strona.example${lander}?fbclid=klik-123456`]) expect(out, keep).toContain(keep);
+    expect(out).toContain(`"query":"[zredagowane]"`);
+    for (const gone of ["192.0.2.44", "Mozilla/5.0 Analityk", "Testowo-Dolne"]) expect(out, gone).not.toContain(gone);
+  });
+
+  it("leaves the platform record parseable, so the lander config (account owner) survives redaction", () => {
+    const owner = "44444444-4444-4444-8444-444444444444";
+    const rec = { campaign: { owner_uuid: owner, uuid: "55555555-5555-4555-8555-555555555555", name: "Kampania \"testowa\" l'été" }, visit: { campaign_human_id: 9, launcher: owner, ip_address: "192.0.2.55", fields: [{ name: "phone", rules: ["a", "b"] }], query: "?x=\"1\"" } };
+    const literal = JSON.stringify(rec).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    const page = `<script>window.aio = JSON.parse('${literal}');</script><p>192.0.2.55</p>`;
+    expect(extractLanderConfig(page)?.ownerId).toBe(owner);
+    const out = redactPageHtml(page).text;
+    expect(extractLanderConfig(out)?.ownerId).toBe(owner);
+    expect(extractLanderConfig(out)?.campaignNumber).toBe("9");
+    expect(out).not.toContain("192.0.2.55");
   });
 
   it("reports no change for a page without such data", () => {

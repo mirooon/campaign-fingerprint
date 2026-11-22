@@ -28,7 +28,8 @@ export interface LanderConfig {
   sourceName: string | null;
 }
 
-const AIO = /window\.aio\s*=\s*JSON\.parse\(\s*'((?:[^'\\]|\\[\s\S])*)'\s*\)/;
+/** `window.aio = JSON.parse('…')`: the platform record as a single-quoted string literal (group 1 is its body). */
+export const AIO = /window\.aio\s*=\s*JSON\.parse\(\s*'((?:[^'\\]|\\[\s\S])*)'\s*\)/;
 const AIO_OBJECT = /window\.aio\s*=\s*(\{[\s\S]{0,200000}?\})\s*;?\s*(?:<\/script>|window\.)/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_NAME = 160;

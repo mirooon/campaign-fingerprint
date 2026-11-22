@@ -21,6 +21,8 @@ import { extractPageCampaignParams, type CampaignParam } from "./campaignParams"
 import { findCrmKeys, type CrmKey } from "./crmKey";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
 import { templatePhrases, type TemplatePhrase } from "../text/templatePhrases";
+import { isMaskedScript, kitStringsOf, localizedUiLanguages, type KitString } from "./kitStrings";
+import { TEXT_CONFIG } from "./textConfig";
 import { registrableDomain, toAsciiHost } from "./urls";
 
 export type EndpointVia = "form" | "fetch" | "xhr" | "axios" | "jquery" | "literal";
@@ -106,6 +108,19 @@ export interface PageKit {
   crmKeys?: CrmKey[];
   /** Sentences of the page text and of the messages in its scripts that may come from a template (I23). */
   templatePhrases?: TemplatePhrase[];
+  /** Developer messages of the page's own scripts, inline and external, without SDK and library files (I25). */
+  kitStrings?: KitString[];
+  /** Language codes of an interface dictionary found in a page script (platform localisation, no pivot; I25). */
+  localizedUi?: string[];
+  /** Own external scripts of the page: how many were read for text traces and how many were not available (I25). */
+  ownScripts?: { read: number; missing: number };
+}
+
+/** An own script of the page read from fixtures or fetched (same site, GET only, never run). */
+export interface PageScript {
+  /** Absolute address of the script (masks of the platform SDK and libraries match it). */
+  url: string;
+  body: string;
 }
 
 export interface PathId {
@@ -302,7 +317,7 @@ function scanHtml(html: string): ScanEvent[] {
 // Minimal JS lexer: string literals (with positions) and comments
 // ---------------------------------------------------------------------------
 
-interface JsLiteral {
+export interface JsLiteral {
   value: string;
   /** Index of the opening quote. */
   start: number;
@@ -310,7 +325,7 @@ interface JsLiteral {
   end: number;
 }
 
-interface JsLex {
+export interface JsLex {
   literals: JsLiteral[];
   comments: string[];
 }
@@ -323,7 +338,11 @@ function unescapeChar(ch: string | undefined): string {
   return ch; // \/ \\ \' \" \` and anything else
 }
 
-function lexJs(code: string): JsLex {
+/**
+ * String literals (unescaped, with their positions) and comments of a script, without running or parsing
+ * it: enough for the page-kit traces and the developer messages of lib/osint/kitStrings.
+ */
+export function lexJs(code: string): JsLex {
   const literals: JsLiteral[] = [];
   const comments: string[] = [];
   const n = code.length;
@@ -871,7 +890,7 @@ function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBloc
 }
 
 /** Extracts the page-kit fingerprint of one HTML document. Never throws. */
-export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: number; shingle?: number } = {}): PageKit {
+export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: number; shingle?: number; scripts?: PageScript[] } = {}): PageKit {
   if (!html) return emptyKit();
   try {
     const events = scanHtml(html);
@@ -990,7 +1009,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
-      ...leadTracesOf(html, pageUrl),
+      ...leadTracesOf(html, pageUrl, opts.scripts ?? []),
     };
   } catch {
     return emptyKit();
@@ -998,19 +1017,48 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
 }
 
 /**
- * The lead-company fields of a page kit (I23): campaign parameters of the form and scripts, the CRM
- * keys and the template sentences, each omitted when the page has none (kits saved before stay the
- * same shape).
+ * Addresses of the page's own external scripts worth reading for text traces (I25): script assets on the
+ * page's registrable domain (a saved page's `_files` resolve to the page host), without the platform SDK,
+ * framework bundles and libraries, at most TEXT_CONFIG.kitStrings.maxScriptsPerPage. Scripts of other
+ * domains are never fetched.
  */
-function leadTracesOf(html: string, pageUrl: string): Pick<PageKit, "pageParams" | "crmKeys" | "templatePhrases"> {
+export function ownScriptUrls(kit: PageKit, pageUrl: string): string[] {
+  const domain = registrableDomain(pageUrl);
+  if (!domain) return [];
+  return kit.assets
+    .filter((a) => a.kind === "js" && registrableDomain(a.host) === domain && !isMaskedScript(a.url))
+    .map((a) => a.url)
+    .slice(0, TEXT_CONFIG.kitStrings.maxScriptsPerPage);
+}
+
+/**
+ * The lead-company and text-fingerprint fields of a page kit (I23, I25): campaign parameters of the form
+ * and scripts, the CRM keys, the template sentences and the developer messages, each omitted when the page
+ * has none (kits saved before stay the same shape). Scripts of the platform SDK, framework bundles and
+ * libraries (`isMaskedScript`) and interface dictionaries (`localizedUi`) never feed the text traces:
+ * their strings are the same on every page of the platform. `external` are the page's own script files
+ * (at most TEXT_CONFIG.kitStrings.maxScriptsPerPage).
+ */
+function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "pageParams" | "crmKeys" | "templatePhrases" | "kitStrings" | "localizedUi"> {
   const pageParams = extractPageCampaignParams(html, pageUrl);
   const crmKeys = findCrmKeys(html);
   const parts = splitHtml(html);
-  const phrases = templatePhrases(parts.text, parts.scripts);
+  const own = external.slice(0, TEXT_CONFIG.kitStrings.maxScriptsPerPage).filter((s) => !isMaskedScript(s.url)).map((s) => s.body);
+  const localized = new Set<string>();
+  const readable: string[] = [];
+  for (const code of [...parts.scripts, ...own]) {
+    const langs = localizedUiLanguages(code);
+    for (const l of langs) localized.add(l);
+    if (!langs.length) readable.push(code);
+  }
+  const phrases = templatePhrases(parts.text, readable);
+  const kitStrings = kitStringsOf(readable);
   return {
     ...(pageParams.length ? { pageParams } : {}),
     ...(crmKeys.length ? { crmKeys } : {}),
     ...(phrases.length ? { templatePhrases: phrases } : {}),
+    ...(kitStrings.length ? { kitStrings } : {}),
+    ...(localized.size ? { localizedUi: [...localized].sort() } : {}),
   };
 }
 

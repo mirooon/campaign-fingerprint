@@ -34,7 +34,8 @@ import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
-import { domSimhash, extractPageKit, withRequestUrls } from "../osint/pagekit";
+import { domSimhash, extractPageKit, ownScriptUrls, withRequestUrls, type PageKit, type PageScript } from "../osint/pagekit";
+import { TEXT_CONFIG } from "../osint/textConfig";
 import type { RdapInfo } from "../osint/rdap";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
@@ -408,6 +409,30 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   };
 
   /**
+   * Page kit read again with the page's own external scripts (I25): same registrable domain only, GET of
+   * the file (fixtures offline), never run, at most TEXT_CONFIG.kitStrings.maxScriptBytes each. Scripts
+   * that are not available are counted in `ownScripts.missing`, so the reader knows the text traces are partial.
+   */
+  const withOwnScripts = async (kit: PageKit, html: string, pageUrl: string): Promise<PageKit> => {
+    const urls = ownScriptUrls(kit, pageUrl);
+    if (!urls.length) return kit;
+    const scripts: PageScript[] = [];
+    let missing = 0;
+    for (const url of urls) {
+      try {
+        const data = await sources.fetchBinary(url);
+        if (data && data.length <= TEXT_CONFIG.kitStrings.maxScriptBytes) scripts.push({ url, body: data.toString("utf8") });
+        else missing++;
+      } catch (e) {
+        log(`skrypt strony niedostępny (${url}): ${errMsg(e)}`);
+        missing++;
+      }
+    }
+    const next = scripts.length ? extractPageKit(html, pageUrl, { scripts }) : kit;
+    return { ...next, ownScripts: { read: scripts.length, missing } };
+  };
+
+  /**
    * Page under its key (normalised address), fetched once per key. `fetchUrl` is the address actually
    * requested (default: the key); live mode passes the full input address, because the normalised key
    * drops `fbclid`/`utm_*` and many scam pages show the offer only to the full address. `firstSeen` is when the
@@ -429,6 +454,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         } catch (e) {
           fetchMeta.error = `extract failed: ${errMsg(e)}`;
         }
+        if (kit) kit = await withOwnScripts(kit, body, res.finalUrl);
         if (opts.archiveDir && res.bodySha256) {
           const file = path.join(opts.archiveDir, `${res.bodySha256}.html`);
           try {

@@ -180,6 +180,20 @@ export interface LinkConfig {
    * below strongThreshold: an error is copied with the template too). null turns the pivot off.
    */
   templatePhrase?: { minDomains: number; oddityFactor: number; maxWeight: number } | null;
+  /**
+   * Frequency mask of page text (I25): a template sentence or kit message carried by pages of at least
+   * `minPlatformAccounts` different accounts of a page platform, or by at least `maxPageShare` of all pages
+   * (from `minPages` pages on), is the platform's own text (SDK, shared interface), never a pivot. The path
+   * mask of SDK scripts is in lib/osint/textConfig.ts. null turns the frequency mask off.
+   */
+  textBoilerplate?: { minPlatformAccounts: number; maxPageShare: number; minPages: number } | null;
+  /**
+   * Developer messages of kit scripts (kit_string, I25): two pages share the trace when they share at
+   * least `minShared` messages, or one message of at least `longWords` words; each message must be on
+   * pages of at least `minDomains` registrable domains. The pair gets one premise weighted by its rarest
+   * message (IDF, maxPivotDf as for any pivot). null turns the trace off.
+   */
+  kitString?: { minShared: number; longWords: number; minDomains: number } | null;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -388,6 +402,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // A rare sentence of the page text or of its thank-you message (I23): a template trace like
     // page_template and comment_block, one template can have many operators (campaignRules.notAloneKinds).
     template_phrase: 0.45,
+    // A developer message of the kit's own scripts (I25): the network's tool, used by many operators, so a
+    // page-kit trait (campaignRules.notAloneKinds) below strongThreshold; it counts for groups.
+    kit_string: 0.5,
     // The amount and period the copy promises ("3 tys. w ciągu dnia"): a trait of the script of the scheme,
     // counted only for groups of similar campaigns (campaignRules.familyOnlyKinds).
     profit_claim: 0.2,
@@ -401,7 +418,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
     // claim belongs to the script of the scheme, which many operators copy
     familyOnlyKinds: ["technique", "persona", "profit_claim"],
@@ -437,6 +454,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   creativeFileWeight: 0.95,
   commentBlockNames: { minBlocks: 5, floor: 0.3 },
   templatePhrase: { minDomains: 2, oddityFactor: 1.3, maxWeight: 0.65 },
+  // 5 accounts: a text kit sold to a few buyers stays a group trace; the SDK of a platform reaches every
+  // account. 30% of the pages from 10 on: a sentence on a third of a mixed batch is no rare template.
+  textBoilerplate: { minPlatformAccounts: 5, maxPageShare: 0.3, minPages: 10 },
+  kitString: { minShared: 2, longWords: 5, minDomains: 2 },
   trackerCampaignWeight: 0.6,
   personaPairWeight: 0.35,
   trackerHostWeight: 0.25,

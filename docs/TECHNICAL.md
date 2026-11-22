@@ -343,6 +343,7 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `asn` | `AS<n>` | `link.ts` | 0.05 | nie |
 | `crm_key` | sha256 klucza API CRM / sieci afiliacyjnej (etykieta: skrót `abcd…wxyz`, §4.17) | `lib/osint/crmKey.ts` | 0.95 | tak |
 | `template_phrase` | znormalizowane zdanie szablonu, tylko gdy ≥ 2 domeny (§4.17) | `lib/text/templatePhrases.ts` | 0.45; z `oddity` ×1,3, maks. 0,65 | nie (`notAloneKinds`) |
+| `kit_string` | znormalizowany komunikat programisty ze skryptu strony, tylko gdy ≥ 2 domeny (§4.18) | `lib/osint/kitStrings.ts` | 0.5; jedna przesłanka na parę: ≥ 2 wspólne albo 1 z ≥ 5 słów | nie (`notAloneKinds`) |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 
 ### 4.2 Krawędzie (`model.ts`)
@@ -717,6 +718,22 @@ Uzasadnienie metody: `docs/METODYKA.md` §4b. Listy i progi ekstrakcji są w `li
 - Adresy API leadów (`/api/lead`, `/leads`, `/v1/lead`, `/postback`) już wcześniej zasilały `endpoint` (`LITERAL_MARKERS` i wywołania `fetch`/XHR/`$.ajax` w `pagekit.ts`).
 
 **Regresja.** Próbka syntetyczna: bez zmian (P = R = F1 = 1, 10 kampanii, 154 pary). 25 spraw: P = 0,814, R = 1, F1 = 0,897, 14 kampanii (bez zmian); grupy (2, 2) → (2, 3): jedna kampania dołącza do grupy przez wspólny przykładowy numer z szablonu formularza (`page_template`), wynik pary 0,316 przy różnych kontach platformy stron. `template_phrase`: 260 węzłów, wszystkie powiązania wewnątrz tych samych etykiet.
+
+### 4.18 Odcisk tekstu: maska platformy i komunikaty skryptów (22.11.2026, zadanie I25)
+
+| Pole | Moduł | Opis |
+|---|---|---|
+| `PageKit.kitStrings` | `lib/osint/kitStrings.ts` | `{ key, text, oddity? }`: literały z `lexJs` (skrypty wpisane i własne zewnętrzne) wyglądające na komunikat programisty: ≥ 3 słowa, 10–200 znaków, ≥ 70% liter i spacji, nie adres, selektor ani kod; w wywołaniu `console.*`/`log`/`alert`/`throw new Error` albo zakończone „!”, „...”, „:”. `key`: małe litery, spacje zwinięte, cyfry → `#`. `oddity` z detektora I23 (`phraseOddity`). Maks. 100 na stronę. |
+| `PageKit.localizedUi` | `lib/osint/kitStrings.ts` (`localizedUiLanguages`) | posortowane kody języków słownika interfejsu (≥ 5 kluczy językowych w jednym skrypcie); skrypt nie zasila `templatePhrases` ani `kitStrings`. W grafie atrybut materiału `localizedUi`. |
+| `PageKit.ownScripts` | `lib/pipeline/enrich.ts` (`withOwnScripts`) | `{ read, missing }`: ile własnych skryptów zewnętrznych przeczytano, a ilu nie było (fixtures albo GET); ślady tekstu przy `missing > 0` są niepełne. |
+
+Konfiguracja:
+- `lib/osint/textConfig.ts` (`TEXT_CONFIG`): `textBoilerplate.platformScriptPaths` (ścieżki SDK platform i paczek frameworków: `/aio-static/sdk/`, `/_next/static/chunks/`, `/_nuxt/`, paczki z hashem treści), `languageCodes`, `localizedUiMinLanguages: 5`; `kitStrings.libraries` (jquery, swiper, hls, video.js, gtm, fbevents, react, vue, lodash, sentry, …), progi komunikatu, `maxScriptsPerPage: 30`, `maxScriptBytes: 512 KB`.
+- `lib/graph/config.ts`: `textBoilerplate: { minPlatformAccounts: 5, maxPageShare: 0.3, minPages: 10 }` (maska częstości dla `template_phrase` i `kit_string`; konto strony: `owner_uuid`, właściciel linków platformy albo najemca CDN), `kitString: { minShared: 2, longWords: 5, minDomains: 2 }`, `typeWeights.kit_string: 0.5`, `kit_string` w `campaignRules.notAloneKinds`. `null` wyłącza maskę albo ślad.
+
+Import skryptów do fixtures (`caseImport.ts`): skrypty z folderu `<nazwa>_files` zapisanej strony (`.js`, `.mjs`, `.js.pobrane`, `.js.download`, `.pobierz`) pod adresem, do którego rozwiązuje się przepisany `src`, oraz odpowiedzi JS z HAR (GET, 200, ta sama domena rejestrowalna co strona) pod adresem bez zapytania. Limity jak wyżej; skrypty obcych domen nie trafiają do fixtures. Log importu podaje „skrypty własne: N”. Wzbogacenie (`enrich.ts`) czyta te pliki przez `sources.fetchBinary` (offline z fixtures, online GET z tej samej domeny, bez wykonywania) i liczy kit strony jeszcze raz z ich treścią.
+
+**Regresja.** Próbka syntetyczna bez zmian (P = R = F1 = 1, 10 kampanii, 154 pary, 0 grup). 25 spraw: F1 0,897, 14 kampanii (bez zmian); `template_phrase` 17 → 17 powiązań (260 → 261 węzłów); `kit_string` 15 węzłów, 4 powiązania; grupy (2, 3) → (2, 3, 2): nowa grupa K07 + K13 tylko przez `kit_string` (wynik 0,50, obie sprawy bez pary w etykietach roboczych). Testy: `lib/osint/kitStrings.test.ts`, `lib/graph/textFingerprint.test.ts`, `lib/pipeline/caseImport.test.ts`.
 
 ## 5. Klastrowanie
 

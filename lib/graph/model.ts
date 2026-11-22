@@ -52,6 +52,8 @@ export const ENTITY_TYPES = [
   "crm_key",
   "template_phrase",
   "profit_claim",
+  // text fingerprint (I25): a developer message of the kit's own scripts (a set shared by two pages)
+  "kit_string",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -95,6 +97,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   crm_key: "Klucz API CRM / sieci afiliacyjnej",
   template_phrase: "Zdanie szablonu strony",
   profit_claim: "Obiecywany zysk (kwota i okres)",
+  kit_string: "Komunikat ze skryptu zestawu stron",
 };
 
 export type EdgeType =

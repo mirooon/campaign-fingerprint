@@ -46,6 +46,8 @@ beforeAll(() => {
           entry("https://player.vendor.test/embed/?v=1", "document", "<html>FRAME</html>", "text/html", "198.51.100.7", "2026-01-15T09:10:00.100Z"),
           entry(LANDING_1, "document", Buffer.from(RAW), "text/html; charset=utf-8", "203.0.113.10", "2026-01-15T09:10:01.000Z"),
           entry("https://lp-one.example/fav.png", "other", ICON, "image/png", "[2001:db8::10]", "2026-01-15T09:10:02.000Z"),
+          entry("https://lp-one.example/js/trap.js?v=3", "script", 'console.log("Moduł testowy: start!");', "application/javascript", "203.0.113.10", "2026-01-15T09:10:02.100Z"),
+          entry("https://cdn.vendor.test/lib.js", "script", 'console.log("Obcy skrypt!");', "application/javascript", "192.0.2.77", "2026-01-15T09:10:02.200Z"),
         ],
       },
     }),
@@ -97,6 +99,14 @@ describe("importCases (saved page + HAR + screenshot per case -> offline fixture
     expect(page.body).toContain('src="./Oferta_files/main.js"');
     expect(page.body).toContain("SAVED-BODY");
     expect(await src.fetchBinary("https://lp-two.test/Oferta_files/logo.png")).toEqual(LOGO);
+  });
+
+  it("keeps the page's own scripts (same domain in the HAR, every script of _files), never a third-party script", async () => {
+    await importCases({ casesDir: cases, outDir: out });
+    const src = fixtureSources(path.join(out, "fixtures"));
+    expect((await src.fetchBinary("https://lp-one.example/js/trap.js"))?.toString()).toContain("Moduł testowy");
+    expect(await src.fetchBinary("https://cdn.vendor.test/lib.js")).toBeNull();
+    expect((await src.fetchBinary("https://lp-two.test/Oferta_files/main.js"))?.toString()).toBe("console.log(1)");
   });
 
   it("records passive lookups for landing domains when a lookup source is given", async () => {

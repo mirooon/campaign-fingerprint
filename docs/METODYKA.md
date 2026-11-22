@@ -48,14 +48,14 @@ Każdy ślad (encja, np. konkretny tracker) dostaje wagę. Waga to iloczyn trzec
 
 Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − Π(1 − wᵢ)`. Dwie niezależne przesłanki po 0,5 dają 0,75. Wynik rośnie z każdą kolejną przesłanką, ale nigdy nie przekracza 1. Przesłanka o wadze ≥ 0,7, której ślad występuje w mniej niż połowie zbioru, jest **silna** (patrz punkt 4).
 
-### Wagi typów (stan po zadaniu I23; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
+### Wagi typów (stan po zadaniu I25; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
 
 | Typ | Waga | Typ | Waga |
 |---|---|---|---|
 | url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
 | host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
 | email, phone, telegram, platform_account | 0,9 | asset | 0,55 |
-| path_id | 0,85 | favicon | 0,5 |
+| path_id | 0,85 | favicon, kit_string | 0,5 |
 | cert, campaign_param | 0,8 | comment_block, template_phrase | 0,45 |
 | ad_payer | 0,7 | nameserver, page_template | 0,35 |
 | | | technique, profit_claim | 0,2 |
@@ -139,6 +139,22 @@ Publiczne opisy branży (raport RIVSEC „Fałszywe inwestycje w internecie. Sch
 | `profit_claim` (kwota + okres) | 0,2 | `familyOnlyKinds` |
 
 Na 25 sprawach jury F1 par się nie zmienił (0,897, 14 kampanii); jedna grupa podobnych kampanii urosła o kampanię, którą łączy z nią przykładowy numer z tego samego szablonu formularza (liczby: Raport I23).
+
+## 4c. Odcisk tekstu (zadanie I25, 22.11.2026)
+
+Teksty stron krążą między operatorami: te same zmyślone komentarze, ten sam pasek „powiązanych artykułów” i ten sam kod pułapek trafiają na strony różnych kont i trackerów. Tekst wskazuje więc dostawcę tekstów albo zestaw stron, czyli najwyżej grupę podobnych kampanii. Do kampanii zawsze potrzebny jest drugi, niezależny ślad operatora.
+
+- **Komunikat ze skryptu zestawu (`kit_string`) łączy zestaw stron.** Skrypty zestawu niosą komunikaty programisty (log w konsoli, błąd, ostrzeżenie), często z literówką. Taki sam komunikat na stronach różnych produktów to odcisk narzędzia, prawie tak specyficzny jak skrót pliku. Narzędzia używa jednak wielu operatorów, więc `kit_string` (0,5) jest w `notAloneKinds` i liczy się do grup. Para stron dostaje jedną przesłankę, gdy dzieli co najmniej dwa komunikaty albo jeden długi (≥ 5 słów); każdy komunikat musi wystąpić w co najmniej dwóch domenach rejestrowalnych, a rzadkość liczy zwykłe IDF z `maxPivotDf`. Czytamy skrypty wpisane w stronę i własne skrypty zewnętrzne (ta sama domena rejestrowalna, z HAR albo z folderu `_files` zapisanej strony, w trybie online tylko GET bez wykonywania). Skryptów z obcych domen nie pobieramy.
+- **Maska tekstu platformy.** Platforma stron dostarcza jeden plik SDK dla wszystkich kont, a framework ten sam kod uruchomieniowy na każdej stronie. Bez maski taki tekst skleiłby wszystkie strony platformy. Dlatego (a) napisy ze skryptów o ścieżkach SDK, paczek frameworków i znanych bibliotek nigdy nie są śladem tekstu; (b) zdanie szablonu albo komunikat obecny na stronach co najmniej 5 różnych kont platformy albo na co najmniej 30% stron zbioru (od 10 stron) to tekst platformy; (c) skrypt ze słownikiem tego samego komunikatu w co najmniej 5 językach to lokalizacja interfejsu: strona dostaje atrybut `localizedUi` (kody języków), a napisy z tego skryptu nie tworzą śladów.
+- **Bez wniosków o autorze.** Język, typografia i ślady tłumaczenia mogą opisywać materiał, ale nie wskazują narodowości ani tożsamości autora: szablony są tłumaczone, kopiowane i poprawiane przez różne osoby, więc służą tylko jako opis.
+
+| Ślad | Waga | Poziom |
+|---|---|---|
+| `kit_string` (≥ 2 wspólne komunikaty albo 1 z ≥ 5 słów, ≥ 2 domeny) | 0,5 | `notAloneKinds`: zestaw stron, do kampanii drugi ślad; sam łączy grupę |
+| `template_phrase` po masce platformy | 0,45 (z wpadką maks. 0,65) | `notAloneKinds` |
+| `localizedUi` | brak | atrybut |
+
+Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `kit_string` dał 4 powiązania; jedno z nich dodało trzecią grupę podobnych kampanii z dwóch spraw bez pary w etykietach roboczych. Liczba powiązań `template_phrase` po masce pozostała ta sama (17), bo zdania szablonu w tych sprawach pochodzą z tekstu stron, a nie z SDK.
 
 ## 5. Duplikaty i „za mało danych”
 

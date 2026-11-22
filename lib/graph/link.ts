@@ -166,20 +166,32 @@ export function buildEvidenceGraph(
   /** Items whose creative is a screenshot of an ad-library view: mostly interface, so the picture is not compared. */
   const libraryViews = new Set<string>();
 
-  // Template sentences (I23): only a sentence carried by pages in several registrable domains is a trace
-  // of a shared template; one site repeats its own text on all its pages.
-  const phraseDomains = new Map<string, Set<string>>();
+  // Template sentences (I23) and developer messages of kit scripts (I25): only text carried by pages in
+  // several registrable domains is a trace of a shared template or tool; one site repeats its own text on
+  // all its pages. Text on pages of many platform accounts, or on a large share of all pages, is the
+  // platform's own (SDK, shared interface) and is masked (config.textBoilerplate).
+  const phraseSpread = new Map<string, TextSpread>();
+  const kitSpread = new Map<string, TextSpread>();
+  const keptPages = new Set<string>();
   for (const item of items) {
     const e = dataset.perItem[item.id];
     const page = e?.pageKey ? dataset.pages[e.pageKey] : null;
     const domain = page ? registrableDomain(page.fetch.finalUrl) ?? normalizeUrl(page.fetch.finalUrl)?.host ?? null : null;
-    if (!domain) continue;
-    for (const p of page?.kit?.templatePhrases ?? []) {
-      if (!phraseDomains.has(p.key)) phraseDomains.set(p.key, new Set());
-      phraseDomains.get(p.key)!.add(domain);
-    }
+    if (!domain || !page?.kit) continue;
+    keptPages.add(e!.pageKey!);
+    const account = pageAccountOf(page.kit);
+    for (const p of page.kit.templatePhrases ?? []) spreadAdd(phraseSpread, p.key, domain, account, e!.pageKey!);
+    for (const k of page.kit.kitStrings ?? []) spreadAdd(kitSpread, k.key, domain, account, e!.pageKey!);
   }
-  const phraseShared = (key: string) => !!config.templatePhrase && (phraseDomains.get(key)?.size ?? 0) >= config.templatePhrase.minDomains;
+  const masked = (sp: TextSpread | undefined) => !!sp && isPlatformText(sp, keptPages.size, config.textBoilerplate);
+  const phraseShared = (key: string) => {
+    const sp = phraseSpread.get(key);
+    return !!config.templatePhrase && (sp?.domains.size ?? 0) >= config.templatePhrase.minDomains && !masked(sp);
+  };
+  const kitShared = (key: string) => {
+    const sp = kitSpread.get(key);
+    return !!config.kitString && (sp?.domains.size ?? 0) >= config.kitString.minDomains && !masked(sp);
+  };
 
   // Tenants of the landing-page platform (landing-cdn/<uuid>) seen together with an owner_uuid: a page
   // that has only the tenant (no page code) is then attributed to that account. A tenant seen with two
@@ -853,6 +865,15 @@ export function buildEvidenceGraph(
           const odd = p.oddity === "repeat" ? ", z tą samą wpadką: powtórzone słowa" : p.oddity === "mixed_script" ? ", z tą samą wpadką: mieszane alfabety" : "";
           add(id, "template_phrase", [...finalPath, id], rel * oddRel, `to samo rzadkie zdanie szablonu „${quote}”${odd}`);
         }
+        // Developer messages of the kit's own scripts (I25, notAloneKinds): a node per shared message; the
+        // pair rule (several messages or one long one) is applied when pivots become pair premises.
+        for (const k of config.kitString ? (kit.kitStrings ?? []).filter((x) => kitShared(x.key)) : []) {
+          const quote = k.text.length > 60 ? `${k.text.slice(0, 59)}…` : k.text;
+          const id = g.node("kit_string", k.key, `komunikat „${quote}”`, { text: k.text, words: k.key.split(" ").length, ...(k.oddity ? { oddity: k.oddity } : {}) });
+          g.edge(finalUrlNode, id, "mentions", `komunikat programisty w skrypcie strony: „${quote}”`);
+          add(id, "kit_string", [...finalPath, id], rel, `ten sam komunikat ze skryptu zestawu stron „${quote}”`);
+        }
+        if (kit.localizedUi?.length) itemData.localizedUi = kit.localizedUi;
         // Techniques: the same modus operandi (second level only, campaignRules.familyOnlyKinds)
         for (const t of kit.techniques ?? []) {
           const id = g.node("technique", t, TECHNIQUE_LABELS[t] ?? t, { technique: t });
@@ -1171,10 +1192,25 @@ export function buildEvidenceGraph(
   };
   const pivotsOf = new Map<string, Set<string>>();
   for (const [itemId, facts] of factsByItem) pivotsOf.set(itemId, new Set(facts.map((f) => f.pivot)));
+  /** Shared kit messages of each pair (I25): one premise per pair, see kitStringPremise. */
+  const kitPairs = new Map<string, KitPairShare[]>();
   for (const [pivot, holders] of pivotItems) {
     if (holders.length < 2 || holders.length > config.maxPivotDf) continue;
     const node = g.nodes.get(pivot)!;
     if (!node.weight || node.weight <= 0) continue;
+    if (node.type === "kit_string") {
+      for (let i = 0; i < holders.length; i++) {
+        for (let j = i + 1; j < holders.length; j++) {
+          const [A, B] = holders[i].itemId < holders[j].itemId ? [holders[i], holders[j]] : [holders[j], holders[i]];
+          if (A.itemId === B.itemId) continue;
+          const key = `${A.itemId}\u0000${B.itemId}`;
+          const list = kitPairs.get(key) ?? [];
+          list.push({ pivot, words: Number(node.data.words ?? 0), weight: node.weight * Math.min(A.fact.relation, B.fact.relation), text: String(node.data.text ?? ""), pathA: A.fact.path, pathB: B.fact.path });
+          kitPairs.set(key, list);
+        }
+      }
+      continue;
+    }
     // The TLD-agnostic template ("T.*") only adds evidence for pairs that do not already share a
     // TLD-specific variant of the same template ("T.sbs").
     const specificPrefix = node.type === "domain_pattern" && node.data.agnostic === true ? `${pivot.slice(0, -1)}` : null;
@@ -1210,6 +1246,13 @@ export function buildEvidenceGraph(
         });
       }
     }
+  }
+
+  for (const [key, shared] of kitPairs) {
+    const ev = kitStringPremise(shared, config.kitString);
+    if (!ev) continue;
+    const [a, b] = key.split("\u0000");
+    pushPair(a, b, ev);
   }
 
   // Image similarity (near-duplicates; exact duplicates are covered by the imagehash pivot)
@@ -1380,6 +1423,76 @@ export function buildEvidenceGraph(
     edges,
     links,
     ...(options.includeItemPivots ? { itemPivots: Object.fromEntries(factsByItem) } : {}),
+  };
+}
+
+/** Where a text key (template sentence, kit message) was seen: registrable domains, platform accounts, pages. */
+interface TextSpread {
+  domains: Set<string>;
+  accounts: Set<string>;
+  pages: Set<string>;
+}
+
+/** Records one page carrying a text key in `spread` (`account` null: page outside a known platform account). */
+function spreadAdd(spread: Map<string, TextSpread>, key: string, domain: string, account: string | null, pageKey: string): void {
+  const sp = spread.get(key) ?? { domains: new Set<string>(), accounts: new Set<string>(), pages: new Set<string>() };
+  sp.domains.add(domain);
+  if (account) sp.accounts.add(account);
+  sp.pages.add(pageKey);
+  spread.set(key, sp);
+}
+
+/**
+ * Account of the page on a landing-page platform: owner_uuid of the embedded config, else the launcher of
+ * its links, else its landing-cdn tenant; null when the page shows none.
+ */
+function pageAccountOf(kit: NonNullable<EnrichedDataset["pages"][string]["kit"]>): string | null {
+  return kit.lander?.ownerId ?? kit.platformLinks?.ownerIds[0] ?? kit.platformTenants?.[0] ?? null;
+}
+
+/**
+ * Whether text seen on these pages is the platform's own (I25, config.textBoilerplate): carried by pages of
+ * at least `minPlatformAccounts` accounts (the SDK reaches every account, a text kit a few buyers), or by
+ * at least `maxPageShare` of the `totalPages` pages of the batch (from `minPages` pages on). null: no mask.
+ */
+function isPlatformText(sp: TextSpread, totalPages: number, tb: LinkConfig["textBoilerplate"]): boolean {
+  if (!tb) return false;
+  if (sp.accounts.size >= tb.minPlatformAccounts) return true;
+  return totalPages >= tb.minPages && sp.pages.size / totalPages >= tb.maxPageShare;
+}
+
+/** One kit message shared by a pair of pages: its node, word count, pivot weight (after IDF) and paths. */
+interface KitPairShare {
+  pivot: string;
+  words: number;
+  weight: number;
+  text: string;
+  pathA: string[];
+  pathB: string[];
+}
+
+/**
+ * The single kit_string premise of a pair of pages (I25), or null: the pair shares at least `minShared`
+ * messages, or one of at least `longWords` words; a single short log line ("Loading done!") can be a
+ * coincidence, a set of them or a long one is the same file. Weighted by the rarest shared message (its
+ * IDF already applied), so ten shared lines do not count ten times.
+ */
+function kitStringPremise(shared: KitPairShare[], cfg: LinkConfig["kitString"]): PairEvidence | null {
+  if (!cfg || !shared.length) return null;
+  if (shared.length < cfg.minShared && !shared.some((s) => s.words >= cfg.longWords)) return null;
+  const best = [...shared].sort((x, y) => y.weight - x.weight)[0];
+  const quotes = shared.slice(0, 3).map((s) => `„${s.text.length > 50 ? `${s.text.slice(0, 49)}…` : s.text}”`).join(", ");
+  return {
+    kind: "pivot",
+    pivot: best.pivot,
+    pivotType: "kit_string",
+    edgeType: null,
+    weight: round(best.weight),
+    strong: false,
+    discounted: false,
+    evidence: `${shared.length === 1 ? "ten sam komunikat" : `te same komunikaty (${shared.length})`} ze skryptu zestawu stron: ${quotes}`,
+    pathA: best.pathA,
+    pathB: best.pathB,
   };
 }
 

@@ -39,6 +39,7 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   crm_key: "#9d174d",
   template_phrase: "#854d0e",
   profit_claim: "#a16207",
+  kit_string: "#713f12",
 };
 
 const CAMPAIGN_COLORS = [

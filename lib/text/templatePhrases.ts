@@ -40,7 +40,15 @@ export function normalizePhrase(sentence: string): string {
     .trim();
 }
 
-/** Kind of copying error in a sentence, or undefined when there is none (see TemplatePhrase.oddity). */
+/**
+ * Kind of copying error in a sentence (see TemplatePhrase.oddity), or undefined when there is none. Also
+ * used for the developer messages of kit scripts (lib/osint/kitStrings), so one detector flags both.
+ */
+export function phraseOddity(sentence: string): TemplatePhrase["oddity"] {
+  return oddityOf(sentence, normalizePhrase(sentence).split(" ").filter(Boolean));
+}
+
+/** Kind of copying error in a sentence whose normalised words are given, or undefined when there is none. */
 function oddityOf(sentence: string, words: string[]): TemplatePhrase["oddity"] {
   if (sentence.split(/\s+/).some((w) => LATIN.test(w) && CYRILLIC.test(w))) return "mixed_script";
   const k = LEAD_CONFIG.templatePhrase.repeatRunWords;

@@ -28,6 +28,7 @@ import { parseAdRecord } from "../adlib/record";
 import { AD_RECORD_FILE, type AdRecord } from "../adlib/types";
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
+import { TEXT_CONFIG } from "../osint/textConfig";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   COLLECTED_SOURCE_FILE,
@@ -141,6 +142,11 @@ function requestUrls(entries: HarEntry[]): string[] {
 }
 
 const IMAGE_EXT = /\.(ico|png|jpe?g|gif|webp|svg|avif)$/i;
+/**
+ * Scripts of a saved page's `_files` folder: ".js", or the browser's download names ("x.js.pobrane",
+ * "x.js.download", and ".pobierz" that Polish Chrome gives files of an unknown type).
+ */
+const SAVED_SCRIPT = /\.(?:m?js(?:\.(?:pobrane|download))?|pobierz)$/i;
 const SCREENSHOT_EXT = /\.(png|jpe?g|webp)$/i;
 const VIDEO_EXT = /\.(mp4|m4v|mov|webm|mkv)$/i;
 const HTML_EXT = /\.html?$/i;
@@ -743,6 +749,48 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
           http[k] = { status: 200, headers: {}, bodyFile: rel };
         }
       }
+      // Own scripts of the saved page (I25): every script of `_files` (its links are relative), under the
+      // address the rewritten src resolves to (download suffix removed like in the page body).
+      let scriptCount = 0;
+      if (!c.main && c.htmlName) {
+        const htmlDir = path.join(s.dir, path.dirname(c.htmlName));
+        const assetsDir = readdirSync(htmlDir).find((f) => f.endsWith("_files") && statSync(path.join(htmlDir, f)).isDirectory());
+        const esc = (x: string) => x.replace(/%/g, "%25").replace(/\?/g, "%3F").replace(/#/g, "%23");
+        for (const f of assetsDir ? readdirSync(path.join(htmlDir, assetsDir)).filter((x) => SAVED_SCRIPT.test(x)).sort() : []) {
+          if (scriptCount >= TEXT_CONFIG.kitStrings.maxScriptsPerPage) break;
+          const file = path.join(htmlDir, assetsDir!, f);
+          if (statSync(file).size > TEXT_CONFIG.kitStrings.maxScriptBytes) continue;
+          const k = urlKey(`./${esc(assetsDir!)}/${esc(f.replace(/\.(?:pobrane|download)$/i, ""))}`, norm.url);
+          if (!k || http[k]) continue;
+          const rel = `assets/${safeName(itemId)}/js-${scriptCount++}`;
+          write(path.join(fix, rel), readFileSync(file));
+          http[k] = { status: 200, headers: { "content-type": "application/javascript" }, bodyFile: rel };
+        }
+      }
+      // Own scripts recorded in the HAR (same registrable domain as the page), under their address without
+      // the query, as the page kit names its script assets. Third-party scripts are never kept.
+      const pageDomain = registrableDomain(norm.url);
+      for (const e of ownEntries) {
+        if (scriptCount >= TEXT_CONFIG.kitStrings.maxScriptsPerPage) break;
+        if (e.request.method !== "GET" || e.response.status !== 200) continue;
+        const mime = e.response.content?.mimeType ?? "";
+        const u = (() => {
+          try {
+            return new URL(e.request.url);
+          } catch {
+            return null; // an address the HAR could not record names no script
+          }
+        })();
+        if (!u || !pageDomain || registrableDomain(u.hostname) !== pageDomain) continue;
+        if (!(/javascript|ecmascript/i.test(mime) || e._resourceType === "script" || /\.m?js$/i.test(u.pathname))) continue;
+        const k = `${u.protocol}//${u.host}${u.pathname}`;
+        if (http[k]) continue;
+        const data = harBody(e);
+        if (!data || data.length > TEXT_CONFIG.kitStrings.maxScriptBytes) continue;
+        const rel = `assets/${safeName(itemId)}/js-${scriptCount++}`;
+        write(path.join(fix, rel), data);
+        http[k] = { status: 200, headers: { "content-type": mime || "application/javascript" }, bodyFile: rel };
+      }
       // Images recorded in the HAR (favicons), under their original addresses.
       let n = 0;
       for (const e of ownEntries) {
@@ -774,7 +822,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         firstSeen: c.archivedAt ?? earliestHar(c) ?? mediaTime ?? s.infoTime,
       });
       log(
-        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `kopia z archiwum (${c.archivedAt})` : "zapisana strona"} | obrazy z HAR: ${n} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
+        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `kopia z archiwum (${c.archivedAt})` : "zapisana strona"} | obrazy z HAR: ${n} | skrypty własne: ${scriptCount} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
       );
     }
   }

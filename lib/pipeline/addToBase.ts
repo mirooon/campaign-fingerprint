@@ -26,6 +26,13 @@ export interface AddToBaseOptions {
   verdicts?: MaterialVerdict[];
   /** Adds a material with too little data (verdict `insufficient`) too. */
   force?: boolean;
+  /**
+   * Biometric data minimisation: the whole-file voice vector (`speakerEmbedding`) of the added records is NOT written to the
+   * base's `enriched.json` (the graph of this addition is still built with it). Cost: a later rebuild of the graph from the
+   * base, and a later analysis against it, no longer see a `similar_voice` edge for those records. Default: kept (the
+   * graph needs it), see docs/ZGODNOSC.md.
+   */
+  stripVoiceVectors?: boolean;
   /** Weights of the base; default `<base>/linking.json` when it exists, else the built-in ones. */
   configFile?: string;
   now?: () => Date;
@@ -85,6 +92,21 @@ function adoptMedia(item: Item, importDir: string, baseDir: string, dataDir: str
     ...(item.extraImagePaths ? { extraImagePaths: item.extraImagePaths.map(take).filter((p): p is string => p !== null) } : {}),
     ...(item.extraVideoPaths ? { extraVideoPaths: item.extraVideoPaths.map(take).filter((p): p is string => p !== null) } : {}),
   };
+}
+
+/**
+ * Copy of the dataset in which the records `ids` carry no whole-file voice vector (everything else is untouched); the
+ * input is not modified.
+ */
+export function withoutVoiceVectors(data: EnrichedDataset, ids: Set<string>): EnrichedDataset {
+  const perItem = Object.fromEntries(
+    Object.entries(data.perItem).map(([id, e]) => {
+      if (!ids.has(id) || !e.speakerEmbedding) return [id, e];
+      const { speakerEmbedding: _dropped, ...rest } = e;
+      return [id, rest];
+    }),
+  );
+  return { ...data, perItem };
 }
 
 /** Writes a file next to its destination and renames it over it: readers see the old or the new file, never half. */
@@ -149,7 +171,7 @@ export async function addToBase(dataDir: string, analyzed: { result: MaterialRes
     mkdirSync(history, { recursive: true });
     const itemsFile = path.join(dir, "items.json");
     const replaced: Array<[string, unknown]> = [
-      [enrichedFile, grown],
+      [enrichedFile, opts.stripVoiceVectors ? withoutVoiceVectors(grown, ids) : grown],
       [path.join(dataDir, "graph.json"), stable.graph],
       [path.join(dataDir, "campaigns.json"), stable.campaigns],
       ...(existsSync(itemsFile) ? ([[itemsFile, { ...readJson<ItemsFile>(itemsFile), items: [...readJson<ItemsFile>(itemsFile).items, ...newItems] }]] as Array<[string, unknown]>) : []),

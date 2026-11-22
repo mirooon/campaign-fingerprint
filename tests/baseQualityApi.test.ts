@@ -10,6 +10,10 @@ import { clusterCampaigns } from "../lib/graph/cluster";
 import type { EvidenceGraph, GraphNode } from "../lib/graph/model";
 import type { BaseQuality } from "../lib/viewer/baseQuality";
 
+// The route awaits `connection()` so that `next build` does not prerender it; outside a Next request scope that call
+// throws, so the test replaces it with a no-op and keeps the rest of `next/server` as it is.
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), connection: async () => {} }));
+
 const dirs: string[] = [];
 afterEach(() => {
   vi.unstubAllEnvs();

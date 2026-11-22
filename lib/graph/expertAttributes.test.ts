@@ -12,12 +12,12 @@ function itemData(specs: TestItemSpec[]): Record<string, Record<string, unknown>
 describe("expert and live-stream attributes (B-300, B-301)", () => {
   const health = "Lekarz dr Jan Testowy ujawnia: ten lek na stawy i choroby serca leczy cudownie, kuracja bez recepty.";
 
-  /** An invented doctor in a health ad is an attribute, not a pivot: two ads naming him share no edge. */
-  it("marks an unlisted doctor in a health ad and adds no pivot", () => {
+  /** An invented doctor in a health ad is an attribute (B-300); the linking pivot is B-313 `fictional_expert`, the only expert node type. */
+  it("marks an unlisted doctor in a health ad and adds no other expert pivot", () => {
     const d = itemData([{ id: "a", text: health }, { id: "b", text: `${health} Zamów dziś.` }]);
     expect(d.a.fictionalExpert).toEqual(["dr Jan Testowy"]);
     const res = clusterCampaigns(buildEvidenceGraph(makeDataset([{ id: "a", text: health }], {}), { textMethod: "none" }));
-    expect(res.graph.nodes.some((n) => String(n.type).includes("expert"))).toBe(false);
+    expect(res.graph.nodes.some((n) => String(n.type).includes("expert") && n.type !== "fictional_expert")).toBe(false);
   });
 
   /** A non-health ad with a title is not marked. */

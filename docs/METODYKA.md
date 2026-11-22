@@ -4,6 +4,19 @@ Dokument dla osoby, która ocenia wynik, a nie pisze kod. Mówi, co narzędzie b
 
 Wszystkie przykłady są wymyślone (domeny `.example`, fikcyjne osoby).
 
+## Skrót: jak działa łączenie
+
+Dla osoby, która ma na to pięć minut. Reszta dokumentu rozwija każdy krok.
+
+1. **Ślady.** Z każdego materiału (reklama, strona, HAR, zrzut, nagranie) wyciągamy ślady, które mogą się powtórzyć w innym materiale: tracker, konto platformy stron, adres kontaktowy, backend formularza, domena, serwer, plik kreacji, komunikat ze skryptu i inne (punkt 2, pełny katalog w `docs/CECHY.md`). Nie oceniamy, czy reklama jest fałszywa, tylko czy dwa materiały mają wspólny ślad.
+2. **Wagi.** Każdy rodzaj śladu ma wagę od 1,0 (tracker, portfel) do 0,05 (rejestrator, ASN) z jednej tabeli w `lib/graph/config.ts` (punkt 3). Wagi są ustawione ręcznie, nie uczone.
+3. **Zniżki i rzadkość.** Waga konkretnego śladu to waga typu razy zniżka za infrastrukturę wspólną (CDN, darmowe certyfikaty, platformy stron: ×0,006 do ×0,1) razy rzadkość (IDF): im więcej materiałów ma ten sam ślad, tym mniej jest wart. Przesłanki jednej pary łączymy wzorem noisy-OR, `1 − Π(1 − wᵢ)`.
+4. **Reguły kampanii** (punkt 4). Silny dowód (waga ≥ 0,7, ślad w mniej niż połowie zbioru) łączy sam. Ślady „nie same” (szablon strony, komentarze, favicon, płatnik, adres sklepu, numer firmy, rachunek i inne z listy w punkcie 3) liczą się tylko razem z drugim, niezależnym rodzajem dowodu. Dwie reklamy na różnych kontach tej samej platformy stron nie łączą się bez silnego dowodu. Treść (tekst, obraz, dźwięk, głos) bez infrastruktury wymaga co najmniej dwóch rodzajów treści. Persona, technika strony i kwoty zysku łączą tylko w grupę.
+5. **Kampanie i grupy.** Silne dowody łączy union-find, resztę podział Louvaina na grafie ważonym. **Kampania** to ten sam operator, **grupa podobnych kampanii** to wspólny szablon, platforma albo osoba bez dowodu jednego operatora. Każda krawędź ma jawną listę przesłanek (`explain`), a przy bliskich parach, które celowo nie zostały połączone, zapisujemy regułę, która to zablokowała (punkt 7).
+6. **Korekty analityka.** Analityk może zapisać decyzję (te dwa materiały są jedną kampanią, te dwa nie, ten ślad nie liczy się jako dowód); `build-graph` stosuje ją przy następnym przebiegu, a każde powiązanie zmienione ręcznie ma dopisek „decyzja analityka” (punkt 9.2).
+
+**Wynik na 25 sprawach próbki (28 rekordów), ostatni przebieg regresji.** Oczekiwane powiązania na poziomie obowiązkowym (MUSI): 28 z 28. Na poziomie „powinno” (POWINNO): 12 z 24. Zgodność z etykietami zespołu: F1 par 0,8974, F1 B-cubed 0,9672, ARI 0,8858. Na próbce syntetycznej precyzja, czułość i F1 par wynoszą 1,0. Etykiety są nasze, a progi dobierano na tych samych sprawach, więc to wynik zgodności z naszym rozumieniem spraw, nie dowód skuteczności na nowych danych (punkt 12, tam też pomiary na materiałach spoza próbki).
+
 ## 1. Wejście i formaty
 
 Jednostką jest **materiał**: jedna reklama razem z tym, co o niej zebrano. Narzędzie przyjmuje:
@@ -20,7 +33,7 @@ Jednostką jest **materiał**: jedna reklama razem z tym, co o niej zebrano. Nar
 | partia katalogów (`--cases`) | każdy podkatalog to sprawa, wszystkie idą przez jeden graf |
 | zip | rozpakowywany na serwerze (z zabezpieczeniami przed ścieżkami spoza katalogu i bombami) |
 
-Wystarczy dowolny podzbiór. Im mniej danych, tym mniej cech i niższa pewność (punkt 7).
+Wystarczy dowolny podzbiór. Im mniej danych, tym mniej cech i niższa pewność (punkt 10).
 
 ## 2. Cechy w pięciu rodzinach
 
@@ -28,7 +41,7 @@ Cecha to ślad, który może się powtórzyć w innym materiale. Narzędzie nie 
 
 | Rodzina | Przykłady cech | Przykład (syntetyczny) |
 |---|---|---|
-| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście albo z twarzy (zamknięta lista osób publicznych, patrz „Twarze” w punkcie 9), kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
+| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście albo z twarzy (zamknięta lista osób publicznych, patrz „Twarze” w punkcie 12), kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
 | **Wygląd** | hash obrazu (dHash), ten sam plik kreacji (SHA-256), podobieństwo CLIP (opcjonalnie, także 8 klatek wideo), odcisk dźwięku (Chromaprint), głos mówcy (opcjonalnie) | dwa zrzuty różnią się naklejką: odległość dHash 3 z 64 bitów |
 | **Strona** | backend formularza, ukryte pola, własne pliki JS/CSS, komentarze w kodzie, struktura DOM, techniki (fałszywy sklep z aplikacjami, blokada przycisku „wstecz”, fałszywe komentarze) | oba formularze wysyłają dane na `https://zbieracz.example/lead/ab12` |
 | **Infrastruktura** | domena, host, IP, ASN, serwery NS, rejestrator i seria rejestracji (RDAP), certyfikat (CT), cel CNAME, tracker | dwie domeny `a-oferta.example` i `b-oferta.example` zarejestrowane w odstępie 20 minut u tego samego rejestratora |
@@ -70,23 +83,36 @@ Każdy ślad (encja, np. konkretny tracker) dostaje wagę. Waga to iloczyn trzec
 
 Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − Π(1 − wᵢ)`. Dwie niezależne przesłanki po 0,5 dają 0,75. Wynik rośnie z każdą kolejną przesłanką, ale nigdy nie przekracza 1. Przesłanka o wadze ≥ 0,7, której ślad występuje w mniej niż połowie zbioru, jest **silna** (patrz punkt 4).
 
-### Wagi typów (stan po zadaniu I28; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
+### Wagi typów (źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
 
-| Typ | Waga | Typ | Waga |
-|---|---|---|---|
-| url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
-| host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
-| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account, cloaker_account, launcher_account | 0,9 (c2_host 0,95) | asset | 0,55 |
-| path_id | 0,85 | favicon, kit_string | 0,5 |
-| cert, campaign_param, bank_account (nie jest silny) | 0,8 | comment_block, template_phrase | 0,45 |
-| ad_payer | 0,65 | nameserver, page_template | 0,35 |
-| | | company_id (NIP, REGON, KRS, VAT), postal_address (adres sklepu) | 0,5 |
-| | | technique, profit_claim | 0,2 |
-| | | param_schema | 0,12 |
-| | | persona | 0,1 |
-| | | registrar, asn | 0,05 |
+Tabela zawiera każdy rodzaj śladu z konfiguracji (poza `item`, waga 0). Opisy każdego śladu są w `docs/CECHY.md` (generowany z kodu poleceniem `bun run features:catalog`).
 
-Wagi własne części węzłów (od zadania I10, nadpisują wagę typu): token weryfikacji domeny 0,9 (`tracker`), para osób 0,35 (`persona`, tylko grupa), marka oszustwa 0,45 (`campaign_param`, ślad zestawu stron), wydawca AdSense 0,5 (`tracker`, ślad zestawu stron), host z żądań strony 0,25 (`endpoint`, ślad zestawu stron). Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana ręcznie; przy rozbieżności wygrywa `config.ts`.
+| Waga | Typy |
+|---|---|
+| 1,0 | `url`, `tracker`, `wallet` |
+| 0,95 | `host`, `domain`, `endpoint` (backend formularza), `crm_key`, `meta_ad`, `platform_campaign`, `c2_host` |
+| 0,9 | `email`, `phone`, `telegram`, `shared_doc`, `onion`, `messenger_invite`, `affiliate_account`, `platform_account`, `cloaker_account`, `launcher_account` |
+| 0,85 | `path_id` |
+| 0,8 | `cert`, `campaign_param`, `bank_account` (nie jest silny: `nonStrongTypes`) |
+| 0,75 | `fictional_expert` |
+| 0,65 | `cname_target`, `imagehash`, `ad_payer` |
+| 0,6 | `advertiser`, `ip`, `hidden_fields`, `comment`, `domain_pattern`, `click_server`, `hosting_account` (konto na hostingu wideo) |
+| 0,55 | `asset` |
+| 0,5 | `favicon`, `kit_string`, `company_id` (NIP, REGON, KRS, VAT), `postal_address` (adres sklepu), `lead_flow` (lejek leadów platformy stron) |
+| 0,45 | `comment_block`, `template_phrase`, `overlay_template` (układ podmienionych napisów w wideo), `reused_footage` (znak źródła cudzego nagrania) |
+| 0,35 | `nameserver`, `page_template` |
+| 0,2 | `technique`, `profit_claim` |
+| 0,12 | `param_schema` |
+| 0,1 | `persona` |
+| 0,05 | `registrar`, `asn` |
+
+**Silny dowód** to przesłanka o wadze ≥ `strongThreshold` (0,7), której ślad występuje w mniej niż połowie zbioru i w najwyżej 20 materiałach (`maxStrongDfRatio`, `maxStrongDf`). Wyjątek: `bank_account` mimo wagi 0,8 nie jest silny.
+
+**Ślady, które nie łączą kampanii same** (`campaignRules.notAloneKinds`; ślad jest przesłanką, ale kampania wymaga drugiego, niezależnego rodzaju dowodu): `similar_dom`, `comment`, `asset`, `hidden_fields`, `page_template`, `favicon`, `endpoint` (backend bez identyfikatora klienta), `param_schema`, `comment_block`, `ad_payer`, `scam_brand`, `tracker_host`, `adsense_publisher`, `template_phrase`, `advertiser_name` (sama nazwa reklamodawcy), `kit_string`, `company_id`, `bank_account`, `postal_address`, `overlay_template`, `reused_footage`, `hosting_account`, `lead_flow`, `affiliate_team` (para `team_id`+`user_id`). Nazwy bez odpowiednika w tabeli to rodzaje reguł, nie typy węzłów.
+
+**Ślady, które łączą tylko w grupę podobnych kampanii** (`campaignRules.familyOnlyKinds`): `technique`, `persona`, `profit_claim`.
+
+Wagi własne części węzłów (nadpisują wagę typu): token weryfikacji domeny 0,9 (`tracker`), para osób 0,35 (`persona`, tylko grupa), marka oszustwa 0,45 (`campaign_param`, ślad zestawu stron), wydawca AdSense 0,5 (`tracker`, ślad zestawu stron), host z żądań strony 0,25 (`endpoint`, ślad zestawu stron), seria rejestracji domen 0,3. Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana z konfiguracji; przy rozbieżności wygrywa `config.ts`.
 
 ## 4. Kampania a grupa podobnych kampanii
 
@@ -107,9 +133,13 @@ Wynik ma dwa poziomy:
 
 **Dlaczego jawne reguły, a nie HDBSCAN lub inne grupowanie bez nadzoru.** Każda krawędź musi dać się wyjaśnić osobie, która zdecyduje o zgłoszeniu: „te dwa materiały łączy tracker X (rzadki, waga 0,95) i serwer Y”. Metoda zbiorcza daje odległość w przestrzeni cech i parametr, którego nie da się obronić przed odbiorcą. Dlatego: reguły → union-find dla silnych dowodów; **Louvain** (grupowanie wspólnot na grafie ważonym) dla reszty; wszystko z jawną listą przesłanek.
 
-## 4a. Zmiany metody po walidacji (zadanie I10, 22.11.2026)
+## 5. Ślady łączące dodane po walidacji (22.11.2026)
 
-Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (wysoka precyzja, niska czułość). Zmiany mają ogólne uzasadnienie, test syntetyczny i opis w `docs/TECHNICAL.md` §4.16; liczby przed i po: punkt 9.
+Nowe rodzaje śladów, które łączą materiały (z wagą z punktu 3) albo zmieniają sposób liczenia istniejących. Te, które tylko opisują materiał i niczego nie łączą, są w punkcie 6.
+
+### 5.1 Poprawki metody po walidacji (zadanie I10)
+
+Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (wysoka precyzja, niska czułość). Zmiany mają ogólne uzasadnienie, test syntetyczny i opis w `docs/TECHNICAL.md` §4.17; liczby przed i po: punkt 12.
 
 **Nowe i poprawione ślady łączące.**
 - **Plik z witryny konta darmowego hostingu = hosting tego konta.** Gdy strona ładuje swoje skrypty z subdomeny platformy, na której każda subdomena to jedna witryna jednego konta (`netlify.app`, `pages.dev`, `github.io` …), host tej witryny liczy się jak hosting operatora (waga 0,95 × 0,7, nie silny). Kupiec skopiowanego zestawu stron trzyma pliki na własnej domenie, a publiczne CDN mają zniżkę. Host spoza tej listy (sieć reklamowa, statystyki) takiego śladu nie daje.
@@ -120,12 +150,6 @@ Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (w
 - **Marka oszustwa** (nazwa produktu albo „platformy”, np. „Fikcyjnol Forte”, „TradeSynthIQ 4.7”) przetrwa zmianę twarzy i domeny, ale jeden produkt sprzedaje wielu afiliantów: to ślad zestawu stron (0,45), sam daje najwyżej grupę; ogólne nazwy platform mają zniżkę. Wydawca AdSense (`ca-pub-…`) też jest śladem zestawu stron (identyfikatory wydawców bywają współdzielone).
 - **Linki-opakowania platform** (`l.facebook.com/l.php?u=`, `google.com/url?q=`, `adurl=`) są rozwijane do adresu docelowego, bo domeny platform mają wagę 0.
 - **Siatki bezpieczeństwa:** ślad wspólny dla więcej niż 20 materiałów nie jest silny niezależnie od wielkości zbioru (bez tego w dużej partii jeden powszechny ślad skleja łańcuchowo); społeczność Louvaina rozpadająca się na części bez powiązań jest dzielona na te części; stałe frazy reklam („dowiedz się więcej”, „tylko dziś”) i halucynacje transkrypcji („Napisy stworzone przez społeczność Amara.org”) nie liczą się do podobieństwa tekstu; transkrypcja może używać VAD (wykrywania mowy), żeby nie pisać tekstu do samej muzyki; strona wyzwania antybotowego to zablokowane pobranie, nie cloaking.
-
-**Atrybuty materiału, kampanii i grupy (nigdy dowód kampanii, bez wyniku ryzyka).**
-- **Narracja:** temat (inwestycja, dotacja, zdrowie z podkategoriami, hazard, wybory, „inwestycje dzięki AI”, złoto z NBP, wojna i surowce, „tajemnica”, „nastolatek zarobił”, odzyskanie środków, wydarzenia: mundial, zaprzysiężenie, „państwowa inwestycja”), forma przynęty (fałszywa sensacja, polecenie, fałszywy wywiad), kwoty, data materiału. Kampania i grupa mają podsumowanie narracji, a kampania na jednej infrastrukturze, która zmienia temat w ciągu tygodnia, dostaje opis „ten sam operator, dwie narracje”. Etykieta reguły IHC (`celeb_bait_investment`: osoba z listy oraz obietnica zysku, zaproszenie do grupy albo podrobione medium) jest atrybutem. Paczka dowodów bierze „usługę finansową” z narracji, z cytatem i dopiskiem „(wniosek)”.
-- **Podrabiana marka na kreacji** (CLIP zero-shot na liście ok. 20 portali, banków i instytucji) i **grupy osób** z listy osób publicznych („Dziennikarze”) są cechami grupy. **Para osób** w jednym materiale (fikcyjna rozmowa dwóch znanych osób) jest rzadsza niż jedna osoba, więc sama tworzy grupę podobnych kampanii, ale nigdy kampanię.
-- **Most i najsłabsze ogniwo:** kampania, którą trzyma razem jeden silny ślad między dwiema podgrupami, ma pole `bridge` („kampania sklejona jednym śladem: X”, kandydat do listy zniżek), a `minInternalScore` pokazuje członka, który wisi najbliżej progu.
-- **Wiek domeny i pierwszego certyfikatu** w dniu pierwszej obserwacji materiału, **platforma strony** (np. platforma stron, tracker; tylko atrybut, bez grupy, bo platforma ma tysiące niezwiązanych klientów), **liczba reklam zdjętych przez platformę**, **kolumny wejścia spoza mapowania** („dane z wejścia”).
 
 **Rozszerzalność bez zmiany kodu (`--config`).** Plik konfiguracji dopisuje listy zniżek (tablice w `lists` są dołączane do domyślnych) i może zrobić pivot z nieznanej kolumny wejścia:
 
@@ -141,7 +165,7 @@ Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (w
 
 Wartość kolumny `page_id` staje się wtedy węzłem typu `advertiser` (klucz `extra:page_id=<wartość>`) z wagą, zniżkami i regułami tego typu.
 
-## 4b. Operator jako firma leadowa (zadanie I23, 22.11.2026)
+### 5.2 Operator jako firma leadowa (zadanie I23)
 
 Publiczne opisy branży (raport RIVSEC „Fałszywe inwestycje w internecie. Schematy działania i zaplecze przestępcze”, marzec 2026, omówiony w podcaście Techstorie #157, Wyborcza, 13.10.2026) pokazują operatora jak firmę, która kupuje i sprzedaje zgłoszenia (leady). Strona docelowa ma jeden interaktywny element, formularz (imię, nazwisko, telefon), a dane trafiają na żywo do CRM. Leady są pakowane według kraju i kanału, więc każde zgłoszenie niesie identyfikator źródła, a pośrodku stoi sieć afiliacyjna („manager do spraw afiliacji”). Z tego wynikają ślady i reguły:
 
@@ -163,7 +187,7 @@ Publiczne opisy branży (raport RIVSEC „Fałszywe inwestycje w internecie. Sch
 
 Na 25 sprawach jury F1 par się nie zmienił (0,897, 14 kampanii); jedna grupa podobnych kampanii urosła o kampanię, którą łączy z nią przykładowy numer z tego samego szablonu formularza (liczby: Raport I23).
 
-## 4c. Odcisk tekstu (zadanie I25, 22.11.2026)
+### 5.3 Odcisk tekstu (zadanie I25)
 
 Teksty stron krążą między operatorami: te same zmyślone komentarze, ten sam pasek „powiązanych artykułów” i ten sam kod pułapek trafiają na strony różnych kont i trackerów. Tekst wskazuje więc dostawcę tekstów albo zestaw stron, czyli najwyżej grupę podobnych kampanii. Do kampanii zawsze potrzebny jest drugi, niezależny ślad operatora.
 
@@ -180,9 +204,19 @@ Teksty stron krążą między operatorami: te same zmyślone komentarze, ten sam
 
 Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `kit_string` dał 4 powiązania; jedno z nich dodało trzecią grupę podobnych kampanii z dwóch spraw bez pary w etykietach roboczych. Liczba powiązań `template_phrase` po masce pozostała ta sama (17), bo zdania szablonu w tych sprawach pochodzą z tekstu stron, a nie z SDK.
 
-## 4d. Sygnały z praktyki śledczej (zadanie I28, 22.11.2026)
+### 5.4 Pola rekordu platformy stron: cloaker i launcher (B-331, B-345)
 
-Źródło: transkrypcje podcastów śledczych (OSINT Podcast https://www.youtube.com/@OSINTPodcast, Fraud Forward https://www.youtube.com/@FraudForward) i katalog cech z tych odcinków (`/Users/miron/Projects/deepfake-research/cechy/podcasty-osint-fraud-cechy.md`). Prawie wszystko stąd jest **atrybutem materiału**: tłumaczy w przeglądarce i w paczce dowodów, jaki to typ oszustwa i dlaczego, ale nikogo nie łączy. Łączą tylko identyfikatory kontaktowe i dokumenty.
+Platforma stron zapisuje w `window.aio.visit.fields` makra wizyty. Część z nich opisuje operatora, nie odwiedzającego:
+
+- `cloaker_account` (waga 0,9, jak Telegram): para `cl_domain` + `cl_sid` cloakera Cloakerson. `cl_sid` to numer klienta cloakera, `cl_domain` to host cloakera, który go obsługuje. Ta sama para to jedno opłacone konto klienta, czyli jeden operator, tak samo konkretny jak kanał kontaktu. Sam `cl_sid` nie łączy (numery powtarzają się między hostami cloakerów), sama domena też nie (jeden host obsługuje wielu klientów): obie wartości trafiają wtedy tylko do atrybutów materiału. `cl_did` to identyfikator wizyty lub urządzenia: atrybut, bez wagi. `cl_clid` (kliknięcie analityka) jest redagowany razem z resztą danych wizyty.
+- `launcher_account` (waga 0,9, jak konto na platformie stron): UUID z `visit.fields.launcher` (albo `visit.launcher`). Na 11 z 12 stron z tym polem w próbce launcher jest równy `owner_uuid`, czyli to ten sam dowód co `platform_account`. Wtedy nie powstaje drugi ślad (nie liczymy jednego dowodu dwa razy), a materiał dostaje tylko atrybut `launcherSameAsOwner`. Bez `owner_uuid` launcher zastępuje właściciela (`platform_account`, jak parametr `launcher=` w linkach platformy). Osobny węzeł powstaje tylko, gdy launcher różni się od właściciela: to konto, z którego uruchomiono reklamy, niezależne od konta stron.
+- 16-cyfrowy identyfikator w `fb_campaign_name` (np. „PL(PL) - Nazwa - 1234567890123456 - 2”) trafia do `campaign_param` z kluczem `fb_campaign_name_id=<id>` (waga 0,8). Klucz jest osobny, a nie `campaign_id`, bo nie wiadomo, czy to identyfikator kampanii, czy konta reklamowego.
+
+Ograniczenie: launcher różny od właściciela na jednej stronie i ten sam UUID jako `owner_uuid` na innej nie łączą się przez ten węzeł (różne typy). Na próbce takiego przypadku nie ma.
+
+### 5.5 Identyfikatory kontaktowe i dokumenty z praktyki śledczej (zadanie I28)
+
+Źródło: transkrypcje podcastów śledczych (OSINT Podcast https://www.youtube.com/@OSINTPodcast, Fraud Forward https://www.youtube.com/@FraudForward) i katalog cech z tych odcinków. Prawie wszystko stąd jest **atrybutem materiału**: tłumaczy w przeglądarce i w paczce dowodów, jaki to typ oszustwa i dlaczego, ale nikogo nie łączy. Łączą tylko identyfikatory kontaktowe i dokumenty.
 
 **Co łączy** (rodzaje śladów z wagą jak Telegram, 0,9: wskazują konto albo zasób operatora; rzadkość przez IDF i `maxPivotDf` jak każdy inny ślad):
 
@@ -195,6 +229,20 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 Źródłem są tekst i atrybuty strony, tekst reklamy, OCR zrzutu i adresy żądań z HAR. Żaden z tych adresów nie jest otwierany: to zasoby operatora, narzędzie czyta tylko zapis.
 
+## 6. Atrybuty, które nie łączą (22.11.2026)
+
+Te cechy pojawiają się w karcie materiału, w opisie kampanii i w paczce dowodów, ale nie mają wagi w grafie i niczego nie łączą. Atrybuty sklepu i infrastruktury są w punkcie 2 („Sygnały sklepu”).
+
+### 6.1 Narracja, marka na kreacji, osoby i inne atrybuty (zadanie I10)
+
+**Atrybuty materiału, kampanii i grupy (nigdy dowód kampanii, bez wyniku ryzyka).**
+- **Narracja:** temat (inwestycja, dotacja, zdrowie z podkategoriami, hazard, wybory, „inwestycje dzięki AI”, złoto z NBP, wojna i surowce, „tajemnica”, „nastolatek zarobił”, odzyskanie środków, wydarzenia: mundial, zaprzysiężenie, „państwowa inwestycja”), forma przynęty (fałszywa sensacja, polecenie, fałszywy wywiad), kwoty, data materiału. Kampania i grupa mają podsumowanie narracji, a kampania na jednej infrastrukturze, która zmienia temat w ciągu tygodnia, dostaje opis „ten sam operator, dwie narracje”. Etykieta reguły IHC (`celeb_bait_investment`: osoba z listy oraz obietnica zysku, zaproszenie do grupy albo podrobione medium) jest atrybutem. Paczka dowodów bierze „usługę finansową” z narracji, z cytatem i dopiskiem „(wniosek)”.
+- **Podrabiana marka na kreacji** (CLIP zero-shot na liście ok. 20 portali, banków i instytucji) i **grupy osób** z listy osób publicznych („Dziennikarze”) są cechami grupy. **Para osób** w jednym materiale (fikcyjna rozmowa dwóch znanych osób) jest rzadsza niż jedna osoba, więc sama tworzy grupę podobnych kampanii, ale nigdy kampanię.
+- **Most i najsłabsze ogniwo:** kampania, którą trzyma razem jeden silny ślad między dwiema podgrupami, ma pole `bridge` („kampania sklejona jednym śladem: X”, kandydat do listy zniżek), a `minInternalScore` pokazuje członka, który wisi najbliżej progu.
+- **Wiek domeny i pierwszego certyfikatu** w dniu pierwszej obserwacji materiału, **platforma strony** (np. platforma stron, tracker; tylko atrybut, bez grupy, bo platforma ma tysiące niezwiązanych klientów), **liczba reklam zdjętych przez platformę**, **kolumny wejścia spoza mapowania** („dane z wejścia”).
+
+### 6.2 Techniki, rodzaje numerów i narracje z praktyki śledczej (zadanie I28)
+
 **Co tylko wyjaśnia** (atrybuty, bez wagi; techniki liczą się wyłącznie przy grupach podobnych kampanii, jak inne techniki):
 
 - Techniki strony: fałszywy alarm bezpieczeństwa z numerem telefonu (`fake_security_alert`: alarm + numer jako jedyne wyjście + mechanizm przytrzymania), program do zdalnego pulpitu (`remote_access_tool`), fałszywa weryfikacja z poleceniem do wklejenia (`clickfix_paste`). Z polecenia ClickFix zapisujemy tylko rodzaj i skrót SHA-256 (to ładunek złośliwego oprogramowania); skrót nie jest śladem łączącym, bo wśród rodzajów nie ma „zestawu” pasującego do polecenia.
@@ -205,7 +253,11 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 **Zastrzeżenia ze źródeł.** Numer dzwoniącego i numer z formularza nie dowodzą tożsamości (podszywanie numeru, aplikacje). Wspólny zestaw albo platforma „fraud as a service” nie dowodzi jednego operatora. Brak literówek nie jest już sygnałem legalności, bo teksty piszą modele językowe. Zrzut salda z „platformy” nie dowodzi stanu konta (edycja DOM).
 
-## 4e. Przypadki graniczne: celowo nie połączone (zadanie I20, 22.11.2026)
+## 7. Przypadki graniczne i twarde negatywy (22.11.2026)
+
+To dwa sposoby sprawdzenia, że narzędzie nie skleja kampanii na podstawie samej podobieństwa.
+
+### 7.1 Przypadki graniczne: celowo nie połączone (zadanie I20)
 
 **Co to jest bliska para.** Para reklam, które są do siebie podobne, a metoda celowo nie połączyła ich w jedną kampanię. Każda taka para ma w zestawieniu regułę, która zablokowała połączenie, i opis tego, czego zabrakło. Zestawienie robi dwie rzeczy. Pokazuje, że metoda pilnuje fałszywych powiązań: wspólna osoba w reklamie, popularny szablon, wspólna platforma, CDN, rejestrator. I daje listę przypadków do przeglądu, gdy wynik pary leży blisko progu. Zestawienie tylko zapisuje decyzje, które metoda i tak podejmuje: nie zmienia wag, progów ani reguł, a kampanie i grupy wychodzą identyczne z tymi sprzed zadania (sprawdzone porównaniem `campaigns.json` na próbce syntetycznej i na 25 sprawach).
 
@@ -225,11 +277,11 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 **Liczby z przebiegu na 25 sprawach (28 rekordów, 14 kampanii, 3 grupy podobnych; według reguły):** 52 bliskie pary, z tego `below-min-score` 37, `kit-only` 9, `account-conflict` 4, `family-only-kind` 1, `discounted-only` 1; pozostałe reguły 0. Pary, które etykiety zespołu mają w jednej kampanii, a metoda je rozdzieliła (kandydaci na fałszywe rozdzielenie): 0. Zgadza się to z recall pary równym 1,0 w ewaluacji tego przebiegu. Przy `kit-only` i `account-conflict` metoda zadziałała zgodnie z założeniem (wspólny zestaw stron albo konto platformy, nie operator). Pary `below-min-score` mają wyniki od 0,06 do 0,12 (próg 0,15) i łączą je głównie słabe ślady (sieć operatora, technika strony, układ linku śledzącego); do przeglądu warto brać najwyższe wyniki z tej reguły.
 
-**Gdzie to zobaczyć.** `near-misses.json` obok `campaigns.json` (zapisuje go każdy `build-graph`), zakładka „Celowo nie połączone” w przeglądarce, pole `nearMisses` i kolumna `blisko_bez_polaczenia` w wyniku analizy nowego materiału. Format: `docs/TECHNICAL.md`, §5.3c.
+**Gdzie to zobaczyć.** `near-misses.json` obok `campaigns.json` (zapisuje go każdy `build-graph`), zakładka „Celowo nie połączone” w przeglądarce, pole `nearMisses` i kolumna `blisko_bez_polaczenia` w wyniku analizy nowego materiału. Format: `docs/TECHNICAL.md`, §5.6.
 
-Bliskie pary z tego przebiegu weszły do zbioru twardych negatywów z prawdziwych materiałów (punkt 4f), gdzie sprawdzamy, czy narzędzie nie skleja ich w kampanię.
+Bliskie pary z tego przebiegu weszły do zbioru twardych negatywów z prawdziwych materiałów (punkt 7.2), gdzie sprawdzamy, czy narzędzie nie skleja ich w kampanię.
 
-## 4f. Twarde negatywy z prawdziwych materiałów (zadanie I21, 22.11.2026)
+### 7.2 Twarde negatywy z prawdziwych materiałów (zadanie I21)
 
 **Po co.** Najczęstszy błąd narzędzi tego typu to fałszywe sklejenie: dwa materiały różnych operacji w jednej kampanii, bo mają tę samą przynętę. Wcześniejsze testy twardych negatywów były tylko syntetyczne. Teraz mamy zbiór par z prawdziwych materiałów (25 spraw próbki i 212 materiałów walidacji) i stały test w repozytorium, że żadna z nich nie trafia do jednej kampanii. Grupa podobnych kampanii jest dozwolona.
 
@@ -242,7 +294,7 @@ Bliskie pary z tego przebiegu weszły do zbioru twardych negatywów z prawdziwyc
 5. domeny zarejestrowane tego samego dnia albo podobne leksykalnie;
 6. strona pusta, błąd pobierania, cloaking albo strona zaparkowana.
 
-Do tego jako osobne źródło bliskie pary z punktu 4e.
+Do tego jako osobne źródło bliskie pary z punktu 7.1.
 
 **Metoda doboru.** Bierzemy pary z różnych kampanii według etykiet (etykiety zespołu dla 25 spraw, etykiety walidacji dla pozostałych) i zostawiamy te, które spełniają co najmniej jedną kategorię. Wybór idzie od najtrudniejszych, czyli od najwyższego wyniku pary w grafie, z limitem par na kategorię i na materiał oraz udziału jednego typu pary. **Etykieta „różne kampanie” musi mieć podstawę.** Jeśli obie reklamy mają wspólny pełnowagowy identyfikator operatora (konto platformy stron, serwer kliknięć, tracker albo zarejestrowaną domenę), to według definicji naszych etykiet jest to ta sama kampania. Wtedy para trafia do „niepewnych” i nie liczy się jako negatyw. Inaczej podstawą są różne identyfikatory tego samego typu („inne konta”, „inne domeny”) albo same różne etykiety. W kategoriach z mniej niż trzema parami prawdziwymi dokładamy pary **pochodne**: bierzemy prawdziwą sprawę i podmieniamy jedną warstwę tak, żeby powstała inna operacja z tą samą przynętą. Na przykład ta sama treść i osoba z innym backendem formularza i innym kontem albo ten sam kreator i CDN z inną treścią i innym trackerem. Pary pochodne liczymy osobno. Pomiar ma dwie części: wynik pary we wspólnym grafie (sklejone, tylko grupa, rozdzielone) i leave-one-out, czyli materiał A analizowany jako nowy względem bazy bez całej jego sprawy.
 
@@ -270,23 +322,13 @@ Leave-one-out daje to samo: 0 sklejeń. Przed sprawdzeniem podstawy etykiet skle
 
 **Test w repozytorium.** `tests/hardNegatives.real.test.ts` z `tests/fixtures/hard-negatives-real.json`. Plik zawiera 114 par: 97 prawdziwych i 17 pochodnych. Z każdej pary zostaje tylko struktura: typy wspólnych śladów, waga, dyskonto, siła, podobieństwo, to, czy reklama ma infrastrukturę, i konto platformy zastąpione stałą. Domen, identyfikatorów, nazwisk ani tekstów w pliku nie ma (sprawdzone skanerem wycieków). Test sprawdza, że żadna para nie trafia do jednej kampanii, a pary, które grupę tworzą samym swoim powiązaniem (33), trafiają do jednej grupy podobnych. Zastrzeżenia: etykiety są nasze, kategorie motywu i pustej strony wykrywają proste reguły, a odsetek dotyczy wybranych, najtrudniejszych par, nie wszystkich możliwych.
 
-## 4g. Pola rekordu platformy stron: cloaker i launcher (B-331, B-345, 22.11.2026)
-
-Platforma stron zapisuje w `window.aio.visit.fields` makra wizyty. Część z nich opisuje operatora, nie odwiedzającego:
-
-- `cloaker_account` (waga 0,9, jak Telegram): para `cl_domain` + `cl_sid` cloakera Cloakerson. `cl_sid` to numer klienta cloakera, `cl_domain` to host cloakera, który go obsługuje. Ta sama para to jedno opłacone konto klienta, czyli jeden operator, tak samo konkretny jak kanał kontaktu. Sam `cl_sid` nie łączy (numery powtarzają się między hostami cloakerów), sama domena też nie (jeden host obsługuje wielu klientów): obie wartości trafiają wtedy tylko do atrybutów materiału. `cl_did` to identyfikator wizyty lub urządzenia: atrybut, bez wagi. `cl_clid` (kliknięcie analityka) jest redagowany razem z resztą danych wizyty.
-- `launcher_account` (waga 0,9, jak konto na platformie stron): UUID z `visit.fields.launcher` (albo `visit.launcher`). Na 11 z 12 stron z tym polem w próbce launcher jest równy `owner_uuid`, czyli to ten sam dowód co `platform_account`. Wtedy nie powstaje drugi ślad (nie liczymy jednego dowodu dwa razy), a materiał dostaje tylko atrybut `launcherSameAsOwner`. Bez `owner_uuid` launcher zastępuje właściciela (`platform_account`, jak parametr `launcher=` w linkach platformy). Osobny węzeł powstaje tylko, gdy launcher różni się od właściciela: to konto, z którego uruchomiono reklamy, niezależne od konta stron.
-- 16-cyfrowy identyfikator w `fb_campaign_name` (np. „PL(PL) - Nazwa - 1234567890123456 - 2”) trafia do `campaign_param` z kluczem `fb_campaign_name_id=<id>` (waga 0,8). Klucz jest osobny, a nie `campaign_id`, bo nie wiadomo, czy to identyfikator kampanii, czy konta reklamowego.
-
-Ograniczenie: launcher różny od właściciela na jednej stronie i ten sam UUID jako `owner_uuid` na innej nie łączą się przez ten węzeł (różne typy). Na próbce takiego przypadku nie ma.
-
-## 5. Duplikaty i „za mało danych”
+## 8. Duplikaty i „za mało danych”
 
 **Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym wideo (ten sam plik po SHA-256 albo klatki CLIP ≥ 0,97 razem z tym samym dźwiękiem na całej długości), tym samym identyfikatorze reklamy, tym samym adresie strony z identycznym szablonem albo identycznej treści strony (SHA-256 zapisanego HTML). Sprawa, której wszystkie pliki (HAR, HTML, zrzuty, wideo) są już we wcześniejszej sprawie tej samej paczki z tym samym SHA-256, też jest duplikatem, nawet gdy tamta ma pliki dodatkowe. Ten sam tekst nie wystarcza, a to samo wideo z innym wstępem to wariant, nie duplikat. Duplikat dostaje kampanię oryginału.
 
 **„Za mało danych”** (`insufficient`, w CSV pole `missing_data`) pojawia się, gdy materiał nie ma adresu, identyfikatora, co najmniej 5 słów treści ani powiązania ponad progiem. Wynik wymienia, co dorzucić (np. „zrzut z widocznym paskiem adresu”). Reklama z formularzem platformy (Lead Ads, napisy „Formularz”, „Wyślij”, „Instant Form” w tekście lub OCR) nie ma strony docelowej, więc zamiast linku dostaje prośbę o identyfikator z Biblioteki Reklam albo link do strony reklamodawcy i zrzut formularza. Lepiej odmówić oceny, niż zgadywać.
 
-## 6. Przypisanie nowego materiału i progi
+## 9. Przypisanie nowego materiału i progi
 
 Nowy materiał trafia do jednego grafu ze znanymi i dostaje jeden z werdyktów: `known_campaign`, `similar_campaigns` (nowa kampania podobna do znanych), `new_campaign`, `duplicate`, `insufficient`.
 
@@ -309,13 +351,23 @@ Dawna „furtka” `singleKindMinScore` (0,5, pojedynczy rodzaj dowodu o dużym 
 
 **`confidence` i `score` to siła przesłanek, nie prawdopodobieństwo.** `score` to wynik noisy-OR ze wzoru wyżej. `confidence` (`certain`, `likely`, `uncertain`) mówi: `certain`, gdy najlepsze powiązanie ma przesłankę silną (waga ≥ 0,7), `likely`, gdy wynik powiązania ≥ 0,5. Żaden z nich nie był skalibrowany na zbiorze z prawdziwymi etykietami, więc „0,8” nie znaczy „80% szans, że to ta sama kampania”.
 
-## 6a. Harmonogram skanów i „baza rośnie”
+### 9.1 Harmonogram skanów i „baza rośnie”
 
-**Harmonogram.** `bun run watch` co cykl pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Listę Ostrzeżeń CERT) o nowe adresy i każdy przepuszcza przez tę samą analizę, co ręcznie zgłoszony materiał (rozdział 6); wynik trafia do `data/watch.jsonl`. Przepisy wyszukiwania opierają się na silnych cechach znanych kampanii (najemca platformy stron, adres IP spoza CDN, identyfikator ścieżki, skrót zasobu, para serwerów nazw, rejestrator, pora rejestracji), a potwierdzenie kandydata idzie po infrastrukturze, nie po tytule strony ani samej nazwie domeny: kandydat z CT staje się `confirmed` dopiero przy co najmniej dwóch rodzajach wspólnej infrastruktury (ta sama para NS, godzina rejestracji w oknie kampanii, ten sam adres IP, ten sam skrót treści). Wartość widoczna w jednej kampanii i w innej (domyślne serwery nazw rejestratora, wspólny hosting) nie jest cechą żadnej z nich i nie potwierdza. Lista Ostrzeżeń CERT jest używana tylko z obowiązkowym filtrem RDAP/NS (rejestrator, pora rejestracji, para NS): sam wzorzec nazwy daje setki fałszywych trafień. Źródło, którego nie da się zapytać (brak sieci, klucza, strumienia), zostawia w raporcie cyklu powód pominięcia. Wiersz `campaign` przy werdykcie innym niż `known_campaign` to najbliższa kampania z odcisku nazw (podpowiedź źródła), nie wynik analizy.
+**Harmonogram.** `bun run watch` co cykl pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Listę Ostrzeżeń CERT) o nowe adresy i każdy przepuszcza przez tę samą analizę, co ręcznie zgłoszony materiał (punkt 9); wynik trafia do `data/watch.jsonl`. Przepisy wyszukiwania opierają się na silnych cechach znanych kampanii (najemca platformy stron, adres IP spoza CDN, identyfikator ścieżki, skrót zasobu, para serwerów nazw, rejestrator, pora rejestracji), a potwierdzenie kandydata idzie po infrastrukturze, nie po tytule strony ani samej nazwie domeny: kandydat z CT staje się `confirmed` dopiero przy co najmniej dwóch rodzajach wspólnej infrastruktury (ta sama para NS, godzina rejestracji w oknie kampanii, ten sam adres IP, ten sam skrót treści). Wartość widoczna w jednej kampanii i w innej (domyślne serwery nazw rejestratora, wspólny hosting) nie jest cechą żadnej z nich i nie potwierdza. Lista Ostrzeżeń CERT jest używana tylko z obowiązkowym filtrem RDAP/NS (rejestrator, pora rejestracji, para NS): sam wzorzec nazwy daje setki fałszywych trafień. Źródło, którego nie da się zapytać (brak sieci, klucza, strumienia), zostawia w raporcie cyklu powód pominięcia. Wiersz `campaign` przy werdykcie innym niż `known_campaign` to najbliższa kampania z odcisku nazw (podpowiedź źródła), nie wynik analizy.
 
 **Baza rośnie.** Analiza niczego nie dopisuje do bazy; robi to dopiero `--add-to-base` (CLI), `watch --add-to-base` (harmonogram, domyślnie tylko `known_campaign`) i przycisk w przeglądarce. Dopisujemy rekord i dane wzbogacone, których użyło porównanie, bez ponownego liczenia cech; graf i kampanie przebudowujemy offline. Duplikatu nie dopisujemy, „za mało danych” tylko wymuszone (`--force`), bo materiał, którego nie da się porównać, nie pomaga następnym. Kampanie zachowują numery: nowy klaster dostaje numer starej kampanii, z którą dzieli najwięcej rekordów, a klaster bez poprzednika nowy numer; dzięki temu sprawa, raport czy odnośnik „K07” nie zmieniają znaczenia po dopisaniu materiału. Przed zapisem poprzednie pliki bazy trafiają do `<baza>/historia/<czas>/`, każde dopisanie ma wpis w `<baza>/dodane.jsonl` (czas, źródło `cli`/`watch`/`gui`, identyfikator, werdykt w chwili dodania), a pliki są zastępowane przez zmianę nazwy pliku tymczasowego. Automatyczne dopisywanie z harmonogramu ma jedną wadę: błędnie przypisany materiał zostaje w bazie i wpływa na kolejne wyniki, więc `historia/` pozwala wrócić do stanu sprzed zmiany.
 
-## 7. Niekompletne dane
+### 9.2 Korekty analityka (`corrections.json`)
+
+Analityk nie edytuje grafu ręcznie. Zapisuje decyzje w pliku `corrections.json` (domyślnie obok `campaigns.json`, `build-graph --corrections plik.json`; w przeglądarce przyciski przy powiązaniu i śladzie zapisują ten plik przez `/api/corrections`), a `build-graph` stosuje je przy następnym przebiegu. Trzy rodzaje decyzji (`lib/graph/corrections.ts`):
+
+- **Połączenie (`mustLink`)**: dwa materiały należą do jednej kampanii. Powstaje silne powiązanie z przesłanką „decyzja analityka”.
+- **Rozdzielenie (`cannotLink`)**: dwa materiały nie mogą być w jednej kampanii. Bezpośrednie powiązanie jest cięte, a jeśli inne powiązania nadal trzymają je razem, tną się powiązania między dwiema stronami kampanii (każdy członek idzie do strony, której jest bliżej), aż podział się utrzyma. Rozdzielenie wygrywa z połączeniem.
+- **Wyłączony ślad (`disabledPivots`)**: wspólny ślad (identyfikator węzła, np. domena) przestaje liczyć się jako dowód, np. gdy okazał się infrastrukturą wspólną.
+
+Każde powiązanie zmienione decyzją zostaje w grafie z dopiskiem „decyzja analityka: …”, a kampania, której decyzja dotyczy, wymienia ją w `analystNotes` (widoczne w przeglądarce). Format pliku i trasa API: `docs/TECHNICAL.md`, §10.
+
+## 10. Niekompletne dane
 
 - **Martwa strona**: gdy jest tylko zrzut z paskiem adresu, domena z paska staje się adresem; cechy pochodzą z nagranych odpowiedzi DNS/RDAP (lub z zapytań, jeśli włączono `--lookups`).
 - **Sam zrzut** bez adresu: zostają obraz, tekst z OCR i identyfikator biblioteki reklam, jeśli jest widoczny. Przypisanie opiera się wtedy na kreacji, więc werdykt to zwykle wariant (niższa pewność) albo „za mało danych”.
@@ -328,15 +380,15 @@ Dla adresu, którego strona nie odpowiada (błąd sieci, NXDOMAIN, 4xx/5xx albo 
 
 Każda kopia w wyniku ma źródło (`urlscan`/`wayback`), adres kopii, czas kopii i czas zapytania, a jej cechy są oznaczone `bodySource`; treść z archiwum nigdy nie udaje strony pobranej na żywo (lista kompletności pokazuje „kopia archiwalna” jako ostrzeżenie). **Kopię sprzed rejestracji domeny odrzucamy**: domeny oszustw bywają rejestrowane ponownie, więc kopia starsza niż data rejestracji z RDAP (a bez niej niż najstarszy znany certyfikat z CT) to dawna treść innego właściciela i nie może łączyć kampanii. Odrzucamy też kopię starszą od pierwszego wystąpienia materiału o więcej niż `archiveMaxAgeDays` (domyślnie 30; `lib/osint/archive/config.ts`). Odrzucona kopia zostaje w danych materiału jako informacja z powodem, nie wchodzi do cech, a przy porównaniu z RDAP domena dostaje atrybut `reRegistered`. **Kopia archiwalna nie zmienia wagi dowodów**: zasila te same cechy co zapisana strona (kod strony → szablon, backendy, zasoby; lista żądań → zasoby i hosty jak z HAR) z tymi samymi wagami i regułami. Martwy adres bez kopii w żadnym źródle, bez treści i identyfikatorów, daje „za mało danych” z powodem „brak strony i brak kopii archiwalnej”.
 
-Na dwóch materiałach z kopią w Wayback wynik z samej kopii miał te same rodzaje pivotów i ten sam werdykt co wynik z katalogu; kopia urlscan bez klucza traciła pivoty z kodu strony (zob. TECHNICAL §3.1a).
+Na dwóch materiałach z kopią w Wayback wynik z samej kopii miał te same rodzaje pivotów i ten sam werdykt co wynik z katalogu; kopia urlscan bez klucza traciła pivoty z kodu strony (zob. TECHNICAL §3.2).
 
-## 8. Cloaking
+## 11. Cloaking
 
 Metodą jest wyłącznie **wykrywanie pasywne po sygnaturach w zebranych danych**: analiza zapisanych stron i HAR pod kątem sygnatur skryptów cloakera w kodzie strony (cecha `cloakerInSource`) oraz tego samego adresu zapisanego z różną treścią (osobne zapisy `#capture`). Nie wysyłamy żadnych dodatkowych żądań.
 
 Opcja `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami: crawler platformy i przeglądarka mobilna) istnieje, ale jest **domyślnie wyłączona** i nie jest metodą. Gdy jedno z tych pobrań trafi na stronę wyzwania antybotowego (np. „Just a moment…”), wynik to „pobranie zablokowane przez ochronę przed botami”, a nie podejrzenie cloakingu. Test po User-Agencie nie dowodzi braku cloakingu po IP i geolokalizacji: różnica treści coś wskazuje, jej brak nic nie wyklucza.
 
-## 9. Walidacja i ograniczenia
+## 12. Walidacja i ograniczenia
 
 **Progi, reguła faviconu i lista person zostały dobrane na tych samych 25 sprawach próbki referencyjnej.** Wynik na tej próbce (po I14: precyzja i F1 par = 1,0, 14 kampanii, 2 grupy podobnych) pokazuje, że metoda jest spójna z naszym rozumieniem tych spraw, a nie że sprawdzi się na nowych. **Etykiety (które materiały należą do jednej kampanii) są nasze**: nie istnieją polskie zbiory z etykietami kampanii, z którymi dałoby się je porównać. Na danych syntetycznych wynik jest z założenia bliski 1,0: zbiór zaprojektowaliśmy sami.
 
@@ -350,7 +402,7 @@ Materiały: 212 stron oszustw zebranych z publicznych źródeł (głównie publi
 - (d) duplikaty: 0. (e) czas partii 212 materiałów: 0,8 s, szczyt pamięci ok. 330 MB.
 - Pokrycie: w 5 z 12 prawdziwych kampanii z co najmniej dwoma materiałami narzędzie znalazło ≥ 50% członków w jednej kampanii, w 1 z 12 wszystkich.
 
-**Po poprawkach metody (zadanie I10, punkt 4a), ta sama partia i etykiety:** (a) 34/78 (43,6%) wariantów w właściwej znanej kampanii, 11/78 tylko „podobne”, 0 w złej; (b) nadal 134/134, a negatywów z „podobnymi kampaniami” 0; (c) bez zmian; pary na całej partii: precyzja 0,997, czułość 0,272 (F1 0,224 → 0,427); pokrycie 6 z 12 kampanii. Na 25 sprawach próbki partycja i grupy bez zmian.
+**Po poprawkach metody (zadanie I10, punkt 5.1), ta sama partia i etykiety:** (a) 34/78 (43,6%) wariantów w właściwej znanej kampanii, 11/78 tylko „podobne”, 0 w złej; (b) nadal 134/134, a negatywów z „podobnymi kampaniami” 0; (c) bez zmian; pary na całej partii: precyzja 0,997, czułość 0,272 (F1 0,224 → 0,427); pokrycie 6 z 12 kampanii. Na 25 sprawach próbki partycja i grupy bez zmian.
 
 Wniosek: na tych danych metoda jest ostrożna (wysoka precyzja, niska czułość). Główne źródła rozbić to reguła „jeden rodzaj dowodu nie tworzy kampanii” przy stronach znanych tylko z listy żądań (bez kodu strony) i brak w publicznych skanach śladów z linku reklamy. **Zastrzeżenie:** etykiety rodzin nadano częściowo po tych samych śladach infrastruktury, których używa narzędzie, więc (a) jest optymistyczna; miarodajne są przede wszystkim (b) i (c). Policzysz to samo na własnych etykietach: `bun run evaluate -- --csv <partia.csv> --labels <etykiety.json>`.
 
@@ -415,7 +467,7 @@ Wyniki:
 - **Skala**: porównania są liczone parami, O(n²); przy dziesiątkach tysięcy materiałów potrzebny byłby indeks.
 - **Strony renderowane w JavaScripcie**: nie wykonujemy JS, więc część treści i adresów jest niewidoczna.
 
-## 10. Czego nie robimy i dlaczego
+## 13. Czego nie robimy i dlaczego
 
 - **Nie oceniamy pojedynczej reklamy** (ani „ryzyka” reklamy). Lista Ostrzeżeń CERT to cecha domeny, nie dowód o reklamie; wskaźnik ryzyka bez etykiet byłby zgadywaniem.
 - **Nie wykrywamy klonów głosu.** Wymagałoby to modeli typu XLS-R/wav2vec2 i dostrojenia. Błąd równych wskaźników (EER) detektorów audio na prawdziwych reklamach to 25–60%, więc wynik takiego detektora byłby wskazówką, a nie dowodem. Głos mówcy służy do łączenia materiałów (ten sam głos w dwóch reklamach), nie do orzekania o fałszerstwie.
@@ -425,15 +477,15 @@ Wyniki:
 - **Czego nie używamy:** bazy odcisków technologii *webappanalyzer* (licencja GPL-3.0; atrybut platformy powstaje z własnych wzorców) oraz *httpx* (aktywne sondowanie hostów łamie zasadę pasywności).
 - Nie logujemy się na cudze konta, nie obchodzimy zabezpieczeń, nie renderujemy stron, nie wydajemy nakazów. Decyzję o zgłoszeniu podejmuje człowiek.
 
-## 10b. Wiedza
+## 14. Wiedza
 
 Wynik narzędzia to nie tylko werdykty, ale i wiedza do dalszej pracy. [WZORCE-KAMPANII.md](WZORCE-KAMPANII.md) opisuje, jak zbudowane są kampanie (platformy stron, trackery z identyfikatorem kliknięcia, cloakery, bramki konwersji, usługi wielu klientów, lejek, fałszywe komentarze i sklep z aplikacjami, serie rejestracji, narracje) i przy każdym wzorcu mówi, czy to cecha operatora, czy platformy oraz jaki typ węzła i jaką wagę mu nadaje narzędzie. [ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md) ocenia źródła liczbami: ile powiązań dał każdy typ śladu (`bun run source-stats` na dowolnym `graph.json`), czy działa na martwych stronach, ile kosztuje i czego wymaga. Wzbogacony zbiór danych (wiersz na materiał, bez wektorów głosu i twarzy) daje `bun run export-dataset`, a graf dla Neo4j opcja `--neo4j`. Kontrakt dla systemów instytucji: [INTEGRACJA.md](INTEGRACJA.md). Etykieta „znany backend leadów” przy przesłance pochodzi z publicznych raportów (`data/znane-backendy-leadow.json`, ze źródłem) i nie zmienia wag ani reguł łączenia.
 
-## 11. Pochodzenie danych (skrót)
+## 15. Pochodzenie danych (skrót)
 
 Próbka dostarczona przez właściciela danych nie trafia do repozytorium; w repozytorium są tylko dane syntetyczne. Dane z publicznych źródeł (skany urlscan, logi CT, RDAP i DNS, Lista Ostrzeżeń CERT, biblioteki reklam) zbierane w trybie live lądują w `.cache/` i `data/work/` poza repozytorium, a materiały zebrane z sieci mają w `zrodlo.json` adres źródła i datę dostępu. Pełna tabela: [README.md](../README.md#pochodzenie-danych).
 
-## 12. Słownik pojęć
+## 16. Słownik pojęć
 
 | Pojęcie | Znaczenie |
 |---|---|

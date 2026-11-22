@@ -43,6 +43,7 @@ import { PHONE_CONFIG } from "../osint/phoneConfig";
 import { phoneLineFlags, phoneLineInfo } from "../osint/phoneLine";
 import { profitClaimKey, profitClaims } from "../text/profitClaims";
 import { canonicalExperts, findExpertNames, isPublicPerson, loadPublicPersonForms, type ExpertName } from "../text/fictionalExpert";
+import { languageErrors } from "../text/languageErrors";
 import { foreignPersona, foreignSegments, residueOf } from "../text/residue";
 import { translationArtifacts, typographyOf } from "../text/typography";
 import { advertiserNameKind, brandStyle } from "../text/brandStyle";
@@ -1167,6 +1168,8 @@ export function buildEvidenceGraph(
       if (typo) itemData.typography = typo;
       const artifacts = translationArtifacts(prose, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));
       if (artifacts) itemData.translationArtifacts = artifacts;
+      const langErrors = languageErrors(segments, artifacts);
+      if (langErrors) itemData.languageErrors = langErrors;
       const style = [advertiser, enr?.creativeBrand].map((n) => brandStyle(typeof n === "string" ? n : null)).find(Boolean);
       if (style) itemData.brandStyle = style;
       const nameKind = advertiserNameKind(advertiser);

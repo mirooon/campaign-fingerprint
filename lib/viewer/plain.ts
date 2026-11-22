@@ -699,6 +699,15 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
     role: "describes",
     format: (v) => Object.entries(v as Record<string, number>).map(([k, n]) => `${{ mixed_alphabet: "słowa z mieszanym alfabetem", calque: "kalki", form_switch: "przeskoki ty/wy", spelled_numbers: "liczebniki słownie w napisach" }[k] ?? k}: ${n}`),
   },
+  languageErrors: {
+    name: "Błędy językowe strony",
+    source: "z tekstu strony (atrybut bez wagi, B-325: akapity w innym języku niż reszta strony albo słowa z mieszanym alfabetem w zdaniu)",
+    role: "describes",
+    format: (v) => {
+      const e = v as { foreignParagraphLangs?: string[]; mixedWords?: number };
+      return [...(e.foreignParagraphLangs?.length ? [`akapity w innym języku: ${e.foreignParagraphLangs.join(", ")}`] : []), ...(e.mixedWords ? [`słowa z mieszanym alfabetem: ${e.mixedWords}`] : [])];
+    },
+  },
   brandStyle: { name: "Styl nazwy marki", source: "z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut)", role: "describes" },
   advertiserNameKind: {
     name: "Rodzaj nazwy reklamodawcy",

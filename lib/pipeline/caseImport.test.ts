@@ -584,3 +584,34 @@ describe("importCases: a page video saved as HLS", () => {
     }
   });
 });
+
+/**
+ * Known defect found by the final test gate (I19), left for the owner's decision: the visitor record of a
+ * landing-page platform also holds the page's own domain and the lander id, which are the operator's data, not
+ * the analyst's. The redaction on reading removes every key of the record but the campaign number and then
+ * replaces each removed value in the whole page, the "saved from url" comment included, so the page loses its
+ * address and the case is dropped. `it.fails` until the redaction keeps such values.
+ */
+describe("importCases: saved page whose visitor record holds the page's domain and lander id (known defect)", () => {
+  let dir: string;
+  let result: Awaited<ReturnType<typeof importCases>>;
+  const UUID = "33333333-3333-4333-8333-333333333333";
+  const PAGE = `https://lander-wizyta.example/landers/${UUID}/`;
+  const AIO = JSON.stringify({ visit: { domain: "lander-wizyta.example", uuid: UUID, ip_address: "192.0.2.44", campaign_human_id: 5 } });
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-visit-"));
+    const c = path.join(dir, "cases", "wizyta-1");
+    mkdirSync(c, { recursive: true });
+    writeFileSync(path.join(c, "Oferta.html"), `<!-- saved from url=(${String(PAGE.length).padStart(4, "0")})${PAGE} -->\n<html><script>window.aio = JSON.parse('${AIO}');</script><body>STRONA</body></html>`);
+    result = await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it.fails("keeps the case with its address and removes only the analyst's IP", () => {
+    expect(result.skipped).toEqual([]);
+    const records = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8"));
+    expect(records.map((r: { landing_url: string }) => r.landing_url)).toEqual([PAGE]);
+    expect(readFileSync(path.join(dir, "out", "input.json"), "utf8")).not.toContain("192.0.2.44");
+  });
+});

@@ -39,7 +39,7 @@ export interface StreamSegments {
 
 /**
  * Segment name without the suffix a capture tool adds to keep names unique
- * ("output_000_1a2b3c4d.ts" -> "output_000.ts"), lower-cased, to match the playlist's entries.
+ * ("output_000_0a1b2c3d.ts" -> "output_000.ts"), lower-cased, to match the playlist's entries.
  */
 function playlistName(file: string): string {
   return path.basename(file).replace(/_[0-9a-f]{6,}(\.[^.]+)$/i, "$1").toLowerCase();

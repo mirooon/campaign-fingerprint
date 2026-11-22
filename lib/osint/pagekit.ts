@@ -22,6 +22,8 @@ import { findCrmKeys, type CrmKey } from "./crmKey";
 import { findContactIds, type ContactIds } from "./contactIds";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
 import { templatePhrases, type TemplatePhrase } from "../text/templatePhrases";
+import { residueOf } from "../text/residue";
+import { LEAD_CONFIG } from "./leadConfig";
 import { isMaskedScript, kitStringsOf, localizedUiLanguages, type KitString } from "./kitStrings";
 import { TEXT_CONFIG } from "./textConfig";
 import { registrableDomain, toAsciiHost } from "./urls";
@@ -1018,7 +1020,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
-      ...leadTracesOf(html, pageUrl, opts.scripts ?? []),
+      ...withCommentPhrases(leadTracesOf(html, pageUrl, opts.scripts ?? []), comments),
     };
   } catch {
     return emptyKit();
@@ -1069,6 +1071,18 @@ function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pi
     ...(kitStrings.length ? { kitStrings } : {}),
     ...(localized.size ? { localizedUi: [...localized].sort() } : {}),
   };
+}
+
+/**
+ * Adds the sentences of commented-out old text (B-306, `residueOf`) to the template sentences of a page,
+ * marked with the source "comment"; sentences already found in the visible text or scripts stay as they are.
+ */
+function withCommentPhrases<T extends { templatePhrases?: TemplatePhrase[] }>(traces: T, comments: string[]): T {
+  const res = residueOf(comments);
+  if (!res) return traces;
+  const own = traces.templatePhrases ?? [];
+  const extra = templatePhrases(res.texts.join("\n"), []).filter((p) => !own.some((o) => o.key === p.key)).map((p) => ({ ...p, source: "comment" as const }));
+  return extra.length ? { ...traces, templatePhrases: [...own, ...extra].slice(0, LEAD_CONFIG.templatePhrase.maxPerPage) } : traces;
 }
 
 function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {

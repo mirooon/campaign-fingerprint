@@ -111,6 +111,13 @@ export const DEFAULT_NARRATIVE_CONFIG: NarrativeConfig = {
       "konto* zostanie zablokowan*", "konto* bedzie zablokowan*", "zostanie zablokowan* w ciagu", "ostatnie ostrzezeni*", "ostateczne ostrzezeni*",
       "account will be locked", "account will be suspended", "will be blocked within", "final warning", "last warning",
     ],
+    // hook formulas that recur across different scams (B-312): they separate narratives, they do not link operators
+    nationwide: ["cal* polsk*", "polska oszalala", "cala polska"],
+    millions_of_poles: ["milion* polak*", "milion* polk*"],
+    pharma_villain: ["koncern* farmaceutyczn*", "wielk* farmacj*", "big pharma", "pharmaceutical compan*"],
+    state_program_pays: ["program* panstwow* pokryw*", "program* rzadow* pokryw*", "program* panstwow* sfinansuj*", "state program covers"],
+    custody: ["kajdank*", "areszt*", "w kajdankach", "handcuffs", "arrested"],
+    video_removed: ["nagrani* usunie*", "nagrani* zostal* usunie*", "nagrani* zablokowan*", "nagrani* zostal* zablokowan*", "video was removed", "video has been removed", "video was deleted"],
   },
   profitPromise: ["zarob*", "zarabia*", "pasywn* dochod*", "x100", "x10", "zysk*", "tys* dziennie", "dziennie", "gwarantowan*", "podwoj*"],
   groupInvite: ["whatsapp*", "telegram*", "darmow* grup*", "moj* grup*", "dolacz* do grup*", "grup* inwestycyjn*", "kanal* na telegram*"],

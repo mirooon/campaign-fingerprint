@@ -148,6 +148,12 @@ describe("scam funnel topics and hooks from investigative sources (I28)", () => 
     ["withdrawal_fee", "Pay a verification fee to unlock your funds before the withdrawal.", "Free withdrawal at any ATM"],
     ["urgency_lock", "Twoje konto zostanie zablokowane w ciągu 24 godzin. To ostatnie ostrzeżenie.", "Konto oszczędnościowe z dobrym oprocentowaniem"],
     ["urgency_lock", "Your account will be locked within 24 hours. Final warning.", "Your account settings are saved"],
+    ["nationwide", "Szok: cała Polska o tym mówi, całej Polski dotyczy.", "Polska drużyna wygrała mecz"],
+    ["millions_of_poles", "Miliony Polaków już skorzystały, milionom Polaków zaoszczędzi.", "Polak z Poznania kupił rower"],
+    ["pharma_villain", "Koncerny farmaceutyczne to ukrywają.", "Hurtownia farmaceutyczna w Lesznie"],
+    ["state_program_pays", "Program państwowy pokrywa 90% kosztów.", "Program telewizyjny pokazuje pokrywy do garnków"],
+    ["custody", "Wyprowadzili go w kajdankach.", "Kajak i wiosło na wynajem"],
+    ["video_removed", "To nagranie usunięto po godzinie.", "Nagranie z koncertu jest dostępne"],
   ])("reads the hook %s in a synthetic sentence and not in an unrelated one", (id, positive, negative) => {
     expect(hooksOf(positive)).toContain(id);
     expect(hooksOf(negative)).not.toContain(id);

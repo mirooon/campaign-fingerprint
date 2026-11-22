@@ -20,7 +20,7 @@ Dwa przebiegi (liczby zagregowane, bez domen i identyfikatorów):
 
 Trzeci przebieg to **walidacja I4**: 212 materiałów publicznych jako nowa partia wobec bazy 25 spraw (`analyze-material`). Powiązania nowych materiałów ze znanymi kampaniami: 46 (45 z regułą „jeden rodzaj dowodu”, 1 poniżej progu); typy na tych powiązaniach: wspólny zasób `asset` 38, rejestrator 8, serwery nazw 6, podobny tekst 1, adres IP 1 (para może mieć kilka typów). **Żadne z nich nie przeszło reguły kampanii**, więc partia nie dała przypisań do znanych kampanii (0/78 wariantów; 32 trafiły do „podobnych kampanii”): same zasoby i rejestrator to za mało, a ślad, który mógłby je podeprzeć (konto platformy, backend formularza), w tych materiałach nie pasował do bazy.
 
-Przebieg B jest powtarzalny na materiałach publicznych (`bun run base -- --cases <katalog> --offline`, potem `source-stats`). Wynik walidacji metody na tym zbiorze (precyzja, czułość) jest w [METODYKA.md §9](METODYKA.md); tu liczy się tylko, **skąd** biorą się powiązania. Uwaga o interpretacji: zbiór B składa się z kopii z jednego rodzaju źródła (urlscan), więc ślady z HAR są w nim nadreprezentowane, a ślady z zapytań sieciowych w ogóle nie występują.
+Przebieg B jest powtarzalny na materiałach publicznych (`bun run base -- --cases <katalog> --offline`, potem `source-stats`). Wynik walidacji metody na tym zbiorze (precyzja, czułość) jest w [METODYKA.md, punkt 12](METODYKA.md); tu liczy się tylko, **skąd** biorą się powiązania. Uwaga o interpretacji: zbiór B składa się z kopii z jednego rodzaju źródła (urlscan), więc ślady z HAR są w nim nadreprezentowane, a ślady z zapytań sieciowych w ogóle nie występują.
 
 ## 2. Ranking źródeł
 
@@ -141,7 +141,7 @@ Dostęp do wszystkich adresów: 2026-11-21 (treść czytana jako tekst; część
 - Liczba powiązań nie jest jakością: ASN dał ich najwięcej i jest najsłabszym dowodem.
 - Przebieg A ma tylko 6 kampanii o ≥ 2 materiałach, więc różnice między typami o 1–3 powiązania są w granicach szumu; wnioski opieramy na przebiegu B i na zgodności obu.
 - Przebieg B nie zawiera zapytań sieciowych ani zrzutów, więc **brak RDAP, CT, DNS i obrazu w nim to brak źródła, nie dowód bezużyteczności**. Wartość RDAP i serwerów nazw widać w przebiegu A.
-- Precyzję i czułość metody podaje [METODYKA.md §9](METODYKA.md); tu tylko pochodzenie powiązań.
+- Precyzję i czułość metody podaje [METODYKA.md, punkt 12](METODYKA.md); tu tylko pochodzenie powiązań.
 
 ## 8. Biblioteki reklam: dostęp, warunki, koszt
 

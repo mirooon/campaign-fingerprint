@@ -27,6 +27,7 @@ import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { adStart } from "../text/adStart";
 import { advertiserNameStyle, commentLanguage, landerSlugStyle, mixedScriptName } from "../text/namingStyle";
+import { adCreatedApprox, isTimedMetaId, type MetaIdAnchor } from "../osint/metaIdAge";
 import { scarcityCounter } from "../osint/pageTechniques";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";
@@ -1312,6 +1313,7 @@ export function buildEvidenceGraph(
   }
 
   addRegistrationBursts(dataset, g, factsByItem, config);
+  annotateAdCreated(g);
 
   // Document frequency and weights
   const pivotItems = new Map<string, Array<{ itemId: string; fact: Fact }>>();
@@ -1818,4 +1820,26 @@ export function impersonatedBrand(title: string | null | undefined, pageUrl: str
 
 function round(x: number): number {
   return Math.round(x * 1e4) / 1e4;
+}
+
+/**
+ * Approximate creation date of the ads (B-343): the cases with a time-ordered Meta ad id and a first-shown date
+ * calibrate the ids, and every case with such an id and a position between two anchors gets `adCreatedApprox`.
+ * An attribute for the timeline, never a trace.
+ */
+function annotateAdCreated(g: { nodes: Map<string, GraphNode> }): void {
+  const idOf = (d: Record<string, unknown>): string | null => [d.metaAdId, d.adLibraryAdId].find((v): v is string => typeof v === "string" && isTimedMetaId(v)) ?? null;
+  const items = [...g.nodes.values()].filter((n) => n.type === "item");
+  const anchors: MetaIdAnchor[] = [];
+  for (const n of items) {
+    const id = idOf(n.data);
+    const date = typeof n.data.adFirstShown === "string" ? n.data.adFirstShown : null;
+    if (id && date) anchors.push({ id, date });
+  }
+  if (anchors.length < 2) return;
+  for (const n of items) {
+    const id = idOf(n.data);
+    const approx = id ? adCreatedApprox(id, anchors) : null;
+    if (approx) n.data.adCreatedApprox = approx;
+  }
 }

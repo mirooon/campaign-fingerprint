@@ -3,7 +3,7 @@
  * example, and the sentence a premise of that type becomes. Also the glossary (§9) used by the "?"
  * bubbles and the Słowniczek page, and the help notes moved here from the expert DetailsPanel.
  */
-import type { EntityType, SimilarityEdgeType } from "@/lib/graph/model";
+import type { EntityType, NearMissRule, SimilarityEdgeType } from "@/lib/graph/model";
 import { familyOf, type FeatureFamily } from "./families";
 
 export interface TypeInfo {
@@ -214,6 +214,68 @@ export const TECHNIQUE_INFO: Record<string, TypeInfo> = {
     why: "Wklejone polecenie instaluje złośliwe oprogramowanie. Zapisujemy tylko rodzaj polecenia i jego skrót SHA-256, nigdy samo polecenie.",
     example: "„Naciśnij Win+R, wklej (Ctrl+V) i Enter, aby potwierdzić, że nie jesteś robotem”",
     sentence: "Strona pod pozorem weryfikacji każe wkleić do systemu skopiowane polecenie (ClickFix): to droga do zainstalowania złośliwego oprogramowania",
+  },
+};
+
+/**
+ * What each rule that keeps similar ads out of one campaign means, in plain words (`term`, `text`, `why`,
+ * `example` as in the glossary below). Shown in the "Celowo nie połączone" tab and in the card of a new
+ * material; the rule ids are those of `NearMiss.rule`. The ids themselves stay out of the reader's way.
+ */
+export const NEAR_MISS_RULE_INFO: Record<NearMissRule, Term> = {
+  "below-min-score": {
+    term: "Wynik poniżej progu",
+    text: "Reklamy mają coś wspólnego, ale wszystkie wspólne ślady razem są za słabe, żeby uznać je za jedną kampanię.",
+    why: "Próg chroni przed łączeniem po przypadkowych drobiazgach. Pary tuż pod progiem warto obejrzeć ręcznie.",
+    example: "dwa podobne teksty i żadnego innego wspólnego śladu",
+  },
+  "family-only-kind": {
+    term: "Tylko ślad grupy",
+    text: "Łączy je wyłącznie cecha, która wskazuje podobne kampanie, a nie jednego operatora: ta sama osoba w reklamie albo ta sama technika strony.",
+    why: "Tę samą osobę czy technikę wykorzystuje wielu niezależnych oszustów, więc taki ślad tworzy grupę podobnych kampanii, nie kampanię.",
+    example: "ten sam znany prezenter w reklamach dwóch niezależnych operatorów",
+  },
+  "account-conflict": {
+    term: "Różne konta na platformie",
+    text: "Strony stoją na tej samej platformie do budowy stron, ale na różnych kontach. Wspólny szablon albo plik nie wystarcza, żeby uznać je za jednego operatora.",
+    why: "Platforma daje gotowe szablony i biblioteki stron wszystkim kontom, więc wspólny element nie mówi, kto za nim stoi.",
+    example: "dwie strony z tego samego kreatora, każda na innym koncie",
+  },
+  "discounted-only": {
+    term: "Tylko pominięty ślad",
+    text: "Wspólny jest tylko ślad, z którego korzysta wiele niezależnych stron: duża sieć CDN, popularny rejestrator albo platforma. Po obniżeniu wagi nic nie zostaje.",
+    why: "Bez tego wszystko łączyłoby się ze wszystkim przez popularne usługi.",
+    example: "dwie strony za tym samym dużym CDN, bez innego wspólnego śladu",
+  },
+  "kit-only": {
+    term: "Tylko zestaw stron",
+    text: "Łączy je tylko szablon, motyw albo kod strony, który można kupić lub skopiować. Brakuje śladu samego operatora: wspólnego konta, domeny, trackera, portfela albo kontaktu.",
+    why: "Zestawy stron kupuje wielu operatorów, więc taki ślad pokazuje podobne kampanie, a nie jedną.",
+    example: "ten sam szablon artykułu na dwóch różnych domenach",
+  },
+  "content-only-with-infra": {
+    term: "Tylko treść, a infrastruktura osobna",
+    text: "Reklamy mają podobny tekst albo obraz, ale przynajmniej jedna ma własną infrastrukturę (domena, serwer, tracker), której druga nie dzieli.",
+    why: "Treść łatwo skopiować, a infrastruktura wskazuje operatora. Sama treść nie łączy w kampanię.",
+    example: "ta sama grafika w dwóch reklamach prowadzących na różne domeny",
+  },
+  "too-few-content-kinds": {
+    term: "Za mało rodzajów treści",
+    text: "Reklamy bez własnej infrastruktury łączy tylko jeden rodzaj treści, np. podobny tekst.",
+    why: "Żeby uznać je za jedną kampanię, potrzeba co najmniej dwóch różnych rodzajów treści, np. tekstu i obrazu.",
+    example: "dwa podobne teksty, ale zupełnie różne obrazy",
+  },
+  "too-few-evidence-kinds": {
+    term: "Za mało rodzajów dowodów",
+    text: "Wspólne ślady są tego samego rodzaju, a metoda wymaga potwierdzenia drugim, niezależnym rodzajem dowodu.",
+    why: "Jeden rodzaj śladu może być przypadkiem. Dwa niezależne rzadko.",
+    example: "wspólny adres IP bez żadnego innego śladu",
+  },
+  "split-by-clustering": {
+    term: "Rozdzielone przy podziale",
+    text: "Reguły pozwalały połączyć te reklamy, ale algorytm dzielący sieć powiązań na kampanie umieścił je w różnych kampaniach.",
+    why: "Algorytm patrzy na całą sieć powiązań, nie na jedną parę, więc słabe powiązanie między dwiema gęstymi grupami nie wystarcza do ich złączenia.",
+    example: "dwie grupy reklam połączone jednym słabym powiązaniem",
   },
 };
 

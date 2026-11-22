@@ -11,6 +11,7 @@ import { contribution } from "@/lib/viewer/contribution";
 import { FAMILY_HINT, FAMILY_LABEL, FAMILY_ORDER, featureFamily, familyOf, type FeatureFamily } from "@/lib/viewer/families";
 import { fmtNum } from "@/lib/viewer/format";
 import { resultConfidence, variantNote } from "@/lib/viewer/materialView";
+import { nearMissNotes } from "@/lib/viewer/nearMissView";
 import { cleanEvidence, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, TECHNIQUE_INFO, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
 import { Defanged, Help, StrengthBadge, StrengthLegend } from "./ui";
@@ -135,6 +136,7 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
   const best = bestCampaignLink(item);
   const camp = item.campaign ? ctx.campaigns.get(item.campaign) : null;
   const note = variantNote(item);
+  const apartNotes = nearMissNotes(item.nearMisses);
   const sentence =
     item.verdict === "duplicate" && item.duplicateOf
       ? `To kopia materiału ${item.duplicateOf.id}: ${item.duplicateOf.reason}.${item.campaign ? ` Oryginał jest w kampanii ${item.campaign}.` : ""}`
@@ -156,6 +158,7 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
       </div>
       <p className="mt-1 text-sm text-slate-800">{sentence}</p>
       {note && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">{note}</p>}
+      {apartNotes.slice(0, 3).map((n) => <p key={n} className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">{n}</p>)}
       {item.archive?.copy && (
         <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">
           {item.archive.copy.used ? "Strona nie odpowiadała; cechy strony pochodzą z kopii" : "Znaleziono kopię strony, ale jej nie użyto"}: {item.archive.copy.source}, {item.archive.copy.capturedAt.slice(0, 10)}

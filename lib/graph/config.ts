@@ -196,6 +196,13 @@ export interface LinkConfig {
   kitString?: { minShared: number; longWords: number; minDomains: number } | null;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
+  /**
+   * Report of near misses (`near-misses.json`): pairs that are not in one campaign but come close. A pair
+   * is listed when its score is at least `minScoreRatio` x minLinkScore, when it shares a trace of a strong
+   * type that a discount weakened, or when its campaigns are in one family. At most `maxPairs` pairs are
+   * kept, the highest scores first (0: no report). The report only records decisions; it changes none.
+   */
+  nearMiss?: { minScoreRatio: number; maxPairs: number };
   similarity: {
     imageHamming: number;
     imageWeight: number;
@@ -472,6 +479,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   verificationTokenWeight: 0.9,
   bridgeMinPartSize: 2,
   familyMinScore: 0.3,
+  nearMiss: { minScoreRatio: 0.5, maxPairs: 200 },
   similarity: {
     imageHamming: 10,
     imageWeight: 0.6,

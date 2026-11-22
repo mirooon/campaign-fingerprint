@@ -178,6 +178,28 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 **Zastrzeżenia ze źródeł.** Numer dzwoniącego i numer z formularza nie dowodzą tożsamości (podszywanie numeru, aplikacje). Wspólny zestaw albo platforma „fraud as a service” nie dowodzi jednego operatora. Brak literówek nie jest już sygnałem legalności, bo teksty piszą modele językowe. Zrzut salda z „platformy” nie dowodzi stanu konta (edycja DOM).
 
+## 4e. Przypadki graniczne: celowo nie połączone (zadanie I20, 22.11.2026)
+
+**Co to jest bliska para.** Para reklam, które są do siebie podobne, a metoda celowo nie połączyła ich w jedną kampanię. Każda taka para ma w zestawieniu regułę, która zablokowała połączenie, i opis tego, czego zabrakło. Zestawienie robi dwie rzeczy. Pokazuje, że metoda pilnuje fałszywych powiązań: wspólna osoba w reklamie, popularny szablon, wspólna platforma, CDN, rejestrator. I daje listę przypadków do przeglądu, gdy wynik pary leży blisko progu. Zestawienie tylko zapisuje decyzje, które metoda i tak podejmuje: nie zmienia wag, progów ani reguł, a kampanie i grupy wychodzą identyczne z tymi sprzed zadania (sprawdzone porównaniem `campaigns.json` na próbce syntetycznej i na 25 sprawach).
+
+**Kiedy para trafia na listę.** Nie jest w jednej kampanii, nie pochodzi z jednej sprawy i spełnia co najmniej jeden warunek: wynik pary ≥ połowa progu łączenia; para ma wspólny ślad silnego typu, który został zdyskontowany (np. domena wspólnej sieci CDN); jej kampanie leżą w jednej grupie podobnych, a ona sama nie jest w kampanii. Połowa progu i limit liczby par (domyślnie 200, najwyższe wyniki) są w konfiguracji (`nearMiss`).
+
+**Reguły (identyfikator, co znaczy):**
+
+- `below-min-score`: wynik pary jest poniżej progu łączenia.
+- `family-only-kind`: wynik pochodzi ze śladów, które łączą tylko w grupę (osoba w reklamie, technika strony); bez nich para jest poniżej progu.
+- `account-conflict`: reklamy stoją na różnych kontach tej samej platformy stron; platforma daje swoje szablony i biblioteki wszystkim kontom.
+- `discounted-only`: jedyne wspólne ślady to infrastruktura używana przez wiele stron (CDN, popularny rejestrator, platforma), po obniżeniu wagi nic nie zostaje.
+- `kit-only`: łączy je tylko zestaw stron (szablon, motyw, komentarze, struktura), który kupuje i kopiuje wielu operatorów; brak śladu operatora.
+- `content-only-with-infra`: łączy je tylko treść, a któraś reklama ma własną infrastrukturę, której druga nie dzieli.
+- `too-few-content-kinds`: reklamy bez infrastruktury łączy jeden rodzaj treści, a kampania wymaga dwóch.
+- `too-few-evidence-kinds`: wspólne ślady mają za mało różnych rodzajów, by uznać je za potwierdzone (domyślnie reguła nie występuje, bo wystarcza jeden rodzaj poza zestawem stron i treścią).
+- `split-by-clustering`: reguły pozwalały połączyć reklamy, ale podział sieci powiązań na kampanie (Louvain) umieścił je w różnych kampaniach.
+
+**Liczby z przebiegu na 25 sprawach (28 rekordów, 14 kampanii, 3 grupy podobnych; według reguły):** 52 bliskie pary, z tego `below-min-score` 37, `kit-only` 9, `account-conflict` 4, `family-only-kind` 1, `discounted-only` 1; pozostałe reguły 0. Pary, które etykiety zespołu mają w jednej kampanii, a metoda je rozdzieliła (kandydaci na fałszywe rozdzielenie): 0. Zgadza się to z recall pary równym 1,0 w ewaluacji tego przebiegu. Przy `kit-only` i `account-conflict` metoda zadziałała zgodnie z założeniem (wspólny zestaw stron albo konto platformy, nie operator). Pary `below-min-score` mają wyniki od 0,06 do 0,12 (próg 0,15) i łączą je głównie słabe ślady (sieć operatora, technika strony, układ linku śledzącego); do przeglądu warto brać najwyższe wyniki z tej reguły.
+
+**Gdzie to zobaczyć.** `near-misses.json` obok `campaigns.json` (zapisuje go każdy `build-graph`), zakładka „Celowo nie połączone” w przeglądarce, pole `nearMisses` i kolumna `blisko_bez_polaczenia` w wyniku analizy nowego materiału. Format: `docs/TECHNICAL.md`, §5.3c.
+
 ## 5. Duplikaty i „za mało danych”
 
 **Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym wideo (ten sam plik po SHA-256 albo klatki CLIP ≥ 0,97 razem z tym samym dźwiękiem na całej długości), tym samym identyfikatorze reklamy, tym samym adresie strony z identycznym szablonem albo identycznej treści strony (SHA-256 zapisanego HTML). Sprawa, której wszystkie pliki (HAR, HTML, zrzuty, wideo) są już we wcześniejszej sprawie tej samej paczki z tym samym SHA-256, też jest duplikatem, nawet gdy tamta ma pliki dodatkowe. Ten sam tekst nie wystarcza, a to samo wideo z innym wstępem to wariant, nie duplikat. Duplikat dostaje kampanię oryginału.

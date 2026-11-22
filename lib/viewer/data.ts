@@ -4,12 +4,14 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import type { CampaignsFile, EvidenceGraph } from "../graph/model";
+import type { CampaignsFile, EvidenceGraph, NearMissesFile } from "../graph/model";
 import type { CampaignSummary } from "../pipeline/summary";
 
 export interface ViewerData {
   graph: EvidenceGraph | null;
   campaigns: CampaignsFile | null;
+  /** Pairs kept apart on purpose (`near-misses.json`); null for a run made before the report existed. */
+  nearMisses: NearMissesFile | null;
   summaries: Record<string, CampaignSummary>;
   error: string | null;
 }
@@ -28,11 +30,11 @@ export function loadViewerData(): ViewerData {
     const campaigns = read<CampaignsFile>("campaigns.json");
     const summariesFile = read<{ summaries: Record<string, CampaignSummary> }>("summaries.json");
     if (!graph || !campaigns) {
-      return { graph: null, campaigns: null, summaries: {}, error: `Brak bazy znanych kampanii w ${DATA_DIR} (graph.json, campaigns.json). Zbuduj ją: bun run base -- --cases <katalog spraw> (w kontenerze: docker compose run --rm app bun run base -- --cases /dane/probka), albo bun run pipeline --offline dla próbki.` };
+      return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `Brak bazy znanych kampanii w ${DATA_DIR} (graph.json, campaigns.json). Zbuduj ją: bun run base -- --cases <katalog spraw> (w kontenerze: docker compose run --rm app bun run base -- --cases /dane/probka), albo bun run pipeline --offline dla próbki.` };
     }
-    return { graph, campaigns, summaries: summariesFile?.summaries ?? {}, error: null };
+    return { graph, campaigns, nearMisses: read<NearMissesFile>("near-misses.json"), summaries: summariesFile?.summaries ?? {}, error: null };
   } catch (e) {
-    return { graph: null, campaigns: null, summaries: {}, error: `Nie udało się wczytać danych: ${(e as Error).message}` };
+    return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `Nie udało się wczytać danych: ${(e as Error).message}` };
   }
 }
 

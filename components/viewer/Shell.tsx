@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import type { CampaignsFile, EvidenceGraph } from "@/lib/graph/model";
+import type { CampaignsFile, EvidenceGraph, NearMissesFile } from "@/lib/graph/model";
 import type { CampaignSummary } from "@/lib/pipeline/summary";
 import { fmtDate, count, MATERIAL, CAMPAIGN, GROUP } from "@/lib/viewer/format";
 import AnalyzeView from "./AnalyzeView";
@@ -12,24 +12,28 @@ import { validItemKey } from "./compare";
 import CtFeedPanel, { useCtFeed } from "./CtFeedPanel";
 import { buildIndex } from "./graphView";
 import HowItWorks from "./HowItWorks";
+import NearMissesView from "./NearMissesView";
 import { Empty, Help, StrengthLegend, SyntheticBadge } from "./ui";
 import Viewer from "./Viewer";
 
 export interface ShellProps {
   graph: EvidenceGraph;
   campaigns: CampaignsFile;
+  /** Pairs kept apart on purpose; null when the run has no `near-misses.json`. */
+  nearMisses: NearMissesFile | null;
   summaries: Record<string, CampaignSummary>;
   /** The comparison base is the bundled sample: every result screen carries the "dane syntetyczne" label. */
   synthetic: boolean;
 }
 
-type Tab = "analyze" | "campaigns" | "graph" | "compare" | "how" | "ct" | "expert";
+type Tab = "analyze" | "campaigns" | "graph" | "compare" | "apart" | "how" | "ct" | "expert";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "analyze", label: "Analizuj materiał" },
   { id: "campaigns", label: "Kampanie" },
   { id: "graph", label: "Graf powiązań" },
   { id: "compare", label: "Porównaj" },
+  { id: "apart", label: "Celowo nie połączone" },
   { id: "how", label: "Jak to działa" },
   { id: "ct", label: "Nowe domeny" },
 ];
@@ -46,7 +50,7 @@ function tabFromParams(p: URLSearchParams): Tab {
 }
 
 /** Application frame: header with the base summary, tabs, and the view of the chosen tab; state lives in the address (`?tab=`, `?job=`, `?a=&b=`, `?k=`). */
-export default function Shell({ graph, campaigns, summaries, synthetic }: ShellProps) {
+export default function Shell({ graph, campaigns, nearMisses, summaries, synthetic }: ShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -138,6 +142,7 @@ export default function Shell({ graph, campaigns, summaries, synthetic }: ShellP
             />
           </div>
         )}
+        {tab === "apart" && <NearMissesView file={nearMisses} onCompare={(x, y) => go({ tab: "compare", a: validItemKey(idx, x), b: validItemKey(idx, y) })} />}
         {tab === "how" && <HowItWorks rules={campaigns.method.rules ?? []} />}
         {tab === "ct" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">

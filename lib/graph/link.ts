@@ -246,6 +246,8 @@ export function buildEvidenceGraph(
       asrText: enr?.asrText ? enr.asrText.slice(0, 600) : null,
     });
     const itemData = g.nodes.get(itemNode)!.data;
+    // the case folder of the material: ads of one case are not paired in the near-miss report
+    if (item.extra?.case) itemData.case = item.extra.case;
 
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
     const ui = enr?.ocrText ? stripUiChrome(enr.ocrText) : null;

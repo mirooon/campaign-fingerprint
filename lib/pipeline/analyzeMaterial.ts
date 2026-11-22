@@ -17,6 +17,7 @@ import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import { Discounter } from "../graph/weights";
 import { buildEvidenceGraph } from "../graph/link";
+import { nearMissesOfMaterial, type MaterialNearMiss } from "../graph/nearMiss";
 import type { CampaignsFile, EdgeType, EntityType, EvidenceGraph, PairEvidence } from "../graph/model";
 import type { FaceHit } from "../media/face";
 import type { VoiceSpan } from "../media/speaker";
@@ -171,6 +172,11 @@ export interface MaterialItemResult {
   campaignBasis?: "content_variant";
   /** Existing campaigns in the same group of similar campaigns. */
   similarCampaigns: string[];
+  /**
+   * Known campaigns the record came close to but did not join (I20), strongest first: the rule that held
+   * it back and the reason in Polish. Empty when there is none; the campaign it joined is not listed.
+   */
+  nearMisses?: MaterialNearMiss[];
   /** Why the record is not in those campaigns (different accounts, one kind of evidence). */
   apart: string[];
   /** Other new records of the same material in the same campaign (e.g. the pages of one funnel). */
@@ -470,7 +476,9 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     if (newIds.has(itemId)) continue;
     for (const f of facts) baseHolders.set(f.pivot, [...(baseHolders.get(f.pivot) ?? []), itemId]);
   }
-  const { campaigns } = phase("compare", () => clusterCampaigns(raw, { config }));
+  // the near-miss list is read per record here, so it must not be cut at nearMiss.maxPairs
+  const allNearMisses = { ...config, nearMiss: { ...(config.nearMiss ?? DEFAULT_LINK_CONFIG.nearMiss!), maxPairs: Number.MAX_SAFE_INTEGER } };
+  const { campaigns, nearMisses } = phase("compare", () => clusterCampaigns(raw, { config: allNearMisses }));
   for (const c of caseIds) progress(c, "group", "start");
   const { accountOf, infraItems } = verdictContext(raw.nodes);
   const nodeData = new Map<string, Record<string, unknown>>();
@@ -580,6 +588,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       campaign: known,
       ...(variant ? { campaignBasis: "content_variant" as const } : {}),
       similarCampaigns: similar,
+      nearMisses: nearMissesOfMaterial(nearMisses, id, { known, oldCampaignOf: oldOf, isNew: (other) => newIds.has(other) }),
       apart: fam?.apart ?? [],
       withNew,
       newCampaign: null,

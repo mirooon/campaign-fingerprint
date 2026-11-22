@@ -390,6 +390,72 @@ export interface CampaignsFile {
   assignments: Record<string, string>;
 }
 
+/**
+ * Id of the rule that kept two similar ads out of one campaign (`NearMiss.rule`). `below-min-score`: the
+ * pair score is under `minLinkScore`; `family-only-kind`: only evidence that counts for groups (a
+ * person in the ad, a technique) lifts it; `account-conflict`: different accounts of one page platform;
+ * `discounted-only`: the only traces are infrastructure shared by many sites (the discount weakened them);
+ * `kit-only`: only traces of a page kit or a template, which many operators reuse;
+ * `content-only-with-infra`: copy or picture alone, while an ad has infrastructure; `too-few-content-kinds`:
+ * one kind of content between ads without infrastructure; `too-few-evidence-kinds`: fewer kinds of
+ * operator evidence than `minEvidenceKinds`; `split-by-clustering`: the rules allowed the link, but the
+ * clustering put the ads in different campaigns.
+ */
+export type NearMissRule =
+  | "below-min-score"
+  | "family-only-kind"
+  | "account-conflict"
+  | "discounted-only"
+  | "kit-only"
+  | "content-only-with-infra"
+  | "too-few-content-kinds"
+  | "too-few-evidence-kinds"
+  | "split-by-clustering";
+
+/** A shared trace weakened by a discount: its rule kind, the id of the discount rule and the factor (0..1). */
+export interface NearMissDiscount {
+  kind: string;
+  rule: string;
+  factor: number;
+}
+
+/** A pair of similar ads that the method deliberately did not join into one campaign. */
+export interface NearMiss {
+  a: string;
+  b: string;
+  /** Pair score in [0,1] (noisy-OR of all evidence, discounted included). */
+  score: number;
+  rule: NearMissRule;
+  /** Sentence in Polish: what held the pair back, with the numbers it concerns. */
+  reason: string;
+  /** Rule kinds of all shared traces (pivot type, similarity edge type, or a finer kind such as "tracker_host"), sorted. */
+  sharedKinds: string[];
+  /** Shared traces of a strong type that a discount weakened (CDN, platform, registrar ...). */
+  discounted: NearMissDiscount[];
+  /** Why the pair is on the list: score at least `minScoreRatio` of `minLinkScore`, a discounted strong trace, or one family. */
+  selectedBy: Array<"score" | "discounted-strong" | "family">;
+  /** Campaigns of both ads (null: not assigned). */
+  campaignA: string | null;
+  campaignB: string | null;
+  /** Family both campaigns belong to, if they share one. */
+  familyId: string | null;
+}
+
+/** `near-misses.json`: the pairs listed by `findNearMisses`, strongest first, next to `campaigns.json`. */
+export interface NearMissesFile {
+  version: 1;
+  generatedAt: string;
+  minLinkScore: number;
+  /** Settings the list was made with (`LinkConfig.nearMiss`). */
+  minScoreRatio: number;
+  maxPairs: number;
+  /** Pairs that qualified before the cut at `maxPairs`. */
+  total: number;
+  /** Pairs that qualified, per rule (before the cut). */
+  byRule: Partial<Record<NearMissRule, number>>;
+  pairs: NearMiss[];
+}
+
 /** Key prefix of the "same creative file" pivot: an image-hash node keyed by the SHA-256 of the file ("creative_sha256" in the campaign rules). */
 export const CREATIVE_FILE_PREFIX = "sha256:";
 

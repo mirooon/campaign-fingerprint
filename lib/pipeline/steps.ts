@@ -12,7 +12,7 @@ import { evaluateClustering, type EvalResult } from "../graph/eval";
 import { campaignEvolution } from "../graph/evolution";
 import { buildEvidenceGraph, textOf } from "../graph/link";
 import { Discounter } from "../graph/weights";
-import type { CampaignsFile, EvidenceGraph } from "../graph/model";
+import type { CampaignsFile, EvidenceGraph, NearMissesFile } from "../graph/model";
 import { pruneGraphForOutput } from "../graph/prune";
 import { embed, getProvider } from "../llm";
 import { compileWatchlist, loadWatchlist } from "../text/persona";
@@ -175,6 +175,8 @@ export interface BuildGraphStepOptions {
   enriched: string;
   graph: string;
   campaigns: string;
+  /** Where to write the report of near misses (`near-misses.json`); default: next to `campaigns`. */
+  nearMisses?: string;
   config?: string;
   text?: "tfidf" | "embedding" | "none";
 }
@@ -221,7 +223,7 @@ export async function markDuplicates(graph: EvidenceGraph, ds: EnrichedDataset, 
   return dups.size;
 }
 
-export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: EvidenceGraph; campaigns: CampaignsFile }> {
+export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: EvidenceGraph; campaigns: CampaignsFile; nearMisses: NearMissesFile }> {
   const ds = readJson<EnrichedDataset>(o.enriched);
   const config = loadLinkConfig(o.config);
   let embeddings: Record<string, number[]> | undefined;
@@ -248,6 +250,8 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
   const graph = pruneGraphForOutput(clustered.graph, config.output);
   writeJson(o.graph, graph, false);
   writeJson(o.campaigns, campaigns);
+  const nearMissesPath = o.nearMisses ?? path.join(path.dirname(o.campaigns), "near-misses.json");
+  writeJson(nearMissesPath, clustered.nearMisses);
   const multi = campaigns.campaigns.filter((c) => c.size > 1);
   console.log(
     `[graph] węzły: ${graph.stats.nodes}, krawędzie: ${graph.stats.edges}, powiązania reklam: ${graph.stats.links} (silne: ${graph.stats.strongLinks}), tekst: ${graph.textMethod}`,
@@ -260,8 +264,9 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
       .join("; ");
     console.log(`  ${c.id}  ${String(c.size).padStart(3)} reklam  ${c.firstSeen?.slice(0, 10) ?? "?"} – ${c.lastSeen?.slice(0, 10) ?? "?"}  ${ev}`);
   }
-  console.log(`[graph] zapisano ${o.graph} i ${o.campaigns}`);
-  return { graph, campaigns };
+  console.log(`[graph] bliskie pary bez połączenia: ${clustered.nearMisses.total} (na liście ${clustered.nearMisses.pairs.length})`);
+  console.log(`[graph] zapisano ${o.graph}, ${o.campaigns} i ${nearMissesPath}`);
+  return { graph, campaigns, nearMisses: clustered.nearMisses };
 }
 
 export interface EvaluateStepOptions {

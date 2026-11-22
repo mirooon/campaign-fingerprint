@@ -16,6 +16,7 @@ export const MATERIAL_CSV_COLUMNS = [
   "score",
   "top_premise",
   "missing_data",
+  "blisko_bez_polaczenia",
 ] as const;
 
 export type MaterialConfidence = "certain" | "likely" | "uncertain";
@@ -58,6 +59,11 @@ function cell(v: string | number | null | undefined): string {
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
+/** Cell "blisko_bez_polaczenia": the known campaigns the record came close to and the rule that kept it out, e.g. "K03: account-conflict; K07: family-only-kind". */
+function nearMissCell(item: MaterialItemResult): string {
+  return (item.nearMisses ?? []).map((n) => `${n.campaign}: ${n.rule}`).join("; ");
+}
+
 export function materialCsvRow(item: MaterialItemResult): string[] {
   const best = bestCampaignLink(item);
   const premise = item.verdict === "duplicate" && item.duplicateOf ? `duplikat ${item.duplicateOf.id}: ${item.duplicateOf.reason}` : (best?.evidence[0]?.evidence ?? "");
@@ -73,6 +79,7 @@ export function materialCsvRow(item: MaterialItemResult): string[] {
     best ? best.score.toFixed(4) : "",
     premise,
     (item.missing ?? []).join("; "),
+    nearMissCell(item),
   ];
 }
 

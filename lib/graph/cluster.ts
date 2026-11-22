@@ -22,6 +22,7 @@ import louvain from "graphology-communities-louvain";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import { weekdayCounts, type AdStart } from "../text/adStart";
 import { summarizeNarratives, type MaterialNarrative } from "../text/narrative";
+import { findNearMisses } from "./nearMiss";
 import { combineScores } from "./weights";
 import { isAdvertiserAccountKey } from "./adLibraryTraces";
 import {
@@ -38,6 +39,8 @@ import {
   type GraphEdge,
   type GraphNode,
   type ItemLink,
+  type NearMissRule,
+  type NearMissesFile,
   type SimilarityEdgeType,
 } from "./model";
 import { UnionFind } from "./unionFind";
@@ -60,6 +63,8 @@ export interface ClusterResult {
   campaigns: CampaignsFile;
   /** Copy of the graph with item nodes' campaignId filled in. */
   graph: EvidenceGraph;
+  /** Pairs kept out of one campaign that come close to it, with the rule that decided (I20); a record, it changes no campaign. */
+  nearMisses: NearMissesFile;
 }
 
 function itemIdOf(node: GraphNode): string {
@@ -79,8 +84,13 @@ export function clusterCampaigns(
   const itemNodes = graph.nodes.filter((nd) => nd.type === "item");
   const itemIds = itemNodes.map(itemIdOf).sort();
   const { accountOf, infraItems } = verdictContext(graph.nodes);
+  const decisions = new Map<ItemLink, LinkDecision>();
   const verdicts = new Map<ItemLink, LinkVerdict>();
-  for (const link of graph.links) verdicts.set(link, campaignLinkVerdict(link, config, accountOf, infraItems));
+  for (const link of graph.links) {
+    const decision = campaignLinkDecision(link, config, accountOf, infraItems);
+    decisions.set(link, decision);
+    verdicts.set(link, decision.verdict);
+  }
   const uf = new UnionFind<string>(itemIds);
   // a strong link held back by an account conflict (campaignRules.accountConflictOverStrongKinds) must not merge either
   for (const link of graph.links) if (link.strong && verdicts.get(link) === "campaign") uf.union(link.a, link.b);
@@ -205,15 +215,19 @@ export function clusterCampaigns(
   for (const f of families) for (const c of f.campaigns) familyOf.set(c, f.id);
   for (const c of campaigns) c.familyId = familyOf.get(c.id) ?? null;
 
+  const generatedAt = (options.now?.() ?? new Date()).toISOString();
+  const nearMisses = findNearMisses({ links: graph.links, decisions, assignments, families, nodes: graph.nodes, config, generatedAt, kindOf: evidenceKind });
+
   const outGraph: EvidenceGraph = {
     ...graph,
     nodes: graph.nodes.map((nd) => (nd.type === "item" ? { ...nd, campaignId: assignments[nd.key] ?? null } : nd)),
   };
   return {
     graph: outGraph,
+    nearMisses,
     campaigns: {
       version: 1,
-      generatedAt: (options.now?.() ?? new Date()).toISOString(),
+      generatedAt,
       method: {
         unionFind: `silne dowody (waga typu × lista ≥ ${config.strongThreshold})`,
         louvain: { resolution: config.louvain.resolution, seed: config.louvain.seed, modularity },
@@ -351,18 +365,44 @@ export function campaignLinkVerdict(
   accountOf: Map<string, string> = new Map(),
   infraItems: Set<string> | null = null,
 ): LinkVerdict {
+  return campaignLinkDecision(link, config, accountOf, infraItems).verdict;
+}
+
+/** Refusal rules of `campaignLinkDecision`: the near-miss rules that the pair rules themselves can give. */
+type RefusalRule = Exclude<NearMissRule, "split-by-clustering">;
+
+/** Verdict of a link and, for a refused one, the id of the rule that refused it (null for a campaign link). */
+export interface LinkDecision {
+  verdict: LinkVerdict;
+  rule: RefusalRule | null;
+}
+
+/**
+ * The decision behind `campaignLinkVerdict`: the same verdict plus the rule that refused the link
+ * (`NearMissRule`), so a pair kept out of a campaign can say why. Takes and reads exactly what
+ * `campaignLinkVerdict` does; the rules are described there.
+ */
+export function campaignLinkDecision(
+  link: ItemLink,
+  config: LinkConfig,
+  accountOf: Map<string, string> = new Map(),
+  infraItems: Set<string> | null = null,
+): LinkDecision {
   const r = config.campaignRules;
   const conflict = r.accountConflict && accountsConflict(accountOf.get(link.a), accountOf.get(link.b));
   if (link.strong) {
     const overStrong = r.accountConflictOverStrongKinds ?? [];
     const strongKinds = link.evidence.filter((e) => e.strong).map(evidenceKind);
     const yields = strongKinds.length > 0 && strongKinds.every((k) => overStrong.includes(k));
-    return conflict && yields ? "account_conflict" : "campaign";
+    return conflict && yields ? { verdict: "account_conflict", rule: "account-conflict" } : { verdict: "campaign", rule: null };
   }
-  if (campaignScore(link, config) < config.minLinkScore) return "below";
-  if (conflict) return "account_conflict";
+  if (campaignScore(link, config) < config.minLinkScore) {
+    // the score alone would have passed: only the evidence that counts for groups lifted it
+    return { verdict: "below", rule: link.score >= config.minLinkScore ? "family-only-kind" : "below-min-score" };
+  }
+  if (conflict) return { verdict: "account_conflict", rule: "account-conflict" };
   const counted = countedEvidence(link, config).filter((e) => !familyOnly(e, config));
-  if (sameCreative(counted, config)) return "campaign";
+  if (sameCreative(counted, config)) return { verdict: "campaign", rule: null };
   const contentKinds = new Set(r.contentKinds ?? []);
   const kinds = [...new Set(counted.map(evidenceKind))];
   const content = kinds.filter((k) => contentKinds.has(k));
@@ -370,12 +410,16 @@ export function campaignLinkVerdict(
   const operator = kinds.filter((k) => !contentKinds.has(k) && !r.notAloneKinds.includes(k));
   const withInfra = infraItems === null || infraItems.has(link.a) || infraItems.has(link.b);
   if (!operator.length) {
-    if (!content.length) return "single_kind";
+    // nothing counted: every trace is weaker than discountedMinWeight after its discount
+    if (!counted.length) return { verdict: "single_kind", rule: "discounted-only" };
+    if (!content.length) return { verdict: "single_kind", rule: "kit-only" };
     const need = withInfra ? (r.contentKindsWithInfrastructure ?? null) : (r.minContentKinds ?? 2);
-    return need !== null && need > 0 && content.length >= need ? "campaign" : "single_kind";
+    if (need !== null && need > 0 && content.length >= need) return { verdict: "campaign", rule: null };
+    return { verdict: "single_kind", rule: withInfra ? "content-only-with-infra" : "too-few-content-kinds" };
   }
   const effective = [...operator, ...(kit.length ? ["page_kit"] : []), ...(withInfra && content.length ? ["content"] : content)];
-  return effective.length === 1 || effective.length >= r.minEvidenceKinds ? "campaign" : "single_kind";
+  if (effective.length === 1 || effective.length >= r.minEvidenceKinds) return { verdict: "campaign", rule: null };
+  return { verdict: "single_kind", rule: "too-few-evidence-kinds" };
 }
 
 /** Whether all counted evidence of a link is content (similar copy, picture, recording, the same creative file). */

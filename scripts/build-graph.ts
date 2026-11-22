@@ -8,10 +8,11 @@ const args = cli(
     enriched: { type: "string" },
     graph: { type: "string" },
     campaigns: { type: "string" },
+    "near-misses": { type: "string" },
     config: { type: "string" },
     text: { type: "string" },
   } as const,
-  `Użycie: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--config linking.json; domyślnie wagi wbudowane, dla danych próbki data/sample/linking.json] [--text tfidf|embedding|none]`,
+  `Użycie: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--near-misses near-misses.json; domyślnie obok campaigns] [--config linking.json; domyślnie wagi wbudowane, dla danych próbki data/sample/linking.json] [--text tfidf|embedding|none]`,
 );
 
 void main(async () => {
@@ -22,6 +23,7 @@ void main(async () => {
     enriched,
     graph: args.graph ?? DEFAULTS.graph,
     campaigns: args.campaigns ?? DEFAULTS.campaigns,
+    nearMisses: args["near-misses"],
     config: buildGraphConfigFile(args.config, enriched),
     text,
   });

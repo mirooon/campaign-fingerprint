@@ -67,7 +67,7 @@ describe("variantNote", () => {
 describe("resultRows", () => {
   it("wiersze eksportu mają kolumny w ustalonej kolejności", () => {
     const rows = resultRows(result);
-    expect(Object.keys(rows[0])).toEqual(["material_id", "case", "verdict", "campaign_id", "similar_campaigns", "new_campaign_id", "duplicate_of", "confidence", "score", "top_premise", "missing_data"]);
+    expect(Object.keys(rows[0])).toEqual(["material_id", "case", "verdict", "campaign_id", "similar_campaigns", "new_campaign_id", "duplicate_of", "confidence", "score", "top_premise", "missing_data", "blisko_bez_polaczenia"]);
     expect(rows[3].duplicate_of).toBe("a");
   });
 });

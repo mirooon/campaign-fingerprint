@@ -149,6 +149,12 @@ describe("analyzeMaterial: a variant that does not join", () => {
     expect(it.verdict).not.toBe("known_campaign");
     expect(it.campaignBasis).toBeUndefined();
     expect(it.similarCampaigns).toEqual(expect.arrayContaining([campaigns.assignments["k1-1"], campaigns.assignments["k2-1"]]));
+    // I20: both campaigns it came close to are listed with the rule that kept it out (content alone, they have infrastructure)
+    const near = Object.fromEntries((it.nearMisses ?? []).map((n) => [n.campaign, n]));
+    for (const k of [campaigns.assignments["k1-1"], campaigns.assignments["k2-1"]]) {
+      expect(near[k]?.rule, k).toBe("content-only-with-infra");
+      expect(near[k]?.reason, k).toMatch(/treść/);
+    }
   }, 60_000);
 
   it("keeps today's rules for a variant with its own, different infrastructure", async () => {

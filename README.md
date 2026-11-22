@@ -50,10 +50,11 @@ Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca ekspor
 | `score` | wynik najlepszego powiązania, 0–1: siła przesłanek, nie prawdopodobieństwo; puste przy `insufficient` i `new_campaign` bez powiązań (wtedy `top_premise` też jest puste) |
 | `top_premise` | najsilniejsza przesłanka prostym językiem (np. „ten sam serwer trackera”) |
 | `missing_data` | gdy `insufficient`: co dorzucić do materiału (lista rozdzielona `;`) |
+| `blisko_bez_polaczenia` | znane kampanie, do których materiał był blisko, ale nie dołączył, z regułą (np. `K03: account-conflict`) |
 
 ## 2. Jak przeanalizować własne materiały
 
-**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Zakładka „Kampanie” pokazuje bazę, „Porównaj” dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
+**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Zakładka „Kampanie” pokazuje bazę, „Celowo nie połączone” pary podobne, ale celowo nie połączone w kampanię (z regułą i powodem; plik `near-misses.json` obok `campaigns.json`), „Porównaj” dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
 
 **Wiersz poleceń** (`analyze-material`; w Dockerze poprzedź `docker compose run --rm app`):
 

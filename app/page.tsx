@@ -6,7 +6,7 @@ import { loadViewerData, SAMPLE_BASE } from "@/lib/viewer/data";
 /** Reads the pipeline outputs on every request: a new run (or VIEWER_DATA_DIR) shows up without a rebuild. */
 async function ViewerWithData() {
   await connection();
-  const { graph, campaigns, summaries, error } = loadViewerData();
+  const { graph, campaigns, nearMisses, summaries, error } = loadViewerData();
   if (!graph || !campaigns) {
     return (
       <main className="mx-auto max-w-xl p-10">
@@ -15,7 +15,7 @@ async function ViewerWithData() {
       </main>
     );
   }
-  return <Shell graph={graph} campaigns={campaigns} summaries={summaries} synthetic={SAMPLE_BASE} />;
+  return <Shell graph={graph} campaigns={campaigns} nearMisses={nearMisses} summaries={summaries} synthetic={SAMPLE_BASE} />;
 }
 
 export default function Home() {

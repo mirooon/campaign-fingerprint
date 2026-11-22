@@ -48,7 +48,7 @@ const args = cli(
   `Użycie: bun run analyze-material -- (--case <katalog sprawy> | --cases <katalog spraw> [--each-file] | --dataset <plik.csv|.json|.jsonl> [--mapping m.json] | --url <link> | --text <treść>) [--data <katalog przebiegu>] [--csv wynik.csv] [--json wynik.json] [--live] [--archive] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--add-to-base [--force]]
 --cases: każdy podkatalog to sprawa; wszystkie idą przez jeden import i jeden graf. --each-file: każdy luźny plik w katalogu to osobna sprawa.
 --dataset: każdy wiersz pliku zbioru to materiał (mapowanie kolumn jak w bun run ingest; --mapping jak tam). Ścieżki obrazów względem katalogu pliku.
---csv: wynik partii, wiersz na rekord (material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data).
+--csv: wynik partii, wiersz na rekord (material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data, blisko_bez_polaczenia).
 --json: pełny wynik (MaterialResult) do pliku; "-" = na standardowe wyjście. --out: to samo do pliku (używa przeglądarka).
 --data: katalog z graph.json, campaigns.json i enriched.json (domyślnie VIEWER_DATA_DIR albo data/).
 --live: pasywne DNS, RDAP i ASN oraz jeden GET strony, której nie ma w materiale. Bez tego tylko materiał.

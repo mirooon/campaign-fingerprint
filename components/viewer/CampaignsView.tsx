@@ -2,15 +2,16 @@
 
 import { ChevronDown, ChevronRight, Layers } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Campaign, CampaignFamily, CampaignsFile, EvidenceGraph } from "@/lib/graph/model";
+import type { Campaign, CampaignFamily, CampaignsFile, EvidenceGraph, NearMissesFile } from "@/lib/graph/model";
 import { DECISION_LABEL, exportBlockReason, type Decision, type DecisionsFile } from "@/lib/viewer/decisions";
-import { basisNote, campaignMatchesFilter, campaignTitle, cohesionLabel, groupCampaigns, narrativeOptions, platformOptions, type CampaignFilter } from "@/lib/viewer/campaignView";
+import { basisNote, campaignAnchorId, campaignIdInQuery, campaignMatchesFilter, campaignTitle, cohesionLabel, groupCampaigns, narrativeOptions, platformOptions, singlesInFamilyFrames, singleToReveal, type CampaignFilter } from "@/lib/viewer/campaignView";
 import { defangText } from "@/lib/viewer/defang";
 import { bridgeNote, narrativeSummaryLine, narrativeSwitchLines, weakestLinkNote } from "@/lib/viewer/fields";
 import type { CtFeedRecord } from "@/lib/ct/feed";
 import { campaignCtRecords, ctLeadSentence } from "@/lib/viewer/ctLead";
 import { nearestCampaignOf } from "@/lib/viewer/scale";
-import { fmtRange, count, fmtNum, MATERIAL } from "@/lib/viewer/format";
+import { fmtRange, count, MATERIAL, SINGLE_MATERIAL } from "@/lib/viewer/format";
+import { familyApartLines, singleMaterialNote, singleMaterialRule, type SingleRule } from "@/lib/viewer/nearMissView";
 import { typeInfo } from "@/lib/viewer/plain";
 import { campaignAttributes, campaignHasPersona, personaOptions } from "./compare";
 import CampaignEvolution from "./CampaignEvolution";
@@ -25,6 +26,10 @@ import { campaignNextSteps } from "@/lib/viewer/copy";
 export interface CampaignsViewProps {
   campaigns: CampaignsFile;
   graph: EvidenceGraph;
+  /** Pairs kept apart on purpose (`near-misses.json`): the rule shown on the card of a material left alone; null for an older run. */
+  nearMisses: NearMissesFile | null;
+  /** Rules computed on the server for materials left alone whose pair the near-miss list cut (key: the material). */
+  singleRules?: Record<string, SingleRule>;
   /** Candidates of the CT feed (new domains that match known campaigns). */
   ctRecords: CtFeedRecord[];
   openId: string | null;
@@ -39,13 +44,20 @@ function familyCommon(f: CampaignFamily): string {
   return [...new Set(names)].slice(0, 3).join(", ") || "brak wspólnych śladów na poziomie kampanii";
 }
 
-/** Card of one campaign: name, size, dates, strength of links, basis note, variants; expands to the premises and members. */
-function Card({ c, open, minLinkScore, graph, assignments, ctRecords, decision, onDecide, onToggle, onCompare }: { c: Campaign; open: boolean; minLinkScore: number; graph: EvidenceGraph; assignments: Record<string, string>; ctRecords: CtFeedRecord[]; decision: Decision | null; onDecide: (campaign: string, status: Decision | null) => void; onToggle: () => void; onCompare: (a: string, b: string | null) => void }) {
+/**
+ * Card of one campaign: name, size, dates, strength of links, basis note, variants; expands to the premises and members.
+ * A material left alone also says how close the nearest campaign is and, at or above the link threshold, which rule kept it out.
+ */
+function Card({ c, open, minLinkScore, graph, assignments, nearMisses, singleRule, ctRecords, decision, onDecide, onToggle, onCompare }: { c: Campaign; open: boolean; minLinkScore: number; graph: EvidenceGraph; assignments: Record<string, string>; nearMisses: NearMissesFile | null; singleRule: SingleRule | undefined; ctRecords: CtFeedRecord[]; decision: Decision | null; onDecide: (campaign: string, status: Decision | null) => void; onToggle: () => void; onCompare: (a: string, b: string | null) => void }) {
   const attrs = campaignAttributes(c);
   const basis = basisNote(c);
-  const nearest = useMemo(() => (c.size <= 1 ? nearestCampaignOf(c.members[0], graph.links, assignments) : null), [c, graph.links, assignments]);
+  const singleNote = useMemo(() => {
+    if (c.size > 1) return null;
+    const nearest = nearestCampaignOf(c.members[0], graph.links, assignments);
+    return singleMaterialNote(nearest, minLinkScore, nearest ? singleMaterialRule(c.members[0], nearest.material, nearMisses, singleRule) : null);
+  }, [c, graph.links, assignments, minLinkScore, nearMisses, singleRule]);
   return (
-    <article className="rounded-lg border border-slate-300 bg-white">
+    <article id={campaignAnchorId(c.id)} className="scroll-mt-4 rounded-lg border border-slate-300 bg-white">
       <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-2 p-3 text-left">
         {open ? <ChevronDown size={16} aria-hidden className="mt-0.5 shrink-0" /> : <ChevronRight size={16} aria-hidden className="mt-0.5 shrink-0" />}
         <span className="min-w-0 flex-1">
@@ -54,7 +66,7 @@ function Card({ c, open, minLinkScore, graph, assignments, ctRecords, decision, 
             {count(c.size, MATERIAL)} · {fmtRange(c.firstSeen, c.lastSeen)}
             {c.size > 1 && <> · siła powiązań: {cohesionLabel(c.cohesion)}<Help term="sila_w_kampanii" /></>}
           </span>
-          {c.size <= 1 && <span className="mt-0.5 block text-xs text-slate-700">{nearest ? `Najbliżej kampanii ${nearest.campaign} (materiał ${nearest.material}), wynik ${fmtNum(nearest.score)}, próg łączenia ${fmtNum(minLinkScore)}.` : "Bez powiązań z innymi materiałami."}</span>}
+          {singleNote && <span className="mt-0.5 block text-xs text-slate-700">{singleNote}</span>}
           {c.topEvidence[0] && <span className="mt-0.5 block text-xs text-slate-700">Co łączy: {typeInfo(c.topEvidence[0].type)?.name ?? c.topEvidence[0].label}, {c.topEvidence[0].label}</span>}
           <span className="mt-1 flex flex-wrap gap-1 text-[11px]">
             {decision && <span className="rounded bg-violet-50 px-1.5 py-0.5 text-violet-900 ring-1 ring-violet-300">decyzja: {DECISION_LABEL[decision]}</span>}
@@ -136,8 +148,8 @@ function Card({ c, open, minLinkScore, graph, assignments, ctRecords, decision, 
   );
 }
 
-/** "Kampanie": groups of similar campaigns in frames (Wspólne / Różne), single campaigns, folded materials without links. */
-export default function CampaignsView({ campaigns, graph, ctRecords, openId, onOpen, onCompare }: CampaignsViewProps) {
+/** "Kampanie": groups of similar campaigns in frames (Wspólne / Różne), single campaigns, folded materials left alone (unfolded when one is opened from outside). */
+export default function CampaignsView({ campaigns, graph, nearMisses, singleRules, ctRecords, openId, onOpen, onCompare }: CampaignsViewProps) {
   const [personaId, setPersonaId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CampaignFilter>({});
@@ -165,7 +177,6 @@ export default function CampaignsView({ campaigns, graph, ctRecords, openId, onO
     });
   const topics = useMemo(() => narrativeOptions(campaigns.campaigns), [campaigns]);
   const platforms = useMemo(() => platformOptions(campaigns.campaigns), [campaigns]);
-  const [showSingles, setShowSingles] = useState(false);
   const options = useMemo(() => personaOptions(campaigns.campaigns), [campaigns]);
   const q = query.trim().toLowerCase();
   const filtered = useMemo(
@@ -173,7 +184,28 @@ export default function CampaignsView({ campaigns, graph, ctRecords, openId, onO
     [campaigns, personaId, q, filter],
   );
   const grouped = useMemo(() => groupCampaigns(filtered, campaigns.families ?? []), [filtered, campaigns.families]);
-  const card = (c: Campaign) => <Card key={c.id} c={c} minLinkScore={campaigns.method.minLinkScore} graph={graph} assignments={campaigns.assignments} ctRecords={campaignCtRecords(ctRecords, c.id)} decision={decisions[c.id]?.status ?? null} onDecide={decide} open={openId === c.id} onToggle={() => onOpen(openId === c.id ? null : c.id)} onCompare={onCompare} />;
+  // A material left alone opened from outside (?k= from "Pokaż kampanię", or its number typed in the search) sits in
+  // the folded section: unfold it once per such material (adjusting state on a prop change, no effect); the user may fold it again.
+  const reveal = singleToReveal(grouped.singletons, openId);
+  const [showSingles, setShowSingles] = useState(reveal !== null);
+  const [revealed, setRevealed] = useState(reveal);
+  if (reveal !== revealed) {
+    setRevealed(reveal);
+    if (reveal) setShowSingles(true);
+  }
+  // Bring the open card into view when it opens: from another tab it may stand far down the list or in the section
+  // just unfolded. "nearest" scrolls only as far as needed, so a card opened by a click in the list barely moves.
+  useEffect(() => {
+    if (openId) document.getElementById(campaignAnchorId(openId))?.scrollIntoView({ block: "nearest" });
+  }, [openId]);
+  /** Search box: filters the list; the exact number of a campaign ("K50") also opens its card. */
+  const search = (value: string) => {
+    setQuery(value);
+    const hit = campaignIdInQuery(campaigns.campaigns, value);
+    if (hit && hit !== openId) onOpen(hit);
+  };
+  const inFrames = singlesInFamilyFrames(grouped);
+  const card = (c: Campaign) => <Card key={c.id} c={c} minLinkScore={campaigns.method.minLinkScore} graph={graph} assignments={campaigns.assignments} nearMisses={nearMisses} singleRule={singleRules?.[c.members[0]]} ctRecords={campaignCtRecords(ctRecords, c.id)} decision={decisions[c.id]?.status ?? null} onDecide={decide} open={openId === c.id} onToggle={() => onOpen(openId === c.id ? null : c.id)} onCompare={onCompare} />;
   return (
     <div className="mx-auto max-w-4xl space-y-4 p-4">
       <div>
@@ -181,7 +213,7 @@ export default function CampaignsView({ campaigns, graph, ctRecords, openId, onO
         <p className="mt-1 text-sm text-slate-700">Kampania<Help term="kampania" /> to materiały jednego operatora. Kampanie różnych operatorów o tym samym szablonie stoją razem w ramce grupy podobnych<Help term="grupa_podobnych" />.</p>
       </div>
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Szukaj: osoba, domena, K03" aria-label="Szukaj kampanii" className="min-w-56 rounded-md border border-slate-300 px-2 py-1.5" />
+        <input type="search" value={query} onChange={(e) => search(e.target.value)} placeholder="Szukaj: osoba, domena, K03" aria-label="Szukaj kampanii" className="min-w-56 rounded-md border border-slate-300 px-2 py-1.5" />
         {options.length > 0 && (
           <label className="flex items-center gap-1.5">
             Persona<Help term="persona" />
@@ -227,7 +259,7 @@ export default function CampaignsView({ campaigns, graph, ctRecords, openId, onO
         <section key={family.id} className="rounded-xl border-2 border-violet-500 bg-violet-50/40 p-3" aria-label={`Grupa podobnych kampanii ${family.id}`}>
           <h3 className="flex items-center gap-1.5 text-sm font-semibold text-violet-950"><Layers size={16} aria-hidden />Grupa podobnych kampanii {family.id}: {family.campaigns.join(", ")}</h3>
           <p className="mb-2 text-xs text-slate-800">
-            <b>Wspólne:</b> {familyCommon(family)}. <b>Różne:</b> {family.apart.length ? family.apart.join("; ") : "brak dowodu na poziomie kampanii"}, dlatego to osobne kampanie.
+            <b>Wspólne:</b> {familyCommon(family)}. <b>Różne:</b> {family.apart.length ? familyApartLines(family, nearMisses).join("; ") : "brak dowodu na poziomie kampanii"}, dlatego to osobne kampanie.
           </p>
           {(narrativeSummaryLine(family.narrative) || (family.personaCategories?.length ?? 0) > 0) && (
             <p className="mb-2 text-xs text-slate-800">
@@ -241,8 +273,9 @@ export default function CampaignsView({ campaigns, graph, ctRecords, openId, onO
       {grouped.singletons.length > 0 && (
         <div>
           <button type="button" className="text-sm underline" onClick={() => setShowSingles((v) => !v)} aria-expanded={showSingles}>
-            {count(grouped.singletons.length, MATERIAL)} bez powiązań ({showSingles ? "ukryj" : "pokaż"})
+            {count(grouped.singletons.length, SINGLE_MATERIAL)} poza grupami podobnych ({showSingles ? "ukryj" : "pokaż"})
           </button>
+          {inFrames > 0 && <span className="ml-2 text-xs text-slate-600">W ramkach grup podobnych powyżej: {count(inFrames, SINGLE_MATERIAL)}.</span>}
           {showSingles && <div className="mt-2 space-y-2">{grouped.singletons.map(card)}</div>}
         </div>
       )}

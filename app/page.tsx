@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Shell from "@/components/viewer/Shell";
 import { loadViewerData, SAMPLE_BASE } from "@/lib/viewer/data";
 import { serverOffline } from "@/lib/viewer/liveLookups";
+import { loadSingleMaterialRules } from "@/lib/viewer/singleRules";
 
 /** Reads the pipeline outputs on every request: a new run (or VIEWER_DATA_DIR) shows up without a rebuild. */
 async function ViewerWithData() {
@@ -16,7 +17,7 @@ async function ViewerWithData() {
       </main>
     );
   }
-  return <Shell graph={graph} campaigns={campaigns} nearMisses={nearMisses} summaries={summaries} synthetic={SAMPLE_BASE} serverOffline={serverOffline(process.env)} />;
+  return <Shell graph={graph} campaigns={campaigns} nearMisses={nearMisses} singleRules={loadSingleMaterialRules(graph, campaigns)} summaries={summaries} synthetic={SAMPLE_BASE} serverOffline={serverOffline(process.env)} />;
 }
 
 export default function Home() {

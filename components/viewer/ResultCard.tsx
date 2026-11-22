@@ -13,7 +13,7 @@ import { authorNotes } from "@/lib/viewer/authorNotes";
 import { bridgeNote, brandNote, domainAgeNote, faceLines, humanizeId, narrativeLine, platformAccountLines, voiceLines, weakestLinkNote } from "@/lib/viewer/fields";
 import { fmtNum } from "@/lib/viewer/format";
 import { shownConfidence, variantNote, type UnreadMaterial } from "@/lib/viewer/materialView";
-import { nearMissNotes } from "@/lib/viewer/nearMissView";
+import { apartLine, nearMissNotes } from "@/lib/viewer/nearMissView";
 import { closestLink, verdictScale, ZONE_LABEL, type Zone } from "@/lib/viewer/scale";
 import { ADDRESS_COMPLETENESS_LABEL, cleanEvidence, EMAIL_DOMAIN_KIND_LABEL, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, SHOP_FLAG_INFO, SHOP_TECHNIQUES, TECHNIQUE_INFO, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
@@ -203,7 +203,7 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
       {camp?.attributes.basis === "content" && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">Kampania z treści, bez infrastruktury: słabsza podstawa niż wspólne konto czy serwer.</p>}
       {camp && bridgeNote(camp) && <p className="mt-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">{bridgeNote(camp)}</p>}
       {camp && weakestLinkNote(camp, ctx.minLinkScore) && <p className="mt-1 text-xs text-slate-700">{weakestLinkNote(camp, ctx.minLinkScore)}</p>}
-      {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.join("; ")}.</p>}
+      {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.map(apartLine).join("; ")}.</p>}
       {item.verdict === "insufficient" && (item.missing?.length ?? 0) > 0 && (
         <div className="mt-2 text-sm">
           <b>Co dorzucić:</b>

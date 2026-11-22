@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Campaign } from "@/lib/graph/model";
-import { basisNote, campaignMatchesFilter, campaignTitle, cohesionLabel, groupCampaigns, narrativeOptions, platformOptions } from "./campaignView";
+import { baseCounts, basisNote, campaignAnchorId, campaignIdInQuery, campaignMatchesFilter, campaignTitle, cohesionLabel, groupCampaigns, narrativeOptions, platformOptions, singlesInFamilyFrames, singleToReveal } from "./campaignView";
 
 function camp(id: string, over: Partial<Campaign> = {}): Campaign {
   return {
@@ -42,6 +42,47 @@ describe("groupCampaigns", () => {
     expect(g.families[0].campaigns.map((c) => c.id)).toEqual(["K1", "K2"]);
     expect(g.alone.map((c) => c.id)).toEqual(["K3"]);
     expect(g.singletons.map((c) => c.id)).toEqual(["K4"]);
+  });
+});
+
+describe("liczby bazy w nagłówku", () => {
+  const list = [camp("K1"), camp("K2"), camp("K3", { size: 1 }), camp("K4", { size: 1 }), camp("K5", { size: 1 })];
+  const families = [{ id: "R1", campaigns: ["K2", "K3"], members: [], size: 4, topEvidence: [], apart: [] }];
+
+  it("kampanie z co najmniej dwoma materiałami, pojedyncze materiały (też w ramkach grup) i grupy dają razem wszystkie numery K", () => {
+    const c = baseCounts(list, families);
+    expect(c).toEqual({ campaigns: 2, singles: 3, singlesInFamilies: 1, families: 1 });
+    expect(c.campaigns + c.singles).toBe(list.length);
+  });
+
+  it("zwinięta sekcja zakładki Kampanie to pojedyncze materiały poza ramkami grup: razem z ramkami daje liczbę z nagłówka", () => {
+    const g = groupCampaigns(list, families);
+    expect(g.singletons.length + singlesInFamilyFrames(g)).toBe(baseCounts(list, families).singles);
+    expect(singlesInFamilyFrames(g)).toBe(1);
+  });
+});
+
+describe("pojedynczy materiał otwarty z zewnątrz", () => {
+  const singles = [camp("K50", { size: 1 }), camp("K51", { size: 1 })];
+
+  it("rozwija zwiniętą sekcję tylko dla otwartego pojedynczego materiału z tej sekcji", () => {
+    expect(singleToReveal(singles, "K50")).toBe("K50");
+    expect(singleToReveal(singles, "K03")).toBeNull();
+    expect(singleToReveal(singles, null)).toBeNull();
+    expect(singleToReveal([], "K50")).toBeNull();
+  });
+
+  it("dokładny numer kampanii w wyszukiwarce wskazuje kartę do otwarcia, bez względu na wielkość liter i spacje", () => {
+    const all = [camp("K03"), ...singles];
+    expect(campaignIdInQuery(all, "K50")).toBe("K50");
+    expect(campaignIdInQuery(all, " k50 ")).toBe("K50");
+    expect(campaignIdInQuery(all, "K5")).toBeNull();
+    expect(campaignIdInQuery(all, "")).toBeNull();
+    expect(campaignIdInQuery(all, "a.example")).toBeNull();
+  });
+
+  it("karta ma stały identyfikator elementu do przewinięcia", () => {
+    expect(campaignAnchorId("K50")).toBe("kampania-K50");
   });
 });
 

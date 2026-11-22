@@ -14,6 +14,8 @@ import CtFeedPanel, { useCtFeed } from "./CtFeedPanel";
 import DetailsPanel from "./DetailsPanel";
 import GraphCanvas from "./GraphCanvas";
 import { reducedGraph } from "@/lib/viewer/reducedGraph";
+import { baseCounts } from "@/lib/viewer/campaignView";
+import { count, CAMPAIGN, MATERIAL, SINGLE_MATERIAL } from "@/lib/viewer/format";
 import { buildIndex, reducedToElements, toElements, visibleNodes } from "./graphView";
 import { TYPE_COLORS } from "./palette";
 import { ReadHow } from "./Guide";
@@ -166,7 +168,7 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
   };
 
   const selectedNode = selected ? (idx.nodeById.get(selected) ?? null) : null;
-  const multi = campaigns.campaigns.filter((c) => c.size > 1).length;
+  const counts = useMemo(() => baseCounts(campaigns.campaigns, campaigns.families ?? []), [campaigns]);
   const typesShown = ENTITY_TYPES.filter((t) => graph.stats.byType[t]);
 
   const markedIds = panel === "compare" ? [pair.a, pair.b].filter((x): x is string => !!x).map((k) => `item:${k}`) : [];
@@ -178,7 +180,7 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
         <div>
           <h1 className="text-base font-semibold text-slate-900">Graf kampanii</h1>
           <p className="text-xs text-slate-500">
-            {graph.stats.items} reklam · {multi} kampanii · {graph.stats.nodes - graph.stats.items} encji · tryb {graph.mode === "offline" ? "offline (fixtures)" : "live"} · podobieństwo tekstu: {graph.textMethod === "embedding" ? "embeddingi" : graph.textMethod === "tfidf" ? "TF-IDF" : "wyłączone"}
+            {count(graph.stats.items, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · {count(counts.singles, SINGLE_MATERIAL)} · {graph.stats.nodes - graph.stats.items} encji · tryb {graph.mode === "offline" ? "offline (fixtures)" : "live"} · podobieństwo tekstu: {graph.textMethod === "embedding" ? "embeddingi" : graph.textMethod === "tfidf" ? "TF-IDF" : "wyłączone"}
           </p>
           <div className="max-w-xl"><ReadHow id="graph" /></div>
         </div>

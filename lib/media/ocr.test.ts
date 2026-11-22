@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import sharp from "sharp";
 import { afterAll, describe, expect, it } from "vitest";
-import { detectOcr, ocrImage } from "./ocr";
+import { detectOcr, ocrImage, ocrSpacedText, spacedWordsFromHocr } from "./ocr";
 import type { RunResult, ToolRunner } from "./tools";
 
 type Call = { cmd: string; args: string[]; timeoutMs?: number };
@@ -78,5 +78,43 @@ describe("live tesseract (skipped when not installed)", () => {
     const text = (await ocrImage(file)) ?? "";
     expect(text.toLowerCase()).toContain("zarabiaj");
     expect(text.toLowerCase()).toContain("dziennie");
+  });
+});
+
+describe("spacedWordsFromHocr", () => {
+  /** Builds a minimal hOCR word from character boxes `[x0, x1, char]`. */
+  const word = (chars: [number, number, string][]) =>
+    `<span class='ocrx_word' id='w'>${chars.map(([a, b, c]) => `<span class='ocrx_cinfo' title='x_bboxes ${a} 10 ${b} 30; x_conf 99'>${c}</span>`).join("")}</span>`;
+
+  it("flags a word whose letters are spaced out (gap ~ letter width)", () => {
+    const spaced = word("Pobierz".split("").map((c, i) => [i * 44, i * 44 + 19, c]));
+    expect(spacedWordsFromHocr(spaced)).toEqual({ sample: "Pobierz" });
+  });
+
+  it("ignores normal text and short words", () => {
+    const normal = word("Pobierz".split("").map((c, i) => [i * 21, i * 21 + 19, c]));
+    expect(spacedWordsFromHocr(normal)).toBeNull();
+    expect(spacedWordsFromHocr(word("Abc".split("").map((c, i) => [i * 44, i * 44 + 19, c])))).toBeNull();
+  });
+
+  it("asks tesseract for hOCR with character boxes and returns null on failure", async () => {
+    const calls: Call[] = [];
+    expect(await ocrSpacedText("a.png", { run: fakeRunner(() => ({ code: 1 }), calls) })).toBeNull();
+    expect(calls[0].args).toEqual(["a.png", "stdout", "-l", "pol", "--psm", "3", "-c", "hocr_char_boxes=1", "hocr"]);
+  });
+});
+
+describe("live spaced-text detection (skipped when not installed)", () => {
+  /** Renders one line of text with the given letter spacing to a PNG file. */
+  const render = async (name: string, letterSpacing: number) => {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="200"><rect width="1400" height="200" fill="#ffffff"/><text x="20" y="110" font-family="Arial, Helvetica, sans-serif" font-size="40" letter-spacing="${letterSpacing}" fill="#111111">Pobierz aplikacje teraz</text></svg>`;
+    const file = path.join(dir, name);
+    await sharp(Buffer.from(svg)).png().toFile(file);
+    return file;
+  };
+
+  it.skipIf(!live.available)("flags spaced letters and leaves normal text alone", async () => {
+    expect(await ocrSpacedText(await render("spaced.png", 30))).not.toBeNull();
+    expect(await ocrSpacedText(await render("normal.png", 0))).toBeNull();
   });
 });

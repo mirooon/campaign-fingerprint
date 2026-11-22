@@ -60,3 +60,56 @@ export async function ocrImage(
   const text = r.stdout.replace(/\f/g, " ").replace(/\s+/g, " ").trim();
   return text || null;
 }
+
+/** A word whose letters are spaced out (B-337), as read from tesseract's per-character boxes. */
+export interface OcrSpacedText {
+  /** The glued word as recognised, e.g. "Pobierzaplikację". */
+  sample: string;
+}
+
+/**
+ * Finds words with spaced-out letters in hOCR with character boxes (`-c hocr_char_boxes=1 hocr`).
+ * A word counts when it has at least `minLetters` character boxes and the median gap between
+ * neighbouring letters is at least `ratio` times the median letter width. Returns the first such word.
+ */
+export function spacedWordsFromHocr(hocr: string, opts: { minLetters?: number; ratio?: number } = {}): OcrSpacedText | null {
+  const minLetters = opts.minLetters ?? 5;
+  const ratio = opts.ratio ?? 0.8;
+  const median = (xs: number[]) => {
+    const s = [...xs].sort((a, b) => a - b);
+    const m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  };
+  for (const word of hocr.split(/class=['"]ocrx_word['"]/).slice(1)) {
+    const boxes = [...word.matchAll(/x_bboxes (\d+) (\d+) (\d+) (\d+)[^>]*>([^<]*)</g)].map((m) => ({
+      x0: Number(m[1]),
+      x1: Number(m[3]),
+      ch: m[5],
+    }));
+    if (boxes.length < minLetters) continue;
+    const widths = boxes.map((b) => b.x1 - b.x0);
+    const gaps = boxes.slice(1).map((b, i) => b.x0 - boxes[i].x1);
+    const w = median(widths);
+    if (w > 0 && median(gaps) >= ratio * w) return { sample: boxes.map((b) => b.ch).join("") };
+  }
+  return null;
+}
+
+/**
+ * Detects spaced-out text in one image: `tesseract <file> stdout -l pol --psm 3 -c hocr_char_boxes=1 hocr`.
+ * tesseract glues spaced letters into one word in its text output, but the character boxes keep the gaps.
+ * Returns null on any failure or when no spaced word is found.
+ */
+export async function ocrSpacedText(
+  file: string,
+  opts: { run?: ToolRunner; lang?: string; timeoutMs?: number; psm?: number; bin?: string } = {},
+): Promise<OcrSpacedText | null> {
+  const run = opts.run ?? defaultRunner;
+  const r = await run(
+    opts.bin ?? DEFAULT_BIN,
+    [file, "stdout", "-l", opts.lang ?? "pol", "--psm", String(opts.psm ?? 3), "-c", "hocr_char_boxes=1", "hocr"],
+    { timeoutMs: opts.timeoutMs ?? 60_000 },
+  );
+  if (r.code !== 0 || r.timedOut) return null;
+  return spacedWordsFromHocr(r.stdout);
+}

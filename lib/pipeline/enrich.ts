@@ -26,7 +26,7 @@ import { cloakingVerdict, isBotChallenge } from "../osint/cloaking";
 import { videoShotHashes } from "../media/videoShots";
 import { analyzeVideoOverlays, cornerOcr } from "../media/videoOverlay";
 import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo, extractFrames } from "../media/imageEmbed";
-import { detectOcr, ocrImage } from "../media/ocr";
+import { detectOcr, ocrImage, ocrSpacedText, type OcrSpacedText } from "../media/ocr";
 import { nonEmptyFile } from "../media/tools";
 import { detectFaces, type FaceHit } from "../media/face";
 import { detectSpeaker, embedSpeakers, embedSpeakerWindows, loadVoiceIndex, matchVoiceWindows, speakerVadDir, type VoiceIndex } from "../media/speaker";
@@ -588,18 +588,23 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     return clipCache ? clipCache.wrap(key, compute) : compute();
   };
 
-  const runOcr = async (file: string | null, bytes: Buffer | null): Promise<string | null> => {
-    if (file) return mediaLimit(() => ocrImage(file, { lines: true }));
+  /** Runs an OCR step on an image given as a file or as bytes (written to a temporary file). */
+  const onImageFile = async <T,>(file: string | null, bytes: Buffer | null, fn: (f: string) => Promise<T | null>): Promise<T | null> => {
+    if (file) return mediaLimit(() => fn(file));
     if (!bytes) return null;
     const dir = await mkdtemp(path.join(os.tmpdir(), "starter-ocr-"));
     try {
       const tmp = path.join(dir, "creative.img");
       await writeFile(tmp, bytes);
-      return await mediaLimit(() => ocrImage(tmp, { lines: true }));
+      return await mediaLimit(() => fn(tmp));
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
   };
+
+  /** OCR text of an image, one recognised line per line. */
+  const runOcr = (file: string | null, bytes: Buffer | null): Promise<string | null> =>
+    onImageFile(file, bytes, (f) => ocrImage(f, { lines: true }));
 
   const runNer = async (text: string): Promise<PersonaMatch[]> => {
     if (!opts.ner || text.trim().length < 20) return [];
@@ -619,6 +624,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         let image: ImageInfo | null = null;
         let aiImageMeta: AiImageMeta | null = null;
         let ocrText: string | null = null;
+        let ocrSpaced: OcrSpacedText | null = null;
         let imageEmbedding: number[] | null = null;
         let creativeBrand: BrandHit | null = null;
         let advertiserOcr: string | null = null;
@@ -651,6 +657,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
               const post = sponsoredPost(await runOcr(img.file, img.bytes));
               ocrText = post.text.replace(/\s+/g, " ").trim() || null;
               advertiserOcr = post.advertiser;
+              // spaced-out letters (B-337): the text output glues them, the character boxes keep the gaps
+              ocrSpaced = await onImageFile(img.file, img.bytes, (f) => ocrSpacedText(f));
             }
             if (clipOn && img.bytes) {
               try {
@@ -788,6 +796,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           personas: dedupePersonas(personas),
           campaignParams,
           ocrText,
+          ...(ocrSpaced ? { ocrSpacedText: ocrSpaced } : {}),
           ...(extraOcrText ? { extraOcrText } : {}),
           ...(observed.length ? { observedUrls: observed } : {}),
           landingSource,

@@ -150,6 +150,8 @@ export interface ItemEnrichment {
   campaignParams: CampaignParam[];
   /** Text recognised in the creative image (opt-in OCR). A phone screenshot is cut down to the sponsored post. */
   ocrText: string | null;
+  /** A word with spaced-out letters found in the creative's OCR character boxes (B-337, opt-in OCR). */
+  ocrSpacedText?: { sample: string } | null;
   /** Text recognised in the further screenshots of the case (opt-in OCR). */
   extraOcrText?: string | null;
   /** Addresses read from the browser address bar of screenshots and screen recordings (opt-in OCR). */

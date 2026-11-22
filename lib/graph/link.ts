@@ -312,7 +312,8 @@ export function buildEvidenceGraph(
     // Text spaced out letter by letter (B-337): an attribute and the technique `spaced_text`, read from the
     // ad text and every OCR source (main and further screenshots, video frames); the OCR text is glued back
     // before any matching
-    if ([item.text, enr?.ocrText, enr?.extraOcrText, enr?.videoOcrText].some((t) => hasSpacedText(t))) {
+    // (or from the OCR character boxes, where tesseract glued the letters into one word)
+    if (enr?.ocrSpacedText || [item.text, enr?.ocrText, enr?.extraOcrText, enr?.videoOcrText].some((t) => hasSpacedText(t))) {
       itemData.spacedText = true;
       itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "spaced_text"])];
     }

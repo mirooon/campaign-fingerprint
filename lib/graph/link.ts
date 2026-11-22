@@ -1383,6 +1383,8 @@ export function buildEvidenceGraph(
     if (companyNotes.length) itemData.companyIdNotes = companyNotes;
     for (const c of companyIds) {
       const isAccount = c.kind === "iban" || c.kind === "nrb";
+      // an account number with a wrong mod-97 sum is a typo or a made-up number, not a payment pivot (B-168); it stays a feature of the material
+      if (isAccount && !c.valid) continue;
       const type = isAccount ? "bank_account" : "company_id";
       const key = isAccount ? c.value : `${c.kind}:${c.value}`;
       const label = isAccount ? `rachunek ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;

@@ -99,3 +99,17 @@ describe("bank_account", () => {
     expect(linkOf(acc, "a", "b")!.score).toBeGreaterThan(linkOf(nip, "a", "b")!.score);
   });
 });
+
+describe("bank_account validity and foreign accounts (B-168)", () => {
+  it("links two pages with the same valid foreign IBAN", () => {
+    const res = run(pair("IBAN: DE89 3704 0044 0532 0130 00", "Konto DE89370400440532013000"));
+    expect(res.graph.nodes.filter((n) => n.type === "bank_account").map((n) => n.key)).toEqual(["DE89370400440532013000"]);
+    expect(linkOf(res, "a", "b")!.evidence.map((e) => e.pivotType)).toEqual(["bank_account"]);
+  });
+
+  it("makes no node and no link of an IBAN with a wrong checksum", () => {
+    const res = run(pair("Przelew na konto: PL61 1090 1014 0000 0712 1981 2875", "IBAN: PL61109010140000071219812875"));
+    expect(res.graph.nodes.some((n) => n.type === "bank_account")).toBe(false);
+    expect(linkOf(res, "a", "b")?.evidence.some((e) => e.pivotType === "bank_account") ?? false).toBe(false);
+  });
+});

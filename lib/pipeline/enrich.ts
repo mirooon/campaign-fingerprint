@@ -29,6 +29,7 @@ import { fetchAdCreative } from "../adlib/ytdlp";
 import { AD_LIBRARY_ID_RE, detectAdLibrary, lookupAdLibrary, type AdLibraryInfo } from "../osint/adLibrary";
 import { copyProvenance, findArchivedCopy, type ArchiveConfig, type ArchivedCopy, type ArchiveSource } from "../osint/archive";
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
+import { readVideoText } from "../media/videoOcr";
 import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../media/addressBar";
 import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
@@ -693,7 +694,13 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
           observed.push(...(await mediaLimit(() => readAddressBarVideo(file))));
         }
-        const combined = [item.text, ocrText, asrText].filter((t): t is string => !!t && t.trim().length > 0).join("\n");
+        let videoOcrText: string | null = null;
+        if (ocrOn && item.videoPath) {
+          // burned-in captions of the ad video (persona name, "state programme" claims)
+          const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
+          videoOcrText = await mediaLimit(() => readVideoText(file));
+        }
+        const combined = [item.text, ocrText, asrText, videoOcrText].filter((t): t is string => !!t && t.trim().length > 0).join("\n");
         const text = combined ? extractFromText(combined) : null;
         const fromInput = normalizeUrl(item.landingUrl ?? "");
         const fromText = text?.urls[0] ? normalizeUrl(text.urls[0]) : null;
@@ -724,7 +731,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           const pageText = [page?.extract?.title, page?.extract?.description, page?.extract?.visibleText].filter(Boolean).join("\n");
           personas.push(...matchPersonas([item.text ?? "", pageText].join("\n"), opts.personas));
           // not the further screenshots: a feed view also shows the posts around the ad, and their authors are not in it
-          const machineText = [ocrText, asrText].filter(Boolean).join("\n");
+          const machineText = [ocrText, asrText, videoOcrText].filter(Boolean).join("\n");
           if (machineText) personas.push(...matchPersonas(machineText, opts.personas, { fuzzy: true }));
         }
         if (opts.ner) {
@@ -760,6 +767,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           landingSource,
           ...(advertiserOcr ? { advertiserOcr } : {}),
           ...(impersonated ? { advertiserImpersonates: { id: impersonated.id, name: impersonated.name } } : {}),
+          ...(videoOcrText ? { videoOcrText } : {}),
           asrText,
           audioFp,
           ...(imageEmbedding ? { imageEmbedding } : {}),

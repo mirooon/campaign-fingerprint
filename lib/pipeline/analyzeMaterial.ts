@@ -301,7 +301,7 @@ const FEATURE_KEYS = [
   "advertiserImpersonatesName", "advertiserMismatch", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "clickfix", "stealerKit", "fictionalExperts", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "emailDomainKinds", "addressCompleteness", "companyRegistry", "phoneAreaMismatch", "certIssuer", "certMismatch", "certExpired", "brandInPath", "hostingOutsideEu", "tldRare", "domainLangMismatch", "privacyControllerMismatch", "registrantHidden", "contactDomainDead", "narrative", "profitClaims", "localizedUi", "residue", "foreignSegments", "foreignPersona", "typography", "translationArtifacts", "brandStyle", "advertiserNameKind", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "videoOcrText", "firstSeen", "techniques", "clickfix", "stealerKit", "fictionalExperts", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "emailDomainKinds", "addressCompleteness", "companyRegistry", "phoneAreaMismatch", "certIssuer", "certMismatch", "certExpired", "brandInPath", "hostingOutsideEu", "tldRare", "domainLangMismatch", "privacyControllerMismatch", "registrantHidden", "contactDomainDead", "narrative", "profitClaims", "localizedUi", "residue", "foreignSegments", "foreignPersona", "typography", "translationArtifacts", "brandStyle", "advertiserNameKind", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
 ];
 
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */
@@ -698,7 +698,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const data = nodeData.get(r.id) ?? {};
     const camp = campaigns.campaigns.find((c) => c.id === campaigns.assignments[r.id]);
     const t = enr?.text;
-    const allText = [it?.text, enr?.ocrText, enr?.extraOcrText, enr?.asrText].filter(Boolean).join("\n");
+    const allText = [it?.text, enr?.ocrText, enr?.extraOcrText, enr?.asrText, enr?.videoOcrText].filter(Boolean).join("\n");
     const words = contentWords(allText).length;
     const leadAd = isLeadAd(allText);
     if (leadAd) r.features.leadAd = true;

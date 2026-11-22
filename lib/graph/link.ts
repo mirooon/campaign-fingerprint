@@ -294,6 +294,7 @@ export function buildEvidenceGraph(
       personas: [...new Set((enr?.personas ?? []).map((p) => p.name))],
       ocrText: enr?.ocrText ? enr.ocrText.slice(0, 600) : null,
       asrText: enr?.asrText ? enr.asrText.slice(0, 600) : null,
+      ...(enr?.videoOcrText ? { videoOcrText: enr.videoOcrText.slice(0, 600) } : {}),
     });
     const itemData = g.nodes.get(itemNode)!.data;
     // the case folder of the material: ads of one case are not paired in the near-miss report
@@ -1303,10 +1304,10 @@ export function buildEvidenceGraph(
     }
     const narrative = detectNarrative({
       headline: [pageEx?.title, pageEx?.ogTitle, item.text?.split("\n")[0]].filter(Boolean).join("\n"),
-      body: [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n"),
+      body: [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, enr?.videoOcrText, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n"),
     });
     // The scam's own brand (product, "investment platform"): a page-kit trait, campaignRules.notAloneKinds
-    const brandBody = [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, pageEx?.title, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n");
+    const brandBody = [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, enr?.videoOcrText, pageEx?.title, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n");
     for (const b of scamBrands({ body: brandBody, landingName: typeof itemData.landingName === "string" ? itemData.landingName : null })) {
       const id = g.node("campaign_param", `scam_brand=${b.key}`, `marka oszustwa: ${b.name}`, { canonicalName: "scam_brand", name: "marka oszustwa", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
       g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
@@ -1864,7 +1865,7 @@ export function textOf(item: Item, dataset: EnrichedDataset): string {
   const ocr = enr?.ocrText ? stripUiChrome(enr.ocrText).text : null;
   const asr = enr?.asrText ? stripHallucinations(enr.asrText) : null;
   // stock phrases of ads ("dowiedz się więcej", "tylko dziś") say nothing about who wrote the copy
-  const own = stripGenericPhrases([item.text, ocr, asr].filter((t): t is string => !!t && t.trim().length > 0).join("\n"));
+  const own = stripGenericPhrases([item.text, ocr, asr, enr?.videoOcrText].filter((t): t is string => !!t && t.trim().length > 0).join("\n"));
   if (own) return own;
   const ex = enr?.pageKey ? dataset.pages[enr.pageKey]?.extract : null;
   return [ex?.title, ex?.description].filter(Boolean).join(". ");

@@ -621,6 +621,10 @@ Przyjęty próg `matchThreshold` = 0,46: najniższy z zerem fałszywych trafień
 
 **Zakres.** Bez crawlera twarzy i bez rozbudowy bazy z sieci poza listą osób ze źródłem podszycia (AI Act art. 5 ust. 1 lit. e); bez detektora deepfake i oceny „czy to prawdziwa osoba”. Uwagi prawne: `docs/ZGODNOSC.md`.
 
+### 4.14b Napisy w wideo (`lib/media/videoOcr.ts`, B-305)
+
+Opcjonalny krok OCR (`--ocr`): `readVideoText` próbkuje klatki ffmpeg co `VIDEO_OCR_CONFIG.everySeconds` (2 s, max 30 klatek / 60 s, szerokość 960 px), czyta każdą tesseractem (`--psm 11`, `pol+eng`, a gdy brak `eng`: `pol`) i przepuszcza linie przez `filterVideoLines` (normalizacja, odrzucenie linii krótszych niż 5 liter i śmieci, napisów odtwarzacza, deduplikacja między klatkami). Wynik trafia do `EnrichedItem.videoOcrText` (cecha `videoOcrText`, rodzina `content`) i do tekstu maszynowego w `enrich.ts` (`combined`, `machineText`) oraz `link.ts` (narracja, `scamBrands`, `profitClaims`, `textOf`). Bez ffmpeg albo tesseract zwraca `null`; test akceptacyjny w `videoOcr.test.ts` jest wtedy pomijany.
+
 ### 4.15 Persona z głosu (`lib/media/speaker.ts`, od 21.11.2026, zadanie I15)
 
 **Co to jest.** Opcjonalny krok `--speaker` (`enrich`, `pipeline`, `analyze-material`) tnie ścieżkę dźwiękową wideo na okna po 4 s (krok 2 s), porównuje każde okno ze **wzorcami osób z galerii głosów** i zapisuje w danych materiału `voices?: Array<{ start, end, persona?, similarity? }>` (sekundy od początku nagrania; `persona` i `similarity` tylko dla głosu podobnego do osoby z listy). Etykieta: **„głos podobny do X (0,57)”**, nigdy „to jest głos X”. Galeria to ta sama zamknięta lista osób publicznych co dla twarzy (`data/osoby-publiczne.json`, wpis ma publiczne ostrzeżenie w `source`), wzorce w `data/voices/index.json` (wektory 192 liczb, po jednym na nagranie; bez nagrań), źródła nagrań w `data/voices/ZRODLA.md`. Do listy dopisano Izabelę Leszczynę i Buddę (źródło: film NASK z kompilacją fałszywych reklam), więc głos ma 10 osób, a twarz 8 (dla dwóch dopisanych osób nie ma zdjęć).

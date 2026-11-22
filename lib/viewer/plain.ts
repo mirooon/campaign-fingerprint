@@ -657,6 +657,7 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   cyrillic: { name: "Cyrylica w kodzie strony", source: "z kodu strony", role: "describes" },
   cloakingSuspected: { name: "Podejrzenie cloakingu", source: "z dwóch pobrań strony", role: "describes", term: "cloaking" },
   ocrText: { name: "Tekst ze zrzutu", source: "z OCR zrzutu", role: "helps", term: "ocr" },
+  videoOcrText: { name: "Napisy w wideo", source: "z napisów w wideo (OCR klatek co 2 s)", role: "helps", term: "ocr" },
   asrText: { name: "Transkrypcja nagrania", source: "z nagrania (ASR)", role: "helps", term: "transkrypcja" },
   text: { name: "Tekst reklamy", source: "z materiału", role: "helps" },
   dhash: { name: "Odcisk obrazu", source: "ze zrzutu", role: "links", term: "odcisk_obrazu" },

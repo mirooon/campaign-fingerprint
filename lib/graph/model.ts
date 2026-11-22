@@ -75,6 +75,8 @@ export const ENTITY_TYPES = [
   "launcher_account",
   // account of an affiliate network (B-330): team+user pair, stream or offer UUID, scoped to the network host
   "affiliate_account",
+  // account on video/file hosting (B-342): a Bunny Stream library of the page's videos
+  "hosting_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -125,6 +127,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   c2_host: "Serwer C2 trojana w zestawie strony",
   fictional_expert: "Zmyślony ekspert (dr, prof.)",
   lead_flow: "Wspólny lejek leadów platformy stron",
+  hosting_account: "Konto na hostingu wideo",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",

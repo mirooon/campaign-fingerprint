@@ -30,6 +30,9 @@ import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { adStart } from "../text/adStart";
+import { advertiserNameStyle, commentLanguage, landerSlugStyle, mixedScriptName } from "../text/namingStyle";
+import { adCreatedApprox, isTimedMetaId, type MetaIdAnchor } from "../osint/metaIdAge";
+import { scarcityCounter } from "../osint/pageTechniques";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";
 import { idnConfusableInUrl } from "../osint/idnConfusable";
@@ -115,6 +118,9 @@ const TECHNIQUE_LABELS: Record<string, string> = {
   fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
   remote_access_tool: "program do zdalnego pulpitu do pobrania",
   clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
+  scarcity_counter: "licznik presji („zostało N miejsc”)",
+  anti_devtools: "blokada narzędzi deweloperskich (F12, menu kontekstowe)",
+  "kit:formFb": "kit formularza sieci CPA (formFb)",
 };
 
 /** Canonical link parameters that carry the ID of the Meta ad in templates ({{ad.id}}). */
@@ -891,6 +897,13 @@ export function buildEvidenceGraph(
             add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `pliki strony ładowane z tej samej witryny konta na darmowym hostingu (${asset.host})`);
           }
         }
+        // Account on video hosting named in the page or its requests (B-342, notAloneKinds)
+        for (const h of kit.hostingAccounts ?? []) {
+          const [service, ...rest] = h.split(":");
+          const id = g.node("hosting_account", h, `${service} ${rest.join(":")}`, { service });
+          g.edge(finalUrlNode, id, "mentions", `zasób wideo z konta ${service} ${rest.join(":")}`);
+          add(id, "hosting_account", [...finalPath, id], rel, `to samo konto na hostingu wideo (${service} ${rest.join(":")})`);
+        }
         for (const text of kit.comments) {
           const cyr = /[\u0400-\u04FF]/.test(text);
           const id = g.node("comment", text, `„${text.length > 60 ? `${text.slice(0, 59)}…` : text}”`, { text, cyrillic: cyr });
@@ -994,6 +1007,8 @@ export function buildEvidenceGraph(
         if (platforms.size) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...platforms])].sort();
         if (kit.domSimhash) itemData.domSimhash = kit.domSimhash;
         if (kit.cyrillicComments) itemData.cyrillic = true;
+        const commentLangs = [...new Set(kit.comments.map(commentLanguage).filter((l): l is "uk" | "ru" => !!l))].sort();
+        if (commentLangs.length) itemData.codeCommentLang = commentLangs;
         // Comments written into the page: the set of authors is part of the template
         const cb = kit.commentBlock;
         if (cb) {
@@ -1141,6 +1156,7 @@ export function buildEvidenceGraph(
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
       if (cp.cyrillic) itemData.cyrillic = true;
+      if (mixedScriptName(cp.value)) itemData.namingMixedScript = true;
       // a value new for every click is shared only by one visit: no pivot between materials
       if (perClick.has(cp.canonicalName)) continue;
       if (cp.name.toLowerCase() === "stream_id" && affStreams.has(cp.value.trim().toLowerCase())) continue;
@@ -1279,6 +1295,13 @@ export function buildEvidenceGraph(
     if (confusable) itemData.idnConfusable = confusable;
     const started = adStart(typeof itemData.adFirstShown === "string" ? itemData.adFirstShown : null);
     if (started) itemData.adStartWeekday = started;
+    // A pressure counter ("N places left") in the creative's OCR or the ad text: a technique attribute (B-346)
+    if (scarcityCounter([item.text, enr?.ocrText].filter(Boolean).join("\n"))) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "scarcity_counter"])];
+    // Style of the folder name of the landing page and of the advertiser's page name (B-341, B-347): attributes, never traces
+    const slugStyle = hostUrls.map((u) => { try { return u ? landerSlugStyle(new URL(u).pathname) : null; } catch { return null; } }).find((s) => s !== null);
+    if (slugStyle) itemData.landerSlugStyle = slugStyle;
+    const nameStyle = advertiserNameStyle(advertiser ?? enr?.adLibrary?.find((r) => r.pageName)?.pageName ?? null, item.text);
+    if (nameStyle) itemData.advertiserNameStyle = nameStyle;
     const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
     if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
 
@@ -1461,6 +1484,7 @@ export function buildEvidenceGraph(
   }
 
   addRegistrationBursts(dataset, g, factsByItem, config);
+  annotateAdCreated(g);
 
   // Document frequency and weights
   const pivotItems = new Map<string, Array<{ itemId: string; fact: Fact }>>();
@@ -2016,4 +2040,24 @@ function linkAffiliateIds(
     add(id, "affiliate_account", [itemNode, id], a.kind === "team_user" ? AFFILIATE_TEAM_RELATION : 1, `to samo konto w sieci afiliacyjnej ${a.host}: ${what} ${a.value}`);
   }
   return streams;
+/**
+ * Approximate creation date of the ads (B-343): the cases with a time-ordered Meta ad id and a first-shown date
+ * calibrate the ids, and every case with such an id and a position between two anchors gets `adCreatedApprox`.
+ * An attribute for the timeline, never a trace.
+ */
+function annotateAdCreated(g: { nodes: Map<string, GraphNode> }): void {
+  const idOf = (d: Record<string, unknown>): string | null => [d.metaAdId, d.adLibraryAdId].find((v): v is string => typeof v === "string" && isTimedMetaId(v)) ?? null;
+  const items = [...g.nodes.values()].filter((n) => n.type === "item");
+  const anchors: MetaIdAnchor[] = [];
+  for (const n of items) {
+    const id = idOf(n.data);
+    const date = typeof n.data.adFirstShown === "string" ? n.data.adFirstShown : null;
+    if (id && date) anchors.push({ id, date });
+  }
+  if (anchors.length < 2) return;
+  for (const n of items) {
+    const id = idOf(n.data);
+    const approx = id ? adCreatedApprox(id, anchors) : null;
+    if (approx) n.data.adCreatedApprox = approx;
+  }
 }

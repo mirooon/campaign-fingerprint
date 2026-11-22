@@ -74,4 +74,32 @@ export const TECHNIQUE_CONFIG = {
     /** Longest command literal read (characters). */
     maxCommandChars: 4000,
   },
+  /** Pressure counter ("only N places left", B-346): the visible text or the OCR of a creative. */
+  scarcity: {
+    patterns: [
+      /liczba\s+pozosta\p{L}+\s+miejsc\p{L}*\W{0,3}\d{1,4}/iu,
+      /pozosta\p{L}+\s+(?:tylko\s+)?miejsc\p{L}*\W{0,3}\d{1,4}/iu,
+      /zosta\p{L}*\s+(?:tylko\s+)?\d{1,4}\s+(?:sztuk\p{L}*|miejsc\p{L}*|opakowa\p{L}+)/iu,
+      /\bonly\s+\d{1,4}\s+(?:spots?|places?|items?|pieces?|packs?)\s+(?:left|remaining)|\b\d{1,4}\s+(?:spots?|places?)\s+(?:left|remaining)/iu,
+      /\b(?:осталось|залишилось)\s+\d{1,4}\b/iu,
+    ],
+  },
+  /** Blocking of the developer tools (F12, Ctrl+Shift+I, context menu; B-340). */
+  antiDevtools: {
+    f12: /(?:keyCode|which)\s*={2,3}\s*123\b|\bkey\s*={2,3}\s*["']F12["']/,
+    inspectShortcut: /(?:keyCode|which)\s*={2,3}\s*(?:73|74|85)\b|\bkey\s*={2,3}\s*["'][ijuIJU]["']/,
+    contextMenu: /["']contextmenu["']|oncontextmenu\s*=\s*["']?\s*return\s+false/i,
+  },
+  /**
+   * Kit families of lead-form code shared by the sellers of one affiliate network (B-348). A family is named
+   * when a class or a field marker is present, or when most of the network's hidden fields are.
+   */
+  kitFamilies: [
+    {
+      name: "formFb",
+      markers: [/\bformFb__\w+/, /\b(?:old)?[pP]riceAndLabelForLandingInfoApi\b/],
+      hiddenFields: ["sid", "x_id", "sub1", "sub2", "fbtoken"],
+      minHiddenFields: 4,
+    },
+  ],
 } as const;

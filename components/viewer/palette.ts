@@ -24,6 +24,7 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   cloaker_account: "#7c2d12",
   launcher_account: "#9f1239",
   affiliate_account: "#be185d",
+  hosting_account: "#0f766e",
   advertiser: "#4f46e5",
   endpoint: "#be123c",
   hidden_fields: "#9333ea",

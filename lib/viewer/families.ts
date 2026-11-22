@@ -69,6 +69,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   postal_address: "infra",
   path_id: "infra",
   platform_account: "infra",
+  hosting_account: "infra",
   platform_campaign: "infra",
   click_server: "infra",
   meta_ad: "infra",

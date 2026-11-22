@@ -359,6 +359,8 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `kit_string` | znormalizowany komunikat programisty ze skryptu strony, tylko gdy ≥ 2 domeny (§4.18) | `lib/osint/kitStrings.ts` | 0.5; jedna przesłanka na parę: ≥ 2 wspólne albo 1 z ≥ 5 słów | nie (`notAloneKinds`) |
 | `shared_doc` | klucz `usługa:id` dokumentu, formularza lub udostępnionego czatu z modelem językowym (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `onion` | adres .onion v3 (56 znaków) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
+| `fictional_expert` | klucz `tytuł:imię nazwisko` zmyślonego eksperta (B-313) | `lib/text/fictionalExpert.ts` | 0.75 | tak |
+| `c2_host` | nazwa hosta serwera C2 trojana w skrypcie zestawu strony (B-333) | `lib/osint/stealerKit.ts` | 0.95 | tak |
 | `messenger_invite` | klucz `usługa:id` zaproszenia lub konta (discord, signal, signal_group, viber, line) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 

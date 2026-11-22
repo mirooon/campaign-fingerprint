@@ -27,6 +27,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   // Treść
   advertiser: "content",
   persona: "content",
+  fictional_expert: "content",
   profit_claim: "content",
   similar_text: "content",
   // Wygląd
@@ -78,6 +79,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   shared_doc: "infra",
   onion: "infra",
   messenger_invite: "infra",
+  c2_host: "infra",
 };
 
 /** Feature keys of a material (`MaterialItemResult.features`, item node data) and their family. */
@@ -107,6 +109,8 @@ export const FEATURE_FAMILY: Record<string, FeatureFamily> = {
   domSimhash: "page",
   techniques: "page",
   clickfix: "page",
+  fictionalExperts: "content",
+  stealerKit: "page",
   displayedDomainMismatch: "content",
   displayedBrandDomain: "content",
   narrative: "content",

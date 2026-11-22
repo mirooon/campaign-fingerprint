@@ -76,7 +76,7 @@ Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − �
 |---|---|---|---|
 | url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
 | host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
-| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account | 0,9 | asset | 0,55 |
+| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account | 0,9 (c2_host 0,95) | asset | 0,55 |
 | path_id | 0,85 | favicon, kit_string | 0,5 |
 | cert, campaign_param, bank_account (nie jest silny) | 0,8 | comment_block, template_phrase | 0,45 |
 | ad_payer | 0,65 | nameserver, page_template | 0,35 |
@@ -187,6 +187,8 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 - `shared_doc`: dokument, arkusz, formularz (Google, Notion, Microsoft Forms, Typeform, Jotform) i udostępniona rozmowa z modelem językowym (usługa `llm_chat`: operator wkleja dane kampanii do czatu i udostępnia link). Klucz `usługa:identyfikator`. Identyfikatory przykładowe z dokumentacji dostawców i strony pomocy są pomijane (lista w `lib/osint/contactConfig.ts`).
 - `onion`: adres .onion wersji 3. Adres wersji 2 wygasł w 2021 r., więc jest tylko atrybutem (`onionV2`).
+- `fictional_expert` (B-313): tytuł `dr` lub `prof.` z imieniem i nazwiskiem spoza `data/osoby-publiczne.json` (tekst strony, reklamy, OCR, ASR). Klucz: tytuł i imię z nazwiskiem małymi literami, bez polskich znaków i końcówek fleksyjnych; literówki (odległość edycji ≤ 1, ≤ 2 dla długich nazw) są zlewane. Waga 0,75, rzadkość przez IDF i `maxPivotDf`. Zmyślonego eksperta wymyśla jeden operator, więc łączy.
+- `c2_host` (B-333): host serwera, do którego skrypt skopiowanego zestawu strony (np. fałszywa biblioteka na darmowym hostingu lub w jsDelivr `gh/`) wysyła ciasteczka lub dane logowania z fałszywego panelu trackera. Wymagane razem: sprawdzenie ścieżki `/admin` lub `/panel` i wysyłka `document.cookie` albo pól hasła do obcego hosta; zwykła biblioteka nie daje nic. Atrybut materiału: `stealerKit` (które sygnały zadziałały). Waga 0,95.
 - `messenger_invite`: zaproszenia i konta Discord, Signal, Viber i Line (`usługa:identyfikator`); numer z `wa.me` jest zwykłym telefonem. Serwery społeczności samych platform są pomijane.
 
 Źródłem są tekst i atrybuty strony, tekst reklamy, OCR zrzutu i adresy żądań z HAR. Żaden z tych adresów nie jest otwierany: to zasoby operatora, narzędzie czyta tylko zapis.

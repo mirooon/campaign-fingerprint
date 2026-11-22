@@ -58,6 +58,10 @@ export const ENTITY_TYPES = [
   "shared_doc",
   "onion",
   "messenger_invite",
+  // C2 host of a stealer trojan in the lander kit (B-333)
+  "c2_host",
+  // a made-up "dr" or "prof." named on the page or in the ad (B-313)
+  "fictional_expert",
   // identifiers of a company on a page (NIP, REGON, KRS, VAT, UK number) and bank accounts (IBAN, NRB)
   "company_id",
   "bank_account",
@@ -110,6 +114,8 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   shared_doc: "Dokument, formularz lub czat udostępniony linkiem",
   onion: "Adres .onion",
   messenger_invite: "Zaproszenie lub konto komunikatora",
+  c2_host: "Serwer C2 trojana w zestawie strony",
+  fictional_expert: "Zmyślony ekspert (dr, prof.)",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",

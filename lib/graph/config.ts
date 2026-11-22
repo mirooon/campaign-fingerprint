@@ -186,6 +186,8 @@ export interface LinkConfig {
    * below strongThreshold: an error is copied with the template too). null turns the pivot off.
    */
   templatePhrase?: { minDomains: number; oddityFactor: number; maxWeight: number } | null;
+  /** Fictional experts of B-313 ("dr"/"prof." not on the public list); null turns the trace off. */
+  fictionalExpert?: { maxPerMaterial: number } | null;
   /**
    * Frequency mask of page text (I25): a template sentence or kit message carried by pages of at least
    * `minPlatformAccounts` different accounts of a page platform, or by at least `maxPageShare` of all pages
@@ -380,6 +382,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     shared_doc: 0.9,
     onion: 0.9,
     messenger_invite: 0.9,
+    // C2 host of a trojan in the lander kit (B-333): every copy of the pulled kit reports to the same host
+    c2_host: 0.95,
+    // A made-up "dr"/"prof." (B-313): invented by one operator, stronger than a persona (0.1); IDF and maxPivotDf damp a frequent name
+    fictional_expert: 0.75,
     cert: 0.8,
     imagehash: 0.65,
     // A display name of the advertiser alone does not merge campaigns (rule kind advertiser_name in
@@ -494,6 +500,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   },
   creativeFileWeight: 0.95,
   commentBlockNames: { minBlocks: 5, floor: 0.3 },
+  fictionalExpert: { maxPerMaterial: 5 },
   templatePhrase: { minDomains: 2, oddityFactor: 1.3, maxWeight: 0.65 },
   // 5 accounts: a text kit sold to a few buyers stays a group trace; the SDK of a platform reaches every
   // account. 30% of the pages from 10 on: a sentence on a third of a mixed batch is no rare template.

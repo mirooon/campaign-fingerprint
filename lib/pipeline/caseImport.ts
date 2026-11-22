@@ -30,6 +30,7 @@ import { findStreamSegments, stitchSegments, type StreamSegments } from "../medi
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
 import { TEXT_CONFIG } from "../osint/textConfig";
+import { isStealerCandidateUrl } from "../osint/stealerKit";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   COLLECTED_SOURCE_FILE,
@@ -855,6 +856,21 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         const rel = `assets/${safeName(itemId)}/js-${scriptCount++}`;
         write(path.join(fix, rel), data);
         http[k] = { status: 200, headers: { "content-type": mime || "application/javascript" }, bodyFile: rel };
+      }
+      // Third-party scripts on free static hosts and jsDelivr `gh/` (B-333): kept so the stealer check can read the
+      // fake libraries a copied kit loads; the other third-party scripts are never kept.
+      let foreignCount = 0;
+      for (const e of ownEntries) {
+        if (foreignCount >= 5) break;
+        if (e.request.method !== "GET" || e.response.status !== 200 || !isStealerCandidateUrl(e.request.url)) continue;
+        const u = new URL(e.request.url);
+        const k = `${u.protocol}//${u.host}${u.pathname}`;
+        if (http[k]) continue;
+        const data = harBody(e);
+        if (!data || data.length > TEXT_CONFIG.kitStrings.maxScriptBytes) continue;
+        const rel = `assets/${safeName(itemId)}/fjs-${foreignCount++}`;
+        write(path.join(fix, rel), data);
+        http[k] = { status: 200, headers: { "content-type": e.response.content?.mimeType || "application/javascript" }, bodyFile: rel };
       }
       // Images recorded in the HAR (favicons), under their original addresses.
       let n = 0;

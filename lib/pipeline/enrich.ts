@@ -34,6 +34,7 @@ import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
+import { foreignScriptCandidates } from "../osint/stealerKit";
 import { domSimhash, extractPageKit, ownScriptUrls, withRequestUrls, type PageKit, type PageScript } from "../osint/pagekit";
 import { TEXT_CONFIG } from "../osint/textConfig";
 import type { RdapInfo } from "../osint/rdap";
@@ -420,9 +421,19 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
    */
   const withOwnScripts = async (kit: PageKit, html: string, pageUrl: string): Promise<PageKit> => {
     const urls = ownScriptUrls(kit, pageUrl);
-    if (!urls.length) return kit;
+    const foreignUrls = foreignScriptCandidates(kit.assets, pageUrl);
+    if (!urls.length && !foreignUrls.length) return kit;
     const scripts: PageScript[] = [];
+    const foreignScripts: PageScript[] = [];
     let missing = 0;
+    for (const url of foreignUrls) {
+      try {
+        const data = await sources.fetchBinary(url);
+        if (data && data.length <= TEXT_CONFIG.kitStrings.maxScriptBytes) foreignScripts.push({ url, body: data.toString("utf8") });
+      } catch (e) {
+        log(`skrypt zewnętrzny niedostępny (${url}): ${errMsg(e)}`);
+      }
+    }
     for (const url of urls) {
       try {
         const data = await sources.fetchBinary(url);
@@ -433,8 +444,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         missing++;
       }
     }
-    const next = scripts.length ? extractPageKit(html, pageUrl, { scripts }) : kit;
-    return { ...next, ownScripts: { read: scripts.length, missing } };
+    const next = scripts.length || foreignScripts.length ? extractPageKit(html, pageUrl, { scripts, foreignScripts }) : kit;
+    return urls.length ? { ...next, ownScripts: { read: scripts.length, missing } } : next;
   };
 
   /**

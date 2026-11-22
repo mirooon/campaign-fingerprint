@@ -32,6 +32,7 @@ import { idnConfusableInUrl } from "../osint/idnConfusable";
 import { PHONE_CONFIG } from "../osint/phoneConfig";
 import { phoneLineFlags, phoneLineInfo } from "../osint/phoneLine";
 import { profitClaimKey, profitClaims } from "../text/profitClaims";
+import { canonicalExperts, findExpertNames, isPublicPerson, loadPublicPersonForms, type ExpertName } from "../text/fictionalExpert";
 import { celebBaitLabel, DEFAULT_NARRATIVE_CONFIG, detectNarrative, type MaterialNarrative } from "../text/narrative";
 import { scamBrands } from "../text/scamBrand";
 import { stripGenericPhrases, stripUiChrome } from "../text/uiChrome";
@@ -233,6 +234,24 @@ export function buildEvidenceGraph(
       tenantOwner.set(t, cur === undefined || cur === owner ? owner : null);
     }
   }
+
+  // Fictional experts (B-313): "dr"/"prof." plus a name that is not on the public list, from the text of the ad, the
+  // screenshot, the recording and the page. Spelling variants are merged over the whole set, so the pre-pass comes first.
+  const expertsOf = new Map<string, ExpertName[]>();
+  const expertCounts = new Map<string, number>();
+  if (config.fictionalExpert) {
+    const publicForms = loadPublicPersonForms();
+    for (const item of items) {
+      const enr = dataset.perItem[item.id];
+      const pex = enr?.pageKey ? dataset.pages[enr.pageKey]?.extract : null;
+      const text = [item.text, enr?.ocrText ? stripUiChrome(enr.ocrText).text : null, enr?.asrText ? stripHallucinations(enr.asrText) : null, pex?.title, pex?.description, pex?.visibleText].filter(Boolean).join("\n");
+      const found = findExpertNames(text).filter((x) => !isPublicPerson(x.key, publicForms)).slice(0, config.fictionalExpert.maxPerMaterial);
+      if (!found.length) continue;
+      expertsOf.set(item.id, found);
+      for (const x of found) expertCounts.set(x.key, (expertCounts.get(x.key) ?? 0) + 1);
+    }
+  }
+  const expertCanon = canonicalExperts(expertCounts);
 
   for (const item of items) {
     const facts: Fact[] = [];
@@ -949,6 +968,16 @@ export function buildEvidenceGraph(
           if (!list.includes(t)) itemData.techniques = [...list, t];
         }
         if (kit.clickfix) itemData.clickfix = kit.clickfix;
+        // Trojan in the lander kit (B-333): the attribute says which signals matched, the C2 host is a strong trace
+        // (every copy of the same pulled kit reports to the same host)
+        if (kit.stealerKit) {
+          itemData.stealerKit = kit.stealerKit;
+          for (const host of kit.stealerKit.c2Hosts) {
+            const id = g.node("c2_host", host, `serwer C2 ${host}`, { signals: kit.stealerKit.signals });
+            g.edge(finalUrlNode, id, "mentions", `skrypt zestawu stron wysyła ciasteczka lub dane logowania do ${host}`);
+            add(id, "c2_host", [...finalPath, id], rel, `ten sam serwer C2 (${host}), do którego trojan w zestawie stron wysyła dane`);
+          }
+        }
       }
       // Infrastructure attributes of the landing page (they explain, they never link): the certificate, a brand in the
       // path of a domain without it, the shop platform, hosting outside the EU and the EEA
@@ -1160,6 +1189,15 @@ export function buildEvidenceGraph(
       g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
       add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
     }
+    // A made-up expert ("dr Jan Testowy"): one operator invented the name, so the same name (or a typo of it) links (B-313)
+    const experts = expertsOf.get(item.id) ?? [];
+    for (const x of experts) {
+      const key = expertCanon.get(x.key) ?? x.key;
+      const id = g.node("fictional_expert", key, `${x.title === "prof" ? "prof." : "dr"} ${x.name}`, { title: x.title, name: x.name });
+      g.edge(itemNode, id, "mentions", `ekspert „${x.name}” (${x.title === "prof" ? "prof." : "dr"}) spoza listy osób publicznych`);
+      add(id, "fictional_expert", [itemNode, id], 1, `ten sam zmyślony ekspert: ${x.title === "prof" ? "prof." : "dr"} ${x.name}`);
+    }
+    if (experts.length) itemData.fictionalExperts = experts.map((x) => `${x.title === "prof" ? "prof." : "dr"} ${x.name}`);
     // Company identifiers and bank accounts of the page and of the screenshots: a trace that only supports a link
     // (campaignRules.notAloneKinds), since a firm's data can be copied; a made-up number still ties the pages that share it
     const { companyIds, legalEntities, companyIdInvalid, notes: companyNotes } = companyIdsOfMaterial(pageEx, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));

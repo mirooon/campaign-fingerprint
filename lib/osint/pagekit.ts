@@ -12,6 +12,7 @@
  * JavaScript is never executed. The scanner never throws on malformed HTML, and
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
+import { detectStealerKit, mergeStealerKits, type StealerKit } from "./stealerKit";
 import { detectPageTechniques, type ClickfixCommand, type CommentBlock, type PageTechnique } from "./pageTechniques";
 import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformLinkIds, type LanderConfig, type PlatformLinkIds } from "./landerConfig";
 import { createHash } from "node:crypto";
@@ -107,6 +108,8 @@ export interface PageKit {
   techniques?: PageTechnique[];
   /** Kind and SHA-256 of the command a fake verification copies to the clipboard (ClickFix); never the command itself. */
   clickfix?: ClickfixCommand;
+  /** Trojan of the lander kit (B-333): a script with an admin-path check that sends the cookie or credentials to a C2 host; signals and hosts. */
+  stealerKit?: StealerKit;
   /** Campaign parameters in the hidden fields of the lead form and in page-script config objects (origin form/script, I23). */
   pageParams?: CampaignParam[];
   /** Keys of the CRM / lead API in the page (hash and preview only, I23). */
@@ -899,7 +902,7 @@ function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBloc
 }
 
 /** Extracts the page-kit fingerprint of one HTML document. Never throws. */
-export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: number; shingle?: number; scripts?: PageScript[] } = {}): PageKit {
+export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: number; shingle?: number; scripts?: PageScript[]; foreignScripts?: PageScript[] } = {}): PageKit {
   if (!html) return emptyKit();
   try {
     const events = scanHtml(html);
@@ -1019,6 +1022,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
       ...leadTracesOf(html, pageUrl, opts.scripts ?? []),
+      ...stealerOf(html, pageUrl, [...(opts.scripts ?? []), ...(opts.foreignScripts ?? [])]),
     };
   } catch {
     return emptyKit();
@@ -1069,6 +1073,17 @@ function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pi
     ...(kitStrings.length ? { kitStrings } : {}),
     ...(localized.size ? { localizedUi: [...localized].sort() } : {}),
   };
+}
+
+/**
+ * The `stealerKit` field of a page kit (B-333): the inline scripts, the page's own external scripts and the
+ * fetched third-party library files (free static hosts, jsDelivr `gh/`) are checked, library masks do not
+ * apply (a fake library is exactly what is looked for). Omitted when nothing matched.
+ */
+function stealerOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "stealerKit"> {
+  const codes = [...splitHtml(html).scripts, ...external.map((s) => s.body)];
+  const found = mergeStealerKits(codes.map((c) => detectStealerKit(c, pageUrl)));
+  return found ? { stealerKit: found } : {};
 }
 
 function tenantsOf(urls: string[]): Pick<PageKit, "platformTenants"> {

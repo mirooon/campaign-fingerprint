@@ -63,7 +63,7 @@ Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − �
 | | | persona | 0,1 |
 | | | registrar, asn | 0,05 |
 
-Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana ręcznie; przy rozbieżności wygrywa `config.ts`.
+Wagi własne części węzłów (od zadania I10, nadpisują wagę typu): token weryfikacji domeny 0,9 (`tracker`), para osób 0,35 (`persona`, tylko grupa), marka oszustwa 0,45 (`campaign_param`, ślad zestawu stron), wydawca AdSense 0,5 (`tracker`, ślad zestawu stron), host z żądań strony 0,25 (`endpoint`, ślad zestawu stron). Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana ręcznie; przy rozbieżności wygrywa `config.ts`.
 
 ## 4. Kampania a grupa podobnych kampanii
 
@@ -83,6 +83,40 @@ Wynik ma dwa poziomy:
 7. **Persona działa tylko na poziomie grupy.** Ta sama osoba publiczna występuje w reklamach wielu niezwiązanych operatorów, więc nie łączy kampanii i nie liczy się do ich wyniku.
 
 **Dlaczego jawne reguły, a nie HDBSCAN lub inne grupowanie bez nadzoru.** Każda krawędź musi dać się wyjaśnić osobie, która zdecyduje o zgłoszeniu: „te dwa materiały łączy tracker X (rzadki, waga 0,95) i serwer Y”. Metoda zbiorcza daje odległość w przestrzeni cech i parametr, którego nie da się obronić przed odbiorcą. Dlatego: reguły → union-find dla silnych dowodów; **Louvain** (grupowanie wspólnot na grafie ważonym) dla reszty; wszystko z jawną listą przesłanek.
+
+## 4a. Zmiany metody po walidacji (zadanie I10, 22.11.2026)
+
+Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (wysoka precyzja, niska czułość). Zmiany mają ogólne uzasadnienie, test syntetyczny i opis w `docs/TECHNICAL.md` §4.16; liczby przed i po: punkt 9.
+
+**Nowe i poprawione ślady łączące.**
+- **Plik z witryny konta darmowego hostingu = hosting tego konta.** Gdy strona ładuje swoje skrypty z subdomeny platformy, na której każda subdomena to jedna witryna jednego konta (`netlify.app`, `pages.dev`, `github.io` …), host tej witryny liczy się jak hosting operatora (waga 0,95 × 0,7, nie silny). Kupiec skopiowanego zestawu stron trzyma pliki na własnej domenie, a publiczne CDN mają zniżkę. Host spoza tej listy (sieć reklamowa, statystyki) takiego śladu nie daje.
+- **Skrypty dopisywane przez CDN** (`/cdn-cgi/…`, np. dekodowanie e-maili Cloudflare) mają zniżkę ×0,02: to cecha CDN, nie operatora.
+- **Ślady z żądań strony (HAR, skan):** identyfikator piksela Mety z adresów wywołań, identyfikator kliknięcia trackera z wywołań zdarzeń, katalog landera platformy (`/landers/<uuid>/`) już z jednego adresu, parametry kampanii i identyfikator kliknięcia z linków CTA strony (relacja 0,8). Hosty spoza domeny strony (`tracker_host`, 0,25) są śladem zestawu stron: tylko potwierdzają, bo lista usług publicznych nigdy nie jest pełna. Żądania wcześniejszej strony tej samej sesji przeglądarki i żądania rozszerzeń przeglądarki osoby zapisującej HAR są pomijane.
+- **Tokeny weryfikacji domeny** (Meta, Google, Yandex; z kodu strony i rekordów TXT) to ślad jednego konta Business Managera albo Search Console: silny (0,9).
+- **Identyfikatory reklam i kampanii z linku:** identyfikator reklamy Mety w `utm_content`/`ad_id` łączy się z identyfikatorem z `fbclid`; `gad_campaignid` (Google Ads) i konto kupującego ruch (`acc=`, `_buyer=`) to silne parametry kampanii; miejsce wyświetlenia (`utm_placement`) jest słabe.
+- **Marka oszustwa** (nazwa produktu albo „platformy”, np. „Fikcyjnol Forte”, „TradeSynthIQ 4.7”) przetrwa zmianę twarzy i domeny, ale jeden produkt sprzedaje wielu afiliantów: to ślad zestawu stron (0,45), sam daje najwyżej grupę; ogólne nazwy platform mają zniżkę. Wydawca AdSense (`ca-pub-…`) też jest śladem zestawu stron (identyfikatory wydawców bywają współdzielone).
+- **Linki-opakowania platform** (`l.facebook.com/l.php?u=`, `google.com/url?q=`, `adurl=`) są rozwijane do adresu docelowego, bo domeny platform mają wagę 0.
+- **Siatki bezpieczeństwa:** ślad wspólny dla więcej niż 20 materiałów nie jest silny niezależnie od wielkości zbioru (bez tego w dużej partii jeden powszechny ślad skleja łańcuchowo); społeczność Louvaina rozpadająca się na części bez powiązań jest dzielona na te części; stałe frazy reklam („dowiedz się więcej”, „tylko dziś”) i halucynacje transkrypcji („Napisy stworzone przez społeczność Amara.org”) nie liczą się do podobieństwa tekstu; transkrypcja może używać VAD (wykrywania mowy), żeby nie pisać tekstu do samej muzyki; strona wyzwania antybotowego to zablokowane pobranie, nie cloaking.
+
+**Atrybuty materiału, kampanii i grupy (nigdy dowód kampanii, bez wyniku ryzyka).**
+- **Narracja:** temat (inwestycja, dotacja, zdrowie z podkategoriami, hazard, wybory, „inwestycje dzięki AI”, złoto z NBP, wojna i surowce, „tajemnica”, „nastolatek zarobił”, odzyskanie środków, wydarzenia: mundial, zaprzysiężenie, „państwowa inwestycja”), forma przynęty (fałszywa sensacja, polecenie, fałszywy wywiad), kwoty, data materiału. Kampania i grupa mają podsumowanie narracji, a kampania na jednej infrastrukturze, która zmienia temat w ciągu tygodnia, dostaje opis „ten sam operator, dwie narracje”. Etykieta reguły IHC (`celeb_bait_investment`: osoba z listy oraz obietnica zysku, zaproszenie do grupy albo podrobione medium) jest atrybutem. Paczka dowodów bierze „usługę finansową” z narracji, z cytatem i dopiskiem „(wniosek)”.
+- **Podrabiana marka na kreacji** (CLIP zero-shot na liście ok. 20 portali, banków i instytucji) i **grupy osób** z listy osób publicznych („Dziennikarze”) są cechami grupy. **Para osób** w jednym materiale (fikcyjna rozmowa dwóch znanych osób) jest rzadsza niż jedna osoba, więc sama tworzy grupę podobnych kampanii, ale nigdy kampanię.
+- **Most i najsłabsze ogniwo:** kampania, którą trzyma razem jeden silny ślad między dwiema podgrupami, ma pole `bridge` („kampania sklejona jednym śladem: X”, kandydat do listy zniżek), a `minInternalScore` pokazuje członka, który wisi najbliżej progu.
+- **Wiek domeny i pierwszego certyfikatu** w dniu pierwszej obserwacji materiału, **platforma strony** (np. platforma stron, tracker; tylko atrybut, bez grupy, bo platforma ma tysiące niezwiązanych klientów), **liczba reklam zdjętych przez platformę**, **kolumny wejścia spoza mapowania** („dane z wejścia”).
+
+**Rozszerzalność bez zmiany kodu (`--config`).** Plik konfiguracji dopisuje listy zniżek (tablice w `lists` są dołączane do domyślnych) i może zrobić pivot z nieznanej kolumny wejścia:
+
+```json
+{
+  "extraPivots": { "page_id": "advertiser" },
+  "lists": {
+    "domains": [{ "match": "cdn-uslugi.example", "factor": 0, "reason": "usługa współdzielona przez wiele stron" }],
+    "genericScamBrands": [{ "match": "zyskomat*", "factor": 0.2, "reason": "ogólna nazwa platformy" }]
+  }
+}
+```
+
+Wartość kolumny `page_id` staje się wtedy węzłem typu `advertiser` (klucz `extra:page_id=<wartość>`) z wagą, zniżkami i regułami tego typu.
 
 ## 5. Duplikaty i „za mało danych”
 
@@ -138,7 +172,7 @@ Na dwóch materiałach z kopią w Wayback wynik z samej kopii miał te same rodz
 
 Metodą jest wyłącznie **wykrywanie pasywne po sygnaturach w zebranych danych**: analiza zapisanych stron i HAR pod kątem sygnatur skryptów cloakera w kodzie strony (cecha `cloakerInSource`) oraz tego samego adresu zapisanego z różną treścią (osobne zapisy `#capture`). Nie wysyłamy żadnych dodatkowych żądań.
 
-Opcja `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami: crawler platformy i przeglądarka mobilna) istnieje, ale jest **domyślnie wyłączona** i nie jest metodą. Test po User-Agencie nie dowodzi braku cloakingu po IP i geolokalizacji: różnica treści coś wskazuje, jej brak nic nie wyklucza.
+Opcja `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami: crawler platformy i przeglądarka mobilna) istnieje, ale jest **domyślnie wyłączona** i nie jest metodą. Gdy jedno z tych pobrań trafi na stronę wyzwania antybotowego (np. „Just a moment…”), wynik to „pobranie zablokowane przez ochronę przed botami”, a nie podejrzenie cloakingu. Test po User-Agencie nie dowodzi braku cloakingu po IP i geolokalizacji: różnica treści coś wskazuje, jej brak nic nie wyklucza.
 
 ## 9. Walidacja i ograniczenia
 
@@ -153,6 +187,8 @@ Materiały: 212 stron oszustw zebranych z publicznych źródeł (głównie publi
 - (c) spójność nowych kampanii (rodziny innych operatorów, B-cubed): precyzja 0,971, czułość 0,331; 3 z 29 nowych kampanii łączą dwie rodziny (dwie podrodziny jednej strony na wspólnym hoście). Pary na całej partii: precyzja 0,993, czułość 0,126.
 - (d) duplikaty: 0. (e) czas partii 212 materiałów: 0,8 s, szczyt pamięci ok. 330 MB.
 - Pokrycie: w 5 z 12 prawdziwych kampanii z co najmniej dwoma materiałami narzędzie znalazło ≥ 50% członków w jednej kampanii, w 1 z 12 wszystkich.
+
+**Po poprawkach metody (zadanie I10, punkt 4a), ta sama partia i etykiety:** (a) 34/78 (43,6%) wariantów w właściwej znanej kampanii, 11/78 tylko „podobne”, 0 w złej; (b) nadal 134/134, a negatywów z „podobnymi kampaniami” 0; (c) bez zmian; pary na całej partii: precyzja 0,997, czułość 0,272 (F1 0,224 → 0,427); pokrycie 6 z 12 kampanii. Na 25 sprawach próbki partycja i grupy bez zmian.
 
 Wniosek: na tych danych metoda jest ostrożna (wysoka precyzja, niska czułość). Główne źródła rozbić to reguła „jeden rodzaj dowodu nie tworzy kampanii” przy stronach znanych tylko z listy żądań (bez kodu strony) i brak w publicznych skanach śladów z linku reklamy. **Zastrzeżenie:** etykiety rodzin nadano częściowo po tych samych śladach infrastruktury, których używa narzędzie, więc (a) jest optymistyczna; miarodajne są przede wszystkim (b) i (c). Policzysz to samo na własnych etykietach: `bun run evaluate -- --csv <partia.csv> --labels <etykiety.json>`.
 

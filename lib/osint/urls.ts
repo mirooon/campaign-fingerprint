@@ -139,6 +139,56 @@ export function isHttpUrl(input: string): boolean {
   }
 }
 
+/**
+ * Redirect wrappers of platforms (B-215): host suffix, optional path prefix and the query parameters (in
+ * order) that hold the target. ad.doubleclick.net puts "adurl=" in the path after ";".
+ */
+const URL_WRAPPERS: Array<{ host: string; path?: string; params: string[] }> = [
+  { host: "l.facebook.com", path: "/l.php", params: ["u"] },
+  { host: "lm.facebook.com", path: "/l.php", params: ["u"] },
+  { host: "l.messenger.com", path: "/l.php", params: ["u"] },
+  { host: "l.instagram.com", params: ["u"] },
+  { host: "google.com", path: "/url", params: ["url", "q"] },
+  { host: "googleadservices.com", path: "/pagead/aclk", params: ["adurl"] },
+  { host: "doubleclick.net", params: ["adurl"] },
+];
+
+/**
+ * Target address of a platform redirect wrapper (l.facebook.com/l.php?u=, l.instagram.com/?u=,
+ * google.com/url?q= or url=, googleadservices.com/pagead/aclk?adurl=, ad.doubleclick.net/…adurl=), or null
+ * for any other link and for a target that is not http(s). The platforms' own domains weigh 0, so without
+ * this a wrapped link from a screenshot or HAR loses the landing domain.
+ */
+export function unwrapPlatformUrl(input: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(input.trim());
+  } catch {
+    return null;
+  }
+  const host = u.hostname.toLowerCase();
+  const rule = URL_WRAPPERS.find((w) => (host === w.host || host.endsWith(`.${w.host}`)) && (!w.path || u.pathname === w.path || u.pathname.startsWith(`${w.path}/`)));
+  if (!rule) return null;
+  const inPath = /;adurl=([^;?#]+)/i.exec(u.pathname)?.[1];
+  const raw = rule.params.map((p) => u.searchParams.get(p)).find((v) => !!v) ?? (inPath ? safeDecode(inPath) : null);
+  if (!raw) return null;
+  try {
+    const t = new URL(raw);
+    return t.protocol === "http:" || t.protocol === "https:" ? t.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** decodeURIComponent that keeps the input when it is not valid percent-encoding. */
+function safeDecode(s: string): string {
+  try {
+    return decodeURIComponent(s);
+  } catch {
+    return s;
+  }
+}
+
 /** Resolves a (possibly relative) href against a base URL; http(s) only. */
 export function resolveUrl(href: string, base: string): string | null {
   const h = href.trim();

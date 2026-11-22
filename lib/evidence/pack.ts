@@ -16,6 +16,7 @@ import { Discounter } from "../graph/weights";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import type { CampaignSummary } from "../pipeline/summary";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
+import { DEFAULT_NARRATIVE_CONFIG, topicQuote, type MaterialNarrative } from "../text/narrative";
 
 export const GOOD_FAITH_STATEMENT =
   "Oświadczam, że w dobrej wierze uważam, iż informacje i zarzuty zawarte w zgłoszeniu są prawidłowe i kompletne.";
@@ -199,8 +200,18 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   // ---------------------------------------------------------------- domains (facts)
   const domainHosts = new Map<string, Set<string>>();
   const domainPages = new Map<string, PageInfo[]>();
+  // Financial service: a conclusion from the narrative of the ad (a financial topic in its copy or page),
+  // quoted, never a keyword match alone (a bare "platforma" is no investment offer)
+  const domainOffer = new Map<string, string>();
   for (const item of members) {
     const page = pagesOf(item);
+    const narrative = nodeById.get(`item:${item.id}`)?.data.narrative as MaterialNarrative | undefined;
+    const topic = narrative?.topics.find((t) => DEFAULT_NARRATIVE_CONFIG.financialTopics.includes(t.id));
+    const offerDomain = registrableDomain(page?.fetch.finalUrl ?? item.landingUrl ?? "");
+    if (topic && offerDomain && !domainOffer.has(offerDomain)) {
+      const text = [item.text, page?.extract?.title, page?.extract?.description, page?.extract?.visibleText].filter(Boolean).join("\n");
+      domainOffer.set(offerDomain, `„${topicQuote(text, topic.id) ?? topic.terms.join(", ")}” (wniosek z narracji materiału: ${topic.id})`);
+    }
     const urls = page ? [...page.fetch.redirectChain.map((h) => h.url), page.fetch.finalUrl] : item.landingUrl ? [item.landingUrl] : [];
     for (const u of urls) {
       const n = normalizeUrl(u);
@@ -272,7 +283,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           certificates: (di?.ct?.certs ?? []).slice(0, 10).map((c) => ({ issuer: c.issuer, not_before: c.notBefore, not_after: c.notAfter, san_count: c.sanDomains.length, crtsh_id: c.id })),
         },
         cert_warning_list_status: "niesprawdzone — sprawdź https://hole.cert.pl/domains/v2/domains.json i zapisz RegisterPositionId oraz InsertDate",
-        financial_service_offered: null,
+        financial_service_offered: domainOffer.get(domain) ?? null,
         payment_identifiers: [...new Set(kitPages.flatMap((p) => p.extract?.wallets.map((w) => `${w.kind}:${w.address}`) ?? []))],
       };
     });
@@ -333,7 +344,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     `kierujących do ${domains.length} domen (${domains.map((d) => d.domain_fqdn).join(", ") || "brak"}). ` +
     `W treści reklam lub danych wejściowych wskazano osoby: ${personaNames}. ` +
     `Reklamy łączą wspólne identyfikatory: ${sharedIdentifiers.slice(0, 5).map((s) => `${s.type} ${s.value}`).join("; ") || "brak"}.`;
-  const hasFinancialOffer = members.some((m) => /inwest|zysk|dywidend|krypto|bitcoin|platform|zarab/i.test(m.text ?? ""));
+  const hasFinancialOffer = domainOffer.size > 0;
 
   const toolVersion = opts.toolVersion ?? { name: "hacknation-osint-starter", version: "0.1.0", gitCommit: null };
   const summary = opts.summaries?.[campaign.id];

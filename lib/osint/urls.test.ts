@@ -1,14 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  extractUrlsFromText,
-  hostOf,
-  normalizeUrl,
-  refang,
-  registrableDomain,
-  resolveUrl,
-  toAsciiHost,
-  toUnicodeHost,
-} from "./urls";
+import { extractUrlsFromText, hostOf, normalizeUrl, refang, registrableDomain, resolveUrl, toAsciiHost, toUnicodeHost, unwrapPlatformUrl } from "./urls";
 
 describe("refang", () => {
   it("undoes common defanging", () => {
@@ -114,5 +105,23 @@ describe("normalizeUrl fragment", () => {
     expect(n.url).toBe("https://lp.example/landers/a_b_c/");
     expect(n.fragment).toBe("tickets");
     expect(normalizeUrl("https://lp.example/")!.fragment).toBeUndefined();
+  });
+});
+
+describe("unwrapPlatformUrl (B-215)", () => {
+  it("returns the target of Facebook, Instagram, Google and ad-click wrappers", () => {
+    expect(unwrapPlatformUrl("https://l.facebook.com/l.php?u=https%3A%2F%2Fx.example%2Foferta%3Fa%3D1&h=AT0abc")).toBe("https://x.example/oferta?a=1");
+    expect(unwrapPlatformUrl("https://lm.facebook.com/l.php?u=https%3A%2F%2Fx.example%2F")).toBe("https://x.example/");
+    expect(unwrapPlatformUrl("https://l.instagram.com/?u=https%3A%2F%2Fy.test%2Fp&e=1")).toBe("https://y.test/p");
+    expect(unwrapPlatformUrl("https://www.google.com/url?sa=t&url=https%3A%2F%2Fz.example%2F&q=x")).toBe("https://z.example/");
+    expect(unwrapPlatformUrl("https://www.google.com/url?q=https://z.example/a")).toBe("https://z.example/a");
+    expect(unwrapPlatformUrl("https://www.googleadservices.com/pagead/aclk?sa=L&ai=abc&adurl=https%3A%2F%2Fw.example%2Flp")).toBe("https://w.example/lp");
+    expect(unwrapPlatformUrl("https://ad.doubleclick.net/ddm/clk/123;abc;adurl=https%3A%2F%2Fv.example%2F")).toBe("https://v.example/");
+  });
+
+  it("returns null for ordinary links and wrappers without an http(s) target", () => {
+    expect(unwrapPlatformUrl("https://x.example/?u=https%3A%2F%2Fy.example")).toBeNull();
+    expect(unwrapPlatformUrl("https://l.facebook.com/l.php?u=javascript%3Aalert(1)")).toBeNull();
+    expect(unwrapPlatformUrl("not a url")).toBeNull();
   });
 });

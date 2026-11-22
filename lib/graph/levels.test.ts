@@ -157,3 +157,62 @@ describe("favicon of an impersonated brand", () => {
     expect(d).toEqual([{ reason: "favicon podrabianej marki „Kurier Testowy” (cecha marki, pod którą się podszywają, nie operatora)", factor: 0.1, rule: "kit.brandAssetFactor" }]);
   });
 });
+
+describe("Meta ad ID in the link's parameters (B-156)", () => {
+  it("shares one meta_ad between utm_content=<ad ID> and an fbclid whose adid is the same number", () => {
+    const fb = "PAYnJpZAECdGVzdC1jbGljay1yZWNvcmQAYWRpZAGrE2D2xQHHc3J0Y2FwcF9pZA8xMjM0NTAwMDAwNjc4OTAAAQ";
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/?utm_content=120211122233344455", params: [{ name: "utm_content", value: "120211122233344455" }] },
+      { id: "b", url: `https://beta-zdrowie.test/?fbclid=${fb}` },
+    ]);
+    const l = res.graph.links.find((x) => x.a === "a" && x.b === "b")!;
+    expect(l.evidence.map((e) => e.pivot)).toContain("meta_ad:120211122233344455");
+  });
+});
+
+describe("guards of rules that already work (B-238)", () => {
+  /** A newer-format fbclid holding the given ad ID and app ID, as Meta encodes it (base64url record). */
+  const fbclid = (adId: string, appId: string) => {
+    const id = Buffer.alloc(8);
+    id.writeBigUInt64BE(BigInt(adId));
+    const raw = Buffer.concat([Buffer.from("brid\u0001\u0010test-click-record\u0000adid"), id, Buffer.from("srtc"), Buffer.from(`app_id${String.fromCharCode(appId.length)}${appId}`), Buffer.from([0, 1])]);
+    return `PA${raw.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "")}`;
+  };
+
+  it("does not link two clicks with different ad IDs that share the app ID and the rest of the fbclid", () => {
+    const res = run([
+      { id: "a", url: `https://alfa-wiadomosci.example/?fbclid=${fbclid("120211122233344455", "123450000067890")}` },
+      { id: "b", url: `https://beta-zdrowie.test/?fbclid=${fbclid("120211122233399999", "123450000067890")}` },
+    ]);
+    expect(res.graph.nodes.filter((n) => n.type === "meta_ad").map((n) => n.key).sort()).toEqual(["120211122233344455", "120211122233399999"]);
+    expect(res.graph.links).toEqual([]);
+  });
+
+  it("does not attach a material through Louvain by a shared favicon and a Cloudflare IP alone", () => {
+    const infra = { hosts: { "alfa-wiadomosci.example": ["104.16.1.1"], "beta-zdrowie.test": ["104.16.1.1"], "gamma-portal.example": ["104.16.1.1"] } };
+    const res = clusterCampaigns(
+      buildEvidenceGraph(
+        makeDataset(
+          [
+            { id: "a", url: "https://alfa-wiadomosci.example/", trackers: [{ kind: "ga4", id: "G-WSPOL0001" }] },
+            { id: "b", url: "https://beta-zdrowie.test/", trackers: [{ kind: "ga4", id: "G-WSPOL0001" }], faviconMmh3: 424242 },
+            { id: "c", url: "https://gamma-portal.example/", faviconMmh3: 424242 },
+          ],
+          infra,
+        ),
+        { textMethod: "none" },
+      ),
+    );
+    expect(res.campaigns.assignments.a).toBe(res.campaigns.assignments.b);
+    expect(res.campaigns.assignments.c).not.toBe(res.campaigns.assignments.b);
+  });
+
+  it("keeps the type weight 0.6 for an IP outside the lists of shared hosting", () => {
+    const res = clusterCampaigns(
+      buildEvidenceGraph(makeDataset([{ id: "a", url: "https://alfa-wiadomosci.example/" }, { id: "b", url: "https://beta-zdrowie.test/" }], { hosts: { "alfa-wiadomosci.example": ["192.0.2.77"], "beta-zdrowie.test": ["192.0.2.77"] } }), { textMethod: "none" }),
+    );
+    const ip = res.graph.nodes.find((n) => n.id === "ip:192.0.2.77")!;
+    expect(ip.discounts).toEqual([]);
+    expect(ip.weight).toBe(0.6);
+  });
+});

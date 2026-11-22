@@ -18,6 +18,8 @@ import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
 import { hashFavicon, hashImage } from "../media/imageHash";
+import { brandVectors, matchBrand, type BrandHit } from "../media/brand";
+import { cloakingVerdict, isBotChallenge } from "../osint/cloaking";
 import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo, extractFrames } from "../media/imageEmbed";
 import { detectOcr, ocrImage } from "../media/ocr";
 import { nonEmptyFile } from "../media/tools";
@@ -32,7 +34,7 @@ import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
-import { domSimhash, extractPageKit, simhashDistance, withRequestUrls } from "../osint/pagekit";
+import { domSimhash, extractPageKit, withRequestUrls } from "../osint/pagekit";
 import type { RdapInfo } from "../osint/rdap";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
@@ -304,7 +306,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   if (opts.asr) {
     const st = await detectAsr();
     asrOn = st.available;
-    log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
+    log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})${st.vadModel ? `, VAD ${st.vadModel}` : st.vadReason ? `, ${st.vadReason}` : ""}` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
   }
   let clipOn = false;
   const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: TTL.week * 4 }) : null;
@@ -323,6 +325,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   const pagePromises = new Map<string, Promise<PageInfo>>();
   const perItem: Record<string, ItemEnrichment> = {};
 
+  /** One fetch of the cloaking check with a given User-Agent: final address, status, DOM simhash, and whether it hit an anti-bot challenge. */
   const cloakingVariant = async (url: string, userAgent: string): Promise<CloakingVariant> => {
     try {
       const r = await sources.fetchPage(url, { userAgent });
@@ -334,23 +337,17 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         domSimhash: isHtml ? domSimhash(r.body!).simhash : null,
         bodySha256: r.bodySha256,
         error: r.error,
+        ...(isBotChallenge(r.status, r.body) ? { botChallenge: true } : {}),
       };
     } catch (e) {
       return { userAgent, finalUrl: null, status: null, domSimhash: null, bodySha256: null, error: errMsg(e) };
     }
   };
 
+  /** Opt-in cloaking check of a landing page: crawler and mobile fetches compared by `cloakingVerdict`. */
   const checkCloaking = async (url: string): Promise<CloakingCheck> => {
     const [crawler, mobile] = await Promise.all([cloakingVariant(url, CRAWLER_UA), cloakingVariant(url, MOBILE_UA)]);
-    const norm = (u: string | null) => (u ? (normalizeUrl(u)?.url ?? u) : null);
-    const finalUrlDiffers = !!crawler.finalUrl && !!mobile.finalUrl && norm(crawler.finalUrl) !== norm(mobile.finalUrl);
-    const domDistance = crawler.domSimhash && mobile.domSimhash ? simhashDistance(crawler.domSimhash, mobile.domSimhash) : null;
-    const ok = (v: CloakingVariant) => !v.error && v.status !== null && v.status >= 200 && v.status < 300;
-    const reasons: string[] = [];
-    if (finalUrlDiffers) reasons.push(`inny adres końcowy: crawler → ${crawler.finalUrl}, przeglądarka mobilna → ${mobile.finalUrl}`);
-    if (domDistance !== null && domDistance > cloakThreshold) reasons.push(`inna struktura strony (simhash DOM, odległość ${domDistance}/64)`);
-    if (ok(crawler) !== ok(mobile)) reasons.push(`różny wynik pobrania: crawler ${crawler.status ?? crawler.error}, mobilna ${mobile.status ?? mobile.error}`);
-    return { crawler, mobile, finalUrlDiffers, domDistance, suspected: reasons.length > 0, reasons };
+    return cloakingVerdict(crawler, mobile, cloakThreshold);
   };
 
   /** Outcome of the archive step per page key, and the registrable domains whose archived copy predates their registration. */
@@ -561,6 +558,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         let image: ImageInfo | null = null;
         let ocrText: string | null = null;
         let imageEmbedding: number[] | null = null;
+        let creativeBrand: BrandHit | null = null;
         let advertiserOcr: string | null = null;
         let extraOcrText: string | null = null;
         // the address bar is read from the top strip of every screenshot, before the OCR text is cut down to the post
@@ -592,6 +590,13 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
                 imageEmbedding = await runClip(img.bytes);
               } catch (e) {
                 errors.push(`clip: ${errMsg(e)}`);
+              }
+            }
+            if (imageEmbedding) {
+              try {
+                creativeBrand = matchBrand(imageEmbedding, await brandVectors());
+              } catch (e) {
+                errors.push(`marka (CLIP zero-shot): ${errMsg(e)}`);
               }
             }
           } catch (e) {
@@ -697,6 +702,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           asrText,
           audioFp,
           ...(imageEmbedding ? { imageEmbedding } : {}),
+          ...(creativeBrand ? { creativeBrand } : {}),
           ...(videoEmbedding ? { videoEmbedding } : {}),
           ...(videoSha256 ? { videoSha256 } : {}),
           ...(pageKey && archiveStatus.has(pageKey) ? { archive: archiveStatus.get(pageKey) } : {}),

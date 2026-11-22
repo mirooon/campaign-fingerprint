@@ -107,6 +107,8 @@ export interface CloakingVariant {
   status: number | null;
   domSimhash: string | null;
   bodySha256: string | null;
+  /** The response was an anti-bot challenge page (403/503 "Just a moment…", cf-chl): the fetch was blocked (B-117). */
+  botChallenge?: boolean;
   error: string | null;
 }
 
@@ -117,6 +119,8 @@ export interface CloakingCheck {
   domDistance: number | null;
   suspected: boolean;
   reasons: string[];
+  /** "bot_challenge": a variant was stopped by anti-bot protection, so nothing can be said about cloaking (B-117). */
+  state?: "checked" | "bot_challenge";
 }
 
 export interface ImageInfo extends ImageHashes {
@@ -156,6 +160,8 @@ export interface ItemEnrichment {
   audioFp: AudioFingerprint | null;
   /** L2-normalised CLIP embedding of the creative image (opt-in). */
   imageEmbedding?: number[];
+  /** Brand of a portal, bank or institution recognised on the creative (CLIP zero-shot, opt-in with CLIP): an attribute, never a link. */
+  creativeBrand?: { id: string; name: string; kind: string; probability: number };
   /** CLIP embedding of the video creative: mean over interior frames (opt-in). */
   videoEmbedding?: number[];
   /** SHA-256 of the video creative file: the same file, not just a similar recording. */

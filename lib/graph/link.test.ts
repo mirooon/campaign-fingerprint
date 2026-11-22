@@ -350,3 +350,72 @@ describe("similarity and explain", () => {
     expect(textOnly.campaigns.assignments.t1).not.toBe(textOnly.campaigns.assignments.t2);
   });
 });
+
+describe("absolute limit of document frequency for strong evidence (B-128)", () => {
+  it("does not let a pivot shared by 30% of 200 items merge in union-find, but keeps a pivot of 2 in 15 strong", () => {
+    expect(pivotWeight("tracker", [], 60, 200, DEFAULT_LINK_CONFIG).strong).toBe(false);
+    expect(pivotWeight("tracker", [], 2, 15, DEFAULT_LINK_CONFIG).strong).toBe(true);
+    expect(pivotWeight("tracker", [], 8, 40, DEFAULT_LINK_CONFIG).strong).toBe(true);
+  });
+});
+
+describe("input columns outside the mapping (B-214)", () => {
+  const specs: TestItemSpec[] = [
+    { id: "a", url: "https://alfa-wiadomosci.example/", extra: { page_id: "100200300", uwagi: "z ankiety" } },
+    { id: "b", url: "https://beta-zdrowie.test/", extra: { page_id: "100200300" } },
+  ];
+
+  it("joins two rows with the same value of a column named in extraPivots, with the chosen node type", () => {
+    const config = mergeConfig({ extraPivots: { page_id: "advertiser" } });
+    const res = clusterCampaigns(buildEvidenceGraph(makeDataset(specs), { config, textMethod: "none" }), { config });
+    const l = res.graph.links.find((x) => x.a === "a" && x.b === "b")!;
+    expect(l.evidence.map((e) => e.pivot)).toContain("advertiser:extra:page_id=100200300");
+    expect(res.campaigns.assignments.a).toBe(res.campaigns.assignments.b);
+  });
+
+  it("keeps such columns as input data of the material and does not link them without extraPivots", () => {
+    const res = clusterCampaigns(buildEvidenceGraph(makeDataset(specs), { textMethod: "none" }));
+    expect(res.graph.links).toEqual([]);
+    expect(res.graph.nodes.find((n) => n.id === "item:a")!.data.inputExtra).toEqual({ page_id: "100200300", uwagi: "z ankiety" });
+  });
+});
+
+describe("links wrapped by a platform redirect (B-215)", () => {
+  it("adds the domain of the wrapped target when the ad link is a Facebook wrapper", () => {
+    const res = clusterCampaigns(buildEvidenceGraph(makeDataset([{ id: "a", url: "https://l.facebook.com/l.php?u=https%3A%2F%2Fx.example%2Foferta&h=AT0" }]), { textMethod: "none" }));
+    expect(res.graph.nodes.some((n) => n.id === "domain:x.example")).toBe(true);
+  });
+});
+
+describe("tracker parameter aliases (B-140)", () => {
+  it("joins two materials with the same buyer account (acc=) strongly, and not by a placement value", () => {
+    const res = clusterCampaigns(
+      buildEvidenceGraph(
+        makeDataset([
+          { id: "a", url: "https://alfa-wiadomosci.example/?acc=zespol_7&utm_placement=Others", params: [{ name: "buyer_account", value: "zespol_7" }, { name: "placement", value: "Others" }] },
+          { id: "b", url: "https://beta-zdrowie.test/?acc=zespol_7", params: [{ name: "buyer_account", value: "zespol_7" }] },
+          { id: "c", url: "https://gamma-portal.example/?utm_placement=Others", params: [{ name: "placement", value: "Others" }] },
+        ]),
+        { textMethod: "none" },
+      ),
+    );
+    const ab = res.graph.links.find((l) => l.a === "a" && l.b === "b")!;
+    expect(ab.strong).toBe(true);
+    expect(res.campaigns.assignments.a).not.toBe(res.campaigns.assignments.c);
+  });
+});
+
+describe("Google Ads campaign ID in two materials (B-159)", () => {
+  it("gives them one shared campaign_param node", () => {
+    const res = clusterCampaigns(
+      buildEvidenceGraph(
+        makeDataset([
+          { id: "a", url: "https://alfa-wiadomosci.example/?gad_campaignid=21987654321", params: [{ name: "google_campaign", value: "21987654321" }] },
+          { id: "b", url: "https://beta-zdrowie.test/?gad_campaignid=21987654321", params: [{ name: "google_campaign", value: "21987654321" }] },
+        ]),
+        { textMethod: "none" },
+      ),
+    );
+    expect(res.graph.links.find((l) => l.a === "a" && l.b === "b")!.evidence.map((e) => e.pivot)).toContain("campaign_param:google_campaign=21987654321");
+  });
+});

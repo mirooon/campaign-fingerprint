@@ -355,3 +355,173 @@ document.querySelectorAll("a").forEach(function (a) { a.href = go; });</script><
     expect(same(res, "a", "b")).toBe(true);
   });
 });
+
+describe("scripts added by a CDN and scripts hotlinked from a site of one hosting account", () => {
+  const jsAt = (pageUrl: string, fileUrl: string) => {
+    const u = new URL(fileUrl);
+    const sameOrigin = u.hostname === new URL(pageUrl).hostname;
+    const path = u.pathname.toLowerCase();
+    return { key: sameOrigin ? path : `${u.hostname}${path}`, url: fileUrl, host: u.hostname, path, basename: path.split("/").pop()!, kind: "js" as const, sameOrigin };
+  };
+  const page = (id: string, host: string, files: string[]): TestItemSpec => {
+    const url = `https://${host}/lp/`;
+    return { id, url, kit: { assets: files.map((f) => jsAt(url, f.startsWith("/") ? `https://${host}${f}` : f)) } };
+  };
+
+  it("does not tie two pages by the email-decode script the CDN proxy injects into every page (/cdn-cgi/)", () => {
+    const cdn = "/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js";
+    const res = run([page("a", "alfa-wiadomosci.example", [cdn]), page("b", "beta-zdrowie.test", [cdn])]);
+    const node = res.graph.nodes.find((n) => n.id === `asset:${cdn}`)!;
+    expect(node.discounts.map((d) => d.rule)).toContain("endpointPlatformPaths:/cdn-cgi/");
+    expect(same(res, "a", "b")).toBe(false);
+    expect((res.campaigns.families ?? []).some((f) => f.members.includes("a") && f.members.includes("b"))).toBe(false);
+  });
+
+  it("joins pages on different domains that load their scripts from one site of a free hosting account", () => {
+    const lib = "https://libs-lazy-40404.netlify.app/5.3.2/lazy.min.js";
+    const res = run([page("a", "alfa-wiadomosci.example", [lib]), page("b", "beta-zdrowie.test", [lib]), page("c", "gamma-portal.example", [lib])]);
+    const l = linkOf(res, "a", "b")!;
+    expect(l.evidence.map((e) => e.pivot)).toContain("host:libs-lazy-40404.netlify.app");
+    expect(l.strong).toBe(false);
+    expect(same(res, "a", "b") && same(res, "a", "c")).toBe(true);
+  });
+
+  it("keeps apart pages that load a file of the same name from sites of two different hosting accounts", () => {
+    const res = run([
+      page("a", "alfa-wiadomosci.example", ["https://libs-lazy-40404.netlify.app/5.3.2/lazy.min.js"]),
+      page("b", "beta-zdrowie.test", ["https://libs-lazy-50505.netlify.app/5.3.2/lazy.min.js"]),
+    ]);
+    expect(linkOf(res, "a", "b")).toBeUndefined();
+    expect(same(res, "a", "b")).toBe(false);
+  });
+
+  it("does not treat a script host outside the list of hosting platforms as the operator's hosting", () => {
+    const tag = "https://static.siec-reklamowa.example/tag/v2/loader.js";
+    const res = run([page("a", "alfa-wiadomosci.example", [tag]), page("b", "beta-zdrowie.test", [tag])]);
+    const l = linkOf(res, "a", "b")!;
+    expect(l.evidence.some((e) => e.pivotType === "host")).toBe(false);
+    expect(same(res, "a", "b")).toBe(false);
+  });
+});
+
+describe("domain verification token of a Business Manager or Search Console account (B-155)", () => {
+  const META = "facebook-domain-verification=k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6";
+  const runInfra = (specs: TestItemSpec[], txt: Record<string, string[]>) => clusterCampaigns(buildEvidenceGraph(makeDataset(specs, { txt }), { textMethod: "none" }));
+
+  it("joins two domains that carry the same Meta verification token in TXT", () => {
+    const res = runInfra([{ id: "a", url: "https://alfa-wiadomosci.example/" }, { id: "b", url: "https://beta-zdrowie.test/" }], {
+      "alfa-wiadomosci.example": [META],
+      "beta-zdrowie.test": [META, "v=spf1 -all"],
+    });
+    expect(linkOf(res, "a", "b")!.evidence.map((e) => e.pivot)).toContain("tracker:meta_domain_verification:k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6");
+    expect(same(res, "a", "b")).toBe(true);
+  });
+
+  it("does not join domains with different tokens or only a generic SPF record", () => {
+    const res = runInfra([{ id: "a", url: "https://alfa-wiadomosci.example/" }, { id: "b", url: "https://beta-zdrowie.test/" }], {
+      "alfa-wiadomosci.example": [META, "v=spf1 -all"],
+      "beta-zdrowie.test": ["facebook-domain-verification=z9x8c7v6b5n4m3l2k1j0h9g8f7d6s5", "v=spf1 -all"],
+    });
+    expect(linkOf(res, "a", "b")).toBeUndefined();
+  });
+});
+
+describe("signals in the page's requests (B-158)", () => {
+  const withRequests = (id: string, host: string, requests: string[]): TestItemSpec => {
+    const url = `https://${host}/lp/`;
+    return { id, url, kit: withRequestUrls(null, requests, url) };
+  };
+
+  it("shares a tracker_host between two pages of different domains that both call one tracker host", () => {
+    const res = run([
+      withRequests("a", "alfa-wiadomosci.example", ["https://trk.przyklad.test/event?e=view", "https://alfa-wiadomosci.example/app.js"]),
+      withRequests("b", "beta-zdrowie.test", ["https://trk.przyklad.test/event?e=lead"]),
+    ]);
+    const l = linkOf(res, "a", "b")!;
+    expect(l.evidence.map((e) => e.pivot)).toContain("endpoint:tracker_host:trk.przyklad.test");
+    expect(same(res, "a", "b")).toBe(false);
+    // alone it is not even a group: the list of public services is never complete
+    expect(res.campaigns.families).toEqual([]);
+  });
+
+  it("ignores a request host without a registrable domain (a placeholder name in a rebuilt HAR)", () => {
+    const kit = withRequestUrls(null, ["https://delivered/x.js", "https://trk.przyklad.test/e"], "https://alfa-wiadomosci.example/lp/");
+    expect(kit.requestHosts).toEqual(["trk.przyklad.test"]);
+  });
+
+  it("makes no node for a host of the common list (analytics, platform CDN)", () => {
+    const res = run([
+      withRequests("a", "alfa-wiadomosci.example", ["https://www.googletagmanager.com/gtag/js?id=G-TEST", "https://static.cloudflareinsights.com/beacon.min.js"]),
+      withRequests("b", "beta-zdrowie.test", ["https://www.googletagmanager.com/gtag/js?id=G-TEST"]),
+    ]);
+    expect(res.graph.nodes.some((n) => n.id.startsWith("endpoint:tracker_host:"))).toBe(false);
+  });
+
+  it("reads the pixel ID and the tracker's xid click ID from the requests (one campaign)", () => {
+    const x = xid("0a0b0c", 50001, 100);
+    const res = run([
+      withRequests("a", "alfa-wiadomosci.example", ["https://www.facebook.com/tr?id=1234567890123&ev=PageView", `https://binom.przyklad.test/click.php?upd_clickid=${x}&event1=1`]),
+      withRequests("b", "beta-zdrowie.test", ["https://connect.facebook.net/signals/config/1234567890123?v=2.9", `https://binom.przyklad.test/click.php?upd_clickid=${xid("0a0b0c", 50001, 900)}`]),
+    ]);
+    const pivots = linkOf(res, "a", "b")!.evidence.map((e) => e.pivot);
+    expect(pivots).toContain("tracker:meta_pixel:1234567890123");
+    expect(pivots).toContain("click_server:0a0b0c");
+    expect(same(res, "a", "b")).toBe(true);
+  });
+});
+
+describe("platform of the page as an attribute (B-190)", () => {
+  it("names the page platform from its SDK paths and the tracker product from its script, without a link", () => {
+    const sdk = (host: string) => ({ key: "/aio-static/sdk/main.js", url: `https://${host}/aio-static/sdk/main.js`, host, path: "/aio-static/sdk/main.js", basename: "main.js", kind: "js" as const, sameOrigin: true });
+    const stat = (host: string) => ({ key: "/include/events-stat.js", url: `https://${host}/include/events-stat.js`, host, path: "/include/events-stat.js", basename: "events-stat.js", kind: "js" as const, sameOrigin: true });
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", kit: { assets: [sdk("alfa-wiadomosci.example"), stat("alfa-wiadomosci.example")] } },
+      { id: "b", url: "https://beta-zdrowie.test/", kit: { assets: [sdk("beta-zdrowie.test")] } },
+    ]);
+    expect(res.graph.nodes.find((n) => n.id === "item:a")!.data.pagePlatforms).toEqual(["aio", "binom"]);
+    expect(same(res, "a", "b")).toBe(false);
+    const c = res.campaigns.campaigns.find((k) => k.members.includes("a"))!;
+    expect(c.attributes.platforms).toEqual([{ id: "aio", count: 1 }, { id: "binom", count: 1 }]);
+  });
+});
+
+describe("campaign parameters and click IDs in the page's outbound links (B-154)", () => {
+  it("shares a campaign parameter found only in the CTA links of two pages on different domains", () => {
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", outboundUrls: ["https://trk.przyklad.test/go?sub1=kupiec_zielony&offer_id=771304"] },
+      { id: "b", url: "https://beta-zdrowie.test/", outboundUrls: ["https://inny-trk.przyklad.test/r?sub1=kupiec_zielony"] },
+    ]);
+    const l = linkOf(res, "a", "b")!;
+    const ev = l.evidence.find((e) => e.pivot === "campaign_param:sub1=kupiec_zielony")!;
+    expect(ev).toBeDefined();
+    expect(ev.strong).toBe(false);
+  });
+
+  it("reads the tracker machine of an xid click ID in a CTA link", () => {
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", outboundUrls: [`https://trk.przyklad.test/click?clickid=${xid("0a0b0c", 50001, 100)}`] },
+      { id: "b", url: "https://beta-zdrowie.test/", outboundUrls: [`https://trk.przyklad.test/click?clickid=${xid("0a0b0c", 50001, 400)}`] },
+    ]);
+    expect(linkOf(res, "a", "b")!.evidence.map((e) => e.pivot)).toContain("click_server:0a0b0c");
+  });
+});
+
+describe("AdSense publisher ID (B-178)", () => {
+  it("gives two pages with the same ca-pub and nothing else at most a group, never a campaign", () => {
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", trackers: [{ kind: "adsense", id: "ca-pub-1234567890123456" }] },
+      { id: "b", url: "https://beta-zdrowie.test/", trackers: [{ kind: "adsense", id: "ca-pub-1234567890123456" }] },
+    ]);
+    const l = linkOf(res, "a", "b")!;
+    expect(l.strong).toBe(false);
+    expect(same(res, "a", "b")).toBe(false);
+  });
+
+  it("joins two pages by a Clarity project ID like any analytics ID", () => {
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", trackers: [{ kind: "clarity", id: "k3x9q2w7ab" }] },
+      { id: "b", url: "https://beta-zdrowie.test/", trackers: [{ kind: "clarity", id: "k3x9q2w7ab" }] },
+    ]);
+    expect(same(res, "a", "b")).toBe(true);
+  });
+});

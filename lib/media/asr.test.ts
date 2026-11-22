@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { cleanTranscript, detectAsr, isWav16kMono, transcribe, type AsrStatus } from "./asr";
+import { cleanTranscript, detectAsr, isWav16kMono, stripHallucinations, transcribe, type AsrStatus } from "./asr";
 import type { RunResult, ToolRunner } from "./tools";
 
 type Call = { cmd: string; args: string[] };
@@ -50,7 +50,7 @@ describe("detectAsr", () => {
   it("prefers whisper-cli when the binary and the model file exist", async () => {
     const calls: Call[] = [];
     const s = await detectAsr({ run: fakeRunner(() => ({ stdout: "whisper.cpp version: 1.9.5" }), calls), env: { WHISPER_MODEL: modelFile } });
-    expect(s).toEqual({ available: true, tool: "whisper-cli", model: modelFile, reason: null });
+    expect(s).toMatchObject({ available: true, tool: "whisper-cli", model: modelFile, reason: null });
     expect(calls.map((c) => [c.cmd, ...c.args])).toEqual([["whisper-cli", "--version"]]);
   });
 
@@ -107,6 +107,34 @@ describe("isWav16kMono / cleanTranscript", () => {
     expect(cleanTranscript("Dziękuję za uwagę. Dziękuję za uwagę. Dziękuję za uwagę. Dziękuję. w")).toBeNull();
     expect(cleanTranscript("Napisy stworzone przez społeczność Amara.org")).toBeNull();
     expect(cleanTranscript("Dziękuję za uwagę. Zarejestruj się dziś i odbierz bonus.")).toBe("Dziękuję za uwagę. Zarejestruj się dziś i odbierz bonus.");
+  });
+
+  it("removes subtitle credits and end-of-video thanks anywhere in a transcript (B-213)", () => {
+    expect(cleanTranscript("Zarejestruj się dziś. Napisy stworzone przez społeczność Amara.org")).toBe("Zarejestruj się dziś.");
+    expect(stripHallucinations("Dziękuję za obejrzenie. Dziękuję za obejrzenie.")).toBeNull();
+    expect(stripHallucinations("Adam Testowy poleca platformę.")).toBe("Adam Testowy poleca platformę.");
+  });
+});
+
+describe("voice activity detection of whisper-cli (B-213)", () => {
+  const vadFile = path.join(dir, "ggml-silero-test.bin");
+  writeFileSync(vadFile, "not really a VAD model");
+
+  it("reports the Silero model when it exists and passes --vad to whisper-cli", async () => {
+    const s = await detectAsr({ run: fakeRunner(() => ({ stdout: "whisper.cpp version: 1.9.5" })), env: { WHISPER_MODEL: modelFile, WHISPER_VAD_MODEL: vadFile } });
+    expect(s.vadModel).toBe(vadFile);
+    const wav = path.join(dir, "vad.wav");
+    writeWav(wav, 16000, 1);
+    const calls: Call[] = [];
+    await transcribe(wav, { run: fakeRunner(() => ({ stdout: "Tekst." }), calls), status: s });
+    expect(calls[0].args).toEqual(expect.arrayContaining(["--vad", "-vm", vadFile]));
+  });
+
+  it("runs without VAD and says why when the Silero model is missing", async () => {
+    const s = await detectAsr({ run: fakeRunner(() => ({ stdout: "whisper.cpp version: 1.9.5" })), env: { WHISPER_MODEL: modelFile, WHISPER_VAD_MODEL: path.join(dir, "missing-vad.bin") } });
+    expect(s.available).toBe(true);
+    expect(s.vadModel ?? null).toBeNull();
+    expect(s.vadReason).toContain("missing-vad.bin");
   });
 });
 

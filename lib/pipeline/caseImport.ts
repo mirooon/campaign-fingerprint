@@ -109,6 +109,10 @@ export interface CaseImportResult {
 }
 
 interface HarEntry {
+  /** Page record of the HAR the entry belongs to (one per navigation in the browser session). */
+  pageref?: string;
+  /** What started the request (Chrome): a script stack, the parser, or another request. */
+  _initiator?: HarInitiator;
   _resourceType?: string;
   serverIPAddress?: string;
   startedDateTime?: string;
@@ -221,6 +225,70 @@ function isDocument(e: HarEntry): boolean {
  * saved URL: the page the HAR names (a HAR of a page opened from disk holds only third-party
  * frames, so it has no landing document), else the first document.
  */
+interface HarInitiator {
+  type?: string;
+  url?: string;
+  stack?: HarStack;
+}
+interface HarStack {
+  callFrames?: Array<{ url?: string }>;
+  parent?: HarStack;
+}
+
+const EXTENSION_URL = /^(?:chrome|moz|safari-web|ms-browser)-extension:\/\//i;
+
+/**
+ * Whether a request was started by a browser extension of whoever saved the HAR (B-116): its initiator, or
+ * any frame of the initiator's script stack (and its parents), runs from an extension. Such requests are
+ * the analyst's tools, not the page; a script of the page that calls a third party keeps its request.
+ */
+export function fromExtension(e: HarEntry): boolean {
+  const init = e._initiator;
+  if (!init) return false;
+  if (init.url && EXTENSION_URL.test(init.url)) return true;
+  for (let s: HarStack | undefined = init.stack, depth = 0; s && depth < 20; s = s.parent, depth++) {
+    if ((s.callFrames ?? []).some((f) => !!f.url && EXTENSION_URL.test(f.url))) return true;
+  }
+  return false;
+}
+
+/**
+ * Entries of a HAR that belong to the page of `main` (B-211): a HAR saved after browsing holds requests of
+ * earlier pages of the session, whose hosts, IPs and images are not traits of this page. With page records
+ * the entries of main's `pageref`; otherwise the entries from main's start time on, plus the redirect hops
+ * that lead to main (they precede it but are part of its navigation). Entries without a time stay. Without
+ * main (a HAR of requests only) all entries.
+ */
+export function pageEntries(entries: HarEntry[], main: HarEntry | null): HarEntry[] {
+  if (!main) return entries;
+  if (main.pageref && entries.some((e) => e.pageref && e.pageref !== main.pageref)) return entries.filter((e) => !e.pageref || e.pageref === main.pageref);
+  const start = Date.parse(main.startedDateTime ?? "");
+  if (Number.isNaN(start)) return entries;
+  const hops = new Set<HarEntry>();
+  let target = main.request.url;
+  for (let i = 0; i < entries.length; i++) {
+    const hop = entries.find((e) => !hops.has(e) && e.response.status >= 300 && e.response.status < 400 && redirectTarget(e) === target);
+    if (!hop) break;
+    hops.add(hop);
+    target = hop.request.url;
+  }
+  return entries.filter((e) => {
+    const t = Date.parse(e.startedDateTime ?? "");
+    return Number.isNaN(t) || t >= start || hops.has(e);
+  });
+}
+
+/** Absolute address in the Location header of a redirect entry, or null. */
+function redirectTarget(e: HarEntry): string | null {
+  const loc = e.response.headers?.find((h) => h.name.toLowerCase() === "location")?.value;
+  if (!loc) return null;
+  try {
+    return new URL(loc, e.request.url).toString();
+  } catch {
+    return null;
+  }
+}
+
 export function mainDocument(entries: HarEntry[], savedFrom: string | null, harPageUrl: string | null = null): HarEntry | null {
   const docs = entries.filter(isDocument);
   const on = (u: string) => docs.find((e) => e.request.url === u) ?? docs.find((e) => hostOf(e.request.url) === hostOf(u)) ?? null;
@@ -631,7 +699,8 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       let itemId = pages.length > 1 && c.name ? `${id}_${c.name}` : id;
       for (let k = 2; ids.has(itemId); k++) itemId = `${id}_${c.name || "strona"}_${k}`;
       ids.add(itemId);
-      for (const e of c.har?.entries ?? []) {
+      const ownEntries = c.har ? pageEntries(c.har.entries, c.main).filter((e) => !fromExtension(e)) : [];
+      for (const e of ownEntries) {
         const host = hostOf(e.request.url);
         const ip = e.serverIPAddress?.replace(/^\[|\]$/g, "");
         if (!host || !ip) continue;
@@ -654,7 +723,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       const bodyFile = `pages/${safeName(itemId)}.html`;
       write(path.join(fix, bodyFile), body);
       const bodySource: ImportedCase["bodySource"] = c.main || c.requestsOnly ? "har" : c.archivedAt ? "wayback" : "saved-html";
-      const requests = c.har ? requestUrls(c.har.entries) : [];
+      const requests = c.har ? requestUrls(ownEntries) : [];
       http[pageKey] = {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) },
@@ -676,7 +745,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       }
       // Images recorded in the HAR (favicons), under their original addresses.
       let n = 0;
-      for (const e of c.har?.entries ?? []) {
+      for (const e of ownEntries) {
         if (e.request.method !== "GET" || e.response.status !== 200) continue;
         const mime = e.response.content?.mimeType ?? "";
         const k = urlKey(e.request.url);

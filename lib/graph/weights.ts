@@ -3,7 +3,7 @@
  * for ubiquitous infrastructure, and an inverse-frequency (IDF) factor.
  *
  *   weight(e) = typeWeight(type) x min(listFactors(e)) x idf(df(e), N)
- *   strong(e) = typeWeight x listFactor >= strongThreshold  and  df <= maxStrongDfRatio x N
+ *   strong(e) = typeWeight x listFactor >= strongThreshold  and  df <= min(maxStrongDfRatio x N, maxStrongDf)
  *
  * Only strong pivots feed union-find; everything else is a weighted edge for Louvain.
  */
@@ -72,6 +72,20 @@ export class Discounter {
     if (rule && (!service || rule.factor <= service.factor)) return { reason: rule.reason, factor: rule.factor, rule: `domains:${rule.match}` };
     if (service) return { reason: service.reason, factor: service.factor, rule: `endpointHosts:${service.match}` };
     return null;
+  }
+
+  /**
+   * Rule of `lists.accountSiteSuffixes` for a host that is one account's site on a free hosting platform
+   * ("lib-x.netlify.app"), or null (also for the platform's own apex, which is not an account's site).
+   */
+  accountSite(host: string): ListRule | null {
+    const h = host.toLowerCase();
+    return firstRule(this.config.lists.accountSiteSuffixes ?? [], (r) => h !== r.match.toLowerCase() && suffixMatch(h, r.match));
+  }
+
+  /** Rule of `lists.browserHosts` for a host the browser or its extensions contact on their own, or null. */
+  browserHost(host: string): ListRule | null {
+    return firstRule(this.config.lists.browserHosts ?? [], (r) => suffixMatch(host, r.match));
   }
 
   ipDiscounts(ip: string, asns: number[]): Discount[] {
@@ -247,6 +261,13 @@ export class Discounter {
         break;
       }
       case "campaign_param": {
+        if (p.data.scamBrand === true) {
+          // the scam's own brand: only the list of generic platform names applies, not the parameter-value rules
+          const key = String(p.data.key ?? p.key.replace(/^scam_brand=/, ""));
+          const rule = firstRule(lists.genericScamBrands ?? [], (r) => (r.match.endsWith("*") ? key.startsWith(r.match.slice(0, -1)) : key === r.match));
+          if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `genericScamBrands:${key}` });
+          break;
+        }
         const name = String(p.data.canonicalName ?? "");
         const value = String(p.data.value ?? "").trim().toLowerCase();
         // a number scoped by the tracker server (kit.machineScopedParams) is no coincidence, however short
@@ -329,6 +350,11 @@ export interface PivotWeight {
   strong: boolean;
 }
 
+/**
+ * Weight of a pivot shared by `df` of `n` items: base (type weight or override) × list factor × IDF ×
+ * ubiquity, and whether it is strong (feeds union-find): base × list factor reaches strongThreshold and df
+ * stays within both the share limit (maxStrongDfRatio × n) and the absolute limit (maxStrongDf).
+ */
 export function pivotWeight(
   type: EntityType,
   discounts: Discount[],
@@ -342,7 +368,8 @@ export function pivotWeight(
   const idf = config.idf.enabled ? idfFactor(df, n, config.idf.floor) : 1;
   const ubiquity = config.idf.enabled ? ubiquityFactor(df, n, config.idf.ubiquityStart, config.idf.ubiquityMinItems) : 1;
   const weight = base * lf * idf * ubiquity;
-  const maxStrongDf = Math.max(2, Math.floor(config.maxStrongDfRatio * n));
+  const byRatio = Math.max(2, Math.floor(config.maxStrongDfRatio * n));
+  const maxStrongDf = config.maxStrongDf ? Math.min(byRatio, Math.max(2, config.maxStrongDf)) : byRatio;
   const strong = base * lf >= config.strongThreshold && df <= maxStrongDf;
   return { base, listFactor: lf, idf, ubiquity, weight, strong };
 }

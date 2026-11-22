@@ -283,7 +283,7 @@ describe("persona (weak signal)", () => {
     const res = run([
       { id: "a", url: "https://a.example/", personas: ["Adam Testowy", "Ewa Przykładowa"], personaCategories: { "Adam Testowy": "Dziennikarze" } },
     ]);
-    const nodes = res.graph.nodes.filter((n) => n.type === "persona");
+    const nodes = res.graph.nodes.filter((n) => n.type === "persona" && !n.data.pair); // a pair of persons is its own node (B-295)
     expect(nodes.map((n) => [n.label, n.data.category])).toEqual([
       ["Adam Testowy", "Dziennikarze"],
       ["Ewa Przykładowa", undefined],

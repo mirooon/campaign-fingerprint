@@ -27,6 +27,8 @@ export interface TestItemSpec {
   pageTitle?: string;
   pageText?: string;
   outboundDomains?: string[];
+  /** Links of the landing page (CTA hrefs and others), as the page extract keeps them. */
+  outboundUrls?: string[];
   emails?: string[];
   phones?: string[];
   wallets?: Array<{ kind: "btc" | "eth" | "tron"; address: string }>;
@@ -41,6 +43,8 @@ export interface TestItemSpec {
   kit?: Partial<PageKit>;
   /** Raw OCR text of the creative (e.g. a screenshot of the ad). */
   ocrText?: string;
+  /** Transcript of the video creative (ASR). */
+  asrText?: string;
   /** SpeechBrain speaker embedding (compared by dot product). */
   speakerEmbedding?: number[];
   /** Meta Ad Library records of the item. */
@@ -53,6 +57,8 @@ export interface TestItemSpec {
   audioFingerprint?: number[];
   /** Shodan mmh3 hash of the landing page's favicon (the other hashes are derived from it). */
   faviconMmh3?: number;
+  /** Brand recognised on the creative (CLIP zero-shot), as enrich would store it. */
+  creativeBrand?: { id: string; name: string; kind: string; probability: number };
 }
 
 export function emptyKit(over: Partial<PageKit> = {}): PageKit {
@@ -75,10 +81,12 @@ export interface TestInfra {
   asns?: Record<string, { asn: number; asName: string }>;
   /** domain -> NS list */
   ns?: Record<string, string[]>;
+  /** domain -> TXT records */
+  txt?: Record<string, string[]>;
   /** domain -> registrar/created, RDAP status (e.g. "client hold") */
   rdap?: Record<string, { registrar: string; created: string; ianaId?: string; status?: string[] }>;
   /** domain -> certs */
-  certs?: Record<string, Array<{ id: string; issuer: string; sanDomains: string[] }>>;
+  certs?: Record<string, Array<{ id: string; issuer: string; sanDomains: string[]; notBefore?: string }>>;
   /** host -> CNAME chain */
   cname?: Record<string, string[]>;
 }
@@ -175,6 +183,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           visibleText: s.pageText ?? "",
           trackers: s.trackers ?? [],
           outboundDomains: s.outboundDomains ?? [],
+          outboundUrls: s.outboundUrls ?? [],
           emails: s.emails ?? [],
           phones: s.phones ?? [],
           wallets: s.wallets ?? [],
@@ -205,7 +214,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
             domain: d,
             ns: infra.ns?.[d] ?? [],
             mx: [],
-            txt: [],
+            txt: infra.txt?.[d] ?? [],
             rdap: r
               ? { domain: d, registrar: r.registrar, registrarIanaId: r.ianaId ?? null, created: r.created, expires: null, updated: null, status: r.status ?? [], nameservers: [], abuseEmail: null, source: null }
               : null,
@@ -220,7 +229,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
                     issuerName: `O=${c.issuer}`,
                     commonName: c.sanDomains[0],
                     sanDomains: c.sanDomains,
-                    notBefore: "2026-09-01T00:00:00",
+                    notBefore: c.notBefore ?? "2026-09-01T00:00:00",
                     notAfter: "2026-12-01T00:00:00",
                     entryTimestamp: null,
                   })),
@@ -241,13 +250,14 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
         (p): CampaignParam => ({ name: p.name, canonicalName: p.name, value: p.value, sourceUrl: s.url ?? "", cyrillic: /[\u0400-\u04FF]/.test(p.value), macro: false }),
       ),
       ocrText: s.ocrText ?? null,
-      asrText: null,
+      asrText: s.asrText ?? null,
       audioFp: s.audioFingerprint ? { duration: s.audioFingerprint.length / 8, fingerprint: s.audioFingerprint } : null,
       ...(s.videoSha256 ? { videoSha256: s.videoSha256 } : {}),
       ...(s.imageEmbedding ? { imageEmbedding: s.imageEmbedding } : {}),
       ...(s.videoEmbedding ? { videoEmbedding: s.videoEmbedding } : {}),
       ...(s.speakerEmbedding ? { speakerEmbedding: s.speakerEmbedding } : {}),
       ...(s.adLibrary ? { adLibrary: s.adLibrary } : {}),
+      ...(s.creativeBrand ? { creativeBrand: s.creativeBrand } : {}),
       errors: [],
     };
   }

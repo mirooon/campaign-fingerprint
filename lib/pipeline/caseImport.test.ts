@@ -431,3 +431,71 @@ describe("importCases: folders collected from public sources (scan service, web 
     expect(rdap?.registrar).toContain("Test Registrar");
   });
 });
+
+describe("importCases: HAR entries of an earlier page in the same browser session (B-211)", () => {
+  let dir: string;
+  const at = (s: number) => `2026-02-01T10:00:${String(s).padStart(2, "0")}.000Z`;
+  const PAGE = "https://lander-sesja.example/oferta/";
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-session-"));
+    const c = path.join(dir, "cases", "sesja-1");
+    mkdirSync(c, { recursive: true });
+    const redirect = { ...entry("https://trk-sesja.example/go?k=1", "document", "", "text/html", "192.0.2.50", at(4)), response: { status: 302, headers: [{ name: "Location", value: PAGE }], content: {} } };
+    writeFileSync(
+      path.join(c, "sesja.har"),
+      JSON.stringify({
+        log: {
+          pages: [{ title: PAGE }],
+          entries: [
+            entry("https://inna-strona.example/", "document", "<html>INNA</html>", "text/html", "192.0.2.201", at(0)),
+            entry("https://cdn.inna-strona.example/app.js", "script", "x", "application/javascript", "192.0.2.202", at(1)),
+            entry("https://inna-strona.example/logo.png", "image", ICON, "image/png", "192.0.2.201", at(2)),
+            redirect,
+            entry(PAGE, "document", "<html><body>OFERTA</body></html>", "text/html", "192.0.2.60", at(5)),
+            entry("https://lander-sesja.example/app.js", "script", "y", "application/javascript", "192.0.2.60", at(6)),
+          ],
+        },
+      }),
+    );
+    await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("drops hosts, IPs, requests and images recorded before the page's document, keeping its redirect", async () => {
+    const src = fixtureSources(path.join(dir, "out", "fixtures"));
+    const reqs = src.requestsFor?.(PAGE) ?? [];
+    expect(reqs.some((u) => u.includes("inna-strona.example"))).toBe(false);
+    expect(reqs).toContain("https://lander-sesja.example/app.js");
+    expect((await src.dns("inna-strona.example", ["A"])).a ?? []).toEqual([]);
+    expect((await src.dns("cdn.inna-strona.example", ["A"])).a ?? []).toEqual([]);
+    expect(reqs).toContain("https://trk-sesja.example/go?k=1");
+    expect((await src.dns("lander-sesja.example", ["A"])).a).toEqual(["192.0.2.60"]);
+    expect(await src.fetchBinary("https://inna-strona.example/logo.png")).toBeNull();
+  });
+});
+
+describe("importCases: requests of the analyst's browser extensions (B-116)", () => {
+  let dir: string;
+  const PAGE = "https://lander-rozszerzenie.example/";
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-ext-"));
+    const c = path.join(dir, "cases", "ext-1");
+    mkdirSync(c, { recursive: true });
+    const fromExtension = { ...entry("https://api.rozszerzenie-analityka.example/check?u=1", "xhr", "{}", "application/json", "192.0.2.90", "2026-02-01T10:00:02.000Z"), _initiator: { type: "script", stack: { callFrames: [{ url: "chrome-extension://abcdefghijklmnopabcdefghijklmnop/content.js" }] } } };
+    const fromPage = { ...entry("https://trk.przyklad.test/event", "xhr", "{}", "application/json", "192.0.2.91", "2026-02-01T10:00:03.000Z"), _initiator: { type: "script", stack: { callFrames: [{ url: PAGE }] } } };
+    writeFileSync(
+      path.join(c, "ext.har"),
+      JSON.stringify({ log: { pages: [{ title: PAGE }], entries: [entry(PAGE, "document", "<html><body>STRONA</body></html>", "text/html", "192.0.2.80", "2026-02-01T10:00:01.000Z"), fromExtension, fromPage] } }),
+    );
+    await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("drops a request initiated by a browser extension and keeps the page's own", () => {
+    const reqs = fixtureSources(path.join(dir, "out", "fixtures")).requestsFor?.(PAGE) ?? [];
+    expect(reqs.some((u) => u.includes("rozszerzenie-analityka"))).toBe(false);
+    expect(reqs).toContain("https://trk.przyklad.test/event");
+  });
+});

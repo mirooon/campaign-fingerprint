@@ -7,7 +7,8 @@
  *    -> communities; medium evidence (near-duplicate images, similar text, NS set, IP)
  *    can merge strong components, while discounted infrastructure (shared Cloudflare
  *    IPs etc.) never even enters the clustering graph.
- * 3. Each strong component is assigned wholesale to the community holding most of it.
+ * 3. Each strong component is assigned wholesale to the community holding most of it, and every community
+ *    is split into its connected parts (`splitDisconnected`: Louvain can return a disconnected community).
  *    A campaign without infrastructure then joins the only campaign whose creatives its own nearly
  *    repeat (`attachContentVariants`): a variant attaches, it never merges two campaigns.
  *
@@ -19,6 +20,7 @@
 import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
+import { summarizeNarratives, type MaterialNarrative } from "../text/narrative";
 import { combineScores } from "./weights";
 import {
   CREATIVE_FILE_PREFIX,
@@ -117,7 +119,9 @@ export function clusterCampaigns(
     list.push(...comp);
     groups.set(best, list);
   }
-  const attached = attachContentVariants([...groups.values()], graph.links, verdicts, config, infraItems);
+  // Louvain may return a community of parts with no joining link between them: each part is its own campaign
+  const connected = splitDisconnected([...groups.values()], graph.links.filter((l) => verdicts.get(l) === "campaign"));
+  const attached = attachContentVariants(connected, graph.links, verdicts, config, infraItems);
   const variantLinks = new Set([...attached.variants.values()].map((v) => v.link));
 
   const nodeById = new Map(graph.nodes.map((nd) => [nd.id, nd]));
@@ -127,6 +131,7 @@ export function clusterCampaigns(
     list.push(e);
     edgesBySource.set(e.source, list);
   }
+  const joiningOf = (internal: ItemLink[]) => internal.filter((l) => verdicts.get(l) === "campaign" || variantLinks.has(l));
   const draft = attached.groups.map((members) => {
     members.sort();
     const set = new Set(members);
@@ -188,6 +193,8 @@ export function clusterCampaigns(
       strongComponents: c.strongComponents,
       attributes: { ...campaignAttributes(c.members, nodeById, edgesBySource), basis: campaignBasis(c.members, c.internal, verdicts, config, infraItems, variantLinks) },
       ...variantsOf(c.members, attached.variants),
+      ...weakestLink(c.members, joiningOf(c.internal)),
+      ...bridgeOf(c.members, joiningOf(c.internal), config, nodeById),
     };
   });
 
@@ -231,11 +238,40 @@ export function clusterCampaigns(
   };
 }
 
+/**
+ * Connected parts of each group (B-121): a group whose members fall apart into parts with no joining link
+ * between them becomes one group per part. Louvain optimises modularity and can return such a community
+ * (Leiden, which guarantees connected communities, is GPL-licensed in its reference implementation).
+ * Takes groups of item ids and the joining links; links leaving a group are ignored. Parts keep their
+ * members sorted, in the order of their first member.
+ */
+export function splitDisconnected(groups: string[][], joining: ItemLink[]): string[][] {
+  const out: string[][] = [];
+  for (const members of groups) {
+    if (members.length < 2) {
+      out.push([...members]);
+      continue;
+    }
+    const set = new Set(members);
+    const uf = new UnionFind<string>(members);
+    for (const l of joining) if (set.has(l.a) && set.has(l.b)) uf.union(l.a, l.b);
+    out.push(...uf.components().map((p) => [...p].sort()).sort((x, y) => x[0].localeCompare(y[0])));
+  }
+  return out;
+}
+
 export type LinkVerdict = "campaign" | "below" | "single_kind" | "account_conflict";
 
-/** Rule kind of a piece of evidence: the pivot type, the similarity edge type, or "creative_sha256" for the same creative file. */
+/**
+ * Rule kind of a piece of evidence: the pivot type, the similarity edge type, "creative_sha256" for the same
+ * creative file, "scam_brand" for the scam's own brand, "tracker_host" for a host of the page's requests or
+ * "adsense_publisher" for an AdSense publisher ID.
+ */
 export function evidenceKind(e: ItemLink["evidence"][number]): string {
   if (e.pivot?.startsWith(`imagehash:${CREATIVE_FILE_PREFIX}`)) return "creative_sha256";
+  if (e.pivot?.startsWith("campaign_param:scam_brand=")) return "scam_brand";
+  if (e.pivot?.startsWith("endpoint:tracker_host:")) return "tracker_host";
+  if (e.pivot?.startsWith("tracker:adsense:")) return "adsense_publisher";
   return e.pivotType ?? e.edgeType ?? e.kind;
 }
 
@@ -445,6 +481,46 @@ function attachContentVariants(
   return { groups: out.filter((members) => members.length > 0), variants };
 }
 
+/**
+ * Weakest link of a campaign: for every member its best joining link score, then the lowest of these
+ * (`minInternalScore`) with that member and its number of joining links. Nothing for a campaign without
+ * joining links (one member).
+ */
+function weakestLink(members: string[], joining: ItemLink[]): Pick<Campaign, "minInternalScore" | "weakestMember"> {
+  let weakest: { id: string; score: number; links: number } | null = null;
+  for (const m of members) {
+    const own = joining.filter((l) => l.a === m || l.b === m);
+    if (!own.length) continue;
+    const score = Math.max(...own.map((l) => l.score));
+    if (!weakest || score < weakest.score) weakest = { id: m, score, links: own.length };
+  }
+  return weakest ? { minInternalScore: weakest.score, weakestMember: weakest } : {};
+}
+
+/**
+ * Bridge of a campaign (B-123): the first strong pivot (by key) whose removal from the joining links splits
+ * the members into parts of at least `bridgeMinPartSize` each. A link still holds a part together when it
+ * has counted evidence other than that pivot. Such a campaign stands on one trace: if the trace is a shared
+ * service or a mistake, the parts are separate campaigns, so it is shown as a candidate for lists.pivots.
+ */
+function bridgeOf(members: string[], joining: ItemLink[], config: LinkConfig, nodeById: Map<string, GraphNode>): Pick<Campaign, "bridge"> {
+  const minPart = config.bridgeMinPartSize ?? 2;
+  if (members.length < 2 * minPart) return {};
+  const candidates = [...new Set(joining.flatMap((l) => l.evidence.filter((e) => e.strong && e.pivot).map((e) => e.pivot!)))].sort();
+  for (const pivot of candidates) {
+    const uf = new UnionFind<string>(members);
+    for (const l of joining) {
+      if (countedEvidence(l, config).some((e) => e.pivot !== pivot && !familyOnly(e, config))) uf.union(l.a, l.b);
+    }
+    const parts = uf.components().map((p) => [...p].sort()).sort((x, y) => x[0].localeCompare(y[0]));
+    if (parts.length < 2 || parts.some((p) => p.length < minPart)) continue;
+    const node = nodeById.get(pivot);
+    if (!node) continue;
+    return { bridge: { pivot, type: node.type, label: node.label, parts } };
+  }
+  return {};
+}
+
 /** `Campaign.variants` of a campaign: its members attached as variants, or nothing when there are none. */
 function variantsOf(members: string[], variants: Map<string, VariantAttachment>): { variants?: ContentVariant[] } {
   const list = members
@@ -498,6 +574,7 @@ function buildFamilies(
     size: f.members.length,
     topEvidence: topEvidence(f.own, nodeById, f.members),
     apart: f.apart,
+    ...familyTraits(f.members, nodeById),
   }));
 }
 
@@ -550,6 +627,11 @@ function scoreOf(e: CampaignEvidence, size: number): number {
   return coverage * e.weight;
 }
 
+/**
+ * Attributes of a campaign read from its members' item nodes and persona edges: personas with counts,
+ * Cyrillic and cloaking counts, the highest deepfake score, the summary of narratives, the creative brands,
+ * the page platforms and the number of ads taken down by the platform. Descriptions for the card, never evidence.
+ */
 function campaignAttributes(members: string[], nodeById: Map<string, GraphNode>, edgesBySource: Map<string, GraphEdge[]>): CampaignAttributes {
   const personaCount = new Map<string, { id: string; name: string; count: number }>();
   let cyrillic = 0;
@@ -572,7 +654,43 @@ function campaignAttributes(members: string[], nodeById: Map<string, GraphNode>,
     }
   }
   const personas = [...personaCount.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
-  return { personas, cyrillic, cloakingSuspected, deepfakeScoreMax };
+  const narrative = summarizeNarratives(members.map((m) => nodeById.get(`item:${m}`)?.data.narrative as MaterialNarrative | undefined));
+  const brands = creativeBrands(members, nodeById);
+  const platformCount = new Map<string, number>();
+  for (const m of members) for (const p of (nodeById.get(`item:${m}`)?.data.pagePlatforms as string[] | undefined) ?? []) platformCount.set(p, (platformCount.get(p) ?? 0) + 1);
+  const platforms = [...platformCount.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+  const takenDownCount = members.filter((m) => nodeById.get(`item:${m}`)?.data.adTakenDown === true).length;
+  return { personas, cyrillic, cloakingSuspected, deepfakeScoreMax, ...(narrative ? { narrative } : {}), ...(brands.length ? { brands } : {}), ...(platforms.length ? { platforms } : {}), ...(takenDownCount ? { takenDownCount } : {}) };
+}
+
+/** Brands recognised on the creatives of the members (item `creativeBrand`), with member counts, most frequent first. */
+function creativeBrands(members: string[], nodeById: Map<string, GraphNode>): Array<{ id: string; name: string; count: number }> {
+  const byId = new Map<string, { id: string; name: string; count: number }>();
+  for (const m of members) {
+    const b = nodeById.get(`item:${m}`)?.data.creativeBrand as { id: string; name: string } | undefined;
+    if (!b) continue;
+    const cur = byId.get(b.id) ?? { id: b.id, name: b.name, count: 0 };
+    cur.count++;
+    byId.set(b.id, cur);
+  }
+  return [...byId.values()].sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
+}
+
+/**
+ * Traits of a group of similar campaigns read from its members' item nodes: the summary of their narratives
+ * and the groups of the impersonated persons ("Dziennikarze": members naming such a person). Empty fields
+ * are left out. Attributes only: they never decide membership.
+ */
+function familyTraits(members: string[], nodeById: Map<string, GraphNode>): Pick<CampaignFamily, "narrative" | "personaCategories" | "brands"> {
+  const narrative = summarizeNarratives(members.map((m) => nodeById.get(`item:${m}`)?.data.narrative as MaterialNarrative | undefined));
+  const byCategory = new Map<string, number>();
+  for (const m of members) {
+    const cats = (nodeById.get(`item:${m}`)?.data.personaCategories as Array<{ category: string }> | undefined) ?? [];
+    for (const c of new Set(cats.map((x) => x.category))) byCategory.set(c, (byCategory.get(c) ?? 0) + 1);
+  }
+  const personaCategories = [...byCategory.entries()].map(([category, count]) => ({ category, count })).sort((a, b) => b.count - a.count || a.category.localeCompare(b.category));
+  const brands = creativeBrands(members, nodeById);
+  return { ...(narrative ? { narrative } : {}), ...(personaCategories.length ? { personaCategories } : {}), ...(brands.length ? { brands } : {}) };
 }
 
 function str(v: unknown): string | null {

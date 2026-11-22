@@ -145,4 +145,14 @@ describe("evidence pack", () => {
     expect(res.read("evidence.md")).toContain("## Obserwacje (fakty)");
     expect(res.read("evidence.md")).toContain("## Analiza (wyniki modeli i heurystyk — wskazówki)");
   });
+
+  it("takes the financial offer from the narrative of the ads, with a quote marked as a conclusion", () => {
+    const c1 = pack("c1-01", "c1-knf");
+    expect(c1.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toContain("usługi inwestycyjne");
+    const offered = c1.json.observations.domains.map((d: { financial_service_offered: string | null }) => d.financial_service_offered).filter(Boolean);
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offered[0]).toContain("(wniosek");
+    const c5 = pack("c5-01", "c5-knf");
+    expect(c5.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toBe("informacja (jeśli oferta dotyczy usług finansowych)");
+  });
 });

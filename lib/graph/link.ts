@@ -29,6 +29,8 @@ import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type P
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
+import { SHOT_HAMMING, sharedShots } from "../media/videoShots";
+import { infinitiveCta } from "../text/infinitiveCta";
 import { adStart } from "../text/adStart";
 import { advertiserNameStyle, commentLanguage, landerSlugStyle, mixedScriptName } from "../text/namingStyle";
 import { adCreatedApprox, isTimedMetaId, type MetaIdAnchor } from "../osint/metaIdAge";
@@ -549,6 +551,22 @@ export function buildEvidenceGraph(
         add(id, "campaign_param", [...basePath, id], relation, `ten sam identyfikator w nazwie kampanii Meta (${v})`);
       }
     };
+    // Replaced captions on a borrowed video (B-326) and the watermark of the original recording (B-327):
+    // attributes of the material and template traces (notAloneKinds), never a link on their own
+    if (enr?.videoOverlay) {
+      const o = enr.videoOverlay;
+      itemData.subtitleOverlay = { kind: o.kind, color: o.color, box: o.box, frames: o.frames };
+      const id = g.node("overlay_template", o.key, `napisy podmienione: ${o.kind === "strip" ? `pas ${o.color === "black" ? "czarny" : "biały"}` : "rozmycie"} (${o.key.split(":")[2]})`, { kind: o.kind, box: o.box });
+      g.edge(itemNode, id, "mentions", "pas z podmienionymi napisami na dole nagrania");
+      add(id, "overlay_template", [itemNode, id], 1, `ten sam układ podmienionych napisów (${o.key})`);
+    }
+    if (enr?.sourceWatermark) {
+      const w = enr.sourceWatermark;
+      itemData.sourceWatermark = { text: w.text, corner: w.corner };
+      const id = g.node("reused_footage", `watermark:${w.text}`, `znak źródła nagrania: ${w.text}`, { text: w.text, corner: w.corner });
+      g.edge(itemNode, id, "mentions", `znak źródła w rogu kadru nagrania (${w.corner})`);
+      add(id, "reused_footage", [itemNode, id], 1, `ten sam znak źródła cudzego nagrania („${w.text}”)`);
+    }
 
     const addContacts = (
       from: string,
@@ -1302,6 +1320,9 @@ export function buildEvidenceGraph(
     if (slugStyle) itemData.landerSlugStyle = slugStyle;
     const nameStyle = advertiserNameStyle(advertiser ?? enr?.adLibrary?.find((r) => r.pageName)?.pageName ?? null, item.text);
     if (nameStyle) itemData.advertiserNameStyle = nameStyle;
+    // A title that is a bare infinitive ("Czytać") betrays machine translation (B-328): an attribute, never a trace
+    const infinitive = infinitiveCta(item.extra.ad_title ?? item.extra.title);
+    if (infinitive) itemData.translationArtifacts = [...((itemData.translationArtifacts as Array<{ kind: string; text: string }> | undefined) ?? []), { kind: "infinitive_cta", text: infinitive }];
     const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
     if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
 
@@ -1630,6 +1651,19 @@ export function buildEvidenceGraph(
       const ev = `prawie identyczna kreacja (dHash, odległość Hamminga ${d}/64)`;
       pushPair(withImage[i].id, withImage[j].id, simEvidence("similar_image", weight, ev, 1 - d / 64));
       g.edge(nodeId("item", withImage[i].id), nodeId("item", withImage[j].id), "similar_image", ev, round(weight));
+    }
+  }
+
+  // Shared video shots (B-329): the same recording or AI insert cut into another montage; the frame-mean CLIP misses it
+  const withShots = items.filter((it) => (dataset.perItem[it.id]?.videoShots?.length ?? 0) > 0 && !libraryViews.has(it.id));
+  for (let i = 0; i < withShots.length; i++) {
+    for (let j = i + 1; j < withShots.length; j++) {
+      const { count, best } = sharedShots(dataset.perItem[withShots[i].id].videoShots!, dataset.perItem[withShots[j].id].videoShots!);
+      if (!count) continue;
+      const weight = config.similarity.imageWeight * (1 - (0.5 * best) / Math.max(1, SHOT_HAMMING));
+      const ev = `to samo ujęcie wideo w innym montażu (${count} wspólnych ujęć, dHash, odległość Hamminga ${best}/64)`;
+      pushPair(withShots[i].id, withShots[j].id, simEvidence("similar_image", weight, ev, 1 - best / 64));
+      g.edge(nodeId("item", withShots[i].id), nodeId("item", withShots[j].id), "similar_image", ev, round(weight));
     }
   }
 

@@ -50,6 +50,8 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   template_phrase: "page",
   kit_string: "page",
   lead_flow: "page",
+  overlay_template: "page",
+  reused_footage: "page",
   // Infrastruktura
   url: "infra",
   host: "infra",

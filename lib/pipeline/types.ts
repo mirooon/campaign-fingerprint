@@ -19,6 +19,7 @@ import type { ObservedAddress } from "../media/addressBar";
 import type { CampaignParam } from "../osint/campaignParams";
 import type { PageKit } from "../osint/pagekit";
 import type { FaceHit } from "../media/face";
+import type { SourceWatermark, SubtitleOverlay } from "../media/videoOverlay";
 import type { VoiceSpan } from "../media/speaker";
 import type { PersonaMatch } from "../text/persona";
 
@@ -176,6 +177,12 @@ export interface ItemEnrichment {
   videoEmbedding?: number[];
   /** SHA-256 of the video creative file: the same file, not just a similar recording. */
   videoSha256?: string;
+  /** dHashes of the middle frame of every shot of the video creative (B-329): the same shot in another montage still matches. */
+  videoShots?: string[];
+  /** Blurred or covered bottom band with the operator's own captions laid over a borrowed video (B-326): kind, box as shares of the frame, montage key. */
+  videoOverlay?: SubtitleOverlay;
+  /** Name or logo text of the original recording in a corner of the frame (B-327). */
+  sourceWatermark?: SourceWatermark;
   /** L2-normalised SpeechBrain ECAPA speaker embedding of the video/audio creative (opt-in). */
   speakerEmbedding?: number[];
   /** Faces in the creative image, the further screenshots and the video frames (opt-in): box, and for a face similar to someone on the closed list of public figures the persona id and similarity. No vectors. */

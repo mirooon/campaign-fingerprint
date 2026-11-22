@@ -20,6 +20,8 @@ import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/
 import { hashFavicon, hashImage } from "../media/imageHash";
 import { brandVectors, matchBrand, type BrandHit } from "../media/brand";
 import { cloakingVerdict, isBotChallenge } from "../osint/cloaking";
+import { videoShotHashes } from "../media/videoShots";
+import { analyzeVideoOverlays, cornerOcr } from "../media/videoOverlay";
 import { compactEmbedding, detectClip, embedImage, embeddingKey, embedVideo, extractFrames } from "../media/imageEmbed";
 import { detectOcr, ocrImage } from "../media/ocr";
 import { nonEmptyFile } from "../media/tools";
@@ -659,10 +661,14 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         let audioFp: AudioFingerprint | null = null;
         let videoEmbedding: number[] | null = null;
         let videoSha256: string | null = null;
+        let videoShots: string[] = [];
+        let videoOverlays: Awaited<ReturnType<typeof analyzeVideoOverlays>> | null = null;
         if (item.videoPath) {
           try {
             const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
             videoSha256 = createHash("sha256").update(await readFile(file)).digest("hex");
+            videoShots = await mediaLimit(() => videoShotHashes(file));
+            videoOverlays = await mediaLimit(() => analyzeVideoOverlays(file, { ocr: ocrOn ? cornerOcr() : null }));
           } catch (e) {
             errors.push(`video: ${errMsg(e)}`);
           }
@@ -774,6 +780,9 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           ...(creativeBrand ? { creativeBrand } : {}),
           ...(videoEmbedding ? { videoEmbedding } : {}),
           ...(videoSha256 ? { videoSha256 } : {}),
+          ...(videoShots.length ? { videoShots } : {}),
+          ...(videoOverlays?.overlay ? { videoOverlay: videoOverlays.overlay } : {}),
+          ...(videoOverlays?.watermark ? { sourceWatermark: videoOverlays.watermark } : {}),
           ...(pageKey && archiveStatus.has(pageKey) ? { archive: archiveStatus.get(pageKey) } : {}),
           errors,
         };

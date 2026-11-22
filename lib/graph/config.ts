@@ -392,6 +392,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Account on video hosting read from a resource host (B-342): one library is one customer, but a
     // library can serve several buyers of one kit, so it supports a link and does not join a campaign alone.
     hosting_account: 0.6,
+    // Video montage traces (B-326, B-327): the same layout of replaced captions or the same watermark of a
+    // stolen recording points at one tool or one library of footage, not at one operator (notAloneKinds).
+    overlay_template: 0.45,
+    reused_footage: 0.45,
     cert: 0.8,
     imagehash: 0.65,
     // A display name of the advertiser alone does not merge campaigns (rule kind advertiser_name in
@@ -479,7 +483,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    "similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "hosting_account", "lead_flow", "affiliate_team",
+    "similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "overlay_template", "reused_footage", "hosting_account", "lead_flow", "affiliate_team",
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
     // claim belongs to the script of the scheme, which many operators copy
     familyOnlyKinds: ["technique", "persona", "profit_claim"],

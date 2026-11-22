@@ -444,6 +444,11 @@ describe("signals in the page's requests (B-158)", () => {
     expect(res.campaigns.families).toEqual([]);
   });
 
+  it("lists the kept third-party request hosts on the material, without hosts of the common list", () => {
+    const res = run([withRequests("a", "alfa-wiadomosci.example", ["https://api.push-przyklad.test/sub", "https://www.googletagmanager.com/gtag/js?id=G-TEST"])]);
+    expect(res.graph.nodes.find((n) => n.id === "item:a")!.data.requestHosts).toEqual(["api.push-przyklad.test"]);
+  });
+
   it("ignores a request host without a registrable domain (a placeholder name in a rebuilt HAR)", () => {
     const kit = withRequestUrls(null, ["https://delivered/x.js", "https://trk.przyklad.test/e"], "https://alfa-wiadomosci.example/lp/");
     expect(kit.requestHosts).toEqual(["trk.przyklad.test"]);
@@ -467,6 +472,25 @@ describe("signals in the page's requests (B-158)", () => {
     expect(pivots).toContain("tracker:meta_pixel:1234567890123");
     expect(pivots).toContain("click_server:0a0b0c");
     expect(same(res, "a", "b")).toBe(true);
+  });
+});
+
+describe("GitHub account behind jsDelivr files (B-148)", () => {
+  const gh = (user: string) => {
+    const url = `https://cdn.jsdelivr.net/gh/${user}/lib-x@1.0/a.js`;
+    return { key: "cdn.jsdelivr.net/gh/a.js", url, host: "cdn.jsdelivr.net", path: `/gh/${user}/lib-x@1.0/a.js`, basename: "a.js", kind: "js" as const, sameOrigin: false };
+  };
+
+  it("lists the account on the material and shares it as a supporting trace only", () => {
+    const res = run([
+      { id: "a", url: "https://alfa-wiadomosci.example/", kit: { assets: [gh("testuser")] } },
+      { id: "b", url: "https://beta-zdrowie.test/", kit: { assets: [gh("testuser")] } },
+      { id: "c", url: "https://gamma-porady.test/", kit: { assets: [gh("otheruser")] } },
+    ]);
+    expect(res.graph.nodes.find((n) => n.id === "item:a")!.data.hostingAccounts).toEqual(["gh:testuser"]);
+    expect(linkOf(res, "a", "b")!.evidence.map((e) => e.pivot)).toContain("hosting_account:gh:testuser");
+    expect(linkOf(res, "a", "c")?.evidence.some((e) => e.pivotType === "hosting_account") ?? false).toBe(false);
+    expect(same(res, "a", "b")).toBe(false);
   });
 });
 

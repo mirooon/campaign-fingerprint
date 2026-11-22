@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // local Python venvs (setup-speaker.sh, setup-face.sh) carry JavaScript of their packages
     ".venv*/**",
+    // evaluator material and bases (./dane, gitignored): captured pages carry foreign JS, HLS segments end in .ts
+    "dane/**",
   ]),
 ]);
 

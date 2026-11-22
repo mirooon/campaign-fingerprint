@@ -7,7 +7,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 
-export type CaseFileRole = "har" | "saved_html" | "screenshot" | "more_screenshot" | "page_screenshot" | "video" | "info_json";
+export type CaseFileRole = "har" | "saved_html" | "screenshot" | "more_screenshot" | "page_screenshot" | "video" | "page_video" | "info_json";
 
 export interface CaseFileRecord {
   role: CaseFileRole;

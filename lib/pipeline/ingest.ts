@@ -25,6 +25,7 @@ export const ITEM_FIELDS = [
   "deepfakeScore",
   "videoPath",
   "extraImagePaths",
+  "extraVideoPaths",
 ] as const;
 export type ItemField = (typeof ITEM_FIELDS)[number];
 
@@ -45,6 +46,7 @@ export const ColumnMappingSchema = z
     deepfakeScore: z.string(),
     videoPath: z.string(),
     extraImagePaths: z.string(),
+    extraVideoPaths: z.string(),
   })
   .partial()
   .strict();
@@ -65,6 +67,7 @@ const SYNONYMS: Record<ItemField, string[]> = {
   deepfakeScore: ["deepfake_score", "deepfake", "drozd_score", "synthetic_score", "score_deepfake", "fake_score", "prawdopodobienstwo_deepfake", "wynik_deepfake"],
   videoPath: ["video_path", "videopath", "video", "video_file", "wideo", "film", "audio_path", "audio"],
   extraImagePaths: ["more_screenshots", "extra_images", "screenshots", "zrzuty"],
+  extraVideoPaths: ["more_videos", "extra_videos", "page_videos", "wideo_strony"],
 };
 
 function canon(col: string): string {
@@ -239,6 +242,7 @@ export function normalizeRecords(records: Array<Record<string, unknown>>, mappin
     if (lastRaw && !lastSeen) warnings.push(`row ${idx + 1}: unparseable lastSeen "${lastRaw}"`);
     const videoPath = get("videoPath");
     const extraImagePaths = (get("extraImagePaths") ?? "").split(/\n|\s\|\s/).map((x) => x.trim()).filter(Boolean);
+    const extraVideoPaths = (get("extraVideoPaths") ?? "").split(/\n|\s\|\s/).map((x) => x.trim()).filter(Boolean);
     if (!text && !landingUrl && !imgUrl && !imagePath && !videoPath) warnings.push(`row ${idx + 1}: no text, URL, image or video`);
     const scoreRaw = get("deepfakeScore");
     const deepfakeScore = normalizeScore(scoreRaw);
@@ -264,6 +268,7 @@ export function normalizeRecords(records: Array<Record<string, unknown>>, mappin
       deepfakeScore,
       videoPath,
       ...(extraImagePaths.length ? { extraImagePaths } : {}),
+      ...(extraVideoPaths.length ? { extraVideoPaths } : {}),
       extra,
     });
   });

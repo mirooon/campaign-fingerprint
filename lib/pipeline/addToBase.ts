@@ -83,6 +83,7 @@ function adoptMedia(item: Item, importDir: string, baseDir: string, dataDir: str
     imagePath: take(item.imagePath),
     videoPath: take(item.videoPath),
     ...(item.extraImagePaths ? { extraImagePaths: item.extraImagePaths.map(take).filter((p): p is string => p !== null) } : {}),
+    ...(item.extraVideoPaths ? { extraVideoPaths: item.extraVideoPaths.map(take).filter((p): p is string => p !== null) } : {}),
   };
 }
 

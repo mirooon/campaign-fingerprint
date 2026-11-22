@@ -26,6 +26,7 @@ import path from "node:path";
 import { adRecordColumns } from "../adlib/toItem";
 import { parseAdRecord } from "../adlib/record";
 import { AD_RECORD_FILE, type AdRecord } from "../adlib/types";
+import { findStreamSegments, stitchSegments, type StreamSegments } from "../media/hls";
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
 import { TEXT_CONFIG } from "../osint/textConfig";
@@ -91,6 +92,8 @@ export interface ImportedCase {
   /** Screenshots of the landing page (a scan service's screenshot, press images of the page): kept for the record, not read as the ad. */
   pageScreenshots: string[];
   video: string | null;
+  /** Further videos of the case: the landing page's own video saved as an HLS stream, stitched (`lib/media/hls.ts`). */
+  moreVideos: string[];
   advertiser: string | null;
   adLibraryId: string | null;
   /** Page ID of the advertiser from the library ad's description (`uploader_id`), or null. */
@@ -190,6 +193,9 @@ export function unreadImageFormats(root: string): string[] {
     .map((e) => e.toUpperCase());
   return [...new Set(found)].sort();
 }
+
+/** A case id as a file name (the stitched page video is named after its case). */
+const safeFileName = (id: string) => id.replace(/[^\p{L}\p{N}._-]+/gu, "_");
 
 /** Frames a browser saves next to the page ("saved_resource.html"). */
 const SAVED_FRAME = /^saved_resource(\(\d+\))?\.html?$/i;
@@ -442,6 +448,8 @@ interface CaseScan {
   screenshots: string[];
   pageScreenshots: string[];
   video: string | null;
+  /** HLS streams saved in the case (also inside `resources/`), not yet stitched. */
+  streams: StreamSegments[];
   advertiser: string | null;
   adLibraryId: string | null;
   /** The yt-dlp description of the video (absolute path), when there is one. */
@@ -602,6 +610,7 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     screenshots: shots.filter(isAd).map(abs),
     pageScreenshots: shots.filter((f) => !isAd(f)).map(abs),
     video: videos[0] ? abs(videos[0]) : null,
+    streams: findStreamSegments(dir),
     advertiser,
     adLibraryId,
     infoFile: info ? abs(info) : null,
@@ -661,11 +670,19 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     for (const h of s.spareHars) {
       if (!scans.some((x) => x.captures.some((c) => c.har === h))) log(`[${id}] HAR ${path.basename(h.file)} nie pasuje do żadnej strony tej sprawy, pominięty`);
     }
+    // a page's video saved as an HLS stream: stitched into one file; it is the case's video when there is no other
+    const stitched = s.streams.map((st, k) => {
+      const out = stitchSegments(st.segments, path.join(o.outDir, "media", `${safeFileName(id)}-wideo-strony${k ? `-${k + 1}` : ""}.ts`));
+      log(`[${id}] wideo strony z HLS: ${st.segments.length} fragmentów z ${path.relative(s.dir, st.dir) || "."} sklejone w ${path.basename(out)}`);
+      return out;
+    });
+    const video = s.video ?? stitched[0] ?? null;
     const media = {
       screenshot: s.screenshots[0] ?? null,
       moreScreenshots: s.screenshots.slice(1),
       pageScreenshots: s.pageScreenshots,
-      video: s.video,
+      video,
+      moreVideos: stitched.filter((f) => f !== video),
       advertiser: s.advertiser,
       adLibraryId: s.adLibraryId,
       adPageId: s.adPageId,
@@ -677,7 +694,8 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       ...(media.screenshot ? [{ role: "screenshot" as const, file: media.screenshot }] : []),
       ...media.moreScreenshots.map((file) => ({ role: "more_screenshot" as const, file })),
       ...media.pageScreenshots.map((file) => ({ role: "page_screenshot" as const, file })),
-      ...(media.video ? [{ role: "video" as const, file: media.video }] : []),
+      ...(media.video ? [{ role: s.video ? ("video" as const) : ("page_video" as const), file: media.video }] : []),
+      ...media.moreVideos.map((file) => ({ role: "page_video" as const, file })),
       ...(s.infoFile ? [{ role: "info_json" as const, file: s.infoFile }] : []),
     ];
     /** Files behind one page record: its HAR and saved page, and the media of the case. */
@@ -730,6 +748,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         ...(rec.id !== rec.caseId ? { case: rec.caseId } : {}),
         ...(rec.moreScreenshots.length ? { more_screenshots: rec.moreScreenshots } : {}),
         ...(rec.video ? { video: rec.video } : {}),
+        ...(rec.moreVideos.length ? { more_videos: rec.moreVideos } : {}),
         ...(rec.advertiser ? { advertiser: rec.advertiser } : {}),
         ...(rec.adLibraryId ? { ad_library_id: rec.adLibraryId } : {}),
         ...(rec.adPageId ? { advertiser_id: rec.adPageId, ad_platform: "meta" } : {}),
@@ -972,6 +991,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     firstSeen: "first_seen",
     ...(has("more_screenshots") ? { extraImagePaths: "more_screenshots" } : {}),
     ...(has("video") ? { videoPath: "video" } : {}),
+    ...(has("more_videos") ? { extraVideoPaths: "more_videos" } : {}),
     ...(has("advertiser") ? { advertiser: "advertiser" } : {}),
     ...(has("text") ? { text: "text" } : {}),
     ...(has("platform") ? { platform: "platform" } : {}),

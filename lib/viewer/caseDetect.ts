@@ -4,10 +4,11 @@
  * - "folders": every sub-folder is a case; loose files of the top folder make one more case;
  * - "files": every loose file is a case of its own; sub-folders stay whole.
  * A page-save package (a folder with manifest.json and dom.html) and a `<name>_files` folder always
- * stay with their page.
+ * stay with their page. Like the importer (`walkCase` in caseImport.ts), everything inside a
+ * `resources` or `<name>_files` folder is a part of a page, never material of its own.
  */
 
-export type FileKind = "screenshot" | "har" | "page" | "page_part" | "video" | "video_info" | "dataset" | "zip" | "unsupported";
+export type FileKind = "screenshot" | "har" | "page" | "page_part" | "video" | "video_info" | "dataset" | "zip" | "stream" | "system" | "unsupported";
 
 export type SplitMode = "single" | "folders" | "files";
 
@@ -27,11 +28,13 @@ export const FILE_KIND_INFO: Record<FileKind, FileKindInfo> = {
   screenshot: { label: "zrzut", hint: "Zrzut ekranu reklamy albo strony: odczytamy z niego tekst i adres z paska przeglądarki.", analyzable: true },
   har: { label: "HAR", hint: "HAR to zapis ruchu sieciowego z przeglądarki: adresy, przekierowania i odpowiedzi serwerów.", analyzable: true },
   page: { label: "strona", hint: "Zapisana strona docelowa: porównamy jej budowę, formularz i skrypty (nie otwieramy jej).", analyzable: true },
-  page_part: { label: "część strony", hint: "Pliki towarzyszące zapisanej stronie (obrazy, skrypty, manifest zapisu).", analyzable: false },
+  page_part: { label: "część strony", hint: "Pliki towarzyszące zapisanej stronie (obrazy, skrypty, style, wideo ze strony, manifest zapisu): dołączamy je do strony.", analyzable: false },
   video: { label: "wideo", hint: "Nagranie reklamy: odczytamy tekst z klatek i adres z paska.", analyzable: true },
   video_info: { label: "opis wideo", hint: "Opis nagrania (np. z yt-dlp): tytuł, kanał, data publikacji.", analyzable: false },
   dataset: { label: "plik zbioru", hint: "Plik zbioru: każdy wiersz stanie się materiałem.", analyzable: false },
   zip: { label: "ZIP", hint: "Archiwum: rozpakujemy je przed analizą.", analyzable: false },
+  stream: { label: "wideo HLS", hint: "Fragmenty strumienia wideo (playlista .m3u8 i segmenty .ts): skleimy je w jedno nagranie i przeanalizujemy jak wideo (mowa, twarze, głos).", analyzable: true },
+  system: { label: "plik systemowy", hint: "Plik dodany przez system (np. .DS_Store): pomijamy go.", analyzable: false },
   unsupported: { label: "nieobsługiwany", hint: "Tego typu pliku nie analizujemy.", analyzable: false },
 };
 
@@ -44,6 +47,12 @@ export const SPLIT_LABEL: Record<SplitMode, string> = {
 const IMAGE = /\.(png|jpe?g|webp|gif|bmp|heic|heif|avif)$/i;
 const VIDEO = /\.(mp4|webm|mov|m4v|mkv)$/i;
 const PAGE = /\.(html?|mhtml?|xhtml)$/i;
+/** HLS stream: playlist and MPEG-TS segments (a page's video player saves these). */
+const STREAM = /\.(m3u8|ts|m2ts|mts)$/i;
+/** Assets of a web page saved loose: scripts (also the browser's ".pobrane"/".download" names), styles, fonts, icons. */
+const WEB_ASSET = /\.(m?js|css|map|svg|ico|woff2?|ttf|otf|eot|pobrane|download|pobierz)$/i;
+/** Files the operating system adds to folders. */
+const SYSTEM = /^(\.ds_store|thumbs\.db|desktop\.ini|\._.*|\.localized)$/i;
 
 const segs = (p: string) => p.split("/").filter(Boolean);
 const base = (p: string) => segs(p).at(-1) ?? p;
@@ -53,8 +62,9 @@ const dirOf = (p: string) => segs(p).slice(0, -1).join("/");
 export function fileKind(path: string, packageDirs: Set<string> = new Set()): FileKind {
   const name = base(path);
   const parts = segs(path);
-  if (parts.slice(0, -1).some((s) => /_files$/i.test(s))) return "page_part";
   const lower = name.toLowerCase();
+  if (SYSTEM.test(lower)) return "system";
+  if (parts.slice(0, -1).some((s) => /_files$/i.test(s) || s.toLowerCase() === "resources")) return "page_part";
   if (lower.endsWith(".info.json")) return "video_info";
   if (lower === "manifest.json" && packageDirs.has(dirOf(path))) return "page_part";
   if (IMAGE.test(name)) return packageDirs.has(dirOf(path)) ? "page_part" : "screenshot";
@@ -63,6 +73,8 @@ export function fileKind(path: string, packageDirs: Set<string> = new Set()): Fi
   if (VIDEO.test(name)) return "video";
   if (/\.zip$/i.test(name)) return "zip";
   if (/\.(csv|tsv|jsonl|json)$/i.test(name)) return "dataset";
+  if (STREAM.test(name)) return "stream";
+  if (WEB_ASSET.test(name)) return "page_part";
   return "unsupported";
 }
 
@@ -114,7 +126,7 @@ function describe(name: string, files: InputFile[]): DetectedCase {
   const notes: string[] = [];
   for (const f of files) {
     const k = fileKind(f.path, packageDirs);
-    counts[k] = (counts[k] ?? 0) + 1;
+    if (k !== "system") counts[k] = (counts[k] ?? 0) + 1;
   }
   const pkg = files.some((f) => packageDirs.has(dirOf(f.path)) && base(f.path).toLowerCase() === "dom.html");
   const analyzable = files.some((f) => FILE_KIND_INFO[fileKind(f.path, packageDirs)].analyzable) || pkg;
@@ -123,6 +135,7 @@ function describe(name: string, files: InputFile[]): DetectedCase {
   if (counts.screenshot && !counts.har && !counts.page && !pkg && !counts.video) notes.push("same zrzuty: adres strony odczytamy z paska przeglądarki, jeśli jest widoczny");
   if (counts.dataset) notes.push("plik zbioru: na razie wczytaj go poleceniem bun run analyze-material -- --dataset <plik>");
   if (counts.zip) notes.push("archiwum ZIP zostanie rozpakowane na serwerze");
+  if (counts.stream || files.some((f) => /\/resources\/media\/[^/]+\.(ts|m2ts|mts)$/i.test(`/${f.path}`))) notes.push("wideo ze strony (HLS): fragmenty skleimy w jedno nagranie i przeanalizujemy jak wideo");
   const unsupported = files.filter((f) => fileKind(f.path, packageDirs) === "unsupported").map((f) => base(f.path));
   if (unsupported.length) notes.push(`nieobsługiwany plik: ${unsupported.slice(0, 3).join(", ")}${unsupported.length > 3 ? ` i ${unsupported.length - 3} innych` : ""}`);
   return { name, files, counts, notes, analyzable };
@@ -157,7 +170,7 @@ function layout(files: InputFile[]) {
 
 /** Default split and the question shown above the preview. */
 export function defaultSplit(input: InputFile[]): { mode: SplitMode; question: string | null } {
-  const { files } = stripCommonTop(input);
+  const { files } = stripCommonTop(withoutSystemFiles(input));
   const packageDirs = packageDirsOf(files);
   const { loose, folders } = layout(files);
   const realFolders = [...folders.keys()].filter((t) => !packageDirs.has(t));
@@ -179,8 +192,14 @@ function uniqueName(name: string, used: Set<string>): string {
   return n;
 }
 
-/** Cases of an upload for the chosen split. File paths stay as uploaded (unstripped). */
-export function detectCases(input: InputFile[], mode: SplitMode, fallbackName = "sprawa"): DetectedCase[] {
+/** The upload without files the operating system adds (.DS_Store and the like): they are not sent. */
+export function withoutSystemFiles(files: InputFile[]): InputFile[] {
+  return files.filter((f) => fileKind(f.path) !== "system");
+}
+
+/** Cases of an upload for the chosen split. File paths stay as uploaded (unstripped); system files are left out. */
+export function detectCases(all: InputFile[], mode: SplitMode, fallbackName = "sprawa"): DetectedCase[] {
+  const input = withoutSystemFiles(all);
   if (!input.length) return [];
   const { files, top } = stripCommonTop(input);
   const original = new Map(files.map((f, i) => [f, input[i]]));
@@ -204,9 +223,15 @@ export function detectCases(input: InputFile[], mode: SplitMode, fallbackName = 
     // a video description (x.info.json) goes with its video (x.mp4)
     const stemOf = (f: InputFile) => base(f.path).replace(/\.info\.json$/i, "").replace(/\.[^.]+$/, "");
     const videoStems = new Set(loose.filter((f) => fileKind(f.path, packageDirs) === "video").map(stemOf));
+    // loose page assets and stream segments go with the only loose page, or together as "pliki strony"
+    const isPart = (f: InputFile) => ["page_part", "stream"].includes(fileKind(f.path, packageDirs));
+    const parts = loose.filter((f) => !pkgFiles.includes(f) && isPart(f));
+    const loosePages = loose.filter((f) => fileKind(f.path, packageDirs) === "page");
+    if (loosePages.length === 1) attached.set(stemOf(loosePages[0]).toLowerCase(), [...(attached.get(stemOf(loosePages[0]).toLowerCase()) ?? []), ...parts]);
+    else rest.push(...parts);
     const groups = new Map<string, InputFile[]>();
     for (const f of loose) {
-      if (pkgFiles.includes(f)) continue;
+      if (pkgFiles.includes(f) || parts.includes(f)) continue;
       const info = fileKind(f.path, packageDirs) === "video_info" && videoStems.has(stemOf(f));
       const key = info ? `v:${stemOf(f)}` : fileKind(f.path, packageDirs) === "video" ? `v:${stemOf(f)}` : `f:${f.path}`;
       groups.set(key, [...(groups.get(key) ?? []), f]);

@@ -209,3 +209,23 @@ describe("enrichItems: archive step", () => {
     expect(out.perItem.m1.archive).toEqual({ status: "none", detail: "brak kopii archiwalnej (wayback, urlscan)" });
   });
 });
+
+describe("enrichItems: further videos of a record (the landing page's video)", () => {
+  it("the voice step reads the windows of the record's own video and of its further videos", async () => {
+    const item: Item = { id: "v1", platform: null, advertiser: null, text: null, imageUrl: null, imagePath: null, landingUrl: null, firstSeen: null, lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: "/x/nagranie.mp4", extraVideoPaths: ["/x/wideo-strony.ts"], extra: {} };
+    const asked: string[] = [];
+    const win = (embedding: number[]) => ({ start: 0, end: 3, levelDb: -20, speech: 0.9, embedding });
+    const out = await enrichItems([item], {
+      sources: recordingLive([]),
+      baseDir: "/",
+      speaker: true,
+      voiceIndex: { model: "test", persons: {} },
+      voicesAdapter: async (files) => {
+        asked.push(...files);
+        return { "/x/nagranie.mp4": [win([1, 0])], "/x/wideo-strony.ts": [win([0, 1])] };
+      },
+    });
+    expect(asked).toEqual(["/x/nagranie.mp4", "/x/wideo-strony.ts"]);
+    expect(out.perItem.v1.voices?.length).toBeGreaterThanOrEqual(2);
+  });
+});

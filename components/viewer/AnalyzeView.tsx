@@ -2,22 +2,23 @@
 
 import { Download, FolderOpen, Loader2, Upload } from "lucide-react";
 import Image from "next/image";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Campaign } from "@/lib/graph/model";
 import { materialCsv } from "@/lib/pipeline/materialCsv";
 import type { CaseProvenance } from "@/lib/viewer/completeness";
 import { defaultSplit, detectCases, FILE_KIND_INFO, SPLIT_LABEL, stripCommonTop, type FileKind, type InputFile, type SplitMode } from "@/lib/viewer/caseDetect";
-import { CASE, count, fmtElapsed, FILE, MATERIAL } from "@/lib/viewer/format";
+import { CASE, count, ERROR, fmtElapsed, FILE, MATERIAL } from "@/lib/viewer/format";
 import { addToBaseRefusal } from "@/lib/viewer/addToBaseView";
 import { familyThresholdFromRules } from "@/lib/viewer/scale";
-import { batchSummary, filterItems, resultConfidence, resultRows, type ResultFilter } from "@/lib/viewer/materialView";
+import { batchSummary, filterItems, resultRows, shownConfidence, sortItems, unreadMaterials, unreadVisible, type ResultFilter, type UnreadMaterial } from "@/lib/viewer/materialView";
+import { LIVE_CHOICE_KEY, liveChoiceValue, liveLookupsOption, parseLiveChoice } from "@/lib/viewer/liveLookups";
 import { bestCampaignLink } from "@/lib/pipeline/materialCsv";
 import { premiseSentence } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, kitOnlyFromRules, sortByStrength } from "@/lib/viewer/strength";
 import type { PublicJob } from "@/lib/viewer/jobs";
 import EvidenceButton from "./EvidenceButton";
 import AddToBaseButton from "./AddToBaseButton";
-import ResultCard, { itemCompleteness, provenanceOf, type ResultContext } from "./ResultCard";
+import ResultCard, { itemCompleteness, provenanceOf, UnreadCard, type ResultContext } from "./ResultCard";
 import { Empty, Help, SyntheticBadge } from "./ui";
 import BuildBasePanel from "./BuildBasePanel";
 
@@ -27,6 +28,8 @@ export interface AnalyzeViewProps {
   rules: string[];
   /** The comparison base is the sample (synthetic) one. */
   syntheticBase: boolean;
+  /** The server runs with ANALYZE_OFFLINE=1 and ignores the domain lookups option: it starts off and is locked. */
+  serverOffline: boolean;
   jobId: string | null;
   onJob: (id: string | null) => void;
   onShowCampaign: (id: string) => void;
@@ -85,6 +88,43 @@ function KindIcons({ counts }: { counts: Partial<Record<FileKind, number>> }) {
   );
 }
 
+/** Choice kept in memory when the session storage cannot be written (it then lasts until the page reloads). */
+let liveChoiceMemory: boolean | null = null;
+const liveChoiceListeners = new Set<() => void>();
+
+/** Choice of the domain lookups made in this browser session, or null when none was made yet. */
+function readLiveChoice(): boolean | null {
+  try {
+    return parseLiveChoice(window.sessionStorage.getItem(LIVE_CHOICE_KEY)) ?? liveChoiceMemory;
+  } catch {
+    return liveChoiceMemory;
+  }
+}
+
+/** Subscribes to changes of the choice made in this tab. */
+function subscribeLiveChoice(cb: () => void): () => void {
+  liveChoiceListeners.add(cb);
+  return () => {
+    liveChoiceListeners.delete(cb);
+  };
+}
+
+/** Choice of the domain lookups for this session: it survives switching tabs of the app, which unmounts the form; none on the server. */
+function useLiveChoice(): [boolean | null, (on: boolean) => void] {
+  const choice = useSyncExternalStore(subscribeLiveChoice, readLiveChoice, () => null);
+  /** Remembers the choice and tells the subscribers. */
+  const set = (on: boolean) => {
+    liveChoiceMemory = on;
+    try {
+      window.sessionStorage.setItem(LIVE_CHOICE_KEY, liveChoiceValue(on));
+    } catch {
+      /* storage unavailable: the choice stays in memory */
+    }
+    for (const cb of liveChoiceListeners) cb();
+  };
+  return [choice, set];
+}
+
 /** Saves text as a file in the browser (CSV and JSON export). */
 function download(name: string, mime: string, content: string): void {
   const url = URL.createObjectURL(new Blob([content], { type: mime }));
@@ -96,11 +136,13 @@ function download(name: string, mime: string, content: string): void {
 }
 
 /** "Analizuj materiał": input (drop zone, link, text), case preview, run progress and the batch result. */
-export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticBase, jobId, onJob, onShowCampaign, onCompare }: AnalyzeViewProps) {
+export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticBase, serverOffline, jobId, onJob, onShowCampaign, onCompare }: AnalyzeViewProps) {
   const [picked, setPicked] = useState<Picked[]>([]);
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
-  const [live, setLive] = useState(true);
+  const [liveChoice, setLiveChoice] = useLiveChoice();
+  const liveOption = liveLookupsOption(serverOffline, liveChoice);
+  const live = liveOption.checked;
   const [modeChoice, setModeChoice] = useState<SplitMode | null>(null);
   const [off, setOff] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +221,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
       const form = new FormData();
       form.append("url", overrides?.url ?? url);
       form.append("text", overrides?.text ?? text);
-      form.append("live", (overrides?.live ?? live) ? "1" : "0");
+      form.append("live", liveChoiceValue(overrides?.live ?? live));
       try {
         if (queue.length) form.append("uploadId", await uploadFiles(queue, setUpload));
         const res = await fetch("/api/material", { method: "POST", body: form });
@@ -264,11 +306,14 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
             </label>
           </div>
 
-          <label className="flex items-start gap-2 text-sm">
-            <input type="checkbox" className="mt-1 accent-slate-900" checked={live} onChange={(e) => setLive(e.target.checked)} />
+          <label className={`flex items-start gap-2 text-sm ${liveOption.disabled ? "text-slate-500" : ""}`}>
+            <input type="checkbox" className="mt-1 accent-slate-900" checked={liveOption.checked} disabled={liveOption.disabled} onChange={(e) => setLiveChoice(e.target.checked)} />
             <span>
               <b>Dociągnij publiczne dane o domenach (DNS, rejestr domen)</b>
-              <span className="block text-xs text-slate-600">Pytamy publiczne rejestry o domeny z materiału. Strony oszustów nie otwieramy w Twojej przeglądarce. Wyłącz, jeśli pracujesz bez internetu.</span>
+              <span className="block text-xs text-slate-600">
+                Pytamy publiczne rejestry o domeny z materiału. Strony oszustów nie otwieramy w Twojej przeglądarce.{" "}
+                {liveOption.note ? <span className="font-medium text-slate-800">{liveOption.note}</span> : "Wyłącz, jeśli pracujesz bez internetu."}
+              </span>
             </span>
           </label>
 
@@ -294,7 +339,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
                   {cases.map((c) => (
                     <tr key={c.name} className="border-t border-slate-100 align-top">
                       <td className="py-1.5"><input type="checkbox" className="accent-slate-900" aria-label={`Analizuj sprawę ${c.name}`} checked={!off.has(c.name) && c.analyzable} disabled={!c.analyzable} onChange={(e) => setOff((cur) => { const n = new Set(cur); if (e.target.checked) n.delete(c.name); else n.add(c.name); return n; })} /></td>
-                      <td className="py-1.5 font-mono text-xs">{c.name}</td>
+                      <td className="break-all py-1.5 pr-2 font-mono text-xs">{c.name}</td>
                       <td className="py-1.5"><KindIcons counts={c.counts} /></td>
                       <td className="py-1.5 text-xs text-slate-600">{c.notes.join("; ")}</td>
                     </tr>
@@ -377,13 +422,13 @@ function Progress({ job, now, onReset }: { job: PublicJob; now: number; onReset:
       </div>
       <ul className="grid gap-1 text-sm md:grid-cols-2">
         {job.cases.map((c) => (
-          <li key={c.name} className="flex items-center gap-2 rounded bg-slate-50 px-2 py-1">
-            <span className="font-mono text-xs">{c.name}</span>
-            <span className={`ml-auto text-xs ${c.status === "error" ? "font-medium text-rose-800" : "text-slate-600"}`}>{STATUS_WORD[c.status]}{c.detail ? `: ${c.detail}` : ""}</span>
+          <li key={c.name} className="flex min-w-0 items-start gap-2 rounded bg-slate-50 px-2 py-1">
+            <span className="min-w-0 break-all font-mono text-xs">{c.name}</span>
+            <span className={`ml-auto min-w-0 text-right text-xs wrap-anywhere ${c.status === "error" ? "font-medium text-rose-800" : "text-slate-600"}`}>{STATUS_WORD[c.status]}{c.detail ? `: ${c.detail}` : ""}</span>
           </li>
         ))}
       </ul>
-      <p className="text-xs text-slate-600">Odczytujemy tekst ze zrzutów i nagrań, zbieramy dane o domenach, porównujemy z bazą i grupujemy.</p>
+      <p className="text-xs text-slate-600">Odczytujemy tekst ze zrzutów i nagrań, {job.live ? "zbieramy dane o domenach, " : ""}porównujemy z bazą i grupujemy.</p>
       {job.error && <p role="alert" className="rounded border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-sm text-rose-900">{job.error}</p>}
       {job.log.length > 0 && (
         <details className="text-xs text-slate-600">
@@ -435,16 +480,11 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
     }),
     [minLinkScore, familyMinScore, kitOnly, campaigns, job.id, result, syntheticBase, example],
   );
-  const single = result.items.length === 1;
-  const rows = useMemo(() => {
-    const list = filterItems(result.items, filter);
-    const order = ["known_campaign", "similar_campaigns", "new_campaign", "duplicate", "insufficient"];
-    return [...list].sort((a, b) =>
-      sort === "verdict"
-        ? order.indexOf(a.verdict) - order.indexOf(b.verdict)
-        : (resultConfidence(a) ? CONFIDENCE_INFO[resultConfidence(a)!].rank : 9) - (resultConfidence(b) ? CONFIDENCE_INFO[resultConfidence(b)!].rank : 9),
-    );
-  }, [result.items, filter, sort]);
+  const unread = useMemo(() => unreadMaterials(result), [result]);
+  const single = result.items.length + unread.length === 1;
+  const rows = useMemo(() => sortItems(filterItems(result.items, filter), sort), [result.items, filter, sort]);
+  // cases the import could not read have neither verdict nor confidence: last in both orders, as in the CSV
+  const unreadRows = unreadVisible(filter) ? unread : [];
   const funnel: Array<{ label: string; n: number; f: ResultFilter | null; help?: boolean }> = [
     { label: "Pliki", n: sum.files, f: null },
     { label: "Materiały", n: sum.materials, f: "all" },
@@ -498,7 +538,13 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
         {bar.filter((b) => b.n > 0).map((b, i) => (
           <span key={b.f}>{i > 0 && " · "}<button type="button" className="underline decoration-dotted" onClick={() => setFilter(b.f)}>{b.n} {b.text}</button></span>
         ))}
-        {" · "}{sum.withErrors} {sum.withErrors === 1 ? "błąd" : "błędów"}
+        {" · "}{count(sum.withErrors, ERROR)}
+        {sum.unread > 0 && (
+          <>
+            {" "}(w tym nieodczytane:{" "}
+            <button type="button" className="underline decoration-dotted" onClick={() => setFilter("insufficient")}>{sum.unread}</button>)
+          </>
+        )}
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -513,20 +559,32 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
         </span>
       </div>
 
-      {rows.length === 0 ? (
+      {rows.length + unreadRows.length === 0 ? (
         <Empty>Żaden materiał nie pasuje do tego filtru. Wybierz „pokaż wszystkie”.</Empty>
       ) : (
+        // Fixed column widths: a long material id or address wraps inside its cell instead of widening the table,
+        // and the expanded card gets the width of the table. Below the minimum width the table scrolls in its frame.
         <div className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[56rem] table-fixed text-sm">
+            <colgroup>
+              <col className="w-40" />
+              <col className="w-16" />
+              <col className="w-28" />
+              <col className="w-28" />
+              <col className="w-32" />
+              <col />
+              <col className="w-24" />
+              <col className="w-8" />
+            </colgroup>
             <thead className="bg-slate-50 text-left text-xs text-slate-600">
               <tr>
-                <th className="px-2 py-1.5">Materiał</th><th>Miniatura</th><th>Werdykt</th><th>Kampania</th><th>Pewność<Help term="pewnosc" /></th><th>Główna przesłanka</th><th>Kompletność</th><th className="w-8"><span className="sr-only">Rozwiń</span></th>
+                <th className="px-2 py-1.5">Materiał</th><th className="px-2">Miniatura</th><th className="px-2">Werdykt</th><th className="px-2">Kampania</th><th className="px-2">Pewność<Help term="pewnosc" /></th><th className="px-2">Główna przesłanka</th><th className="px-2">Kompletność</th><th><span className="sr-only">Rozwiń</span></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((it) => {
                 const isOpen = single || open === it.id;
-                const conf = resultConfidence(it);
+                const conf = shownConfidence(it);
                 const best = bestCampaignLink(it);
                 const top = it.verdict === "duplicate" ? (it.duplicateOf?.reason ?? "") : best ? premiseSentence(sortByStrength(best.evidence, kitOnly)[0] ?? { evidence: "" }) : "—";
                 const comp = itemCompleteness(ctx, it);
@@ -534,13 +592,13 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
                 return (
                   <Fragment key={it.id}>
                     <tr className="border-t border-slate-100 align-top">
-                      <td className="px-2 py-1.5 font-mono text-xs">{it.id}</td>
-                      <td className="py-1.5">{shot ? <ThumbImg jobId={job.id} path={shot} /> : <span className="text-xs text-slate-400">—</span>}</td>
-                      <td className="py-1.5">{VERDICT_WORD[it.verdict]}</td>
-                      <td className="py-1.5">{it.campaign ?? (it.similarCampaigns.length ? `podobna: ${it.similarCampaigns.join(", ")}` : (it.newCampaign ?? "—"))}</td>
-                      <td className="py-1.5">{conf ? CONFIDENCE_INFO[conf].short : "—"}</td>
-                      <td className="max-w-xs py-1.5 text-xs">{top}</td>
-                      <td className="py-1.5 text-xs">{comp.complete ? "kompletne" : <span title={comp.summary}>dane niepełne</span>}</td>
+                      <td className="break-all px-2 py-1.5 font-mono text-xs">{it.id}</td>
+                      <td className="px-2 py-1.5">{shot ? <ThumbImg jobId={job.id} path={shot} /> : <span className="text-xs text-slate-400">—</span>}</td>
+                      <td className="px-2 py-1.5">{VERDICT_WORD[it.verdict]}</td>
+                      <td className="px-2 py-1.5 wrap-anywhere">{it.campaign ?? (it.similarCampaigns.length ? `podobna: ${it.similarCampaigns.join(", ")}` : (it.newCampaign ?? "—"))}</td>
+                      <td className="px-2 py-1.5" title={conf ? CONFIDENCE_INFO[conf].help : undefined}>{conf ? CONFIDENCE_INFO[conf].short : "—"}</td>
+                      <td className="px-2 py-1.5 text-xs wrap-anywhere">{top}</td>
+                      <td className="px-2 py-1.5 text-xs">{comp.complete ? "kompletne" : <span title={comp.summary}>dane niepełne</span>}</td>
                       <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={isOpen} aria-label={`${isOpen ? "Zwiń" : "Rozwiń"} materiał ${it.id}`} onClick={() => !single && setOpen(isOpen ? null : it.id)}>{isOpen ? "▾" : "▸"}</button></td>
                     </tr>
                     {isOpen && (
@@ -551,6 +609,9 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
                   </Fragment>
                 );
               })}
+              {unreadRows.map((u) => (
+                <UnreadRow key={`unread:${u.id}`} material={u} open={single || open === `unread:${u.id}`} onToggle={single ? undefined : () => setOpen(open === `unread:${u.id}` ? null : `unread:${u.id}`)} />
+              ))}
             </tbody>
           </table>
         </div>
@@ -561,7 +622,7 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
           <h4 className="text-sm font-semibold">Nowe kampanie z tej paczki<Help term="kampania" /></h4>
           <ul className="space-y-1.5 text-sm">
             {result.newCampaigns!.map((n) => (
-              <li key={n.id} className="rounded border border-violet-300 bg-violet-50 px-3 py-1.5">
+              <li key={n.id} className="rounded border border-violet-300 bg-violet-50 px-3 py-1.5 wrap-anywhere">
                 <b>{n.id}</b>: {n.members.join(", ")}
                 {n.evidence[0] && <span className="block text-xs text-slate-700">Łączy je: {n.evidence[0]}</span>}
                 <span className="mt-1 block"><EvidenceButton campaignId={n.id} jobId={job.id} /></span>
@@ -571,9 +632,35 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
         </section>
       )}
       {result.notes.length > 0 && (
-        <details className="text-xs text-slate-600"><summary className="cursor-pointer">Uwagi analizy ({result.notes.length})</summary><ul className="mt-1 list-disc pl-5">{result.notes.map((n, i) => <li key={i}>{n}</li>)}</ul></details>
+        <details className="text-xs text-slate-600"><summary className="cursor-pointer">Uwagi analizy ({result.notes.length})</summary><ul className="mt-1 list-disc pl-5 wrap-anywhere">{result.notes.map((n, i) => <li key={i}>{n}</li>)}</ul></details>
       )}
     </section>
+  );
+}
+
+/**
+ * Row of a case the import could not read (e.g. a saved page without its address): "za mało danych" with the
+ * reason in the premise column, and when expanded the card with what to add. The CSV has the same row.
+ */
+function UnreadRow({ material, open, onToggle }: { material: UnreadMaterial; open: boolean; onToggle?: () => void }) {
+  return (
+    <>
+      <tr className="border-t border-slate-100 align-top">
+        <td className="break-all px-2 py-1.5 font-mono text-xs">{material.id}</td>
+        <td className="px-2 py-1.5"><span className="text-xs text-slate-400">—</span></td>
+        <td className="px-2 py-1.5">{VERDICT_WORD.insufficient}<span className="block text-xs font-medium text-rose-800">nie odczytano</span></td>
+        <td className="px-2 py-1.5">—</td>
+        <td className="px-2 py-1.5">—</td>
+        <td className="px-2 py-1.5 text-xs wrap-anywhere">{material.reasons.join("; ")}</td>
+        <td className="px-2 py-1.5 text-xs">dane niepełne</td>
+        <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={open} aria-label={`${open ? "Zwiń" : "Rozwiń"} materiał ${material.id}`} onClick={() => onToggle?.()}>{open ? "▾" : "▸"}</button></td>
+      </tr>
+      {open && (
+        <tr className="border-t border-slate-100 bg-slate-50/50">
+          <td colSpan={8}><UnreadCard material={material} /></td>
+        </tr>
+      )}
+    </>
   );
 }
 

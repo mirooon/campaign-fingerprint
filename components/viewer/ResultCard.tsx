@@ -12,8 +12,8 @@ import { FAMILY_HINT, FAMILY_LABEL, FAMILY_ORDER, featureFamily, familyOf, type 
 import { authorNotes } from "@/lib/viewer/authorNotes";
 import { bridgeNote, brandNote, domainAgeNote, faceLines, humanizeId, narrativeLine, platformAccountLines, voiceLines, weakestLinkNote } from "@/lib/viewer/fields";
 import { fmtNum } from "@/lib/viewer/format";
-import { resultConfidence, variantNote } from "@/lib/viewer/materialView";
-import { nearMissNotes } from "@/lib/viewer/nearMissView";
+import { shownConfidence, variantNote, type UnreadMaterial } from "@/lib/viewer/materialView";
+import { apartLine, nearMissNotes } from "@/lib/viewer/nearMissView";
 import { closestLink, verdictScale, ZONE_LABEL, type Zone } from "@/lib/viewer/scale";
 import { ADDRESS_COMPLETENESS_LABEL, cleanEvidence, EMAIL_DOMAIN_KIND_LABEL, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, SHOP_FLAG_INFO, SHOP_TECHNIQUES, TECHNIQUE_INFO, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
@@ -166,7 +166,7 @@ function verdictLook(item: MaterialItemResult, ctx: ResultContext): VerdictLook 
 /** Section 1: verdict, confidence, one plain sentence, strength bar and buttons. */
 function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemResult; ctx: ResultContext; onShowCampaign: (id: string) => void; onCompare: (a: string, b: string) => void }) {
   const look = verdictLook(item, ctx);
-  const conf = resultConfidence(item);
+  const conf = shownConfidence(item);
   const best = bestCampaignLink(item);
   const camp = item.campaign ? ctx.campaigns.get(item.campaign) : null;
   const note = variantNote(item);
@@ -203,7 +203,7 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
       {camp?.attributes.basis === "content" && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">Kampania z treści, bez infrastruktury: słabsza podstawa niż wspólne konto czy serwer.</p>}
       {camp && bridgeNote(camp) && <p className="mt-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">{bridgeNote(camp)}</p>}
       {camp && weakestLinkNote(camp, ctx.minLinkScore) && <p className="mt-1 text-xs text-slate-700">{weakestLinkNote(camp, ctx.minLinkScore)}</p>}
-      {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.join("; ")}.</p>}
+      {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.map(apartLine).join("; ")}.</p>}
       {item.verdict === "insufficient" && (item.missing?.length ?? 0) > 0 && (
         <div className="mt-2 text-sm">
           <b>Co dorzucić:</b>
@@ -398,7 +398,37 @@ export function CompletenessList({ item, ctx }: { item: MaterialItemResult; ctx:
   );
 }
 
-/** Expanded card of one material: verdict, why, why not another, features, completeness. */
+/**
+ * Expanded card of a case the import could not read: no verdict and no features, the importer's reason and what
+ * to add (e.g. the HAR of the visit for a saved page without its address).
+ */
+export function UnreadCard({ material }: { material: UnreadMaterial }) {
+  return (
+    <div className="p-3 wrap-anywhere">
+      <section className="rounded-lg border-2 border-dashed border-slate-500 bg-slate-50 p-3" aria-label="Werdykt">
+        <div className="flex flex-wrap items-center gap-2">
+          <FileQuestion size={20} aria-hidden />
+          <h3 className="text-base font-semibold text-slate-900">Nie udało się odczytać materiału</h3>
+        </div>
+        <p className="mt-1 text-sm text-slate-800">Z plików tej sprawy nie powstał materiał do porównania, więc nie ma werdyktu ani cech. W eksporcie CSV i JSON ma wiersz „za mało danych”.</p>
+        <p className="mt-1 text-sm text-slate-800"><b>Powód:</b> {material.reasons.join("; ")}</p>
+        {material.hints.length > 0 && (
+          <div className="mt-2 text-sm">
+            <b>Co dorzucić:</b>
+            <ul className="list-disc pl-5">
+              {material.hints.map((h) => <li key={h}>{h}</li>)}
+            </ul>
+          </div>
+        )}
+      </section>
+    </div>
+  );
+}
+
+/**
+ * Expanded card of one material: verdict, why, why not another, features, completeness. Long words (ids, addresses)
+ * may break anywhere, so the card never gets wider than the table row that holds it.
+ */
 export default function ResultCard({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemResult; ctx: ResultContext; onShowCampaign: (id: string) => void; onCompare: (a: string, b: string) => void }) {
   const [all, setAll] = useState(false);
   const best = bestCampaignLink(item);
@@ -406,7 +436,7 @@ export default function ResultCard({ item, ctx, onShowCampaign, onCompare }: { i
   const shown = all ? premises : premises.slice(0, 3);
   const shot = provenanceOf(ctx, item)?.screenshot;
   return (
-    <div className="space-y-4 p-3">
+    <div className="min-w-0 space-y-4 p-3 wrap-anywhere">
       {shot && (
         <Image src={`/api/material/${ctx.jobId}/image?path=${encodeURIComponent(shot)}`} alt={`Zrzut materiału ${item.id}`} width={160} height={120} unoptimized className="float-right ml-3 h-auto max-h-40 w-auto rounded border border-slate-200" />
       )}

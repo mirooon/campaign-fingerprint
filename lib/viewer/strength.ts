@@ -86,10 +86,18 @@ export function sortByStrength<T extends EvidenceLike>(evs: T[], kitOnly?: Set<s
 
 export type Confidence = "certain" | "likely" | "uncertain";
 
-export const CONFIDENCE_INFO: Record<Confidence, { label: string; short: string; rank: number; help: string }> = {
+/**
+ * Confidence as the GUI shows it: the three levels of the export, plus `no_traces` for a new material that
+ * shares no trace with any known material. Such a material is `uncertain` in the CSV and JSON, but on screen
+ * "blisko progu" would be wrong: there is no link to put next to the threshold.
+ */
+export type ShownConfidence = Confidence | "no_traces";
+
+export const CONFIDENCE_INFO: Record<ShownConfidence, { label: string; short: string; rank: number; help: string }> = {
   certain: { label: "pewne", short: "pewne", rank: 0, help: "Najlepsze powiązanie z kampanią ma przesłankę o wysokiej sile." },
   likely: { label: "prawdopodobne", short: "prawdopodobne", rank: 1, help: "Siła powiązania z kampanią wynosi co najmniej 0,5." },
-  uncertain: { label: "niepewne (blisko progu)", short: "niepewne", rank: 2, help: "Powiązanie jest słabe albo go nie ma. Warto sprawdzić ręcznie." },
+  uncertain: { label: "niepewne (blisko progu)", short: "niepewne", rank: 2, help: "Powiązanie z kampanią jest słabe albo nie przekracza progu. Warto sprawdzić ręcznie." },
+  no_traces: { label: "brak wspólnych śladów z bazą", short: "brak wspólnych śladów", rank: 3, help: "Żaden znany materiał nie ma wspólnego śladu z tym materiałem, więc nie ma powiązania, które dałoby się ocenić." },
 };
 
 /** Campaign rule for a pair (LinkVerdict) in plain Polish. */

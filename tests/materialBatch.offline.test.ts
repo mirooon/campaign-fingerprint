@@ -13,7 +13,7 @@ import { lookupsOffReason } from "../lib/pipeline/lookupFailures";
 import { materialCsv } from "../lib/pipeline/materialCsv";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
 import { applyProgress, type Job } from "../lib/viewer/jobs";
-import { batchSummary } from "../lib/viewer/materialView";
+import { batchSummary, unreadMaterials } from "../lib/viewer/materialView";
 import { runSample, SAMPLE, sampleItems } from "./sampleRun";
 
 const IMAGES = path.join(SAMPLE, "images");
@@ -230,6 +230,27 @@ describe("analyzeMaterial: case the importer cannot read", () => {
     expect(rows).toHaveLength(3);
     expect(rows[2].startsWith("tylko-notatka,tylko-notatka,insufficient,,,,,uncertain,,,")).toBe(true);
     expect(rows[2]).toContain("brak strony, zrzutu ani wideo"); // the reason sits quoted in missing_data
+  }, 60_000);
+
+  it("counts a saved page without its address, uploaded as its own material, in the GUI summary with what to add", async () => {
+    const res = await analyzeMaterial(
+      {
+        caseDirs: [
+          caseWith("z-adresem", { "Strona.html": page("https://z-adresem.example/lp", "Oferta", "<p>Lokata z gwarancją zysku, zapisz się dziś.</p>") }),
+          caseWith("bez-adresu", { "bez-adresu.html": "<html><head><title>Oferta</title></head><body><p>Strona zapisana bez adresu.</p></body></html>" }),
+        ],
+      },
+      ctx("w-no-address"),
+    );
+    expect(res.items.map((i) => i.caseId)).toEqual(["z-adresem"]);
+    const s = batchSummary(res, 2);
+    expect(s.materials).toBe(2);
+    expect(s.insufficient).toBe(1);
+    expect(s.withErrors).toBe(1);
+    const [unread] = unreadMaterials(res);
+    expect(unread.id).toBe("bez-adresu");
+    expect(unread.reasons[0]).toMatch(/^brak adresu strony/);
+    expect(unread.hints.join(" ")).toMatch(/HAR/);
   }, 60_000);
 });
 

@@ -94,12 +94,11 @@ function skippedCase(id: string): string {
 }
 
 /**
- * One row per case that the import did not turn into a record (e.g. a saved page without an address
- * when no HAR fits): verdict `insufficient`, confidence `uncertain`, the importer's reasons in
- * `missing_data`. A case with another capture that did import gets no extra row. Without these rows
- * a material of a hidden test set would vanish from the batch result without a trace.
+ * Cases the import did not turn into a record (e.g. a saved page without an address when no HAR fits),
+ * each with the importer's reasons without repeats, in the order of `skipped`. A case with another
+ * capture that did import is not listed. The CSV and the viewer's result table share this rule.
  */
-export function skippedCsvRows(result: MaterialCsvInput): string[][] {
+export function unreadCases(result: MaterialCsvInput): Array<{ case: string; reasons: string[] }> {
   const present = new Set(result.items.map((it) => it.caseId ?? it.id));
   const reasons = new Map<string, string[]>();
   for (const s of result.skipped ?? []) {
@@ -109,7 +108,16 @@ export function skippedCsvRows(result: MaterialCsvInput): string[][] {
     if (!list.includes(s.reason)) list.push(s.reason);
     reasons.set(c, list);
   }
-  return [...reasons.entries()].map(([c, why]) => [c, c, "insufficient", "", "", "", "", "uncertain", "", "", why.join("; "), ""]);
+  return [...reasons.entries()].map(([c, why]) => ({ case: c, reasons: why }));
+}
+
+/**
+ * One row per case that the import did not turn into a record (`unreadCases`): verdict `insufficient`,
+ * confidence `uncertain`, the importer's reasons in `missing_data`. Without these rows a material of a
+ * hidden test set would vanish from the batch result without a trace.
+ */
+export function skippedCsvRows(result: MaterialCsvInput): string[][] {
+  return unreadCases(result).map(({ case: c, reasons }) => [c, c, "insufficient", "", "", "", "", "uncertain", "", "", reasons.join("; "), ""]);
 }
 
 export function materialCsv(result: MaterialCsvInput): string {

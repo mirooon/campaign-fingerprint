@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
-import { autoMapping, loadRecords, normalizeDate, normalizeRecords, parseCsv } from "./ingest";
+import { autoMapping, loadRecords, loadRecordsLenient, normalizeDate, normalizeRecords, parseCsv } from "./ingest";
 
 const dir = mkdtempSync(path.join(tmpdir(), "starter-ingest-"));
 afterAll(() => rmSync(dir, { recursive: true, force: true }));
@@ -84,5 +84,45 @@ describe("loadRecords", () => {
     expect(loadRecords(f1)).toEqual([{ id: 1 }]);
     expect(loadRecords(f2)).toEqual([{ id: 2 }]);
     expect(loadRecords(f3)).toEqual([{ id: 3 }, { id: 4 }]);
+  });
+});
+
+describe("loadRecordsLenient", () => {
+  it("leaves out a damaged JSONL line with its line number, the id still readable in it and the reason", () => {
+    const f = path.join(dir, "uszkodzony.jsonl");
+    writeFileSync(f, '{"id":"w1","text":"a"}\n\n{"ad_id": "w2", "text": "uci\n[1,2]\n{"id":"w4"}\n');
+    const { records, bad } = loadRecordsLenient(f);
+    expect(records).toEqual([{ id: "w1", text: "a" }, { id: "w4" }]);
+    expect(bad).toEqual([
+      { row: 3, id: "w2", reason: expect.stringMatching(/^niepoprawny JSON \(.+\)$/) },
+      { row: 4, id: null, reason: "wiersz nie jest obiektem JSON" },
+    ]);
+  });
+
+  it("reads the id of a broken line from the mapped id column first", () => {
+    const f = path.join(dir, "mapowany.jsonl");
+    writeFileSync(f, '{"nr_zgloszenia": 77, "id": "x", "text": \n');
+    expect(loadRecordsLenient(f, { idColumn: "nr_zgloszenia" }).bad[0].id).toBe("77");
+  });
+
+  it("leaves out JSON array elements that are not objects, and still throws for a file that is not JSON", () => {
+    const f = path.join(dir, "tablica.json");
+    writeFileSync(f, JSON.stringify({ items: [{ id: 1 }, null, "x", { id: 2 }] }));
+    expect(loadRecordsLenient(f)).toEqual({
+      records: [{ id: 1 }, { id: 2 }],
+      bad: [
+        { row: 2, id: null, reason: "element tablicy nie jest obiektem JSON" },
+        { row: 3, id: null, reason: "element tablicy nie jest obiektem JSON" },
+      ],
+    });
+    const broken = path.join(dir, "zly.json");
+    writeFileSync(broken, '[{"id": 1},');
+    expect(() => loadRecordsLenient(broken)).toThrow();
+  });
+
+  it("reads a CSV like loadRecords", () => {
+    const f = path.join(dir, "zbior.csv");
+    writeFileSync(f, "id,text\n1,a\n2,b\n");
+    expect(loadRecordsLenient(f)).toEqual({ records: loadRecords(f), bad: [] });
   });
 });

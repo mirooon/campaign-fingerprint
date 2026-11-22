@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -612,5 +612,79 @@ describe("importCases: saved page whose visitor record holds the page's domain a
     const records = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8"));
     expect(records.map((r: { landing_url: string }) => r.landing_url)).toEqual([PAGE]);
     expect(readFileSync(path.join(dir, "out", "input.json"), "utf8")).not.toContain("192.0.2.44");
+  });
+});
+
+/**
+ * One damaged case must not stop the import of the others: a page that cannot be read, a HAR that is not JSON and
+ * a case that fails part-way each become `skipped` entries with the reason, and the readable cases import as usual.
+ */
+describe("importCases: files that cannot be read or parsed", () => {
+  let dir: string;
+  let casesDir: string;
+  const lines: string[] = [];
+  const saved = (url: string, body: string) => `<!-- saved from url=(${String(url.length).padStart(4, "0")})${url} -->\n<html><head><title>T</title></head><body>${body}</body></html>`;
+  const mk = (rel: string, body: string | Buffer) => {
+    mkdirSync(path.dirname(path.join(casesDir, rel)), { recursive: true });
+    writeFileSync(path.join(casesDir, rel), body);
+  };
+  let result: Awaited<ReturnType<typeof importCases>>;
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-broken-"));
+    casesDir = path.join(dir, "cases");
+    mk("dobra/Strona.html", saved("https://dobra-strona.example/lp", "<p>Oferta</p>"));
+    // a HAR cut off in the middle of writing: the only material of its case
+    mk("zly-har/page.har", '{"log":{"entries":[{"request":{"method":"GET","url":"https://zly-har.example/"');
+    // the same broken HAR next to a readable screenshot: the case imports from the screenshot
+    mk("har-i-zrzut/page.har", "{ to nie jest JSON");
+    mk("har-i-zrzut/zrzut.png", Buffer.from([0x89, 0x50, 0x4e, 0x47, 1, 2, 3]));
+    // two pages: the first imports, the second fails part-way (its assets folder is a broken link), so the whole case is rolled back
+    mk("w-polowie/a/Strona.html", saved("https://pierwsza-czesc.example/a", "<p>A</p>"));
+    mk("w-polowie/b/Strona.html", saved("https://druga-czesc.example/b", "<p>B</p>"));
+    symlinkSync(path.join(dir, "nie-ma-takiego-katalogu"), path.join(casesDir, "w-polowie", "b", "Strona_files"));
+    // an asset of the saved page that cannot be read (a folder named like an image): only the asset is left out
+    mk("zly-zasob/Strona.html", saved("https://zly-zasob.example/lp", '<link rel="icon" href="Strona_files/logo.png">'));
+    mkdirSync(path.join(casesDir, "zly-zasob", "Strona_files", "logo.png"), { recursive: true });
+    result = await importCases({ casesDir, outDir: path.join(dir, "out"), log: (m) => lines.push(m) });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("imports the readable cases and skips each damaged one with its reason", () => {
+    expect(result.cases.map((c) => c.id)).toEqual(["dobra", "har-i-zrzut", "zly-zasob"]);
+    expect(result.skipped).toEqual([
+      { id: "har-i-zrzut/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
+      { id: "w-polowie", reason: expect.stringMatching(/^nie udało się zaimportować sprawy: ENOENT.*'b\/Strona_files'/) },
+      { id: "zly-har/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
+    ]);
+    // no server paths in the reasons (they reach the GUI)
+    for (const s of result.skipped) expect(s.reason).not.toContain(dir);
+    expect(lines.some((l) => l.startsWith("[zly-zasob] plik Strona_files/logo.png pominięty: EISDIR"))).toBe(true);
+  });
+
+  it("takes back everything a case added before it failed", () => {
+    const records = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8")) as Array<{ id: string }>;
+    expect(records.map((r) => r.id)).toEqual(["dobra", "har-i-zrzut", "zly-zasob"]);
+    const http = readFileSync(path.join(dir, "out", "fixtures", "http.json"), "utf8");
+    expect(http).not.toContain("pierwsza-czesc.example");
+    expect(Object.keys(JSON.parse(readFileSync(path.join(dir, "out", "fixtures", "dns.json"), "utf8")))).not.toContain("pierwsza-czesc.example");
+  });
+
+  // the permission bits do not stop root, so the case cannot be made unreadable there
+  it.skipIf(process.getuid?.() === 0)("skips a case whose saved page cannot be read, with the file name and the system's reason", async () => {
+    const d = mkdtempSync(path.join(os.tmpdir(), "case-import-eacces-"));
+    try {
+      const page = path.join(d, "cases", "bez-dostepu", "Strona.html");
+      mkdirSync(path.dirname(page), { recursive: true });
+      writeFileSync(page, saved("https://bez-dostepu.example/", "<p>x</p>"));
+      chmodSync(page, 0o000);
+      mkdirSync(path.join(d, "cases", "czytelna"));
+      writeFileSync(path.join(d, "cases", "czytelna", "Strona.html"), saved("https://czytelna.example/", "<p>y</p>"));
+      const res = await importCases({ casesDir: path.join(d, "cases"), outDir: path.join(d, "out") });
+      expect(res.cases.map((c) => c.id)).toEqual(["czytelna"]);
+      expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
+    } finally {
+      rmSync(d, { recursive: true, force: true });
+    }
   });
 });

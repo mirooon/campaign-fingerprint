@@ -3,7 +3,7 @@
  * one graph for all cases, duplicates of known and of batch materials, campaigns of new materials
  * only (N1 ...), and materials with nothing to compare them by.
  */
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import sharp from "sharp";
@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeMaterial, type MaterialProgress, type MaterialResult } from "../lib/pipeline/analyzeMaterial";
 import { materialCsv } from "../lib/pipeline/materialCsv";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
+import { applyProgress, type Job } from "../lib/viewer/jobs";
 import { batchSummary } from "../lib/viewer/materialView";
 import { runSample, SAMPLE, sampleItems } from "./sampleRun";
 
@@ -231,6 +232,61 @@ describe("analyzeMaterial: case the importer cannot read", () => {
   }, 60_000);
 });
 
+describe("analyzeMaterial: a damaged file in one case of the batch", () => {
+  it("analyses the other cases and gives each damaged one its reason: in skipped, in the CSV and only in its own progress", async () => {
+    const events: MaterialProgress[] = [];
+    const good = caseWith("dobra-sprawa", { "Strona.html": page("https://dobra-sprawa.example/lp", "Oferta", "<p>Zapisz się na webinar o oszczędzaniu w kryzysie.</p>") });
+    // a HAR cut off in the middle of writing, the only material of its case
+    const brokenHar = caseWith("uszkodzony-har", { "page.har": '{"log":{"entries":[{"request":' });
+    // a page whose assets folder is a broken link: the import of this case fails part-way
+    const partWay = caseWith("zepsute-zasoby", { "Strona.html": page("https://zepsute-zasoby.example/lp", "Inna", "<p>Rowery miejskie w promocji.</p>") });
+    symlinkSync(path.join(root, "nie-ma-takiego-katalogu"), path.join(partWay, "Strona_files"));
+    const res = await analyzeMaterial({ caseDirs: [good, brokenHar, partWay] }, { ...ctx("w-damaged"), onProgress: (e) => events.push(e) });
+
+    expect(res.items.map((i) => [i.id, i.verdict])).toEqual([["dobra-sprawa", "new_campaign"]]);
+    expect(res.skipped).toEqual([
+      { id: "uszkodzony-har/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
+      { id: "zepsute-zasoby", reason: expect.stringMatching(/^nie udało się zaimportować sprawy: ENOENT/) },
+    ]);
+    const rows = materialCsv(res).trim().split("\n");
+    expect(rows).toHaveLength(4);
+    expect(rows.find((r) => r.startsWith("uszkodzony-har,uszkodzony-har,insufficient,,,,,uncertain,,,"))).toContain("uszkodzony HAR");
+    expect(rows.find((r) => r.startsWith("zepsute-zasoby,zepsute-zasoby,insufficient,,,,,uncertain,,,"))).toContain("nie udało się zaimportować sprawy");
+
+    // GUI job state from the same progress events: the error sits at the damaged cases only
+    expect(events.some((e) => e.status === "error")).toBe(false);
+    const job = { cases: [] } as unknown as Job;
+    for (const e of events) applyProgress(job, e);
+    expect(job.cases.map((c) => [c.name, c.status])).toEqual([
+      ["dobra-sprawa", "done"],
+      ["uszkodzony-har", "error"],
+      ["zepsute-zasoby", "error"],
+    ]);
+    expect(job.cases[1].detail).toContain("nie udało się odczytać pliku page.har");
+  }, 60_000);
+
+  // the permission bits do not stop root, so the page cannot be made unreadable there
+  it.skipIf(process.getuid?.() === 0)("does not stop the batch at a saved page that cannot be read", async () => {
+    const good = caseWith("czytelna-2", { "Strona.html": page("https://czytelna-2.example/lp", "Oferta", "<p>Lokata na 9% w skali roku.</p>") });
+    const locked = caseWith("bez-dostepu", { "Strona.html": page("https://bez-dostepu.example/lp", "Oferta", "<p>Kurs walut bez prowizji.</p>") });
+    chmodSync(path.join(locked, "Strona.html"), 0o000);
+    const res = await analyzeMaterial({ caseDirs: [good, locked] }, ctx("w-eacces"));
+    expect(res.items.map((i) => [i.id, i.verdict])).toEqual([["czytelna-2", "new_campaign"]]);
+    expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
+    const rows = materialCsv(res).trim().split("\n");
+    expect(rows).toHaveLength(3);
+    expect(rows[2]).toBe("bez-dostepu,bez-dostepu,insufficient,,,,,uncertain,,,\"nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'\",");
+  }, 60_000);
+
+  it("returns a result with a row per case when every case of the batch is damaged, and names the reason for a single case", async () => {
+    const res = await analyzeMaterial({ caseDirs: [caseWith("har-1", { "page.har": "{" }), caseWith("har-2", { "page.har": "[" })] }, ctx("w-all-damaged"));
+    expect(res.items).toEqual([]);
+    expect(res.skipped.map((s) => s.id)).toEqual(["har-1/page.har", "har-2/page.har"]);
+    expect(materialCsv(res).trim().split("\n")).toHaveLength(3);
+    await expect(analyzeMaterial({ caseDir: caseWith("har-3", { "page.har": "{" }) }, ctx("w-one-damaged"))).rejects.toThrow(/^nie udało się zaimportować materiału: nie udało się odczytać pliku page\.har/);
+  }, 60_000);
+});
+
 describe("analyzeMaterial: not enough to compare", () => {
   it("asks for a link or an address-bar screenshot when a material holds only interface labels", async () => {
     const res = await analyzeMaterial({ text: "Sponsorowane · Lubię to! · Komentarz · Udostępnij" }, ctx("w-empty"));
@@ -305,6 +361,30 @@ describe("analyzeMaterial: dataset file", () => {
     expect(by.w2.caseId).toBe("zgloszenie-2");
     expect(by.w2.verdict).toBe("insufficient");
     expect(by.w3.caseId).toBe("w3");
+  }, 60_000);
+
+  it("skips a damaged JSONL row with its reason and the id still readable in it, and analyses the other rows", async () => {
+    const dir = path.join(root, "zbior-jsonl");
+    mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, "zgloszenia.jsonl");
+    writeFileSync(
+      file,
+      [
+        JSON.stringify({ id: "j1", text: "Jan Przykładowy poleca lokatę 9% rocznie w Banku Testowym, zapisz się dziś.", landing_url: "https://lokata-j1.example/lp" }),
+        '{"id": "j2", "text": "wiersz ucięty w połowie',
+        JSON.stringify({ id: "j3", text: "Sponsorowane · Lubię to! · Komentarz · Udostępnij" }),
+      ].join("\n"),
+    );
+    const res = await analyzeMaterial({ datasetFile: file }, ctx("w-jsonl"));
+    expect(res.items.map((i) => [i.id, i.verdict])).toEqual([
+      ["j1", "new_campaign"],
+      ["j3", "insufficient"],
+    ]);
+    expect(res.skipped).toEqual([{ id: "j2", reason: expect.stringMatching(/^nie udało się odczytać wiersza 2 pliku zgloszenia\.jsonl: niepoprawny JSON/) }]);
+    const rows = materialCsv(res).trim().split("\n");
+    expect(rows).toHaveLength(4);
+    expect(rows[3].startsWith("j2,j2,insufficient,,,,,uncertain,,,")).toBe(true);
+    expect(rows[3]).toContain("wiersza 2 pliku zgloszenia.jsonl");
   }, 60_000);
 });
 

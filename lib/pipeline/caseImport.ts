@@ -212,9 +212,26 @@ const DOWNLOAD_SUFFIX = /\.(?:pobrane|download)(?=["'?#\s>])/g;
 const safeName = (s: string) => s.replace(/[^a-z0-9.-]/gi, "_");
 const cleanName = (s: string) => s.toLowerCase().replace(/\.$/, "");
 
+/**
+ * Failure to write the import output (fixtures, input.json): it concerns the whole batch, so the per-case
+ * error handling of `importCases` passes it on instead of skipping the case.
+ */
+class ImportOutputError extends Error {}
+
+/** Writes one output file of the import, creating its folder; a failure is an `ImportOutputError`. */
 function write(file: string, data: Buffer | string): void {
-  mkdirSync(path.dirname(file), { recursive: true });
-  writeFileSync(file, data);
+  try {
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, data);
+  } catch (e) {
+    throw new ImportOutputError(`nie udało się zapisać wyniku importu (${file}): ${(e as Error).message}`, { cause: e });
+  }
+}
+
+/** Message of an error for the user, with the case folder cut from the paths in it (no server paths in the GUI). */
+function errorText(e: unknown, dir: string): string {
+  const message = e instanceof Error ? e.message : String(e);
+  return message.split(`${dir}${path.sep}`).join("").split(dir).join(".");
 }
 
 function urlKey(u: string, base?: string): string | null {
@@ -356,12 +373,23 @@ export interface CaseFile {
   name: string;
 }
 
-/** Files of a case, the case folder first. Asset folders of saved pages and of capture bundles are not entered. */
-export function walkCase(root: string): CaseFile[] {
+/**
+ * Files of a case, the case folder first. Asset folders of saved pages and of capture bundles are not entered.
+ * A folder that cannot be listed (no permission, removed meanwhile) is left out and passed to `onError`
+ * ("" = the case folder itself), so one unreadable folder never stops a batch.
+ */
+export function walkCase(root: string, onError?: (dir: string, e: unknown) => void): CaseFile[] {
   const out: CaseFile[] = [];
   const visit = (dir: string, depth: number) => {
     const subdirs: string[] = [];
-    for (const name of readdirSync(path.join(root, dir)).sort()) {
+    let names: string[];
+    try {
+      names = readdirSync(path.join(root, dir)).sort();
+    } catch (e) {
+      onError?.(dir, e);
+      return;
+    }
+    for (const name of names) {
       const rel = dir ? `${dir}/${name}` : name;
       let isDir = false;
       try {
@@ -465,6 +493,8 @@ interface CaseScan {
   /** "was_live" or "is_live" from the yt-dlp description (a recorded or running live stream), else null (B-301). */
   liveStatus: string | null;
   notes: string[];
+  /** Material files and folders of the case that could not be read or parsed, with the reason in Polish ("" = the case folder). */
+  unreadable: Array<{ rel: string; reason: string }>;
   collected: Collected | null;
 }
 
@@ -498,21 +528,38 @@ function readCollected(files: CaseFile[], abs: (f: CaseFile) => string, notes: s
   };
 }
 
-function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseScan {
+/**
+ * Reads one case folder: its page captures (saved pages, HARs, capture bundles), screenshots, videos and
+ * descriptions. A page or HAR that cannot be read or parsed is left out and listed in `unreadable`, so the
+ * other files of the case still count and the reason reaches the batch result.
+ */
+function scanCase(casesDir: string, id: string): CaseScan {
   const dir = path.resolve(casesDir, id); // absolute: media paths in input.json must not depend on the working directory
-  const files = walkCase(dir);
-  const abs = (f: CaseFile) => path.join(dir, ...f.rel.split("/"));
   const notes: string[] = [];
+  const unreadable: CaseScan["unreadable"] = [];
+  const files = walkCase(dir, (d, e) => unreadable.push({ rel: d, reason: `nie udało się odczytać katalogu ${d || "sprawy"}: ${errorText(e, dir)}` }));
+  const abs = (f: CaseFile) => path.join(dir, ...f.rel.split("/"));
+  /** Text of a material file, or null when it cannot be read (then listed in `unreadable`). */
+  const readText = (f: CaseFile): string | null => {
+    try {
+      return readFileSync(abs(f), "utf8");
+    } catch (e) {
+      unreadable.push({ rel: f.rel, reason: `nie udało się odczytać pliku ${f.rel}: ${errorText(e, dir)}` });
+      return null;
+    }
+  };
   const collected = readCollected(files, abs, notes);
 
   const hars: Array<Har & { dir: string }> = [];
   for (const f of files.filter((x) => /\.har$/i.test(x.name))) {
+    const text = readText(f);
+    if (text === null) continue;
     try {
       // redacted on reading: the analyst's cookies, headers and visit data never enter the record (the original's hash is in `files`)
-      const j = JSON.parse(redactHar(readFileSync(abs(f), "utf8")).text) as { log?: { entries?: HarEntry[]; pages?: Array<{ title?: string }> } };
+      const j = JSON.parse(redactHar(text).text) as { log?: { entries?: HarEntry[]; pages?: Array<{ title?: string }> } };
       hars.push({ file: abs(f), caseId: id, dir: f.dir, entries: j.log?.entries ?? [], pageUrl: j.log?.pages?.[0]?.title ?? null });
     } catch (e) {
-      log(`[${id}] nie udało się wczytać HAR ${f.rel}: ${(e as Error).message}`);
+      unreadable.push({ rel: f.rel, reason: `nie udało się odczytać pliku ${f.rel} (uszkodzony HAR): ${errorText(e, dir)}` });
     }
   }
   const used = new Set<Har>();
@@ -520,8 +567,12 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   const dirs = [...new Set(files.map((f) => f.dir))];
   for (const d of dirs) {
     const here = files.filter((f) => f.dir === d);
-    // in a collected folder only web-archive copies are pages (not a scan service's result page, not a press article)
-    const htmls = here.filter((f) => HTML_EXT.test(f.name) && !SAVED_FRAME.test(f.name) && (!collected || isCollectedPage(f.name)));
+    // in a collected folder only web-archive copies are pages (not a scan service's result page, not a press article);
+    // a page that cannot be read is left out (listed in `unreadable`), so a HAR next to it can still stand for the page
+    const htmls = here
+      .filter((f) => HTML_EXT.test(f.name) && !SAVED_FRAME.test(f.name) && (!collected || isCollectedPage(f.name)))
+      .map((f) => ({ f, text: readText(f) }))
+      .filter((p): p is { f: CaseFile; text: string } => p.text !== null);
     const dirHars = hars.filter((h) => h.dir === d);
     const mhtml = here.find((f) => /\.mhtml?$/i.test(f.name));
     const manifest = here.find((f) => f.name === "manifest.json");
@@ -534,14 +585,14 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     }
     if (collected?.target) bundleUrl = collected.target;
     const name = d.replace(/\//g, "_");
-    for (const f of htmls) {
+    for (const { f, text } of htmls) {
       const archivedAt = collected ? waybackTime(f.name) : null;
       if (archivedAt) {
-        const saved = redactPageHtml(unwrapWayback(readFileSync(abs(f), "utf8"))).text;
+        const saved = redactPageHtml(unwrapWayback(text)).text;
         captures.push({ name, dir: d, htmlName: f.rel, saved, savedFrom: bundleUrl, har: null, main: null, landingUrl: bundleUrl, archivedAt, inferred: false });
         continue;
       }
-      const saved = redactPageHtml(readFileSync(abs(f), "utf8")).text;
+      const saved = redactPageHtml(text).text;
       const savedFrom = httpUrl(savedFromUrl(saved)) ?? bundleUrl;
       let har: Har | null = null;
       if (savedFrom) har = dirHars.find((h) => mainDocument(h.entries, savedFrom)) ?? hars.find((h) => mainDocument(h.entries, savedFrom)) ?? null;
@@ -631,10 +682,17 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     infoTime,
     liveStatus,
     notes,
+    unreadable,
     collected,
   };
 }
 
+/**
+ * Imports every case folder of `o.casesDir` into `o.outDir` (input.json, mapping.json, provenance.json, fixtures/).
+ * Errors are kept per case: a file that cannot be read or parsed is listed in `skipped` (`<case>/<file>`) and the
+ * case goes on with its other files; a case that fails part-way is rolled back and skipped with the reason. Only
+ * a failure that concerns the whole batch (the cases folder or the output cannot be read or written) throws.
+ */
 export async function importCases(o: CaseImportOptions): Promise<CaseImportResult> {
   const log = o.log ?? (() => {});
   const importedAt = new Date().toISOString();
@@ -659,10 +717,21 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
   /** SHA-256 of the page body stored under each fixture key: one address saved with different content needs separate keys. */
   const bodyAt = new Map<string, string>();
 
-  const scans = readdirSync(o.casesDir)
-    .filter((d) => statSync(path.join(o.casesDir, d)).isDirectory())
-    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-    .map((id) => scanCase(o.casesDir, id, log));
+  /** Skips a whole case with the reason (`skipped` and the log); the other cases of the batch go on. */
+  const skipCase = (id: string, reason: string) => {
+    skipped.push({ id, reason });
+    log(`[${id}] ${reason}`);
+  };
+  // A case folder that cannot be read (a broken link, a file the scan trips on) is skipped with the reason.
+  const scans: CaseScan[] = [];
+  for (const id of readdirSync(o.casesDir).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))) {
+    const dir = path.resolve(o.casesDir, id);
+    try {
+      if (statSync(dir).isDirectory()) scans.push(scanCase(o.casesDir, id));
+    } catch (e) {
+      skipCase(id, `nie udało się odczytać sprawy: ${errorText(e, dir)}`);
+    }
+  }
 
   // A HAR filed in another case: it holds exactly the address a page of this case was saved from.
   const spare = scans.flatMap((s) => s.spareHars);
@@ -677,18 +746,37 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     }
   }
 
-  for (const s of scans) {
+  /**
+   * Turns the scan of one case into its records, fixtures and `skipped` entries. It may throw part-way (a file
+   * the scan did not read); the loop below then rolls back what the case added and skips it with the reason.
+   */
+  const importScan = (s: CaseScan): void => {
     const id = s.id;
     for (const n of s.notes) log(`[${id}] ${n}`);
     for (const h of s.spareHars) {
       if (!scans.some((x) => x.captures.some((c) => c.har === h))) log(`[${id}] HAR ${path.basename(h.file)} nie pasuje do żadnej strony tej sprawy, pominięty`);
     }
     // a page's video saved as an HLS stream: stitched into one file; it is the case's video when there is no other
-    const stitched = s.streams.map((st, k) => {
-      const out = stitchSegments(st.segments, path.join(o.outDir, "media", `${safeFileName(id)}-wideo-strony${k ? `-${k + 1}` : ""}.ts`));
-      log(`[${id}] wideo strony z HLS: ${st.segments.length} fragmentów z ${path.relative(s.dir, st.dir) || "."} sklejone w ${path.basename(out)}`);
-      return out;
+    const stitched = s.streams.flatMap((st, k) => {
+      const from = path.relative(s.dir, st.dir) || ".";
+      try {
+        const out = stitchSegments(st.segments, path.join(o.outDir, "media", `${safeFileName(id)}-wideo-strony${k ? `-${k + 1}` : ""}.ts`));
+        log(`[${id}] wideo strony z HLS: ${st.segments.length} fragmentów z ${from} sklejone w ${path.basename(out)}`);
+        return [out];
+      } catch (e) {
+        log(`[${id}] wideo strony z HLS z ${from} pominięte: ${errorText(e, s.dir)}`);
+        return [];
+      }
     });
+    /** Bytes of an asset file of a saved page; null when it is over `maxBytes` or cannot be read (logged: the page itself still imports). */
+    const readAsset = (file: string, maxBytes = Infinity): Buffer | null => {
+      try {
+        return statSync(file).size > maxBytes ? null : readFileSync(file);
+      } catch (e) {
+        log(`[${id}] plik ${path.relative(s.dir, file)} pominięty: ${errorText(e, s.dir)}`);
+        return null;
+      }
+    };
     const video = s.video ?? stitched[0] ?? null;
     const media = {
       screenshot: s.screenshots[0] ?? null,
@@ -720,7 +808,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         ...mediaFiles,
       ]);
     const hasMedia = !!(media.screenshot || media.video || media.adLibraryId || media.adRecord);
-    if (!s.captures.length && !hasMedia) continue; // not a case folder
+    if (!s.captures.length && !hasMedia) return; // not a case folder (or nothing in it could be read: see `unreadable`)
 
     // The same page saved twice (same address and title) is one capture; the copy with a HAR wins.
     const pages: Array<{ c: Capture; norm: NonNullable<ReturnType<typeof normalizeUrl>>; body: Buffer }> = [];
@@ -743,7 +831,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         pages.push({ c, norm, body });
       } else if (!pages[prev].c.main && c.main) pages[prev] = { c, norm, body };
     }
-    if (!pages.length && !hasMedia) continue;
+    if (!pages.length && !hasMedia) return;
 
     const earliestHar = (c: Capture | null) => (c?.har ? earliest(c.har.entries) : null);
     const mediaTime = media.screenshot ? screenshotTime(path.basename(media.screenshot)) : null;
@@ -778,7 +866,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       if (targetHost) landingHosts.add(targetHost);
       push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, files: filesOfCapture(null), importedAt, firstSeen: mediaTime ?? s.infoTime });
       log(`[${id}] bez strony docelowej | zrzuty: ${s.screenshots.length} | wideo: ${media.video ? "tak" : "nie"}${media.adLibraryId ? ` | biblioteka reklam: ${media.adLibraryId}` : ""}`);
-      continue;
+      return;
     }
 
     for (const { c, norm, body } of pages) {
@@ -825,8 +913,10 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         for (const f of assetsDir ? readdirSync(path.join(htmlDir, assetsDir)).filter((x) => IMAGE_EXT.test(x)) : []) {
           const k = urlKey(`./${esc(assetsDir!)}/${esc(f)}`, norm.url);
           if (!k || http[k]) continue;
+          const data = readAsset(path.join(htmlDir, assetsDir!, f));
+          if (!data) continue;
           const rel = `assets/${safeName(itemId)}/${safeName(f)}`;
-          write(path.join(fix, rel), readFileSync(path.join(htmlDir, assetsDir!, f)));
+          write(path.join(fix, rel), data);
           http[k] = { status: 200, headers: {}, bodyFile: rel };
         }
       }
@@ -839,12 +929,12 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         const esc = (x: string) => x.replace(/%/g, "%25").replace(/\?/g, "%3F").replace(/#/g, "%23");
         for (const f of assetsDir ? readdirSync(path.join(htmlDir, assetsDir)).filter((x) => SAVED_SCRIPT.test(x)).sort() : []) {
           if (scriptCount >= TEXT_CONFIG.kitStrings.maxScriptsPerPage) break;
-          const file = path.join(htmlDir, assetsDir!, f);
-          if (statSync(file).size > TEXT_CONFIG.kitStrings.maxScriptBytes) continue;
           const k = urlKey(`./${esc(assetsDir!)}/${esc(f.replace(/\.(?:pobrane|download)$/i, ""))}`, norm.url);
           if (!k || http[k]) continue;
+          const data = readAsset(path.join(htmlDir, assetsDir!, f), TEXT_CONFIG.kitStrings.maxScriptBytes);
+          if (!data) continue;
           const rel = `assets/${safeName(itemId)}/js-${scriptCount++}`;
-          write(path.join(fix, rel), readFileSync(file));
+          write(path.join(fix, rel), data);
           http[k] = { status: 200, headers: { "content-type": "application/javascript" }, bodyFile: rel };
         }
       }
@@ -922,6 +1012,26 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       log(
         `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `kopia z archiwum (${c.archivedAt})` : "zapisana strona"} | obrazy z HAR: ${n} | skrypty własne: ${scriptCount} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
       );
+    }
+  };
+
+  for (const s of scans) {
+    // files the scan could not read: each one a `skipped` entry, so a case left with nothing else keeps its reason
+    for (const u of s.unreadable) skipCase(u.rel ? `${s.id}/${u.rel}` : s.id, u.reason);
+    // state before the case: what it adds is taken back when it fails part-way (records, fixtures, hosts to look up)
+    const mark = { cases: cases.length, records: records.length, skipped: skipped.length, http: Object.keys(http).length, bodies: bodyAt.size, hosts: landingHosts.size, ips: hostIps.size };
+    try {
+      importScan(s);
+    } catch (e) {
+      if (e instanceof ImportOutputError) throw e;
+      cases.length = mark.cases;
+      records.length = mark.records;
+      skipped.length = mark.skipped;
+      for (const k of Object.keys(http).slice(mark.http)) delete http[k];
+      for (const k of [...bodyAt.keys()].slice(mark.bodies)) bodyAt.delete(k);
+      for (const h of [...landingHosts].slice(mark.hosts)) landingHosts.delete(h);
+      for (const h of [...hostIps.keys()].slice(mark.ips)) hostIps.delete(h);
+      skipCase(s.id, `nie udało się zaimportować sprawy: ${errorText(e, s.dir)}`);
     }
   }
 

@@ -37,6 +37,9 @@ export const TYPE_INFO: Record<AnyType, TypeInfo> = {
   email: { name: "E-mail", what: "Adres e-mail podany na stronie.", why: "Ten sam kontakt na dwóch stronach to zwykle ten sam operator.", example: "kontakt@przyklad.test", sentence: "Strony podają ten sam adres e-mail" },
   phone: { name: "Telefon", what: "Numer telefonu podany na stronie.", why: "Ten sam numer na dwóch stronach to zwykle ten sam operator.", example: "+48 000 000 000", sentence: "Strony podają ten sam numer telefonu" },
   telegram: { name: "Telegram", what: "Kanał albo konto Telegram podane na stronie.", why: "Ten sam kanał kontaktu to zwykle ten sam operator.", example: "t.me/kanal_przyklad", sentence: "Strony kierują do tego samego kanału Telegram" },
+  shared_doc: { name: "Dokument, formularz lub czat udostępniony linkiem", what: "Adres dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym, podany na stronie, w reklamie, na zrzucie albo w ruchu strony.", why: "Taki zasób należy do jednego konta, więc ten sam identyfikator w dwóch materiałach wskazuje jednego operatora. Rozmowa z czatem AI bywa wklejonym planem kampanii.", example: "formularz Google z tym samym identyfikatorem na dwóch stronach", sentence: "Materiały odsyłają do tego samego udostępnionego dokumentu, formularza lub czatu" },
+  onion: { name: "Adres .onion", what: "Adres ukrytej usługi w sieci Tor (wersja 3, 56 znaków).", why: "Ten sam adres to ten sam zasób operatora; adresów wersji 2 nie liczymy, bo wygasły.", example: "56 znaków i .onion", sentence: "Materiały podają ten sam adres .onion" },
+  messenger_invite: { name: "Zaproszenie lub konto komunikatora", what: "Zaproszenie na Discorda, konto albo grupa Signal, Viber lub Line podane na stronie, w reklamie albo na zrzucie.", why: "To samo zaproszenie lub konto to zwykle ten sam operator (jak kanał Telegram).", example: "discord.gg/kodprzyklad", sentence: "Materiały kierują do tego samego zaproszenia lub konta komunikatora" },
   advertiser: { name: "Reklamodawca", what: "Nazwa profilu, który opublikował reklamę.", why: "Ten sam profil to to samo konto reklamowe; nazwy bywają jednak ogólne i powtarzalne.", example: "Wiadomości Dnia Demo", sentence: "Reklamy opublikował ten sam reklamodawca" },
   endpoint: { name: "Backend formularza", what: "Adres, na który strona wysyła dane z formularza.", why: "Wspólny backend na różnych domenach to mocny ślad; publiczne serwisy formularzy pomijamy.", example: "zbieracz.test/api/zapis", sentence: "Formularze obu stron wysyłają dane pod ten sam adres" },
   hidden_fields: { name: "Ukryte pola formularza", what: "Zestaw nazw niewidocznych pól w formularzu strony.", why: "Ten sam zestaw wskazuje ten sam szablon strony; sam nie wystarcza.", example: "lp_id, offer_hash", sentence: "Formularze mają ten sam zestaw ukrytych pól" },
@@ -121,6 +124,9 @@ export const TYPE_NOTES: Partial<Record<EntityType, string>> = {
   crm_key: "Klucz albo token API, z którym formularz wysyła zgłoszenie do CRM lub sieci afiliacyjnej (pole w skrypcie, nagłówek żądania, ukryte pole). W grafie tylko skrót: 4 pierwsze i 4 ostatnie znaki oraz sha256. Klucze publicznych usług (mapy, reCAPTCHA, analityka) są pomijane.",
   template_phrase: "Znormalizowane zdanie (≥ 6 słów) z tekstu strony albo z komunikatu po wysłaniu formularza w skrypcie. Liczy się tylko zdanie rzadkie i obecne w co najmniej dwóch domenach; zgody RODO, cookies i stopki są pomijane. Ślad szablonu: do kampanii potrzebny drugi rodzaj dowodu.",
   kit_string: "Znormalizowany komunikat programisty (≥ 3 słowa, małe litery, liczby jako #) z własnych skryptów strony, wpisanych w stronę i zewnętrznych z tej samej domeny. Para stron dostaje jedną przesłankę: co najmniej dwa wspólne komunikaty albo jeden długi (≥ 5 słów). Maska: skrypty SDK platformy i frameworków, biblioteki, słowniki interfejsu w wielu językach, komunikaty ze stron ≥ 5 kont platformy. Ślad zestawu stron: do kampanii potrzebny drugi rodzaj dowodu.",
+  shared_doc: "Klucz `usługa:identyfikator` dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym (usługa llm_chat). Waga jak Telegram, rzadkość przez IDF i limit maxPivotDf. Odpowiedniki z dokumentacji dostawców i strony pomocy platform są pomijane. Operator, który wkleja dane kampanii do czatu i udostępnia link, zostawia ślad tego samego czatu.",
+  onion: "Adres .onion wersji 3 (56 znaków). Adresy wersji 2 (16 znaków) wygasły w 2021 r. i są tylko atrybutem materiału. Waga jak Telegram.",
+  messenger_invite: "Klucz `usługa:identyfikator` zaproszenia lub konta: discord, signal, signal_group, viber, line (numer wa.me trafia do telefonów). Serwery społeczności samych platform są pomijane. Waga jak Telegram.",
   profit_claim: "Para kwota i okres z obietnicy zysku (np. 3000 zł w ciągu dnia). Standardowe kwoty wpłaty (np. 250 USD) nie łączą. Liczy się tylko dla grup podobnych kampanii.",
   technique: "Technika strony (fałszywy sklep z aplikacjami, pułapka „wstecz”, udawany post, fałszywe komentarze). Liczy się tylko dla grup podobnych kampanii.",
 };
@@ -131,6 +137,84 @@ export const TECHNIQUE_LABEL: Record<string, string> = {
   fake_app_store: "fałszywy sklep z aplikacjami",
   back_trap: "pułapka „wstecz”",
   fake_social_post: "udawany post w serwisie społecznościowym",
+  fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
+  remote_access_tool: "program do zdalnego pulpitu do pobrania",
+  clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
+};
+
+/** Polish names of the topics and hooks of the narrative (lib/text/narrative.ts). */
+export const NARRATIVE_LABEL: Record<string, string> = {
+  investment: "inwestycje i zarobek",
+  subsidy: "dotacje i świadczenia",
+  health: "zdrowie",
+  gambling: "hazard",
+  elections: "wybory",
+  ai_trading: "handel z użyciem AI",
+  gold_reserve: "rezerwy złota",
+  commodities_war: "surowce i wojna",
+  leaked_secret: "ujawniona tajemnica",
+  testimonial_small_win: "relacja o szybkim zysku",
+  recovery: "odzyskiwanie środków",
+  sport_event: "wydarzenie sportowe",
+  inauguration: "zaprzysiężenie",
+  state_investment: "inwestycje państwowe",
+  adult_phishing: "treści 18+ i potwierdzenie wieku",
+  urgent_notice: "pilne wezwanie",
+  petition: "petycja",
+  tech_support: "fałszywa pomoc techniczna (wirus, zablokowany komputer)",
+  refund_overpayment: "zwrot nadpłaty („przelaliśmy za dużo”)",
+  recovery_offer: "oferta odzyskania utraconych środków (wtórne oszustwo wobec ofiar)",
+  job_offer: "oferta pracy (zdalna, oceny produktów za prowizję)",
+  fake_authority: "udawany organ (policja, KNF, UODO, CERT, bank)",
+  sensation: "sensacja",
+  endorsement: "polecenie przez znaną osobę",
+  fake_interview: "udawany wywiad",
+  secrecy: "tajemnica (nie mów bankowi ani rodzinie)",
+  withdrawal_fee: "opłata lub podatek przed wypłatą",
+  urgency_lock: "grożenie blokadą konta w terminie",
+};
+
+/** Polish names of the weekdays, Monday first (the index of AdStart.weekday). */
+export const WEEKDAY_LABEL = ["poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota", "niedziela"];
+
+/** Polish names of the line types of a phone number (lib/osint/phoneLine.ts). */
+export const LINE_TYPE_LABEL: Record<string, string> = {
+  mobile: "komórkowy",
+  fixed: "stacjonarny",
+  toll_free: "bezpłatny",
+  premium: "o podwyższonej opłacie",
+  voip: "VoIP",
+  shared_cost: "o współdzielonym koszcie",
+  unknown: "nieznany rodzaj",
+};
+
+/**
+ * What the new page techniques mean, in plain words (name, what, why, synthetic example, sentence of a
+ * finding). Attributes of the scheme: they explain the kind of fraud and only count for groups of similar
+ * campaigns.
+ */
+export const TECHNIQUE_INFO: Record<string, TypeInfo> = {
+  fake_security_alert: {
+    name: TECHNIQUE_LABEL.fake_security_alert,
+    what: "Strona straszy wirusem, zablokowanym komputerem albo zhakowanym kontem, podaje numer telefonu jako jedyne wyjście i nie pozwala łatwo jej opuścić (pełny ekran, okna alertu, pułapka „wstecz”, dźwięk alarmu).",
+    why: "To schemat fałszywej pomocy technicznej: oszust odbiera telefon i prosi potem o instalację programu do zdalnego pulpitu. Atrybut, nie ślad łączący.",
+    example: "„Windows Defender: wykryto wirusa, zadzwoń +48 800 000 000” na pełnym ekranie",
+    sentence: "Strona straszy wirusem i każe dzwonić pod numer: schemat fałszywej pomocy technicznej, w którym oszust prosi potem o instalację programu do zdalnego pulpitu",
+  },
+  remote_access_tool: {
+    name: TECHNIQUE_LABEL.remote_access_tool,
+    what: "Link albo instrukcja pobrania programu do zdalnego pulpitu (np. AnyDesk, TeamViewer QuickSupport) z prośbą o podanie kodu dostępu.",
+    why: "Po zainstalowaniu oszust przejmuje komputer, a często także dostęp do bankowości. Atrybut, nie ślad łączący.",
+    example: "„Pobierz program i podaj technikowi 9-cyfrowy kod”",
+    sentence: "Strona każe pobrać program do zdalnego pulpitu: oszust chce przejąć komputer ofiary",
+  },
+  clickfix_paste: {
+    name: TECHNIQUE_LABEL.clickfix_paste,
+    what: "Fałszywy CAPTCHA albo „weryfikacja, że nie jesteś robotem” każe nacisnąć skrót (np. Win+R) i wkleić polecenie, które strona skopiowała do schowka.",
+    why: "Wklejone polecenie instaluje złośliwe oprogramowanie. Zapisujemy tylko rodzaj polecenia i jego skrót SHA-256, nigdy samo polecenie.",
+    example: "„Naciśnij Win+R, wklej (Ctrl+V) i Enter, aby potwierdzić, że nie jesteś robotem”",
+    sentence: "Strona pod pozorem weryfikacji każe wkleić do systemu skopiowane polecenie (ClickFix): to droga do zainstalowania złośliwego oprogramowania",
+  },
 };
 
 export type FeatureRole = "links" | "helps" | "describes";
@@ -149,6 +233,8 @@ export interface FeatureInfo {
   term?: TermId;
   /** Value is an address: shown defanged. */
   url?: boolean;
+  /** Reads an object value as the lines shown to the reader (a feature that is not a plain string or list). */
+  format?: (value: unknown) => string[];
 }
 
 /** Features of a material (`MaterialItemResult.features`). */
@@ -165,6 +251,68 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   advertiserImpersonatesName: { name: "Reklamodawca podszywa się pod osobę", source: "z nazwy reklamodawcy i listy osób (atrybut, nie dowód kampanii)", role: "describes", term: "persona" },
   profitClaims: { name: "Obiecywany zysk (kwota i okres)", source: "z tekstu reklamy, strony, OCR albo transkrypcji (atrybut; łączy tylko podobne kampanie w grupę)", role: "describes" },
   advertiserMismatch: { name: "Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)", source: "z nazwy reklamodawcy (lokalna firma albo osoba prywatna) i narracji inwestycyjnej (atrybut, nie dowód kampanii)", role: "describes" },
+  displayedDomainMismatch: {
+    name: "Domena pokazana w reklamie różni się od strony docelowej",
+    source: "z OCR zrzutu albo tekstu reklamy i z łańcucha przekierowań (atrybut, nie dowód kampanii)",
+    role: "describes",
+    url: true,
+    format: (v) => {
+      const m = v as { displayed?: string; landing?: string };
+      return m.displayed && m.landing ? [m.displayed, m.landing] : [];
+    },
+  },
+  displayedBrandDomain: { name: "Pokazana domena należy do znanej marki (bank, portal, sklep)", source: "z listy marek (atrybut)", role: "describes" },
+  clickfix: {
+    name: "Polecenie kopiowane do schowka (ClickFix)",
+    source: "ze skryptu strony: tylko rodzaj i skrót SHA-256, samo polecenie jest ładunkiem złośliwego oprogramowania i nie jest zapisywane (atrybut)",
+    role: "describes",
+    format: (v) => {
+      const c = v as { kind?: string; sha256?: string };
+      return c.kind && c.sha256 ? [`rodzaj: ${c.kind}`, `SHA-256: ${c.sha256.slice(0, 16)}…`] : [];
+    },
+  },
+  idnConfusable: {
+    name: "Adres udaje inny adres (znak podobny do „/”, „.” lub „-” albo mieszane alfabety)",
+    source: "z adresu strony, przekierowań, paska przeglądarki na zrzucie i linków (atrybut: opisuje, jak adres wygląda dla oka)",
+    role: "describes",
+    format: (v) => {
+      const c = v as { host?: string; char?: string; position?: number; looksLike?: string };
+      return c.host ? [`znak ${c.char} na pozycji ${c.position}`, `wygląda jak: ${c.looksLike}`] : [];
+    },
+  },
+  adStartWeekday: {
+    name: "Dzień tygodnia startu reklamy",
+    source: "z daty pierwszej emisji w bibliotece reklam, UTC (atrybut; rozkład w kampanii opisuje rytm operatora)",
+    role: "describes",
+    format: (v) => {
+      const s = v as { weekday?: number; hour?: number | null };
+      return typeof s.weekday === "number" ? [`${WEEKDAY_LABEL[s.weekday]}${typeof s.hour === "number" ? `, godz. ${s.hour} UTC` : ""}`] : [];
+    },
+  },
+  discordSnowflakes: {
+    name: "Data utworzenia serwera lub konta Discord (z identyfikatora)",
+    source: "z linków discord.com/channels i discord.com/users: górne bity identyfikatora to czas utworzenia (atrybut: „zegar powstania”)",
+    role: "describes",
+    format: (v) => (v as Array<{ kind: string; createdAt: string }>).map((d) => `${d.kind === "user" ? "konto" : d.kind === "guild" ? "serwer" : "kanał"}: ${d.createdAt.slice(0, 10)}`),
+  },
+  onionV2: { name: "Adres .onion wersji 2 (wygasły)", source: "z tekstu strony (atrybut; nie łączy)", role: "describes" },
+  phoneLines: {
+    name: "Rodzaj numeru telefonu",
+    source: "z lokalnych metadanych libphonenumber-js, bez wysyłania numeru do usług (atrybut: numery VoIP bywają jednorazowe, więc waga numeru zależy od jego rzadkości)",
+    role: "describes",
+    format: (v) => (v as Array<{ phone: string; lineType: string; country: string | null }>).map((l) => `${l.phone}: ${LINE_TYPE_LABEL[l.lineType] ?? l.lineType}${l.country ? `, ${l.country}` : ""}`),
+  },
+  phoneCountryMismatch: { name: "Kraj numeru inny niż rynek reklamy", source: "z numeru i rynku reklamy (atrybut)", role: "describes" },
+  tollFreeOnAlert: { name: "Numer bezpłatny na stronie z fałszywym alarmem", source: "z numeru i techniki strony (atrybut)", role: "describes" },
+  narrative: {
+    name: "Narracja i haczyki",
+    source: "z tekstu reklamy, strony, OCR i transkrypcji (atrybut; cecha grupy kampanii, nie dowód)",
+    role: "describes",
+    format: (v) => {
+      const n = v as { topics?: Array<{ id: string }>; hooks?: string[] };
+      return [...(n.topics ?? []).map((t) => `temat: ${NARRATIVE_LABEL[t.id] ?? t.id}`), ...(n.hooks ?? []).map((h) => `haczyk: ${NARRATIVE_LABEL[h] ?? h}`)];
+    },
+  },
   localizedUi: { name: "Słownik interfejsu w wielu językach", source: "ze skryptu strony (kody języków; lokalizacja platformy stron, nie ślad tekstu, atrybut)", role: "describes" },
   adPlatform: { name: "Biblioteka reklam", source: "z rekordu biblioteki", role: "describes" },
   adLibraryAdId: { name: "Identyfikator reklamy w bibliotece", source: "z rekordu biblioteki", role: "links" },

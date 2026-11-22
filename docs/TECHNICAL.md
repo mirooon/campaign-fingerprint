@@ -344,6 +344,9 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `crm_key` | sha256 klucza API CRM / sieci afiliacyjnej (etykieta: skrót `abcd…wxyz`, §4.17) | `lib/osint/crmKey.ts` | 0.95 | tak |
 | `template_phrase` | znormalizowane zdanie szablonu, tylko gdy ≥ 2 domeny (§4.17) | `lib/text/templatePhrases.ts` | 0.45; z `oddity` ×1,3, maks. 0,65 | nie (`notAloneKinds`) |
 | `kit_string` | znormalizowany komunikat programisty ze skryptu strony, tylko gdy ≥ 2 domeny (§4.18) | `lib/osint/kitStrings.ts` | 0.5; jedna przesłanka na parę: ≥ 2 wspólne albo 1 z ≥ 5 słów | nie (`notAloneKinds`) |
+| `shared_doc` | klucz `usługa:id` dokumentu, formularza lub udostępnionego czatu z modelem językowym (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
+| `onion` | adres .onion v3 (56 znaków) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
+| `messenger_invite` | klucz `usługa:id` zaproszenia lub konta (discord, signal, signal_group, viber, line) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 
 ### 4.2 Krawędzie (`model.ts`)
@@ -734,6 +737,24 @@ Konfiguracja:
 Import skryptów do fixtures (`caseImport.ts`): skrypty z folderu `<nazwa>_files` zapisanej strony (`.js`, `.mjs`, `.js.pobrane`, `.js.download`, `.pobierz`) pod adresem, do którego rozwiązuje się przepisany `src`, oraz odpowiedzi JS z HAR (GET, 200, ta sama domena rejestrowalna co strona) pod adresem bez zapytania. Limity jak wyżej; skrypty obcych domen nie trafiają do fixtures. Log importu podaje „skrypty własne: N”. Wzbogacenie (`enrich.ts`) czyta te pliki przez `sources.fetchBinary` (offline z fixtures, online GET z tej samej domeny, bez wykonywania) i liczy kit strony jeszcze raz z ich treścią.
 
 **Regresja.** Próbka syntetyczna bez zmian (P = R = F1 = 1, 10 kampanii, 154 pary, 0 grup). 25 spraw: F1 0,897, 14 kampanii (bez zmian); `template_phrase` 17 → 17 powiązań (260 → 261 węzłów); `kit_string` 15 węzłów, 4 powiązania; grupy (2, 3) → (2, 3, 2): nowa grupa K07 + K13 tylko przez `kit_string` (wynik 0,50, obie sprawy bez pary w etykietach roboczych). Testy: `lib/osint/kitStrings.test.ts`, `lib/graph/textFingerprint.test.ts`, `lib/pipeline/caseImport.test.ts`.
+
+### 4.19 Sygnały z praktyki śledczej (22.11.2026, zadanie I28)
+
+Podcasty śledcze (OSINT Podcast, Fraud Forward) opisują lejek „pomocy technicznej”, ClickFix, udostępnione dokumenty i czaty. Prawie wszystko to atrybuty materiału; ślady łączące są tylko trzy (§4.1). Opis metody: `docs/METODYKA.md` §4d.
+
+**Nowe ślady** (`lib/osint/contactIds.ts`, listy w `lib/osint/contactConfig.ts`): `findContactIds(tekst)` zwraca `{ sharedDocs, onion, onionV2, messengers }`. Źródła: `PageExtract` (tekst widoczny i atrybuty), `TextExtract` (tekst reklamy i OCR), `PageKit.requestContacts` (adresy żądań z HAR). W `link.ts` (`addContacts`) idą do węzłów `shared_doc`, `onion`, `messenger_invite` z wagą 0,9 jak `telegram`; IDF i `maxPivotDf` bez zmian. Identyfikatory przykładowe z dokumentacji i serwery społeczności platform są pomijane. `onionV2` trafia do danych materiału (`onionV2`), nie do grafu.
+
+**Nowe techniki strony** (`lib/osint/pageTechniques.ts`, słowniki w `lib/osint/techniqueConfig.ts`), dopisane do `techniques[]` (węzeł `technique`, 0,2, `familyOnlyKinds`): `fake_security_alert`, `remote_access_tool`, `clickfix_paste`. `detectPageTechniques` zwraca też `clickfix: { kind, sha256 } | null` (polecenie nigdy nie jest zapisywane; `PageKit.clickfix`, dane materiału `clickfix`). W kodzie nie ma atrybutu roli strony w lejku (`funnel_role`), więc „telefon zamiast formularza” jest tylko techniką.
+
+**Pola materiału** (dane węzła `item`, `FEATURE_KEYS` w `analyzeMaterial.ts`): `displayedDomainMismatch { displayed, landing, source: "ocr" | "text", confidence }` i `displayedBrandDomain` (`lib/text/displayedDomain.ts`, lista marek `TEXT_CONFIG.displayedDomain`); `phoneLines [{ phone, lineType, country }]`, `phoneCountryMismatch`, `tollFreeOnAlert` (`lib/osint/phoneLine.ts`, rynek domyślny `PHONE_CONFIG.defaultMarket` = PL); `onionV2`; `clickfix`.
+
+**P2 (B-357), atrybuty bez wagi:** `idnConfusable` (`lib/osint/idnConfusable.ts`, `hostConfig.ts`: znak podobny do `/`, `.`, `-` albo etykieta mieszająca łacinkę z cyrylicą lub greką; pozycja znaku i wersja „jak wygląda”; źródła: adres wejściowy, łańcuch przekierowań, pasek przeglądarki z OCR, linki strony); `adStartWeekday` (`lib/text/adStart.ts`: dzień tygodnia i godzina UTC z daty pierwszej emisji w bibliotece reklam) i `adStartWeekdays` kampanii (siedem liczb od poniedziałku, `cluster.ts`); `discordSnowflakes` (`discordSnowflakes` w `contactIds.ts`: data utworzenia serwera, kanału lub konta z 17–20 cyfr w linkach `discord.com/channels` i `discord.com/users`).
+
+**Narracje** (`lib/text/narrative.ts`, ten sam słownik): tematy `tech_support`, `refund_overpayment`, `recovery_offer`, `job_offer`, `fake_authority`; haczyki `secrecy`, `withdrawal_fee`, `urgency_lock`. Polskie etykiety w `NARRATIVE_LABEL` (`lib/viewer/plain.ts`).
+
+**GUI i paczka.** `plain.ts`: `TYPE_INFO` dla nowych rodzajów, `TECHNIQUE_INFO`, `FEATURE_INFO` z polem `format` (cechy-obiekty: pokazany jest tylko rodzaj i skrót polecenia ClickFix, dwie domeny rozbrojone, typ numeru). Paczka (`lib/evidence/pack.ts`): `ads[].page_techniques` (z miejscem odczytu), `clickfix_command` (rodzaj i SHA-256), `displayed_domain_mismatch` (domeny rozbrojone), `phone_lines`, `phone_flags` i sekcja „Sygnały materiałów” w raporcie.
+
+**Zależność:** `libphonenumber-js` (MIT, metadane `libphonenumber-js/max`, działa bez sieci); `LICENCJE.md` odświeżone poleceniem `bun run licenses -- --write LICENCJE.md`.
 
 ## 5. Klastrowanie
 
@@ -1598,6 +1619,7 @@ Narzędzia zewnętrzne są opcjonalne, uruchamiane jako osobne procesy (albo kon
 | graphology, graphology-communities-louvain, graphology-types | 0.26.0 / 2.0.2 / 0.24.8 | MIT | graf, Louvain |
 | cytoscape, cytoscape-fcose | 3.35.0 / 2.2.0 | MIT | wizualizacja grafu |
 | tldts | 7.5.4 | MIT (dane Public Suffix List: MPL-2.0) | domena rejestrowalna (eTLD+1) |
+| libphonenumber-js | 1.13.17 | MIT | rodzaj i kraj numeru telefonu z metadanych `max`, bez sieci (§4.19) |
 | sharp | 0.35.5 | Apache-2.0 (binaria libvips: LGPL-3.0-or-later) | dHash/aHash, favicon |
 | p-limit | 7.3.3 | MIT | limit współbieżności |
 | @huggingface/transformers | 3.7.6 | Apache-2.0 | opcjonalne embeddingi CLIP (ONNX Runtime) |

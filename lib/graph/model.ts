@@ -54,6 +54,10 @@ export const ENTITY_TYPES = [
   "profit_claim",
   // text fingerprint (I25): a developer message of the kit's own scripts (a set shared by two pages)
   "kit_string",
+  // contact identifiers (I28): a shared document, form or chat, an onion address, a messenger invitation
+  "shared_doc",
+  "onion",
+  "messenger_invite",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -98,6 +102,9 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   template_phrase: "Zdanie szablonu strony",
   profit_claim: "Obiecywany zysk (kwota i okres)",
   kit_string: "Komunikat ze skryptu zestawu stron",
+  shared_doc: "Dokument, formularz lub czat udostępniony linkiem",
+  onion: "Adres .onion",
+  messenger_invite: "Zaproszenie lub konto komunikatora",
 };
 
 export type EdgeType =
@@ -363,6 +370,8 @@ export interface CampaignAttributes {
   platforms?: Array<{ id: string; count: number }>;
   /** Members whose ad the ad library shows as taken down by the platform (B-192). */
   takenDownCount?: number;
+  /** Members whose ad started on each weekday, Monday first (seven counts; I28): the rhythm of the operator, an attribute. */
+  adStartWeekdays?: number[];
 }
 
 export interface CampaignsFile {

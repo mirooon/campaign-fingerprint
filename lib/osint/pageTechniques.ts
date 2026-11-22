@@ -1,6 +1,8 @@
 /**
  * Techniques of a scam landing page read from its HTML: a block of fake comments written into the
- * page, a trap on the browser's back button, a fake app store and fake posts of social networks.
+ * page, a trap on the browser's back button, a fake app store, fake posts of social networks and the
+ * tools of a "technical support" funnel (a fake security alert that demands a phone call, a download of a
+ * remote-desktop tool, a fake CAPTCHA that makes the visitor paste a command).
  *
  * None of them is a risk score. The comment block is a trace of the page template (the same block on
  * several domains links the pages, like other template traces). The technique names describe the
@@ -11,8 +13,28 @@
  * the platform's script and a status link. A copy written as static HTML has neither. Pure functions.
  */
 import { createHash } from "node:crypto";
+import { TECHNIQUE_CONFIG } from "./techniqueConfig";
+import { registrableDomain } from "./urls";
 
-export type PageTechnique = "fake_app_store" | "back_trap" | "fake_social_post" | "fake_comments";
+export type PageTechnique =
+  | "fake_app_store"
+  | "back_trap"
+  | "fake_social_post"
+  | "fake_comments"
+  | "fake_security_alert"
+  | "remote_access_tool"
+  | "clickfix_paste";
+
+/**
+ * The command a fake verification copies to the clipboard (ClickFix). Only its kind and SHA-256 are kept:
+ * the command is the malware payload and is never stored, shown or packed.
+ */
+export interface ClickfixCommand {
+  /** Kind of the command: powershell, mshta, cmd, curl_pipe_shell, bash, osascript, script_host. */
+  kind: string;
+  /** SHA-256 (64 hex chars) of the command with whitespace collapsed. */
+  sha256: string;
+}
 
 export interface CommentBlock {
   /** 16 hex chars: SHA-256 of the sorted set of normalised author names. */
@@ -28,6 +50,8 @@ export interface CommentBlock {
 export interface PageTechniques {
   techniques: PageTechnique[];
   commentBlock: CommentBlock | null;
+  /** Kind and hash of the command a fake verification copies, when the page's script gives one. */
+  clickfix: ClickfixCommand | null;
 }
 
 /** Fewer distinct authors than this is not a block (a single quote, a testimonial). */
@@ -214,8 +238,147 @@ export function fakeSocialPost(html: string): boolean {
   return socialFrom(doc, scanTags(doc));
 }
 
+/** Visible text of the page (script and style left out), capped like the store check. */
+function pageText(html: string, tags: Tag[]): string {
+  return textBetween(html, tags, 0, Math.min(tags.length, 5000)).slice(0, 20000);
+}
+
+/**
+ * Whether the visible text puts a phone number next to an alarm phrase, or the page links a phone (tel:)
+ * while it raises the alarm. A scam of this kind wants the victim to call, not to fill in a form.
+ */
+function alarmWithPhone(text: string, tags: Tag[]): boolean {
+  const cfg = TECHNIQUE_CONFIG.securityAlert;
+  const alarms: number[] = [];
+  for (const re of cfg.alarmPhrases) {
+    const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+    for (const m of text.matchAll(g)) alarms.push(m.index ?? 0);
+  }
+  if (!alarms.length) return false;
+  if (tags.some((t) => t.name === "a" && /\bhref\s*=\s*["']?\s*tel:/i.test(t.attrs))) return true;
+  for (const m of text.matchAll(cfg.phoneNumber)) {
+    const digits = m[0].replace(/\D/g, "").length;
+    if (digits < cfg.minPhoneDigits || digits > cfg.maxPhoneDigits) continue;
+    if (alarms.some((a) => Math.abs(a - (m.index ?? 0)) <= cfg.phoneWindowChars)) return true;
+  }
+  return false;
+}
+
+/** Whether the page holds the visitor: leaving is intercepted, full screen is forced, dialogs loop, an alarm sounds or a scan "runs". */
+function holdsVisitor(html: string, tags: Tag[], text: string): boolean {
+  const cfg = TECHNIQUE_CONFIG.securityAlert;
+  return cfg.holdMechanisms.some((re) => re.test(html)) || cfg.scanPhrases.some((re) => re.test(text)) || backTrapFrom(html, tags);
+}
+
+/** fakeSecurityAlert over a document that is already scanned into tags (the page is read once for all techniques). */
+function securityAlertFrom(html: string, tags: Tag[]): boolean {
+  const text = pageText(html, tags);
+  // the phone call alone is not enough (a shop has a number in the footer): the alarm and the hold complete the funnel
+  return alarmWithPhone(text, tags) && holdsVisitor(html, tags, text);
+}
+
+/**
+ * "Technical support" scam page: it raises an alarm (virus, locked computer, hacked account), gives a phone
+ * number as the only way out and holds the visitor on the page. The page asks for a call instead of a
+ * form; the victim is then asked to install a remote-desktop tool (see remoteAccessTool).
+ */
+export function fakeSecurityAlert(html: string): boolean {
+  const doc = (html ?? "").slice(0, MAX_CHARS);
+  return securityAlertFrom(doc, scanTags(doc));
+}
+
+/**
+ * remoteAccessTool over scanned tags: a link to a tool host that is a download or comes with a code instruction, or
+ * a download verb right before the tool name. The tool's own site (`pageUrl`) never counts.
+ */
+function remoteAccessFrom(html: string, tags: Tag[], pageUrl: string): boolean {
+  const cfg = TECHNIQUE_CONFIG.remoteAccess;
+  const toolHosts = new Set<string>(cfg.hosts);
+  // the tool's own website is not a scam page
+  if (toolHosts.has(registrableDomain(pageUrl) ?? "")) return false;
+  const text = pageText(html, tags);
+  const codeAsked = cfg.codePhrases.test(text);
+  const linked = tags.some((t) => {
+    const href = /\b(?:href|src)\s*=\s*["']?([^"'\s>]{1,500})/i.exec(t.attrs)?.[1];
+    if (!href || !toolHosts.has(registrableDomain(href) ?? "")) return false;
+    return codeAsked || cfg.downloadPath.test(href);
+  });
+  if (linked) return true;
+  const g = new RegExp(cfg.toolNames.source, "gi");
+  for (const m of text.matchAll(g)) {
+    const before = text.slice(Math.max(0, (m.index ?? 0) - cfg.instructionWindowChars), m.index ?? 0);
+    if (cfg.instructionVerbs.test(before)) return true;
+  }
+  return false;
+}
+
+/**
+ * A link or an instruction to download a remote-desktop tool (AnyDesk, TeamViewer QuickSupport and the like)
+ * on a page that is not the tool's own site. A caller of a fake support asks the victim for it to take over
+ * the computer. A bare mention of the tool in a comparison is not an instruction.
+ */
+export function remoteAccessTool(html: string, pageUrl: string): boolean {
+  const doc = (html ?? "").slice(0, MAX_CHARS);
+  return remoteAccessFrom(doc, scanTags(doc), pageUrl);
+}
+
+/** Kind of a command text (powershell, mshta, …), or null when the text is not a command. */
+function commandKind(text: string): string | null {
+  return TECHNIQUE_CONFIG.clickfix.commandKinds.find((c) => c.pattern.test(text))?.kind ?? null;
+}
+
+/**
+ * Command copied to the clipboard by the page's script: the literal given to navigator.clipboard.writeText
+ * (also behind atob), or a command-like string literal of a script that copies through execCommand("copy").
+ * Returns the first one that looks like a command, with whitespace collapsed; null when there is none.
+ */
+function copiedCommand(html: string): string | null {
+  const cfg = TECHNIQUE_CONFIG.clickfix;
+  const unescape = (v: string) => v.replace(/\\([\\"'`])/g, "$1");
+  const write = /clipboard\s*\.\s*writeText\s*\(\s*((?:window\.)?atob\s*\(\s*)?(["'`])((?:\\.|(?!\2)[^\\\n]){1,4000}?)\2/g;
+  const candidates: string[] = [];
+  for (const m of html.matchAll(write)) {
+    const raw = unescape(m[3]);
+    candidates.push(m[1] ? Buffer.from(raw, "base64").toString("utf8") : raw);
+  }
+  if (/execCommand\s*\(\s*["']copy["']/.test(html)) {
+    for (const m of html.matchAll(/(["'`])((?:\\.|(?!\1)[^\\\n]){10,4000}?)\1/g)) candidates.push(unescape(m[2]));
+  }
+  const found = candidates.find((c) => c.length <= cfg.maxCommandChars && commandKind(c));
+  return found ? found.replace(/\s+/g, " ").trim() : null;
+}
+
+/**
+ * Fake verification that gets the visitor to run a command (ClickFix). Returns null when the page is not one,
+ * otherwise `command` holds the kind and hash of the command its script copies (null when the page only gives
+ * the instruction). Two shapes count, both under the cover story of a CAPTCHA or "verify you are human": the
+ * script copies a command, or the text tells the visitor to open Run / a terminal with a shortcut and paste.
+ * A docs page with a "copy" button (no cover story) and a real reCAPTCHA (no instruction) are not ClickFix.
+ */
+export function clickfixPaste(html: string): { command: ClickfixCommand | null } | null {
+  const doc = (html ?? "").slice(0, MAX_CHARS);
+  return clickfixFrom(doc, scanTags(doc));
+}
+
+/** clickfixPaste over scanned tags (same result). */
+function clickfixFrom(html: string, tags: Tag[]): { command: ClickfixCommand | null } | null {
+  const cfg = TECHNIQUE_CONFIG.clickfix;
+  const text = pageText(html, tags);
+  const verify = cfg.verifyPhrases.test(text);
+  const cmd = copiedCommand(html);
+  const shortcut = cfg.shortcuts.some((re) => re.test(text));
+  const instructed = shortcut && cfg.pasteHints.test(text);
+  if (!((cmd && (instructed || verify)) || (instructed && verify))) return null;
+  const kind = cmd ? commandKind(cmd) : null;
+  return { command: cmd && kind ? { kind, sha256: createHash("sha256").update(cmd).digest("hex") } : null };
+}
+
+/**
+ * All techniques of a page in one pass over its HTML, with the comment block and the kind and hash of a
+ * ClickFix command. `pageUrl` is the address of the page (a store host or a remote-tool site is not a fake).
+ */
 export function detectPageTechniques(html: string, pageUrl: string): PageTechniques {
-  if (!html) return { techniques: [], commentBlock: null };
+  if (!html) return { techniques: [], commentBlock: null, clickfix: null };
   const doc = html.slice(0, MAX_CHARS);
   const tags = scanTags(doc);
   const block = blockFrom(doc, tags);
@@ -224,5 +387,9 @@ export function detectPageTechniques(html: string, pageUrl: string): PageTechniq
   if (backTrapFrom(doc, tags)) techniques.push("back_trap");
   if (socialFrom(doc, tags)) techniques.push("fake_social_post");
   if (block) techniques.push("fake_comments");
-  return { techniques, commentBlock: block };
+  if (securityAlertFrom(doc, tags)) techniques.push("fake_security_alert");
+  if (remoteAccessFrom(doc, tags, pageUrl)) techniques.push("remote_access_tool");
+  const clickfix = clickfixFrom(doc, tags);
+  if (clickfix) techniques.push("clickfix_paste");
+  return { techniques, commentBlock: block, clickfix: clickfix?.command ?? null };
 }

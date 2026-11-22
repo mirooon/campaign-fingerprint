@@ -63,11 +63,54 @@ export const DEFAULT_NARRATIVE_CONFIG: NarrativeConfig = {
     adult_phishing: { terms: ["18+", "dla doroslych", "potwierdzeni* wieku", "potwierdz* swoj* wiek"] },
     urgent_notice: { terms: ["pilne", "pilnie", "wezwani* do zaplaty"] },
     petition: { terms: ["petycj*"] },
+    // funnels of the investigative sources (I28): terms in Polish, English and German, whole words where a stem
+    // would hit another field ("wirusowe zapalenie", "police station")
+    tech_support: {
+      terms: [
+        "wirus", "wirusa", "wirusem", "wirusy", "wirusow", "wirusie", "zainfekowan* komputer*", "zainfekowan* urzadzeni*", "zainfekowan* telefon*", "komputer* zainfekowan*", "urzadzeni* zainfekowan*", "telefon* zainfekowan*", "komputer* zablokowan*", "komputer* zostal* zablokowan*", "dzial* bezpieczenstwa", "zdaln* pomoc*", "zdaln* dostep*", "wsparci* technicz*", "pomoc* technicz*",
+        "virus detected", "virus alert", "computer locked", "computer has been locked", "computer is locked", "pc infected", "technical support", "tech support", "remote assistance", "remote access", "security department", "malware*",
+        "fernwartung*", "technischer support", "computer gesperrt",
+      ],
+    },
+    refund_overpayment: {
+      terms: ["zwrot* nadplat*", "nadplat*", "przelal* za duzo", "przelalismy za duzo", "przelalem za duzo", "pomylk* w kwocie", "zwrot* roznic*", "overpayment", "overpaid", "sent too much", "paid too much", "refund the difference", "zu viel ueberwiesen"],
+    },
+    recovery_offer: {
+      terms: [
+        "odzysk* utracon*", "odzyskamy", "odzyska* kryptowalut*", "odzyskuj* srodk*", "kancelari* odzyskuj*", "oplat* za odzyskan*", "odzyskan* utracon*",
+        "recover* lost funds", "recover* your crypto*", "recover* stolen", "recovery fee", "fund recovery", "lost crypto*",
+      ],
+    },
+    job_offer: {
+      terms: [
+        "prac* zdaln*", "rekruter*", "wysok* wynagrodzeni*", "latw* zadani*", "ocen* produkt*", "oceniaj* produkt*", "prowizj* za ocen*",
+        "remote job", "work from home", "recruiter*", "easy tasks", "product rat*", "rate products", "nebenjob", "heimarbeit", "leicht* aufgaben", "hohes gehalt",
+      ],
+    },
+    fake_authority: {
+      terms: [
+        "przekazan* do policji", "przekazan* do knf", "przekazan* do uodo", "przekazan* do cert*", "przekazan* do banku", "agent* policji", "agent* knf", "agent* fbi", "funkcjonariusz* policji", "numer* odznaki",
+        "forwarded to the police", "transferred to the police", "forwarded to * bank", "special agent", "badge number", "polizeibeamt*", "dienstnummer",
+      ],
+    },
   },
   hooks: {
     sensation: ["zwolnion*", "zwolnil*", "w szpitalu", "postrzelon*", "aresztowan*", "zatrzyman*", "nie zyje", "zmarl*", "wpadk* na wizji", "powiedzial* za duzo", "skandal*", "pobit*", "smierc*"],
     endorsement: ["poleca", "polecil*", "namawia*", "zacheca*", "zdradzil* sposob*", "rekomend*"],
     fake_interview: ["wywiad*", "w rozmowie z", "rozmowa z", "w programie", "w studiu"],
+    // pressure on the victim (I28): hide the scheme from the bank and family, pay a fee before the money is paid out, a lock deadline
+    secrecy: [
+      "nie mow* nikomu", "nie mow* bankowi", "nie mow* rodzin*", "nie informuj* banku", "nie informuj* rodziny", "to jest poufne", "to poufne", "bank* w zmowie", "powiedz* bankowi, ze*", "powiedz* bankowi ze*",
+      "don't tell anyone", "do not tell anyone", "don't tell your bank", "do not tell your bank", "do not tell the bank", "keep this confidential", "bank is in on", "tell the bank it is",
+    ],
+    withdrawal_fee: [
+      "podatek* przed wyplat*", "oplat* przed wyplat*", "oplat* za wyplat*", "odblokowan* srodk*", "oplat* weryfikacyjn*", "oplat* aktywacyjn*", "prowizj* od zysk*", "procent od zysk*",
+      "tax before withdraw*", "withdrawal fee", "fee to unlock", "unlock your funds", "verification fee", "release fee", "pay a tax to withdraw",
+    ],
+    urgency_lock: [
+      "konto* zostanie zablokowan*", "konto* bedzie zablokowan*", "zostanie zablokowan* w ciagu", "ostatnie ostrzezeni*", "ostateczne ostrzezeni*",
+      "account will be locked", "account will be suspended", "will be blocked within", "final warning", "last warning",
+    ],
   },
   profitPromise: ["zarob*", "zarabia*", "pasywn* dochod*", "x100", "x10", "zysk*", "tys* dziennie", "dziennie", "gwarantowan*", "podwoj*"],
   groupInvite: ["whatsapp*", "telegram*", "darmow* grup*", "moj* grup*", "dolacz* do grup*", "grup* inwestycyjn*", "kanal* na telegram*"],

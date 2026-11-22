@@ -12,13 +12,14 @@
  * JavaScript is never executed. The scanner never throws on malformed HTML, and
  * every search moves forward, so 2 MB of pathological input stays linear.
  */
-import { detectPageTechniques, type CommentBlock, type PageTechnique } from "./pageTechniques";
+import { detectPageTechniques, type ClickfixCommand, type CommentBlock, type PageTechnique } from "./pageTechniques";
 import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformLinkIds, type LanderConfig, type PlatformLinkIds } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
 import { clickIdsFromUrls } from "./clickIds";
 import { extractPageCampaignParams, type CampaignParam } from "./campaignParams";
 import { findCrmKeys, type CrmKey } from "./crmKey";
+import { findContactIds, type ContactIds } from "./contactIds";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
 import { templatePhrases, type TemplatePhrase } from "../text/templatePhrases";
 import { isMaskedScript, kitStringsOf, localizedUiLanguages, type KitString } from "./kitStrings";
@@ -96,12 +97,16 @@ export interface PageKit {
   requestHosts?: string[];
   /** Tracker IDs in the request addresses: Meta pixel from facebook.com/tr?id= and signals/config/<id> (B-158). */
   requestTrackers?: TrackerId[];
+  /** Shared documents, onion addresses and messenger invitations in the request addresses (HAR, I28); only the non-empty lists. */
+  requestContacts?: Partial<ContactIds>;
   /** Request addresses that carry an xid click ID (tracker event calls, e.g. upd_clickid=), at most a few (B-158). */
   requestClickUrls?: string[];
   /** Block of comments written into the page (no real comments plugin), when present. */
   commentBlock?: CommentBlock | null;
-  /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
+  /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments, fake_security_alert, remote_access_tool, clickfix_paste. */
   techniques?: PageTechnique[];
+  /** Kind and SHA-256 of the command a fake verification copies to the clipboard (ClickFix); never the command itself. */
+  clickfix?: ClickfixCommand;
   /** Campaign parameters in the hidden fields of the lead form and in page-script config objects (origin form/script, I23). */
   pageParams?: CampaignParam[];
   /** Keys of the CRM / lead API in the page (hash and preview only, I23). */
@@ -884,9 +889,13 @@ function mergePathIds(a: PathId[], b: PathId[]): PathId[] {
   return [...byId.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).slice(0, MAX_PATH_IDS);
 }
 
-function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques"> {
+function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques" | "clickfix"> {
   const t = detectPageTechniques(html, pageUrl);
-  return { ...(t.commentBlock ? { commentBlock: t.commentBlock } : {}), ...(t.techniques.length ? { techniques: t.techniques } : {}) };
+  return {
+    ...(t.commentBlock ? { commentBlock: t.commentBlock } : {}),
+    ...(t.techniques.length ? { techniques: t.techniques } : {}),
+    ...(t.clickfix ? { clickfix: t.clickfix } : {}),
+  };
 }
 
 /** Extracts the page-kit fingerprint of one HTML document. Never throws. */
@@ -1104,7 +1113,7 @@ const MAX_REQUEST_HOSTS = 100;
  * domain, the Meta pixel ID in tracking calls (also signals/config/<id>, loaded by the platform SDK), and
  * addresses carrying an xid click ID. Hosts need the page address; without it only the IDs are read.
  */
-function requestSignals(requests: string[], pageUrl?: string): Pick<PageKit, "requestHosts" | "requestTrackers" | "requestClickUrls"> {
+function requestSignals(requests: string[], pageUrl?: string): Pick<PageKit, "requestHosts" | "requestTrackers" | "requestClickUrls" | "requestContacts"> {
   const pageDomain = pageUrl ? registrableDomain(pageUrl) : null;
   const hosts = new Set<string>();
   for (const r of requests) {
@@ -1119,10 +1128,12 @@ function requestSignals(requests: string[], pageUrl?: string): Pick<PageKit, "re
   const trackers = findTrackers(requests.join("\n")).concat(pixels.map((id) => ({ kind: "meta_pixel" as const, id })));
   const uniq = [...new Map(trackers.map((t) => [`${t.kind}|${t.id}`, t])).values()];
   const clickUrls = requests.filter((r) => clickIdsFromUrls([r]).xids.length > 0).slice(0, MAX_CLICK_URLS);
+  const contacts = Object.fromEntries(Object.entries(findContactIds(requests.join("\n"))).filter(([, v]) => v.length > 0));
   return {
     ...(hosts.size ? { requestHosts: [...hosts].sort() } : {}),
     ...(uniq.length ? { requestTrackers: uniq } : {}),
     ...(clickUrls.length ? { requestClickUrls: clickUrls } : {}),
+    ...(Object.keys(contacts).length ? { requestContacts: contacts } : {}),
   };
 }
 

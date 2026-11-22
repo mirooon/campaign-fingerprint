@@ -11,7 +11,7 @@ import { contribution } from "@/lib/viewer/contribution";
 import { FAMILY_HINT, FAMILY_LABEL, FAMILY_ORDER, featureFamily, familyOf, type FeatureFamily } from "@/lib/viewer/families";
 import { fmtNum } from "@/lib/viewer/format";
 import { resultConfidence, variantNote } from "@/lib/viewer/materialView";
-import { cleanEvidence, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
+import { cleanEvidence, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, TECHNIQUE_INFO, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
 import { Defanged, Help, StrengthBadge, StrengthLegend } from "./ui";
 
@@ -212,7 +212,7 @@ function WhyNot({ item, ctx }: { item: MaterialItemResult; ctx: ResultContext })
 /** Section 5: the four families with counts, one row per feature (name, value, source, role), techniques and raw data. */
 function Features({ item }: { item: MaterialItemResult }) {
   const [raw, setRaw] = useState(false);
-  const entries = Object.entries(item.features).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== "" && typeof v !== "object"));
+  const entries = Object.entries(item.features).filter(([k, v]) => (Array.isArray(v) ? v.length > 0 : v !== null && v !== undefined && v !== "" && (typeof v !== "object" || !!featureInfo(k).format)));
   const byFamily = new Map<FeatureFamily, Array<[string, unknown]>>();
   for (const [k, v] of entries) {
     const f = featureFamily(k);
@@ -243,7 +243,7 @@ function Features({ item }: { item: MaterialItemResult }) {
             <ul className="divide-y divide-slate-100 border-t border-slate-200 text-sm">
               {rows.map(([k, v]) => {
                 const fi = featureInfo(k);
-                const val = Array.isArray(v) ? v.map(String) : [String(v)];
+                const val = fi.format ? fi.format(v) : Array.isArray(v) ? v.map(String) : [String(v)];
                 return (
                   <li key={k} className="px-2.5 py-1.5">
                     <span className="font-medium">{fi.name}</span>
@@ -255,7 +255,7 @@ function Features({ item }: { item: MaterialItemResult }) {
               {f === "page" && techniques.map((t) => (
                 <li key={t} className="px-2.5 py-1.5">
                   <span className="font-medium">{TECHNIQUE_LABEL[t] ?? t}</span>
-                  <span className="block text-xs text-slate-500">sposób działania: łączy podobne kampanie</span>
+                  <span className="block text-xs text-slate-500">{TECHNIQUE_INFO[t]?.why ?? "sposób działania: łączy podobne kampanie"}</span>
                 </li>
               ))}
               {!rows.length && !(f === "page" && techniques.length) && <li className="px-2.5 py-1.5 text-slate-500">Nic nie odczytano.</li>}

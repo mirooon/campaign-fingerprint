@@ -183,7 +183,7 @@ export interface MaterialItemResult {
   missing?: string[];
   /** Block of comments written into the landing page: its size and how many other records (run and batch) carry the same block. */
   fakeComments?: { count: number; repeatedInOtherItems: number };
-  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments. */
+  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments, fake_security_alert, remote_access_tool, clickfix_paste. */
   techniques?: string[];
   /** Traits of the record (graph pivots) with their weight and how many records of the existing run share them. */
   pivots?: MaterialPivot[];
@@ -284,7 +284,7 @@ const FEATURE_KEYS = [
   "advertiserImpersonatesName", "advertiserMismatch", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "narrative", "profitClaims", "localizedUi", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "clickfix", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "narrative", "profitClaims", "localizedUi", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
 ];
 
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */

@@ -120,3 +120,36 @@ describe("amounts of money in the copy (B-189)", () => {
     expect(detectNarrative({ body: "Inwestycja w 2026 roku, 15 osób" })!.amounts).toEqual([]);
   });
 });
+
+describe("scam funnel topics and hooks from investigative sources (I28)", () => {
+  const hooksOf = (body: string) => detectNarrative({ body })?.hooks ?? [];
+
+  it.each([
+    ["tech_support", "Na twoim komputerze wykryto wirusa, skontaktuj się z działem bezpieczeństwa.", "Nowa dopłata z ZUS dla seniorów"],
+    ["tech_support", "Twój telefon jest zainfekowany, zadzwoń do pomocy technicznej.", "Zainfekowana rana wymaga opatrunku"],
+    ["tech_support", "Your computer has been locked: call technical support for remote assistance.", "Our shop ships to every country"],
+    ["refund_overpayment", "Przelaliśmy za dużo, prosimy o zwrot różnicy z powodu pomyłki w kwocie.", "Zwrot towaru w ciągu 14 dni"],
+    ["refund_overpayment", "We sent too much money by mistake, please refund the difference.", "Thank you for your order"],
+    ["recovery_offer", "Odzyskamy utracone kryptowaluty, kancelaria odzyskująca pobiera opłatę za odzyskanie.", "Kancelaria prowadzi sprawy rodzinne"],
+    ["recovery_offer", "We recover lost funds and your crypto, a recovery fee applies.", "We recover from injuries quickly"],
+    ["job_offer", "Praca zdalna, wysokie wynagrodzenie, łatwe zadania: oceniaj produkty.", "Praca magisterska z historii"],
+    ["job_offer", "Work from home as a product rater: easy tasks, a recruiter will contact you.", "Our home office furniture is on sale"],
+    ["fake_authority", "Sprawa została przekazana do policji, agent policji poda numer odznaki.", "Policja zatrzymała kierowcę w Poznaniu"],
+    ["fake_authority", "Your case was forwarded to the police; the agent will give you a badge number.", "The police station is closed on Sunday"],
+  ])("reads the topic %s in a synthetic sentence and not in an unrelated one", (id, positive, negative) => {
+    expect(topics(positive)).toContain(id);
+    expect(topics(negative)).not.toContain(id);
+  });
+
+  it.each([
+    ["secrecy", "Nie mów nikomu, a bankowi powiedz, że to remont. Bank jest w zmowie.", "Powiedz nam, jak oceniasz nasz remont"],
+    ["secrecy", "Do not tell your bank, keep this confidential.", "Tell us what you think of the bank's app"],
+    ["withdrawal_fee", "Przed wypłatą zapłać podatek przed wypłatą i opłatę weryfikacyjną za odblokowanie środków.", "Wypłata następuje w ciągu dwóch dni"],
+    ["withdrawal_fee", "Pay a verification fee to unlock your funds before the withdrawal.", "Free withdrawal at any ATM"],
+    ["urgency_lock", "Twoje konto zostanie zablokowane w ciągu 24 godzin. To ostatnie ostrzeżenie.", "Konto oszczędnościowe z dobrym oprocentowaniem"],
+    ["urgency_lock", "Your account will be locked within 24 hours. Final warning.", "Your account settings are saved"],
+  ])("reads the hook %s in a synthetic sentence and not in an unrelated one", (id, positive, negative) => {
+    expect(hooksOf(positive)).toContain(id);
+    expect(hooksOf(negative)).not.toContain(id);
+  });
+});

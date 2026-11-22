@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ENTITY_TYPES, SIMILARITY_EDGE_TYPES } from "@/lib/graph/model";
 import { TYPE_FAMILY } from "./families";
-import { cleanEvidence, GLOSSARY, premiseFamily, premiseSentence, TYPE_INFO } from "./plain";
+import { cleanEvidence, featureInfo, GLOSSARY, premiseFamily, premiseSentence, TECHNIQUE_INFO, TECHNIQUE_LABEL, TYPE_INFO } from "./plain";
 
 describe("plain dictionary", () => {
   it("every entity and similarity type has a name, explanation, example, sentence and family", () => {
@@ -24,5 +24,33 @@ describe("plain dictionary", () => {
     for (const k of ["material", "cecha", "wspolny_slad", "przeslanka", "sila_przeslanki", "sila_powiazania", "pewnosc", "prog_laczenia", "kampania", "grupa_podobnych", "duplikat", "pominiety_slad", "persona", "za_malo_danych", "har", "ocr"] as const) {
       expect(GLOSSARY[k].text.length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe("signals of investigative practice in the GUI dictionary (I28)", () => {
+  it("names every new page technique with a plain explanation and a Polish label", () => {
+    for (const t of ["fake_security_alert", "remote_access_tool", "clickfix_paste"]) {
+      expect(TECHNIQUE_LABEL[t]).toBeTruthy();
+      expect(TECHNIQUE_INFO[t].why.length).toBeGreaterThan(20);
+    }
+    expect(TECHNIQUE_INFO.fake_security_alert.sentence).toContain("zdalnego pulpitu");
+  });
+
+  it("shows a ClickFix command only as kind and a short hash", () => {
+    const lines = featureInfo("clickfix").format!({ kind: "powershell", sha256: "a".repeat(64) });
+    expect(lines).toEqual(["rodzaj: powershell", `SHA-256: ${"a".repeat(16)}…`]);
+  });
+
+  it("reads the two domains, the phone line types and the narrative labels", () => {
+    expect(featureInfo("displayedDomainMismatch").format!({ displayed: "onet.pl", landing: "losowa-strona.test" })).toEqual(["onet.pl", "losowa-strona.test"]);
+    expect(featureInfo("phoneLines").format!([{ phone: "+48800000000", lineType: "toll_free", country: "PL" }])).toEqual(["+48800000000: bezpłatny, PL"]);
+    expect(featureInfo("narrative").format!({ topics: [{ id: "tech_support" }], hooks: ["secrecy"] })).toEqual([
+      "temat: fałszywa pomoc techniczna (wirus, zablokowany komputer)",
+      "haczyk: tajemnica (nie mów bankowi ani rodzinie)",
+    ]);
+  });
+
+  it("has a plain entry for the new kinds of evidence", () => {
+    for (const t of ["shared_doc", "onion", "messenger_invite"] as const) expect(TYPE_INFO[t].sentence).toMatch(/^Materiały /);
   });
 });

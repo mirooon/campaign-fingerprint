@@ -48,13 +48,13 @@ Każdy ślad (encja, np. konkretny tracker) dostaje wagę. Waga to iloczyn trzec
 
 Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − Π(1 − wᵢ)`. Dwie niezależne przesłanki po 0,5 dają 0,75. Wynik rośnie z każdą kolejną przesłanką, ale nigdy nie przekracza 1. Przesłanka o wadze ≥ 0,7, której ślad występuje w mniej niż połowie zbioru, jest **silna** (patrz punkt 4).
 
-### Wagi typów (stan po zadaniu I25; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
+### Wagi typów (stan po zadaniu I28; źródło prawdy: `typeWeights` w `lib/graph/config.ts`)
 
 | Typ | Waga | Typ | Waga |
 |---|---|---|---|
 | url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
 | host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
-| email, phone, telegram, platform_account | 0,9 | asset | 0,55 |
+| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account | 0,9 | asset | 0,55 |
 | path_id | 0,85 | favicon, kit_string | 0,5 |
 | cert, campaign_param | 0,8 | comment_block, template_phrase | 0,45 |
 | ad_payer | 0,7 | nameserver, page_template | 0,35 |
@@ -155,6 +155,28 @@ Teksty stron krążą między operatorami: te same zmyślone komentarze, ten sam
 | `localizedUi` | brak | atrybut |
 
 Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `kit_string` dał 4 powiązania; jedno z nich dodało trzecią grupę podobnych kampanii z dwóch spraw bez pary w etykietach roboczych. Liczba powiązań `template_phrase` po masce pozostała ta sama (17), bo zdania szablonu w tych sprawach pochodzą z tekstu stron, a nie z SDK.
+
+## 4d. Sygnały z praktyki śledczej (zadanie I28, 22.11.2026)
+
+Źródło: transkrypcje podcastów śledczych (OSINT Podcast https://www.youtube.com/@OSINTPodcast, Fraud Forward https://www.youtube.com/@FraudForward) i katalog cech z tych odcinków (`/Users/miron/Projects/deepfake-research/cechy/podcasty-osint-fraud-cechy.md`). Prawie wszystko stąd jest **atrybutem materiału**: tłumaczy w przeglądarce i w paczce dowodów, jaki to typ oszustwa i dlaczego, ale nikogo nie łączy. Łączą tylko identyfikatory kontaktowe i dokumenty.
+
+**Co łączy** (rodzaje śladów z wagą jak Telegram, 0,9: wskazują konto albo zasób operatora; rzadkość przez IDF i `maxPivotDf` jak każdy inny ślad):
+
+- `shared_doc`: dokument, arkusz, formularz (Google, Notion, Microsoft Forms, Typeform, Jotform) i udostępniona rozmowa z modelem językowym (usługa `llm_chat`: operator wkleja dane kampanii do czatu i udostępnia link). Klucz `usługa:identyfikator`. Identyfikatory przykładowe z dokumentacji dostawców i strony pomocy są pomijane (lista w `lib/osint/contactConfig.ts`).
+- `onion`: adres .onion wersji 3. Adres wersji 2 wygasł w 2021 r., więc jest tylko atrybutem (`onionV2`).
+- `messenger_invite`: zaproszenia i konta Discord, Signal, Viber i Line (`usługa:identyfikator`); numer z `wa.me` jest zwykłym telefonem. Serwery społeczności samych platform są pomijane.
+
+Źródłem są tekst i atrybuty strony, tekst reklamy, OCR zrzutu i adresy żądań z HAR. Żaden z tych adresów nie jest otwierany: to zasoby operatora, narzędzie czyta tylko zapis.
+
+**Co tylko wyjaśnia** (atrybuty, bez wagi; techniki liczą się wyłącznie przy grupach podobnych kampanii, jak inne techniki):
+
+- Techniki strony: fałszywy alarm bezpieczeństwa z numerem telefonu (`fake_security_alert`: alarm + numer jako jedyne wyjście + mechanizm przytrzymania), program do zdalnego pulpitu (`remote_access_tool`), fałszywa weryfikacja z poleceniem do wklejenia (`clickfix_paste`). Z polecenia ClickFix zapisujemy tylko rodzaj i skrót SHA-256 (to ładunek złośliwego oprogramowania); skrót nie jest śladem łączącym, bo wśród rodzajów nie ma „zestawu” pasującego do polecenia.
+- Domena pokazana w reklamie różna od strony docelowej (`displayedDomainMismatch`, z flagą znanej marki).
+- Rodzaj numeru telefonu (`phoneLines`: komórkowy, stacjonarny, bezpłatny, o podwyższonej opłacie, VoIP) z lokalnych metadanych `libphonenumber-js`, bez wysyłania numeru do usług, oraz flagi `phoneCountryMismatch` i `tollFreeOnAlert`. **Waga numeru się nie zmienia**: numery VoIP i aplikacyjne bywają jednorazowe, dlatego waga telefonu opiera się na rzadkości numeru (IDF), a rodzaj jest tylko wyjaśnieniem.
+- Adres, który udaje inny (`idnConfusable`: znak podobny do `/`, `.`, `-` albo mieszane alfabety w jednej etykiecie), dzień tygodnia i godzina startu reklamy z biblioteki reklam (rozkład w kampanii opisuje rytm operatora) i data utworzenia serwera lub konta Discord z identyfikatora w linku („zegar powstania”).
+- Narracje i haczyki: tematy fałszywej pomocy technicznej, zwrotu nadpłaty, oferty odzyskania środków (wtórne oszustwo wobec ofiar), oferty pracy, udawanego organu; haczyki tajemnicy, opłaty przed wypłatą i groźby blokady konta.
+
+**Zastrzeżenia ze źródeł.** Numer dzwoniącego i numer z formularza nie dowodzą tożsamości (podszywanie numeru, aplikacje). Wspólny zestaw albo platforma „fraud as a service” nie dowodzi jednego operatora. Brak literówek nie jest już sygnałem legalności, bo teksty piszą modele językowe. Zrzut salda z „platformy” nie dowodzi stanu konta (edycja DOM).
 
 ## 5. Duplikaty i „za mało danych”
 

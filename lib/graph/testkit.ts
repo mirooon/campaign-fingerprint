@@ -3,6 +3,7 @@
  */
 import type { AdLibraryInfo } from "../osint/adLibrary";
 import type { CampaignParam, CampaignParamName } from "../osint/campaignParams";
+import type { ContactIds } from "../osint/contactIds";
 import type { PageExtract, TrackerId } from "../osint/extract";
 import { normalizeEndpointPath, type EndpointRef, type PageKit } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
@@ -34,6 +35,8 @@ export interface TestItemSpec {
   /** Example numbers of the lead form (placeholder, "np. …" help text), as the page extract keeps them. */
   phoneExamples?: string[];
   wallets?: Array<{ kind: "btc" | "eth" | "tron"; address: string }>;
+  /** Shared documents, onion addresses and messenger invitations of the landing page (I28), as the page extract keeps them. */
+  contactIds?: Partial<ContactIds>;
   redirects?: string[];
   persona?: string;
   deepfakeScore?: number;
@@ -190,6 +193,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           phones: s.phones ?? [],
           phoneExamples: s.phoneExamples ?? [],
           wallets: s.wallets ?? [],
+          ...s.contactIds,
         }),
         favicon:
           s.faviconMmh3 === undefined

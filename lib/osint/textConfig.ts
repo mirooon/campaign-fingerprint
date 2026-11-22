@@ -3,6 +3,7 @@
  * traces (the page platform's SDK, framework bundles, public libraries), how an interface dictionary is
  * recognised and what a developer message of a kit script looks like. The extractors in lib/osint read
  * them from here; the weight of `kit_string` and the frequency mask of the graph live in lib/graph/config.ts.
+ * Also the lists of the domain an ad shows as its link (I28, `displayedDomain`).
  */
 
 export const TEXT_CONFIG = {
@@ -71,5 +72,21 @@ export const TEXT_CONFIG = {
     /** Own scripts of a page read for text traces (import and live fetch): at most this many, each up to maxScriptBytes. */
     maxScriptsPerPage: 30,
     maxScriptBytes: 512 * 1024,
+  },
+  displayedDomain: {
+    /**
+     * Domains of well-known banks, portals, marketplaces and couriers (the brands scams copy, like the list of
+     * lib/media/brand.ts): an ad that shows one of them as its link caption but leads elsewhere is
+     * borrowing the brand's trust. Registrable domains, lower case.
+     */
+    brandDomains: [
+      "onet.pl", "wp.pl", "interia.pl", "gazeta.pl", "tvn24.pl", "tvp.info", "polsatnews.pl", "money.pl", "bankier.pl", "businessinsider.com.pl", "rp.pl", "forbes.pl",
+      "pkobp.pl", "pekao.com.pl", "mbank.pl", "ing.pl", "santander.pl", "bankmillennium.pl", "aliorbank.pl", "nbp.pl", "zus.pl", "gov.pl", "knf.gov.pl", "orlen.pl", "pge.pl",
+      "allegro.pl", "olx.pl", "vinted.pl", "ceneo.pl", "inpost.pl", "poczta-polska.pl", "dhl.com", "dpd.com.pl", "paypal.com", "revolut.com", "blik.com",
+    ],
+    /** A line holds a caption alone when it is no longer than the host plus this many characters (a "www." or a short path). */
+    captionSlackChars: 12,
+    /** Other domains an ad or its screenshot shows without being a link caption: platform media and short-link hosts. */
+    ignoredDomains: ["meta.com", "fb.watch", "fbcdn.net", "cdninstagram.com", "googleusercontent.com", "gstatic.com", "t.co", "bit.ly", "goo.gl"],
   },
 } as const;

@@ -17,6 +17,8 @@ import { normalizeUrl, registrableDomain } from "../osint/urls";
 import type { CampaignSummary } from "../pipeline/summary";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
 import { DEFAULT_NARRATIVE_CONFIG, topicQuote, type MaterialNarrative } from "../text/narrative";
+import { defangUrl } from "../viewer/defang";
+import { TECHNIQUE_LABEL } from "../viewer/plain";
 
 export const GOOD_FAITH_STATEMENT =
   "Oświadczam, że w dobrej wierze uważam, iż informacje i zarzuty zawarte w zgłoszeniu są prawidłowe i kompletne.";
@@ -162,6 +164,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const ads = members.map((item) => {
     const enr = opts.enriched.perItem[item.id];
     const page = pagesOf(item);
+    const data = nodeById.get(`item:${item.id}`)?.data ?? {};
+    const shown = data.displayedDomainMismatch as { displayed: string; landing: string; source: string; confidence: string } | undefined;
     const creatives: Array<{ file: string; sha256: string | null; source: string }> = [];
     if (item.imagePath) {
       const dest = addFile(path.join(datasetDir, item.imagePath), `files/creatives/${path.basename(item.imagePath)}`, null, "plik kreacji z danych wejściowych");
@@ -196,6 +200,25 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       campaign_params: [...(enr?.campaignParams ?? []), ...(page?.kit?.pageParams ?? [])].map((p) => ({ name: p.name, value: p.value, source_url: p.sourceUrl, cyrillic: p.cyrillic, origin: p.origin ?? "url" })),
       // the key itself is never written: preview (first and last characters) and SHA-256 only
       crm_keys: (page?.kit?.crmKeys ?? []).map((k) => ({ preview: k.preview, sha256: k.sha256, field: k.name, via: k.via })),
+      // techniques of the landing page (attributes of the scheme, not links) with where they were read
+      page_techniques: ((data.techniques as string[] | undefined) ?? []).map((t) => ({
+        technique: t,
+        label: TECHNIQUE_LABEL[t] ?? t,
+        source: page ? `kod strony docelowej ${defangUrl(page.fetch.finalUrl)}, pobrany ${utc(page.fetch.fetchedAt)}` : "kod strony docelowej",
+      })),
+      // ClickFix: kind and SHA-256 of the copied command only; the command is a malware payload and is never written
+      clickfix_command: (data.clickfix as { kind: string; sha256: string } | undefined) ?? null,
+      // the domain shown in the ad against the page it leads to, defanged like the other addresses of the report
+      displayed_domain_mismatch: shown
+        ? { displayed: defangUrl(shown.displayed), landing: defangUrl(shown.landing), source: shown.source, confidence: shown.confidence, brand_domain: data.displayedBrandDomain === true }
+        : null,
+      look_alike_host: data.idnConfusable
+        ? { kind: (data.idnConfusable as { kind: string }).kind, looks_like: defangUrl((data.idnConfusable as { looksLike: string }).looksLike), char: (data.idnConfusable as { char: string }).char }
+        : null,
+      ad_start_weekday: data.adStartWeekday ?? null,
+      discord_id_created: ((data.discordSnowflakes as Array<{ id: string; kind: string; createdAt: string }> | undefined) ?? []).map((d) => ({ id: d.id, kind: d.kind, created_utc: d.createdAt })),
+      phone_lines: (data.phoneLines as Array<{ phone: string; lineType: string; country: string | null }> | undefined)?.map((l) => ({ phone: l.phone, line_type: l.lineType, country: l.country })) ?? [],
+      phone_flags: { country_mismatch: data.phoneCountryMismatch === true, toll_free_on_alert: data.tollFreeOnAlert === true },
       creative_files: creatives,
     };
   });
@@ -526,6 +549,29 @@ function libraryAccount(ads: Item[]): LibraryAccount | null {
   return null;
 }
 
+/**
+ * One line of the report for the attributes of an ad (techniques of the page, the domain shown in the ad,
+ * phone line types, kind and hash of a ClickFix command), or null when the ad has none. Addresses come
+ * defanged from the record; the command itself is never part of it.
+ */
+function signalsLine(ad: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+  const techniques = ad.page_techniques as Array<{ label: string }>;
+  if (techniques.length) parts.push(`techniki strony: ${techniques.map((t) => t.label).join(", ")}`);
+  const click = ad.clickfix_command as { kind: string; sha256: string } | null;
+  if (click) parts.push(`polecenie ClickFix: rodzaj ${click.kind}, SHA-256 ${click.sha256}`);
+  const shown = ad.displayed_domain_mismatch as { displayed: string; landing: string; brand_domain: boolean } | null;
+  if (shown) parts.push(`w reklamie pokazano domenę ${shown.displayed}${shown.brand_domain ? " (znana marka)" : ""}, a link prowadzi do ${shown.landing}`);
+  const lookAlike = ad.look_alike_host as { looks_like: string; char: string } | null;
+  if (lookAlike) parts.push(`adres udaje inny (znak ${lookAlike.char}): wygląda jak ${lookAlike.looks_like}`);
+  const lines = ad.phone_lines as Array<{ phone: string; line_type: string; country: string | null }>;
+  if (lines.length) parts.push(`numery: ${lines.map((l) => `${l.phone} (${l.line_type}${l.country ? `, ${l.country}` : ""})`).join(", ")}`);
+  const flags = ad.phone_flags as { country_mismatch: boolean; toll_free_on_alert: boolean };
+  if (flags.country_mismatch) parts.push("kraj numeru różni się od rynku reklamy");
+  if (flags.toll_free_on_alert) parts.push("numer bezpłatny na stronie z fałszywym alarmem");
+  return parts.length ? `- reklama ${ad.item_id}: ${parts.join("; ")}` : null;
+}
+
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
     shared_identifiers: Array<{ type: string; value: string; ads_with_identifier: number }>;
@@ -575,6 +621,10 @@ ${obs.shared_identifiers.map((s) => `| ${cell(s.type)} | ${cell(s.value)} | ${s.
 | ID | Platforma | Reklamodawca | Pierwsza / ostatnia obserwacja (UTC) | Link docelowy |
 |---|---|---|---|---|
 ${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.advertiser_displayed)} | ${cell(a.first_seen_utc)} / ${cell(a.last_seen_utc)} | ${cell(a.landing_url)} |`).join("\n")}
+
+### Sygnały materiałów (atrybuty, nie dowody powiązania)
+
+${obs.ads.map((a) => signalsLine(a)).filter((l) => l !== null).join("\n") || "- brak"}
 
 ### Domeny
 

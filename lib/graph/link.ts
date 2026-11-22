@@ -19,6 +19,12 @@ import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
+import { adStart } from "../text/adStart";
+import { displayedDomainMismatch } from "../text/displayedDomain";
+import { discordSnowflakes } from "../osint/contactIds";
+import { idnConfusableInUrl } from "../osint/idnConfusable";
+import { PHONE_CONFIG } from "../osint/phoneConfig";
+import { phoneLineFlags, phoneLineInfo } from "../osint/phoneLine";
 import { profitClaimKey, profitClaims } from "../text/profitClaims";
 import { celebBaitLabel, DEFAULT_NARRATIVE_CONFIG, detectNarrative, type MaterialNarrative } from "../text/narrative";
 import { scamBrands } from "../text/scamBrand";
@@ -91,10 +97,16 @@ const TECHNIQUE_LABELS: Record<string, string> = {
   back_trap: "pułapka przycisku „wstecz”",
   fake_social_post: "udawany post z serwisu społecznościowego",
   fake_comments: "fałszywe komentarze wpisane w stronę",
+  fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
+  remote_access_tool: "program do zdalnego pulpitu do pobrania",
+  clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
 };
 
 /** Canonical link parameters that carry the ID of the Meta ad in templates ({{ad.id}}). */
 const META_AD_ID_PARAMS = new Set<string>(["ad_id", "utm_content", "utm_term"]);
+
+/** Most phone numbers of one material whose line type is kept as an attribute. */
+const MAX_PHONE_LINES = 5;
 
 /** Most unmapped input columns kept on the item as input data, and the longest value kept. */
 const MAX_INPUT_EXTRA = 30;
@@ -415,7 +427,7 @@ export function buildEvidenceGraph(
     const addContacts = (
       from: string,
       basePath: string[],
-      src: { emails?: string[]; phones?: string[]; telegram?: string[]; whatsapp?: string[]; wallets?: Array<{ kind: string; address: string }> } | null | undefined,
+      src: { emails?: string[]; phones?: string[]; telegram?: string[]; whatsapp?: string[]; sharedDocs?: string[]; onion?: string[]; messengers?: string[]; wallets?: Array<{ kind: string; address: string }> } | null | undefined,
       where: string,
       relation: number,
     ) => {
@@ -441,6 +453,24 @@ export function buildEvidenceGraph(
         const id = g.node("telegram", t, t);
         g.edge(from, id, "mentions", `kontakt Telegram ${where}`);
         add(id, "telegram", [...basePath, id], relation, `ten sam kontakt Telegram ${t}`);
+      }
+      for (const d of src.sharedDocs ?? []) {
+        const [service, ...rest] = d.split(":");
+        const llm = service === "llm_chat";
+        const id = g.node("shared_doc", d, llm ? `udostępniony czat z modelem językowym (${rest.join(":").slice(0, 12)}…)` : `${service} ${rest.join(":").slice(0, 16)}…`, { service });
+        g.edge(from, id, "mentions", `${llm ? "udostępniony czat z modelem językowym" : "udostępniony dokument lub formularz"} ${where}`);
+        add(id, "shared_doc", [...basePath, id], relation, `ten sam ${llm ? "udostępniony czat z modelem językowym" : "udostępniony dokument lub formularz"} (${service})`);
+      }
+      for (const o of src.onion ?? []) {
+        const id = g.node("onion", o, `${o.slice(0, 12)}….onion`, {});
+        g.edge(from, id, "mentions", `adres .onion ${where}`);
+        add(id, "onion", [...basePath, id], relation, `ten sam adres .onion (${o.slice(0, 12)}…)`);
+      }
+      for (const m of src.messengers ?? []) {
+        const [service, ...rest] = m.split(":");
+        const id = g.node("messenger_invite", m, `${service} ${rest.join(":")}`, { service });
+        g.edge(from, id, "mentions", `zaproszenie lub konto komunikatora ${where}`);
+        add(id, "messenger_invite", [...basePath, id], relation, `to samo zaproszenie lub konto komunikatora (${service})`);
       }
       for (const w of src.wallets ?? []) {
         const id = g.node("wallet", `${w.kind}:${w.address}`, `${w.kind.toUpperCase()} ${shortAddr(w.address)}`, {
@@ -663,6 +693,10 @@ export function buildEvidenceGraph(
           add(id, "favicon", [...finalPath, id], rel, `identyczny favicon (mmh3 ${fav.hashes.mmh3})`);
         }
         addContacts(finalUrlNode, finalPath, ex, "na stronie docelowej", rel);
+        // the same identifiers in the page's requests (HAR) when the page text no longer carries them
+        addContacts(finalUrlNode, finalPath, page?.kit?.requestContacts, "w żądaniach strony (HAR)", rel);
+        // a v2 onion address is long retired: an attribute of the material, not a trace
+        if (ex.onionV2?.length) itemData.onionV2 = ex.onionV2;
         // The example number of the form field travels with the template to every site built on it:
         // a template trace (page_template, notAloneKinds), never a shared phone line (I23, 3b).
         for (const p of ex.phoneExamples ?? []) {
@@ -882,6 +916,7 @@ export function buildEvidenceGraph(
           const list = (itemData.techniques as string[] | undefined) ?? [];
           if (!list.includes(t)) itemData.techniques = [...list, t];
         }
+        if (kit.clickfix) itemData.clickfix = kit.clickfix;
       }
       if (page?.cloaking) {
         itemData.cloakingSuspected = page.cloaking.suspected;
@@ -1040,6 +1075,25 @@ export function buildEvidenceGraph(
       }
     }
 
+    // Look-alike hosts, the weekday the ad started and the creation date of Discord ids (I28, P2): attributes, never traces
+    const hostUrls = [item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...(enr?.observedUrls ?? []).map((o) => `https://${o.host}`), ...(landingPage?.extract?.outboundUrls ?? [])];
+    const confusable = hostUrls.map((u) => (u ? idnConfusableInUrl(u) : null)).find((c) => c !== null);
+    if (confusable) itemData.idnConfusable = confusable;
+    const started = adStart(typeof itemData.adFirstShown === "string" ? itemData.adFirstShown : null);
+    if (started) itemData.adStartWeekday = started;
+    const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
+    if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
+
+    // Line type and country of the phone numbers (I28): offline metadata, an explanation of the number, never a weight
+    const phones = [...new Set([...(enr?.text?.phones ?? []), ...(landingPage?.extract?.phones ?? [])])].slice(0, MAX_PHONE_LINES);
+    if (phones.length) {
+      const lines = phones.map(phoneLineInfo);
+      itemData.phoneLines = lines;
+      const flags = phoneLineFlags(lines, { market: PHONE_CONFIG.defaultMarket, securityAlert: ((itemData.techniques as string[] | undefined) ?? []).includes("fake_security_alert") });
+      if (flags.phoneCountryMismatch) itemData.phoneCountryMismatch = true;
+      if (flags.tollFreeOnAlert) itemData.tollFreeOnAlert = true;
+    }
+
     // Narrative (topic, hook, IHC label): an attribute of the material and a trait of the group, never a pivot
     const pageEx = landingPage?.extract;
     const narrative = detectNarrative({
@@ -1080,6 +1134,21 @@ export function buildEvidenceGraph(
       itemData.advertiserMismatchKind = mismatch.kind;
       const drop = facts.findIndex((f) => f.pivot === advertiserNamePivot);
       if (drop >= 0) facts.splice(drop, 1);
+    }
+
+    // The domain shown in the creative against the page the ad leads to (I28): an attribute, never a trace
+    const chainDomains = [item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl]
+      .map((u) => (u ? registrableDomain(u) : null))
+      .filter((d): d is string => !!d);
+    const shownDomain = displayedDomainMismatch({
+      ocr: ui?.text ?? null,
+      text: item.text,
+      barDomains: (enr?.observedUrls ?? []).map((o) => registrableDomain(o.host)).filter((d): d is string => !!d),
+      landing: chainDomains,
+    });
+    if (shownDomain) {
+      itemData.displayedDomainMismatch = { displayed: shownDomain.displayed, landing: shownDomain.landing, source: shownDomain.source, confidence: shownDomain.confidence };
+      if (shownDomain.displayedBrandDomain) itemData.displayedBrandDomain = true;
     }
 
     // Addresses seen in the browser address bar of screenshots and recordings

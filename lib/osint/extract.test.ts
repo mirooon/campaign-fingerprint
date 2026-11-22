@@ -411,7 +411,7 @@ describe("extractFromText (ad copy)", () => {
   });
 
   it("returns empty lists for empty text", () => {
-    expect(extractFromText("")).toEqual({ urls: [], emails: [], phones: [], telegram: [], whatsapp: [], wallets: [] });
+    expect(extractFromText("")).toEqual({ urls: [], emails: [], phones: [], telegram: [], whatsapp: [], sharedDocs: [], onion: [], onionV2: [], messengers: [], wallets: [] });
   });
 });
 

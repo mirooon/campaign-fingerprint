@@ -28,7 +28,8 @@ const HOST = /(?:^|[\s|(«"'])((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{
 const IN_APP = /^(?:[^\p{L}]{0,4}|[XA×x]\s+)(Instagram|Facebook|Messenger|Threads|TikTok|LinkedIn|Wczytywanie|Loading)\b/iu;
 /** OCR of a padlock: "8", "a", "@", "A" or the glyph itself before the host. */
 const LOCK_BEFORE = /(?:^|\s)(?:[8a@🔒]|A|AA|NEA A)\s*$/u;
-const PLATFORM_DOMAINS = new Set([
+/** Registrable domains of the platforms themselves: a page of theirs is never a landing page (also: never the domain an ad shows as its link). */
+export const PLATFORM_DOMAINS = new Set([
   "facebook.com", "fb.com", "fb.me", "instagram.com", "messenger.com", "threads.net", "google.com", "youtube.com",
   "tiktok.com", "x.com", "twitter.com", "linkedin.com", "apple.com", "whatsapp.com", "telegram.org", "t.me",
 ]);

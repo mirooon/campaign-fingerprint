@@ -351,6 +351,12 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     email: 0.9,
     phone: 0.9,
     telegram: 0.9,
+    // Contact identifiers of I28: a shared document, form or chat, an onion address and an invitation or
+    // account of a messenger point at an asset of one operator, like a Telegram account. Rare ids are
+    // kept by IDF and maxPivotDf like the other contacts; a shared chat with a language model counts too.
+    shared_doc: 0.9,
+    onion: 0.9,
+    messenger_invite: 0.9,
     cert: 0.8,
     imagehash: 0.65,
     // A display name of the advertiser alone does not merge campaigns (rule kind advertiser_name in

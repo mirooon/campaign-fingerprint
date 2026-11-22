@@ -13,6 +13,7 @@
  * No HTML parser dependency: a small linear tag/attribute scanner is used, and
  * the regexes are deliberately conservative. Never throws on malformed HTML.
  */
+import { findContactIds } from "./contactIds";
 import { findWallets, type WalletMatch } from "./crypto";
 import { LEAD_CONFIG } from "./leadConfig";
 import { extractUrlsFromText, hostOf, normalizeUrl, registrableDomain, resolveUrl } from "./urls";
@@ -62,6 +63,11 @@ export interface PageExtract {
   phoneExamples?: string[];
   telegram: string[];
   whatsapp: string[];
+  /** Contact identifiers of I28 (see contactIds.ts); missing in extracts saved before these fields existed. */
+  sharedDocs?: string[];
+  onion?: string[];
+  onionV2?: string[];
+  messengers?: string[];
   wallets: WalletMatch[];
   metaRefresh: string | null;
   jsRedirects: string[];
@@ -75,6 +81,11 @@ export interface TextExtract {
   phones: string[];
   telegram: string[];
   whatsapp: string[];
+  /** Contact identifiers of I28 (see contactIds.ts). */
+  sharedDocs?: string[];
+  onion?: string[];
+  onionV2?: string[];
+  messengers?: string[];
   wallets: WalletMatch[];
 }
 
@@ -761,6 +772,10 @@ function emptyExtract(baseUrl?: string): PageExtract {
     phoneExamples: [],
     telegram: [],
     whatsapp: [],
+    sharedDocs: [],
+    onion: [],
+    onionV2: [],
+    messengers: [],
     wallets: [],
     metaRefresh: null,
     jsRedirects: [],
@@ -877,6 +892,7 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
     result.phoneExamples = split.examples;
     result.telegram = findTelegram(contactText);
     result.whatsapp = findWhatsapp(contactText);
+    Object.assign(result, findContactIds(contactText));
     result.wallets = findWallets(contactText);
     result.jsRedirects = findJsRedirects(scriptSources.join("\n"), base);
   } catch {
@@ -894,6 +910,7 @@ export function extractFromText(text: string): TextExtract {
     phones: findPolishPhones(t),
     telegram: findTelegram(t),
     whatsapp: findWhatsapp(t),
+    ...findContactIds(t),
     wallets: findWallets(t),
   };
 }

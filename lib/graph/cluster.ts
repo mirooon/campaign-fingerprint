@@ -20,6 +20,7 @@
 import Graph from "graphology";
 import louvain from "graphology-communities-louvain";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
+import { weekdayCounts, type AdStart } from "../text/adStart";
 import { summarizeNarratives, type MaterialNarrative } from "../text/narrative";
 import { combineScores } from "./weights";
 import { isAdvertiserAccountKey } from "./adLibraryTraces";
@@ -664,7 +665,8 @@ function campaignAttributes(members: string[], nodeById: Map<string, GraphNode>,
   for (const m of members) for (const p of (nodeById.get(`item:${m}`)?.data.pagePlatforms as string[] | undefined) ?? []) platformCount.set(p, (platformCount.get(p) ?? 0) + 1);
   const platforms = [...platformCount.entries()].map(([id, count]) => ({ id, count })).sort((a, b) => b.count - a.count || a.id.localeCompare(b.id));
   const takenDownCount = members.filter((m) => nodeById.get(`item:${m}`)?.data.adTakenDown === true).length;
-  return { personas, cyrillic, cloakingSuspected, deepfakeScoreMax, ...(narrative ? { narrative } : {}), ...(brands.length ? { brands } : {}), ...(platforms.length ? { platforms } : {}), ...(takenDownCount ? { takenDownCount } : {}) };
+  const starts = members.map((m) => nodeById.get(`item:${m}`)?.data.adStartWeekday as AdStart | undefined).filter((s): s is AdStart => !!s);
+  return { personas, cyrillic, cloakingSuspected, deepfakeScoreMax, ...(narrative ? { narrative } : {}), ...(brands.length ? { brands } : {}), ...(platforms.length ? { platforms } : {}), ...(takenDownCount ? { takenDownCount } : {}), ...(starts.length ? { adStartWeekdays: weekdayCounts(starts) } : {}) };
 }
 
 /** Brands recognised on the creatives of the members (item `creativeBrand`), with member counts, most frequent first. */

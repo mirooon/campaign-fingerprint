@@ -72,6 +72,9 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   email: "infra",
   phone: "infra",
   telegram: "infra",
+  shared_doc: "infra",
+  onion: "infra",
+  messenger_invite: "infra",
 };
 
 /** Feature keys of a material (`MaterialItemResult.features`, item node data) and their family. */
@@ -100,6 +103,17 @@ export const FEATURE_FAMILY: Record<string, FeatureFamily> = {
   dhash: "look",
   domSimhash: "page",
   techniques: "page",
+  clickfix: "page",
+  displayedDomainMismatch: "content",
+  displayedBrandDomain: "content",
+  narrative: "content",
+  phoneLines: "infra",
+  phoneCountryMismatch: "infra",
+  tollFreeOnAlert: "infra",
+  onionV2: "infra",
+  idnConfusable: "infra",
+  adStartWeekday: "content",
+  discordSnowflakes: "infra",
   cyrillic: "page",
   cloakingSuspected: "page",
   landingUrl: "infra",

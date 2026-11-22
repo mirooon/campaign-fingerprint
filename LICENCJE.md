@@ -183,7 +183,7 @@ Domyślnie (bez flag i kluczy) nie jest używany żaden model. Modele są pobier
 
 ## 4. Usługi opcjonalne
 
-Domyślnie narzędzie nie wysyła żadnych zapytań (`ANALYZE_OFFLINE=1` w obrazie). Zapytania pojawiają się tylko z flagami `--live`, `--lookups`, `--ad-library`, `--cloaking` albo przy użyciu dostawcy Anthropic. Instrukcja zdobycia kluczy: [README.md](README.md#6-usługi-z-kluczami).
+Domyślnie narzędzie nie wysyła żadnych zapytań (`ANALYZE_OFFLINE=1` w obrazie). Zapytania pojawiają się tylko z flagami `--live`, `--lookups`, `--ad-library`, `--cloaking` albo przy użyciu dostawcy Anthropic. Instrukcja zdobycia kluczy: [README.md](README.md#usługi-z-kluczami).
 
 | Usługa | Licencja lub warunki | Rola | Sposób użycia | Źródło |
 |---|---|---|---|---|

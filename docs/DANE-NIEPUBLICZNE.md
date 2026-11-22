@@ -1,6 +1,6 @@
 # Paczka danych niepublicznych
 
-Repozytorium jest publiczne, więc nie ma w nim niczego, co wyliczono z poufnych spraw. Wszystko takie leży w osobnej **paczce niepublicznej**: folder na Dysku Google dostępny tylko dla osób, które dostarczyły dane i oceniają narzędzie. Poniżej opis, co jest w paczce, jak jej użyć i jak zamiast niej zbudować bazę samodzielnie. Ten dokument nie zawiera żadnych wartości z danych.
+Repozytorium nie zawiera niczego, co wyliczono z poufnych spraw, bo materiałów organizatora nie wolno rozpowszechniać. Wszystko takie leży w osobnej **paczce niepublicznej** `odcisk-kampanii-sample-data-<data>.zip`, przekazanej w materiałach dodatkowych formularza zgłoszenia (i w wiadomości prywatnej do opiekuna zadania ze strony organizatora), tylko dla osób, które dostarczyły dane i oceniają narzędzie. Poniżej opis, co jest w paczce, jak jej użyć i jak zamiast niej zbudować bazę samodzielnie. Ten dokument nie zawiera żadnych wartości z danych.
 
 ## Co jest w paczce
 
@@ -11,6 +11,8 @@ Repozytorium jest publiczne, więc nie ma w nim niczego, co wyliczono z poufnych
 | `wiedza/` | Wzorce kampanii z przykładami ze spraw, wyniki i metryki, walidacja, wnioski o twarzach, tekście, komentarzach i zrzutach. |
 | `pomiary/` | Skrypty i małe pliki wyników pomiarów jakości metody (końcowa bramka testów, odporność na niepełne zgłoszenia, wrażliwość wag, twarde negatywy, walidacja spoza próbki, bliskie pary, oczekiwane powiązania MUSI/POWINNO) z własnym `README.md`: które liczby z `docs/METODYKA.md` skąd pochodzą i jak je powtórzyć na własnej kopii spraw. Jedyne miejsce w paczce z plikami `.py` i `.sh`; ścieżki z komputera zespołu zastąpione zmienną `WARSZTAT`. |
 | `etykiety/` | Opcjonalnie: etykiety zespołu (nie właściciela danych), tylko gdy paczkę zbudowano z `--with-labels`. |
+| `start.sh` | Jedno polecenie dla jury: budowa obrazu, test na 212 stronach publicznych, GUI z bazą i tymi stronami (opis w `README.md` paczki i w README repozytorium). |
+| `zbior-publiczny/` | 212 stron oszustw z publicznych źródeł (`materialy/`), etykiety zespołu (`etykiety-212.json`), skrypt porównania (`sprawdz.py`) i raport walidacji (`WALIDACJA.md`). |
 | `README.md` | Co jest w tej konkretnej paczce, skąd pochodzi i czego w niej brakuje. |
 | `MANIFEST.json` | Lista plików z SHA-256 i rozmiarem, commit repozytorium, data i wersja przebiegu. |
 

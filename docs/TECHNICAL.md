@@ -622,6 +622,8 @@ Przyjęty próg `matchThreshold` = 0,46: najniższy z zerem fałszywych trafień
 
 **Zakres.** Bez crawlera twarzy i bez rozbudowy bazy z sieci poza listą osób ze źródłem podszycia (AI Act art. 5 ust. 1 lit. e); bez detektora deepfake i oceny „czy to prawdziwa osoba”. Uwagi prawne: `docs/ZGODNOSC.md`.
 
+**Wynik i dodanie osoby.** Wynik to „podobna twarz do X (0,xx)” do przeglądu człowieka, a nie „to jest X”; trafia do pola `faces` materiału i do persony jako cecha **grupy** podobnych kampanii, nigdy jako dowód jednej kampanii. Wektory twarzy nie są zapisywane. Zmienne: `FACE_PYTHON` (interpreter venv, domyślnie `.venv-face/bin/python`), `FACE_MODEL_DIR` (domyślnie `~/models/opencv`). Własne osoby (np. instytucja, która chce rozpoznawać inne osoby ze swoich ostrzeżeń): dopisz wpis z `source` (publiczne ostrzeżenie) do `data/osoby-publiczne.json`, wrzuć 3–5 zdjęć z wolną licencją do `data/faces/<id>/` (id = nazwisko bez polskich znaków, małymi, z myślnikami), wpisz je do `data/faces/ZRODLA.md` i `LICENCJE.md`, po czym uruchom `python3 -I scripts/py/face_embed.py --build-index data/faces` (z `FACE_PYTHON`). Nie buduj bazy zdjęć z sieci hurtem (AI Act art. 5 ust. 1 lit. e).
+
 ### 4.15 Napisy w wideo (`lib/media/videoOcr.ts`, B-305)
 
 Opcjonalny krok OCR (`--ocr`): `readVideoText` próbkuje klatki ffmpeg co `VIDEO_OCR_CONFIG.everySeconds` (2 s, max 30 klatek / 60 s, szerokość 960 px), czyta każdą tesseractem (`--psm 11`, `pol+eng`, a gdy brak `eng`: `pol`) i przepuszcza linie przez `filterVideoLines` (normalizacja, odrzucenie linii krótszych niż 5 liter i śmieci, napisów odtwarzacza, deduplikacja między klatkami). Wynik trafia do `EnrichedItem.videoOcrText` (cecha `videoOcrText`, rodzina `content`) i do tekstu maszynowego w `enrich.ts` (`combined`, `machineText`) oraz `link.ts` (narracja, `scamBrands`, `profitClaims`, `textOf`). Bez ffmpeg albo tesseract zwraca `null`; test akceptacyjny w `videoOcr.test.ts` jest wtedy pomijany.
@@ -634,7 +636,15 @@ Opcjonalny krok OCR (`--ocr`): `readVideoText` próbkuje klatki ffmpeg co `VIDEO
 
 **Reguła (`matchVoiceWindows`, czysta funkcja, testy w `speaker.test.ts`).** (1) Okno cichsze niż −45 dBFS albo z prawdopodobieństwem mowy VAD < 0,5 jest odrzucone (cisza, samo tło lub sama muzyka). (2) Wzorzec osoby = znormalizowana średnia jej wektorów z nagrań. (3) Okno nazywa osobę, gdy kosinus do jej wzorca ≥ **0,5** **i** przewaga nad drugą osobą ≥ **0,15**. (4) Persona liczy się, gdy nazywa ją **co najmniej 2 sąsiednie okna** (6 s głosu): pojedyncze okno obcego bywało podobne do kogoś przypadkiem (0,51–0,53). (5) Sąsiednie okna tej samej osoby tworzą przedział `start`/`end`, `similarity` = średnia kosinusów okien. Wartości w `DEFAULT_VOICE_CONFIG`.
 
-**Wzorzec osoby.** `scripts/py/build_voice_index.py`: dla każdej osoby 5–8 polskich nagrań z YouTube (yt-dlp, tylko fragment 90 s dźwięku, do katalogu poza repozytorium), okna, wektor nagrania = średnia okien **mówcy, który pasuje do pozostałych nagrań osoby** (rozmówca albo współprowadzący to druga grupa okien, nie wzorzec). Nagranie, w którym żaden mówca nie ma kosinusa ≥ 0,4 do pozostałych, jest odrzucane i opisane w `ZRODLA.md` (6 z 76). Dodanie osoby: wpis w `osoby-publiczne.json` ze źródłem, wpisy w pliku źródeł i `build_voice_index.py` (README).
+**Wzorzec osoby.** `scripts/py/build_voice_index.py`: dla każdej osoby 5–8 polskich nagrań z YouTube (yt-dlp, tylko fragment 90 s dźwięku, do katalogu poza repozytorium), okna, wektor nagrania = średnia okien **mówcy, który pasuje do pozostałych nagrań osoby** (rozmówca albo współprowadzący to druga grupa okien, nie wzorzec). Nagranie, w którym żaden mówca nie ma kosinusa ≥ 0,4 do pozostałych, jest odrzucane i opisane w `ZRODLA.md` (6 z 76).
+
+**Dodanie osoby.** Wpis ze `source` w `data/osoby-publiczne.json`, 5–8 polskich nagrań tej osoby (wystąpienia, wywiady) w pliku źródeł (JSON: `set: "gallery"`, `person`, `url`, `start`, `seconds` 30–120), potem:
+
+    .venv-speaker/bin/python -I scripts/py/build_voice_index.py --sources <plik> --work-dir <katalog poza repozytorium> \
+      --model-dir ~/models/speechbrain/spkrec-ecapa-voxceleb --vad-dir ~/models/speechbrain/vad-crdnn-libriparty \
+      --index data/voices/index.json --zrodla data/voices/ZRODLA.md --persons-file data/osoby-publiczne.json
+
+Skrypt pobiera fragmenty przez yt-dlp, zapisuje wektory i listę źródeł; nagrania zostają w katalogu roboczym. Pomiar progu i fałszywych trafień: `bun run voice:eval -- --work-dir <katalog>`.
 
 **Persona z głosu a graf (decyzja).** Ten sam węzeł persony co z tekstu i twarzy (`persona:<id>`), krawędź `mentions_persona` z opisem „z głosu (głos podobny do osoby, 0,xx; do przeglądu przez człowieka)”, `PersonaMatch.source = "voice"`. Persona jest w `familyOnlyKinds`: **cecha głosu działa tylko na poziomie grupy podobnych kampanii** (ta sama osoba jako przynęta u wielu operatorów), nigdy nie łączy materiałów w kampanię. Test: `tests/faceGroup.offline.test.ts` (druga część: dwie kampanie z różną infrastrukturą, wstrzyknięty wynik adaptera → dwie kampanie w jednej grupie). Wektory okien nie opuszczają `speaker.ts` (w `enriched.json` zostaje tylko całoplikowy `speakerEmbedding`, jak dotąd; nie ma go w grafie ani w eksporcie).
 
@@ -1180,7 +1190,7 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 | `MLX_WHISPER_MODEL` | `mlx-community/whisper-large-v3-turbo` | `asr.ts` | tylko gdy brak whisper-cli i model jest już lokalnie |
 | `HF_HUB_CACHE` / `HF_HOME` | `~/.cache/huggingface` | `asr.ts` | gdzie szukać lokalnego modelu mlx |
 | `CT_STREAM_URL` | `ws://127.0.0.1:8181/,wss://certstream.calidog.io/` | `scripts/ct-watch.ts` | strumienie CT w kolejności prób |
-| `WATCH_RECIPES`, `WATCH_FILE` | brak, `data/watch.jsonl` | `scripts/watch.ts`, `app/api/ct-feed/route.ts` | przepisy harmonogramu skanów, plik jego wierszy |
+| `WATCH_RECIPES`, `WATCH_FILE` | brak, `data/watch.jsonl` (w Dockerze `/dane/watch.jsonl`, `docker-compose.yml`) | `scripts/watch.ts`, `app/api/ct-feed/route.ts` | przepisy harmonogramu skanów, plik jego wierszy |
 | `CT_FEED_FILE` | `data/ct-watch.jsonl` | `scripts/ct-watch.ts`, `scripts/ct-backfill.ts`, `app/api/ct-feed/route.ts` | feed kandydatów |
 | `VIEWER_DATA_DIR` | `data/` | `lib/viewer/data.ts` | katalog z `graph.json`, `campaigns.json`, `enriched.json` (przebieg pokazywany w GUI i porównywany w `analyze-material`); `bun run base` zapisuje tu bazę. W kontenerze `/dane/baza` |
 | `MATERIAL_WORK_DIR` | katalog tymczasowy systemu (`analiza-kampanii`) | `lib/viewer/jobs.ts` | pliki wgrane w GUI i wyniki zadań, poza repozytorium (w kontenerze `/dane/praca`) |
@@ -1809,13 +1819,7 @@ Narzędzia zewnętrzne są opcjonalne, uruchamiane jako osobne procesy (albo kon
 
 #### Usługi wymagające autoryzacji
 
-Domyślna konfiguracja nie wymaga żadnego klucza ani konta. Wszystkie usługi z tabeli wyżej są publiczne i bezpłatne.
-
-- **Anthropic API** (opcjonalny dostawca LLM): klucz w `ANTHROPIC_API_KEY` albo profil `ant auth login`. Używać go tylko wtedy, gdy regulamin pozwala wysyłać dane na zewnątrz.
-- **Oficjalne Ad Library API Mety** (nieużywane w kodzie): wymaga weryfikacji tożsamości w Meta i tokenu dostępu. Zastąpiłoby nieoficjalny endpoint MetaAdsCollector.
-- **urlscan.io** (tylko do zbierania danych walidacyjnych, poza kodem narzędzia): wyszukiwanie anonimowe obejmuje 30 dni wstecz i 100 zapytań na godzinę. Darmowe konto daje klucz API i dostęp do DOM zapisanych stron.
-
-Klucze trzyma się w `.env` (w `.gitignore`). Do repozytorium trafia tylko `.env.example` bez wartości.
+Aktualna lista usług z kluczami, sposób uzyskania dostępu i działanie bez nich: [README.md, „Usługi z kluczami”](../README.md#usługi-z-kluczami).
 
 ### 17.7 Pochodzenie danych
 
@@ -1833,20 +1837,29 @@ Lista obserwowanych osób (`--personas`) nie jest dołączona. W próbce są tyl
 ### 17.8 Struktura
 
 ```
-lib/osint/      urls, ip, fetchPage (SSRF), extract, pagekit (kit strony), domainPattern, campaignParams,
-                crypto, dns, rdap, ct (lookupCt, searchCt), asn
-lib/media/      imageHash (dHash/aHash, Hamming, favicon mmh3), imageEmbed (CLIP), tools, ocr, asr, audioFp
-lib/text/       normalizacja (homoglify, leet, diakrytyki), TF-IDF, cosinus, persona
-lib/graph/      model, config (wagi i listy), weights, link, cluster (union-find + Louvain), explain, eval, prune
+lib/osint/      urls, ip, fetchPage (SSRF), extract, pagekit (kit strony), pageTechniques, landerConfig, clickIds,
+                adLibrary, domainPattern, campaignParams, crypto, dns, rdap, ct, asn
+lib/media/      imageHash (dHash/aHash, favicon mmh3), imageEmbed (CLIP), ocr, asr, audioFp, speaker, face (YuNet + SFace), addressBar, tools
+lib/text/       normalizacja (homoglify, leet, diakrytyki), TF-IDF, cosinus, persona, uiChrome, addressBar
+lib/graph/      model, config (wagi, progi i listy), weights, link, cluster (reguły kampanii, union-find, Louvain,
+                warianty), explain, eval, prune
 lib/llm/        ollama, anthropic, wybór dostawcy
-lib/pipeline/   ingest, sources (live/fixtures), enrich, steps, analyze, summary
+lib/pipeline/   ingest, caseImport, sources (live/fixtures), enrich, steps, analyze, analyzeMaterial, materialVerdicts,
+                materialCsv, base, demoScenario, freeze, summary
+lib/viewer/     logika widoków (siła, kompletność, rozbrajanie adresów, widok kampanii i materiału, zadania, wgrywanie)
 lib/evidence/   paczka dowodów (JSON, Markdown, lista CERT, zgłoszenie DSA, manifest)
-lib/ct/         watcher CT: config (leksykon), fingerprint (odciski i dopasowanie), stream, feed, enrich, watch
-scripts/        ingest, enrich, build-graph, evaluate, pipeline, summarize, evidence, ct-watch, ct-backfill,
-                llm-smoke, media-smoke, gen-sample
-app/, components/viewer/   przeglądarka (porównanie reklam, zakładka „Nowe domeny”) i API
-docker/certstream/         konfiguracja lokalnego serwera CT
+lib/ct/         watcher CT: konfiguracja (leksykon), odciski, strumień, feed, wzbogacanie, potwierdzenie infrastrukturą
+lib/adlib/      biblioteki reklam: wspólne typy i adaptery Meta, Google, TikTok, X (CLI `bun run adlib`)
+lib/watch/      harmonogram skanów: przepisy, źródła (CT, biblioteki reklam, urlscan, lista CERT), cykl i wiersze watch.jsonl
+lib/licenses.ts logika skryptu licencji pakietów
+scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-graph, evaluate, pipeline, analyze-material,
+                summarize, evidence, cache-freeze, ct-watch, ct-backfill, watch, backtest-ct, llm-smoke, media-smoke, gen-sample, licenses, adlib, export-dataset, report, source-stats, sensitivity,
+                recheck, voice-eval, features-catalog, contract-schema, meta-id-suffix; py/ (adaptery Pythona)
+app/, components/viewer/   przeglądarka i API (analiza z GUI: `/api/material` z zadaniami, postępem i CSV; ta sama analiza jednym żądaniem, używana przez panel „Nowa reklama” w Trybie eksperta: `/api/analyze-material`; karty: `/api/click-route`, `/api/add-to-base`, `/api/evidence`; `/api/image`, `/api/ct-feed`)
+docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl
+docs/           METODYKA.md, TECHNICAL.md, GUI.md, INTEGRACJA.md, CECHY.md, WZORCE-KAMPANII.md, ZRODLA-METADANYCH.md,
+                ZGODNOSC.md, DANE-NIEPUBLICZNE.md; schema/ (JSON Schema wejścia i wyniku, przykład wejścia)
 ```
 
 ## 18. Harmonogram skanów i „baza rośnie” (22.11.2026, zadanie I11)

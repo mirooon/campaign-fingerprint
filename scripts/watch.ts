@@ -77,7 +77,7 @@ const switchedOff = (name: WatchSourceName, reason: string): WatchSource => ({ n
 
 void main(async () => {
   const dataDir = path.resolve(args.data ?? process.env.VIEWER_DATA_DIR ?? "data");
-  const file = path.resolve(args.file ?? process.env.WATCH_FILE ?? WATCH_CONFIG.file);
+  const file = path.resolve(args.file || process.env.WATCH_FILE || WATCH_CONFIG.file);
   if (args["seed-recipes"]) {
     const recipes = seedRecipes(readJson<EvidenceGraph>(path.join(dataDir, "graph.json")), readJson<CampaignsFile>(path.join(dataDir, "campaigns.json")));
     writeJson(args["seed-recipes"], { version: 1, recipes });

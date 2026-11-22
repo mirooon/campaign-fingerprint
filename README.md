@@ -10,7 +10,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 ## Test w jednym poleceniu (paczka sample data)
 
-**Paczka sample data** (`odcisk-kampanii-sample-data-2026-11-22.zip`, 49 MB). Jest w **materiałach dodatkowych w formularzu zgłoszenia**, a także wysłana w wiadomości prywatnej (DM) do Donata Stankiewicza. Paczka zawiera bazę wyliczoną z Waszych 25 spraw, więc nie ma jej w repozytorium.
+**Paczka sample data** (`odcisk-kampanii-sample-data-2026-11-22.zip`, 49 MB). Jest w **materiałach dodatkowych w formularzu zgłoszenia**, a także wysłana w wiadomości prywatnej (DM) do opiekuna zadania ze strony organizatora. Paczka zawiera bazę wyliczoną z Waszych 25 spraw, więc nie ma jej w repozytorium.
 
 W katalogu, w którym leży pobrany zip (wymagania: Docker, Python 3):
 

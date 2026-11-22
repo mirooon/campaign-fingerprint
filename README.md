@@ -8,6 +8,32 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia) · [docs/CECHY.md](docs/CECHY.md) (katalog wszystkich śladów i cech, generowany: `bun run features:catalog`).
 
+## Dla jury: test w jednym poleceniu
+
+Przygotowaliśmy **paczkę z próbkami** (`odcisk-kampanii-paczka-jury-2026-11-22.zip`, 48 MB). Jest w **materiałach dodatkowych w formularzu zgłoszenia**, a także wysłana w wiadomości prywatnej (DM) do Donata Stankiewicza. Paczka zawiera bazę wyliczoną z Waszych 25 spraw, więc nie ma jej w repozytorium.
+
+W katalogu, w którym leży pobrany zip (wymagania: Docker, Python 3):
+
+```bash
+git clone https://github.com/mirooon/odcisk-kampanii.git && unzip -q odcisk-kampanii-paczka-jury-2026-11-22.zip && sh odcisk-kampanii-paczka-jury/start.sh odcisk-kampanii
+```
+
+To jedno polecenie:
+
+1. buduje obraz Dockera (za pierwszym razem 2,5–3 minuty);
+2. analizuje **212 publicznych stron oszustw spoza Waszej próbki** (skany urlscan, kopie Wayback, prasa) przeciw bazie z 25 spraw i porównuje wynik z naszymi etykietami;
+3. otwiera **GUI z danymi na http://localhost:3000**: 240 materiałów (25 spraw + 212 stron), kampanie z przesłankami i grupy podobnych kampanii.
+
+Czego się spodziewać (sprawdzone na kodzie końcowym, z rozpakowanej paczki):
+
+| Co mierzymy | Wynik |
+|---|---|
+| Strony innych operatorów **niesklejone** z Waszymi kampaniami | **134 / 134** |
+| Warianty znanych kampanii przypisane do właściwej kampanii | 34 / 78, i 2 jako „podobne” |
+| Czas analizy 212 materiałów | ok. 1,5 s |
+
+Szczegóły i opcje (inny port, zrzuty Waszych spraw w GUI): `README.md` w paczce. Bez paczki narzędzie uruchomisz według sekcji 1 poniżej.
+
 ## 1. Szybki start w Dockerze
 
 Wymagania: Docker z Compose v2. Pierwsza budowa obrazu trwa 2,5–3 minuty (pomiar z I7), kolejne ok. 40–50 sekund; gdy obraz już jest, `up -d` startuje od razu. Obraz `odcisk-kampanii:latest` ma 2,7 GB na dysku (670 MB skompresowany) i zawiera bun, zbudowany interfejs, tesseract (polski), ffmpeg, chromaprint i Pythona. Pliki wymieniasz z kontenerem przez katalog `./dane` (w kontenerze `/dane`).

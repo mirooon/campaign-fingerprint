@@ -22,6 +22,7 @@ import { hammingDistance } from "../media/imageHash";
 import { clickIdsFromUrls } from "./clickIds";
 import { extractPageCampaignParams, type CampaignParam } from "./campaignParams";
 import { affiliateIdsFromHtml, type AffiliateId } from "./affiliateIds";
+import { metaTokenKeysIn } from "./metaToken";
 import { findCrmKeys, type CrmKey } from "./crmKey";
 import { findContactIds, type ContactIds } from "./contactIds";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
@@ -128,6 +129,8 @@ export interface PageKit {
   crmKeys?: CrmKey[];
   /** Affiliate-network accounts in the page's forms and links, scoped to the network host (B-330; api_key as SHA-256 only). */
   affiliateIds?: AffiliateId[];
+  /** Keys (12 hex of the SHA-256) of the Meta access tokens in the page code (B-144); the tokens themselves are never kept. */
+  metaTokens?: string[];
   /** Sentences of the page text and of the messages in its scripts that may come from a template (I23). */
   templatePhrases?: TemplatePhrase[];
   /** Accounts on video/file hosting named in the page source or its requests, `service:account` (B-342). */
@@ -1084,10 +1087,11 @@ export function ownScriptUrls(kit: PageKit, pageUrl: string): string[] {
  * their strings are the same on every page of the platform. `external` are the page's own script files
  * (at most TEXT_CONFIG.kitStrings.maxScriptsPerPage).
  */
-function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "pageParams" | "crmKeys" | "affiliateIds" | "templatePhrases" | "kitStrings" | "localizedUi"> {
+function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pick<PageKit, "pageParams" | "crmKeys" | "affiliateIds" | "metaTokens" | "templatePhrases" | "kitStrings" | "localizedUi"> {
   const pageParams = extractPageCampaignParams(html, pageUrl);
   const affiliateIds = affiliateIdsFromHtml(html, pageUrl);
   const crmKeys = findCrmKeys(html);
+  const metaTokens = metaTokenKeysIn([html]);
   const parts = splitHtml(html);
   const own = external.slice(0, TEXT_CONFIG.kitStrings.maxScriptsPerPage).filter((s) => !isMaskedScript(s.url)).map((s) => s.body);
   const localized = new Set<string>();
@@ -1103,6 +1107,7 @@ function leadTracesOf(html: string, pageUrl: string, external: PageScript[]): Pi
     ...(pageParams.length ? { pageParams } : {}),
     ...(crmKeys.length ? { crmKeys } : {}),
     ...(affiliateIds.length ? { affiliateIds } : {}),
+    ...(metaTokens.length ? { metaTokens } : {}),
     ...(phrases.length ? { templatePhrases: phrases } : {}),
     ...(kitStrings.length ? { kitStrings } : {}),
     ...(localized.size ? { localizedUi: [...localized].sort() } : {}),

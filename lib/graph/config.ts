@@ -389,6 +389,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Account of an affiliate network (B-330): stream_id and offer_uuid at one network host name one
     // affiliate's flow; the team_id+user_id pair is rule kind "affiliate_team" in campaignRules.notAloneKinds.
     affiliate_account: 0.9,
+    // Meta access token (only its SHA-256, B-144): a secret of one ad account, a token is not copied between operators.
+    meta_token: 0.95,
     // Account on video hosting read from a resource host (B-342): one library is one customer, but a
     // library can serve several buyers of one kit, so it supports a link and does not join a campaign alone.
     hosting_account: 0.6,
@@ -505,6 +507,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "platform_account",
       "cloaker_account",
       "launcher_account",
+      "meta_token",
       "platform_campaign",
       "click_server",
       "meta_ad",

@@ -363,6 +363,7 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `c2_host` | nazwa hosta serwera C2 trojana w skrypcie zestawu strony (B-333) | `lib/osint/stealerKit.ts` | 0.95 | tak |
 | `messenger_invite` | klucz `usługa:id` zaproszenia lub konta (discord, signal, signal_group, viber, line) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `cloaker_account` | `<cl_domain>/<cl_sid>` z `window.aio.visit.fields` (cloaker Cloakerson, §4.22); sam sid albo sama domena to atrybut | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
+| `meta_token` | Token dostępu Meta (`EAA…`) z `token=`, `fb_capi_token` lub kodu strony (B-144), klucz = 12 znaków sha256; surowy token nigdy w grafie, paczce ani eksporcie (`lib/osint/metaToken.ts`, maska w `link.ts` i `pack.ts`) | `metaToken.ts`, `pagekit.ts`, `link.ts` | 0.95 | tak |
 | `launcher_account` | UUID `visit.fields.launcher` / `visit.launcher`, tylko gdy różny od `owner_uuid` (§4.22) | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
 | `affiliate_account` | klucz `team\|stream\|offer_uuid:host_sieci:wartość` (B-330, §4.19) | `lib/osint/affiliateIds.ts` | 0.9 | tak; para team/user ×0,7, reguła `affiliate_team` w `notAloneKinds` |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |

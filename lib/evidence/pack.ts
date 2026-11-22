@@ -6,6 +6,7 @@
  * actions per recipient, a domain list for the CERT warning list and a DSA Art. 16 notice
  * template. The tool proposes; a human verifies and decides whether to report.
  */
+import { maskTokens } from "../osint/metaToken";
 import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -345,6 +346,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       // the key itself is never written: preview (first and last characters) and SHA-256 only
       crm_keys: (page?.kit?.crmKeys ?? []).map((k) => ({ preview: k.preview, sha256: k.sha256, field: k.name, via: k.via })),
       // affiliate-network accounts of the page's forms and links (B-330); an api_key appears as its SHA-256 only
+      // Meta access tokens of the page as SHA-256 keys only (B-144)
+      meta_token_keys: page?.kit?.metaTokens ?? [],
       affiliate_accounts: (page?.kit?.affiliateIds ?? []).map((a) => ({ kind: a.kind, network_host: a.host, value: a.value, via: a.via, ...(a.attrs ? { attrs: a.attrs } : {}) })),
       // techniques of the landing page (attributes of the scheme, not links) with where they were read
       page_techniques: ((data.techniques as string[] | undefined) ?? []).map((t) => ({
@@ -653,7 +656,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   /** Writes a generated text file of the pack (creating its folder) and remembers it for the manifest. */
   const write = (rel: string, content: string) => {
     mkdirSync(path.dirname(path.join(outDir, rel)), { recursive: true });
-    writeFileSync(path.join(outDir, rel), content, "utf8");
+    writeFileSync(path.join(outDir, rel), maskTokens(content), "utf8"); // a raw Meta token never reaches the pack (B-144)
     files.push(rel);
   };
   const certChunks: string[][] = [];
@@ -767,8 +770,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       certList ? `status na Liście Ostrzeżeń CERT z lokalnej kopii z ${certList.copyUtc ?? "nieznanej daty"} (bez zapytań online): może być nieaktualny` : `status na Liście Ostrzeżeń CERT niesprawdzony: ${certListNote ?? "brak lokalnej kopii listy"}`,
     ],
   };
-  writeFileSync(path.join(outDir, "evidence.json"), `${JSON.stringify(record, null, 2)}\n`, "utf8");
-  writeFileSync(path.join(outDir, "evidence.md"), renderMarkdown(record, campaign), "utf8");
+  writeFileSync(path.join(outDir, "evidence.json"), maskTokens(`${JSON.stringify(record, null, 2)}\n`), "utf8");
+  writeFileSync(path.join(outDir, "evidence.md"), maskTokens(renderMarkdown(record, campaign)), "utf8");
   return { outDir, record, files: ["evidence.json", "evidence.md", "manifest.sha256", ...files, ...manifest.filter((m) => m.file.startsWith("files/")).map((m) => m.file)], certDomains };
 }
 

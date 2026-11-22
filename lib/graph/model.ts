@@ -78,6 +78,8 @@ export const ENTITY_TYPES = [
   "launcher_account",
   // account of an affiliate network (B-330): team+user pair, stream or offer UUID, scoped to the network host
   "affiliate_account",
+  // Meta access token of the operator's ad account, only as a SHA-256 key (B-144)
+  "meta_token",
   // account on video/file hosting (B-342): a Bunny Stream library of the page's videos
   "hosting_account",
 ] as const;
@@ -139,6 +141,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   cloaker_account: "Konto klienta cloakera",
   launcher_account: "Konto narzędzia do uruchamiania reklam",
   affiliate_account: "Konto w sieci afiliacyjnej",
+  meta_token: "Token dostępu Meta (tylko skrót)",
 };
 
 export type EdgeType =

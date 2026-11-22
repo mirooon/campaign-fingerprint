@@ -24,6 +24,7 @@ import type { EnrichedDataset, Item } from "../pipeline/types";
 import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/similarity";
 import { commentNameFactors } from "./commentNames";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
+import { knownBackendLabel } from "./knownBackends";
 import {
   CREATIVE_FILE_PREFIX,
   ENTITY_TYPES,
@@ -537,7 +538,8 @@ export function buildEvidenceGraph(
             : ep.clientId
               ? `ten sam backend formularza z tym samym identyfikatorem klienta (${ep.host}${ep.pathTemplate}, ${ep.clientIdSource ?? "identyfikator"} ${ep.clientId})`
               : `ten sam backend formularza ${ep.host}${ep.pathTemplate}`;
-          add(id, "endpoint", [...finalPath, id], rel, how);
+          const known = ep.sameOrigin ? null : knownBackendLabel(ep.host);
+          add(id, "endpoint", [...finalPath, id], rel, known ? `${how} [${known}]` : how);
         }
         const hidden = discounter.specificHiddenFields(kit.hiddenFields);
         if (hidden.length >= config.kit.minHiddenFields) {

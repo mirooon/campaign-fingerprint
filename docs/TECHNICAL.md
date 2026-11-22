@@ -800,6 +800,16 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 
 `bun run demo` (`lib/pipeline/demoScenario.ts', test `tests/demo.offline.test.ts`): buduje bazę z 12 spraw próbki i analizuje 8 materiałów: znana kampania, podobne kampanie, duplikat, za mało danych, martwa strona (tylko zrzut z adresem na pasku; adres `martwa-oferta.example.com`, bo parser paska przyjmuje tylko prawdziwe sufiksy, a `example.com` jest zarezerwowane; cechy z nagranych odpowiedzi RDAP, crt.sh i DNS, `missing` mówi, czego brakło) oraz trzy strony jednej kampanii ze zmienionymi domenami i twarzami i wspólnym zapleczem (serwer trackera, konto platformy, backend formularza z identyfikatorem klienta), czyli jedna nowa kampania N1. Wynik: `<out>/wynik/wynik.json` i `wynik.csv`.
 
+### 9.1 Wiedza jako wynik (zadanie i9)
+
+- `bun run export-dataset -- --data <baza> --out <katalog> [--csv]` (`lib/pipeline/exportDataset.ts`, test `tests/exportDataset.offline.test.ts`): wiersz na materiał z `graph.json` i `campaigns.json`; kolumny w stałej kolejności `material_id, campaign_id, family_id, features, top_premises, ad_library_url, basis, persona, deepfake_score`. `features` to liczba encji danego typu osiągalnych z materiału w grafie, `top_premises` to do 3 najmocniejszych przesłanek wobec reszty kampanii (`EXPORT_TOP_PREMISES`). Eksport nie czyta `enriched.json`, więc wektory głosu, twarzy i obrazu nie mogą do niego trafić (test sprawdza brak takich pól).
+- `--neo4j <katalog>` (`lib/pipeline/exportNeo4j.ts`): `nodes.csv` (`id:ID`, `:LABEL`, …) i `edges.csv` (`:START_ID`, `:END_ID`, `:TYPE`, …) dla `neo4j-admin database import`; wiersz na węzeł i na krawędź grafu (powiązania par materiałów `graph.links` nie są krawędziami).
+- `bun run source-stats -- <graph.json> [--json]` (`lib/pipeline/sourceStats.ts`): powiązania wewnątrz kampanii wg typu dowodu; podstawa liczb w `ZRODLA-METADANYCH.md`.
+- `bun run report -- --since 7d [--data] [--ct-feed] [--reports plik.json] [--out]` (`lib/pipeline/periodReport.ts`): raport Markdown. Narzędzie nie ma rejestru zgłoszeń, więc sekcja „Zgłoszenia bez reakcji” czyta opcjonalny plik `[{id, reportedAt, reaction}]`; bez niego pisze, że danych brak.
+- `bun run contract-schema` (`lib/pipeline/contract.ts`): schematy JSON kontraktu wejścia i wyjścia w `docs/schema/` (zod 4, `z.toJSONSchema`; test pilnuje zgodności plików z kodem). Opis: [INTEGRACJA.md](INTEGRACJA.md).
+- Etykieta „znany backend leadów” (`lib/graph/knownBackends.ts`, dane `data/znane-backendy-leadow.json`): dopisek przy przesłance `endpoint`; waga bez zmian. Lista ma dwa wpisy z raportu badania; cztery backendy z phishdestroy.io do uzupełnienia po lekturze strony.
+- Kontener bez sieci (sprawdzone na bazie syntetycznej z `demo-batch` i `base`, kod 0): `docker run --rm --network none -v "$PWD/dane:/dane" odcisk-kampanii:latest bun run export-dataset -- --data /dane/baza --out /dane/eksport --csv` (`docker compose run` nie przyjmuje `--network`; z siecią: `docker compose run --rm app bun run export-dataset -- …`).
+
 ## 10. Konfiguracja
 
 ### 10.1 Zmienne środowiskowe (wszystkie odczyty w kodzie)

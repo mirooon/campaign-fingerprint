@@ -6,7 +6,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne. Skąd pochodzą dane i z jakich źródeł narzędzie korzysta: [Pochodzenie danych](#pochodzenie-danych).
 
-**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA).
+**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia).
 
 ## 1. Szybki start w Dockerze
 
@@ -77,6 +77,17 @@ bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wyni
 
 Minimum plików (pomiar na 111 wariantach 25 spraw, [docs/METODYKA.md](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)): zapisana strona (HTML albo HAR) wystarcza do przypisania do znanej kampanii; sam zrzut albo samo wideo bez strony zwykle nie, i wtedy narzędzie zgłasza brak danych (`insufficient`, „podobne kampanie” albo „nowa kampania”) z listą braków w `missing_data` (link do strony, plik HAR, zrzut reklamy) zamiast zgadywać; żaden wariant nie trafił do cudzej kampanii. Obrazy w formacie HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
 
+**Wiedza z wyniku.** Wzbogacony zbiór (wiersz na materiał, bez wektorów głosu i twarzy), graf dla Neo4j, raport okresowy i statystyki źródeł:
+
+```bash
+bun run export-dataset -- --data baza/ --out eksport/ --csv     # eksport/dataset.json i dataset.csv: material_id, campaign_id, family_id, features, top_premises, ad_library_url, basis, persona, deepfake_score
+bun run export-dataset -- --data baza/ --neo4j graf/            # nodes.csv i edges.csv do neo4j-admin database import
+bun run report -- --since 7d --data baza/ --out raport.md       # nowe kampanie, osoby, domeny z CT, zdjęte reklamy, zgłoszenia bez reakcji (--reports plik.json)
+bun run source-stats -- baza/graph.json                         # ile powiązań dał każdy typ metadanych
+```
+
+Kontrakt wejścia i wyjścia dla systemów instytucji (schematy JSON, wersja 1.0): [docs/INTEGRACJA.md](docs/INTEGRACJA.md).
+
 Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
 
 ### Jak zebrać materiał
@@ -115,7 +126,7 @@ Pełny opis: [docs/METODYKA.md](docs/METODYKA.md).
 | Demonstrator end-to-end | baza → analiza nowego materiału → CSV i GUI | `docker compose run --rm app bun run demo`; GUI: „Analizuj materiał” |
 | Czytelność powiązań | przesłanki prostym językiem, siła, pewność, powód rozdzielenia | GUI: karta wyniku, „Porównaj”, „Jak to działa”; kolumna `top_premise` |
 | Wdrożenie i przenośność | Docker bez sieci i kluczy, tryb lokalny, konfiguracja plikiem | sekcje 1 i 5; `docker-compose.yml`; `.env.example` |
-| Wiedza | metodyka, licencje, dokumentacja techniczna, pochodzenie kodu | `docs/METODYKA.md`, `LICENCJE.md`, `docs/TECHNICAL.md` |
+| Wiedza | metodyka, wzorce kampanii (platformy, trackery, cloakery, lejek, komentarze), ocena źródeł metadanych z liczbami, wzbogacony zbiór danych, licencje, dokumentacja techniczna | [docs/METODYKA.md](docs/METODYKA.md), [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md), [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md), `bun run export-dataset`, `LICENCJE.md`, [docs/TECHNICAL.md](docs/TECHNICAL.md) |
 
 ## 5. Tryb lokalny bez Dockera
 
@@ -268,6 +279,7 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
 | i7 | `bun run base`, `bun run demo`, obraz Dockera z narzędziami do mediów, profile `full`/`llm`/`ct`, limity API (`ANALYZE_RATE_LIMIT`, `MATERIAL_MAX_MB`), `cache:freeze` |
 | i8 | dokumentacja: README, `docs/METODYKA.md`, `LICENCJE.md`, `LICENSE`, `bun run licenses` |
+| i9 | wiedza jako wynik: `docs/WZORCE-KAMPANII.md`, `docs/ZRODLA-METADANYCH.md` (+ `bun run source-stats`), `bun run export-dataset` (JSON, CSV, Neo4j), `bun run report`, `docs/INTEGRACJA.md` i schematy JSON, etykieta „znany backend leadów” |
 
 Przeniesienie kodu do tego repozytorium nastąpiło bez historii (opis wyżej): commity sprzed 21.11.2026 11:00 są w prywatnym repozytorium.
 

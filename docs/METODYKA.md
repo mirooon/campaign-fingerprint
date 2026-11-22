@@ -188,6 +188,10 @@ Wnioski: (c) i (d) nie wystąpiły: ubytek plików nie dołączył żadnego wari
 - **Czego nie używamy:** bazy odcisków technologii *webappanalyzer* (licencja GPL-3.0; atrybut platformy powstaje z własnych wzorców) oraz *httpx* (aktywne sondowanie hostów łamie zasadę pasywności).
 - Nie logujemy się na cudze konta, nie obchodzimy zabezpieczeń, nie renderujemy stron, nie wydajemy nakazów. Decyzję o zgłoszeniu podejmuje człowiek.
 
+## 10b. Wiedza
+
+Wynik narzędzia to nie tylko werdykty, ale i wiedza do dalszej pracy. [WZORCE-KAMPANII.md](WZORCE-KAMPANII.md) opisuje, jak zbudowane są kampanie (platformy stron, trackery z identyfikatorem kliknięcia, cloakery, bramki konwersji, usługi wielu klientów, lejek, fałszywe komentarze i sklep z aplikacjami, serie rejestracji, narracje) i przy każdym wzorcu mówi, czy to cecha operatora, czy platformy oraz jaki typ węzła i jaką wagę mu nadaje narzędzie. [ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md) ocenia źródła liczbami: ile powiązań dał każdy typ śladu (`bun run source-stats` na dowolnym `graph.json`), czy działa na martwych stronach, ile kosztuje i czego wymaga. Wzbogacony zbiór danych (wiersz na materiał, bez wektorów głosu i twarzy) daje `bun run export-dataset`, a graf dla Neo4j opcja `--neo4j`. Kontrakt dla systemów instytucji: [INTEGRACJA.md](INTEGRACJA.md). Etykieta „znany backend leadów” przy przesłance pochodzi z publicznych raportów (`data/znane-backendy-leadow.json`, ze źródłem) i nie zmienia wag ani reguł łączenia.
+
 ## 11. Pochodzenie danych (skrót)
 
 Próbka dostarczona przez właściciela danych nie trafia do repozytorium; w repozytorium są tylko dane syntetyczne. Dane z publicznych źródeł (skany urlscan, logi CT, RDAP i DNS, Lista Ostrzeżeń CERT, biblioteki reklam) zbierane w trybie live lądują w `.cache/` i `data/work/` poza repozytorium, a materiały zebrane z sieci mają w `zrodlo.json` adres źródła i datę dostępu. Pełna tabela: [README.md](../README.md#pochodzenie-danych).

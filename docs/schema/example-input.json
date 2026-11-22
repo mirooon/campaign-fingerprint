@@ -1,0 +1,17 @@
+[
+  {
+    "id": "przyklad-001",
+    "platform": "facebook",
+    "advertiser": "Przykładowa Strona",
+    "text": "Przykładowy tekst reklamy z wizerunkiem fikcyjnej osoby.",
+    "landingUrl": "https://przyklad-oferta.example/start",
+    "firstSeen": "2026-10-01T10:00:00Z",
+    "persona": "Jan Przykładowy",
+    "deepfakeScore": 0.82
+  },
+  {
+    "id": "przyklad-002",
+    "text": "Ten sam materiał zgłoszony drugi raz, bez linku.",
+    "imagePath": "zrzuty/przyklad-002.png"
+  }
+]

@@ -36,6 +36,7 @@ import { copyProvenance, findArchivedCopy, type ArchiveConfig, type ArchivedCopy
 import { sponsoredPost, stripUiChrome } from "../text/uiChrome";
 import { readVideoText } from "../media/videoOcr";
 import { readAddressBar, readAddressBarVideo, type ObservedAddress } from "../media/addressBar";
+import { readQrAddresses } from "../media/qr";
 import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
@@ -632,6 +633,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
             const t = await runOcr(file, null);
             if (t) parts.push(t.replace(/\s+/g, " ").trim());
             observed.push(...(await mediaLimit(() => readAddressBar(file))));
+            observed.push(...(await mediaLimit(() => readQrAddresses(file))));
           }
           extraOcrText = parts.length ? parts.join("\n") : null;
         }
@@ -641,6 +643,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
             image = img.info;
             // generator markers in the file metadata (B-302): offline, no detector model
             if (img.bytes) aiImageMeta = detectAiImageMeta(img.bytes);
+            // QR code on the creative (poster, flyer in the screenshot): no OCR needed
+            if (img.file || img.bytes) observed.push(...(await mediaLimit(() => readQrAddresses(img.file ?? item.imagePath ?? item.imageUrl ?? "creative", { bytes: img.bytes ?? undefined }))));
             if (ocrOn && (img.file || img.bytes)) {
               observed.unshift(...(await mediaLimit(() => readAddressBar(img.file ?? item.imagePath ?? item.imageUrl ?? "creative", { bytes: img.bytes ?? undefined }))));
               // a feed screenshot also shows the neighbouring post: keep the sponsored one, read the page name

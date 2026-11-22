@@ -1493,6 +1493,10 @@ export function buildEvidenceGraph(
       if (enr?.landing && normalizeUrl(o.url)?.host === enr.landing.host) continue; // the landing page itself
       const urlNode = addUrlInfra(o.url, [itemNode], 1);
       if (urlNode) {
+        if (o.source === "qr_code") {
+          g.edge(itemNode, urlNode, "mentions", "adres zakodowany w kodzie QR na zrzucie");
+          continue;
+        }
         const where = o.source === "address_bar_video" ? `nagraniu ekranu (${o.frameTime} s)` : "zrzucie ekranu";
         g.edge(itemNode, urlNode, "mentions", `adres w pasku przeglądarki na ${where}${o.inAppBrowser ? `, przeglądarka w aplikacji ${o.inAppBrowser}` : ""}`);
       }

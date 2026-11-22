@@ -2074,6 +2074,8 @@ function linkAffiliateIds(
     add(id, "affiliate_account", [itemNode, id], a.kind === "team_user" ? AFFILIATE_TEAM_RELATION : 1, `to samo konto w sieci afiliacyjnej ${a.host}: ${what} ${a.value}`);
   }
   return streams;
+}
+
 /**
  * Approximate creation date of the ads (B-343): the cases with a time-ordered Meta ad id and a first-shown date
  * calibrate the ids, and every case with such an id and a position between two anchors gets `adCreatedApprox`.

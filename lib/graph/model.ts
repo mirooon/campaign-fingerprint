@@ -63,6 +63,8 @@ export const ENTITY_TYPES = [
   "bank_account",
   // postal address of a shop (street, number, postal code, city), a trace that only supports a link
   "postal_address",
+  // account on video/file hosting (B-342): a Bunny Stream library of the page's videos
+  "hosting_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -110,6 +112,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   shared_doc: "Dokument, formularz lub czat udostępniony linkiem",
   onion: "Adres .onion",
   messenger_invite: "Zaproszenie lub konto komunikatora",
+  hosting_account: "Konto na hostingu wideo",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",

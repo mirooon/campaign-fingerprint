@@ -22,6 +22,7 @@ import { findCrmKeys, type CrmKey } from "./crmKey";
 import { findContactIds, type ContactIds } from "./contactIds";
 import { findTrackers, splitHtml, type TrackerId } from "./extract";
 import { templatePhrases, type TemplatePhrase } from "../text/templatePhrases";
+import { hostingAccounts } from "./hostingAccounts";
 import { isMaskedScript, kitStringsOf, localizedUiLanguages, type KitString } from "./kitStrings";
 import { TEXT_CONFIG } from "./textConfig";
 import { registrableDomain, toAsciiHost } from "./urls";
@@ -113,6 +114,8 @@ export interface PageKit {
   crmKeys?: CrmKey[];
   /** Sentences of the page text and of the messages in its scripts that may come from a template (I23). */
   templatePhrases?: TemplatePhrase[];
+  /** Accounts on video/file hosting named in the page source or its requests, `service:account` (B-342). */
+  hostingAccounts?: string[];
   /** Developer messages of the page's own scripts, inline and external, without SDK and library files (I25). */
   kitStrings?: KitString[];
   /** Language codes of an interface dictionary found in a page script (platform localisation, no pivot; I25). */
@@ -889,6 +892,18 @@ function mergePathIds(a: PathId[], b: PathId[]): PathId[] {
   return [...byId.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).slice(0, MAX_PATH_IDS);
 }
 
+/** `{ hostingAccounts }` of two lists merged (unique, sorted), omitted when both are empty. */
+function mergeHosting(a?: string[], b?: string[]): Pick<PageKit, "hostingAccounts"> {
+  const all = [...new Set([...(a ?? []), ...(b ?? [])])].sort();
+  return all.length ? { hostingAccounts: all } : {};
+}
+
+/** The `hostingAccounts` field of a page kit, omitted when the text names no account (B-342). */
+function hostingOf(text: string): Pick<PageKit, "hostingAccounts"> {
+  const a = hostingAccounts(text);
+  return a.length ? { hostingAccounts: a } : {};
+}
+
 function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques" | "clickfix"> {
   const t = detectPageTechniques(html, pageUrl);
   return {
@@ -1018,6 +1033,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
       ...techniquesOf(html, pageUrl),
+      ...hostingOf(html),
       ...leadTracesOf(html, pageUrl, opts.scripts ?? []),
     };
   } catch {
@@ -1100,7 +1116,7 @@ export function withRequestUrls(kit: PageKit | null, requests: string[], pageUrl
   const page = pageUrl ? parseAbsolute(pageUrl) : null;
   const requestUrls = [...requests.map((r) => resolveAgainst(r, null)).filter((u): u is URL => u !== null), ...(page ? [page] : [])];
   const pathIds = mergePathIds(k.pathIds, landerDirIds(requestUrls, page ? hostOfUrl(page) : null));
-  return { ...k, pathIds, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links), ...requestSignals(requests, pageUrl) };
+  return { ...k, pathIds, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links), ...requestSignals(requests, pageUrl), ...mergeHosting(k.hostingAccounts, hostingOf(requests.join("\n")).hostingAccounts) };
 }
 
 /** Most request addresses kept per page for xid click IDs. */

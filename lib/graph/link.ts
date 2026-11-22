@@ -805,6 +805,13 @@ export function buildEvidenceGraph(
             add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `pliki strony ładowane z tej samej witryny konta na darmowym hostingu (${asset.host})`);
           }
         }
+        // Account on video hosting named in the page or its requests (B-342, notAloneKinds)
+        for (const h of kit.hostingAccounts ?? []) {
+          const [service, ...rest] = h.split(":");
+          const id = g.node("hosting_account", h, `${service} ${rest.join(":")}`, { service });
+          g.edge(finalUrlNode, id, "mentions", `zasób wideo z konta ${service} ${rest.join(":")}`);
+          add(id, "hosting_account", [...finalPath, id], rel, `to samo konto na hostingu wideo (${service} ${rest.join(":")})`);
+        }
         for (const text of kit.comments) {
           const cyr = /[\u0400-\u04FF]/.test(text);
           const id = g.node("comment", text, `„${text.length > 60 ? `${text.slice(0, 59)}…` : text}”`, { text, cyrillic: cyr });

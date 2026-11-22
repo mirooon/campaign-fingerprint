@@ -5,15 +5,15 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { connection } from "next/server";
 import { baseQuality } from "@/lib/viewer/baseQuality";
 import type { CaseProvenance } from "@/lib/viewer/completeness";
 import { DATA_DIR, loadViewerData } from "@/lib/viewer/data";
 
-/** Read the data on every request: without this `next build` prerenders the response once from the repository's `data/`, and `VIEWER_DATA_DIR` set at run time is ignored. */
-export const dynamic = "force-dynamic";
-
 /** GET /api/base-quality: `BaseQuality`, or `{ error }` (503 without a base, 500 when provenance.json cannot be read). */
 export async function GET(): Promise<Response> {
+  // Render per request: without it `next build` prerenders this response once from the repository's data/.
+  await connection();
   const { graph, error } = loadViewerData();
   if (!graph) return Response.json({ error: error ?? "Brak bazy" }, { status: 503 });
   const file = path.join(DATA_DIR, "provenance.json");

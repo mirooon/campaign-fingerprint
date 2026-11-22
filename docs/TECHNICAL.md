@@ -360,6 +360,8 @@ Klucz węzła to `<typ>:<klucz>`. Waga typu z `lib/graph/config.ts`. „Może by
 | `shared_doc` | klucz `usługa:id` dokumentu, formularza lub udostępnionego czatu z modelem językowym (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `onion` | adres .onion v3 (56 znaków) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
 | `messenger_invite` | klucz `usługa:id` zaproszenia lub konta (discord, signal, signal_group, viber, line) (§4.19) | `lib/osint/contactIds.ts` | 0.9 | tak |
+| `cloaker_account` | `<cl_domain>/<cl_sid>` z `window.aio.visit.fields` (cloaker Cloakerson, §4.22); sam sid albo sama domena to atrybut | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
+| `launcher_account` | UUID `visit.fields.launcher` / `visit.launcher`, tylko gdy różny od `owner_uuid` (§4.22) | `lib/osint/landerConfig.ts`, `link.ts` | 0.9 | tak |
 | `profit_claim` | posortowane pary `kwota/okres` (`3000/day\|4000/week`, §4.17) | `lib/text/profitClaims.ts` | 0.2 | nie (`familyOnlyKinds`) |
 
 ### 4.2 Krawędzie (`model.ts`)
@@ -793,6 +795,10 @@ Paczka dowodów: przy reklamie `payer_kinds`, `payer_equals_beneficiary`, `payer
 **Infrastruktura i drobne atrybuty** (bez wag; wszystkie w `data` węzła materiału i w `features`): `lib/osint/tlsSignals.ts` (`tlsSignals`: `certIssuer`, `certMismatch`, `certExpired`; dane z `_securityDetails` wpisu HAR: `caseImport` zapisuje je w fixtures jako `tls`, `sources.tlsFor`, `PageInfo.tls`; bez tych pól nic się nie zmienia), `lib/osint/infraSignals.ts` (`brandInPath`, `detectCms` → dopisywane do `pagePlatforms`, `hostingOutsideEu` z `IpInfo.country`; listy marek, platform i krajów UE/EOG w `DEFAULT_INFRA_CONFIG`), `lib/osint/siteAttributes.ts` (`PageExtract.siteAttributes`: `tldRare`, `domainLangMismatch`, `privacyControllerMismatch`, `fakeCourierPayment` → technika `fake_courier_payment`), `RdapInfo.registrantHidden`, `DomainInfo.contactDomainDead` (`enrichItems`, tylko `mode: "live"`: jedno GET strony głównej domeny adresu kontaktowego, gdy ma MX), w `ShopSignals` także `catalogIncoherent`, `catalogCategories`, `reviewsNoSellerReply` oraz techniki `waitlist_upsell`, `trial_subscription`, `blik_via_messenger`. Reguła podrabianej marki z tytułu (`impersonatedBrand`) nie czyta ścieżki: `brandInPath` jest osobnym atrybutem.
 
 Paczka dowodów: przy reklamie `shop_signals` (`lib/evidence/shopFacts.ts`: flagi z `detail`, techniki, metody płatności, rabaty, opinie, stopka, domeny e-mail i adres z cytatem) oraz sekcja „Sygnały sklepu (wyjaśnienia)” w `evidence.md`. Karta materiału w GUI ma sekcję „Sklep” (`ShopSection`), wpisy flag w `SHOP_FLAG_INFO` (`lib/viewer/plain.ts`).
+
+### 4.22 Pola wizyty platformy stron: cloaker i launcher (22.11.2026, B-331, B-345)
+
+`extractLanderConfig` (`lib/osint/landerConfig.ts`) czyta z `visit.fields` opcjonalne pola `LanderConfig`: `cloaker` (`{ sid, domain, did }` z `cl_sid`, `cl_domain` małymi literami, `cl_did`), `launcherId` (`fields.launcher`, w drugiej kolejności `visit.launcher`, tylko UUID) i `fbCampaignNameId` (16 cyfr w `fields.fb_campaign_name`). Redakcja (`redactPageHtml`) zostawia w `visit.fields` tylko klucze z `VISIT_FIELDS_KEEP_KEYS` (`launcher`, `cl_sid`, `cl_domain`, `cl_did`, `fb_campaign_name`); wcześniej całe `fields` było redagowane i te pola nie docierały do grafu. W `link.ts` (`addVisitFields`): węzeł `cloaker_account` z kluczem `cl_domain/cl_sid` tylko przy obu wartościach; `data.cloaker` i `cloakerInSource` materiału zawsze. Launcher równy `ownerId` → tylko `data.launcher` i `launcherSameAsOwner` (bez węzła, żeby nie liczyć tego samego dowodu dwa razy); bez `ownerId` → `platform_account` (źródło `launcher`); inny → węzeł `launcher_account`. `fbCampaignNameId` → `campaign_param` `fb_campaign_name_id=<id>`. Paczka dowodów: `platform_visit_fields` przy reklamie (host cloakera rozbrojony). Testy: `lib/graph/visitFieldsLink.test.ts`.
 
 ## 5. Klastrowanie
 

@@ -26,6 +26,29 @@ export interface LanderConfig {
   sourceId: string | null;
   /** Traffic source configured by the buyer ("FB CAPI", "Google", "… via <cloaker>"). */
   sourceName: string | null;
+  /**
+   * Cloaker account written by the platform into `visit.fields` (B-331): `cl_sid` (the cloaker customer's
+   * stream/site), `cl_domain` (the cloaker host serving that customer) and `cl_did` (an id of one visit or
+   * device, an attribute only). Absent when the record has no cloaker fields.
+   */
+  cloaker?: LanderCloaker;
+  /**
+   * `visit.fields.launcher` (or `visit.launcher`, B-345): UUID of the account the ads were launched from.
+   * On most pages it is the same value as `ownerId`; absent when empty or not a UUID.
+   */
+  launcherId?: string;
+  /** 16-digit numeric id inside `visit.fields.fb_campaign_name` ("PL - Name - 1234567890123456 - 2"), B-345. */
+  fbCampaignNameId?: string;
+}
+
+/** Cloaker fields of the platform record (`visit.fields.cl_*`). */
+export interface LanderCloaker {
+  /** `cl_sid`: id of the cloaker customer's stream (digits or a short token). */
+  sid: string | null;
+  /** `cl_domain`: host of the cloaker, lower-case. */
+  domain: string | null;
+  /** `cl_did`: per-visit / device id, never a link. */
+  did: string | null;
 }
 
 /** `window.aio = JSON.parse('…')`: the platform record as a single-quoted string literal (group 1 is its body). */
@@ -58,6 +81,41 @@ function text(v: unknown): string | null {
 function uuid(v: unknown): string | null {
   const s = text(v);
   return s && UUID.test(s) ? s.toLowerCase() : null;
+}
+
+const CLOAKER_ID = /^[A-Za-z0-9_-]{1,64}$/;
+const HOST = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z][a-z0-9-]{1,62}$/;
+/** A 16-digit number standing alone in a campaign name (Meta campaign and ad account ids are 15-17 digits; 16 is the form seen). */
+const CAMPAIGN_NAME_ID = /(?<!\d)(\d{16})(?!\d)/;
+
+/** A short cloaker id (`cl_sid`, `cl_did`) as text, or null when empty or not a plain token. */
+function cloakerId(v: unknown): string | null {
+  const s = text(v);
+  return s && CLOAKER_ID.test(s) ? s : null;
+}
+
+/** A host name (`cl_domain`), lower-case without scheme, path or port; null when it is not a host name. */
+function hostName(v: unknown): string | null {
+  const s = text(v)?.toLowerCase().replace(/^[a-z]+:\/\//, "").split(/[/:?#]/)[0] ?? null;
+  return s && HOST.test(s) ? s : null;
+}
+
+/**
+ * Cloaker, launcher and campaign-name id of the platform's visitor record (`visit` and `visit.fields`).
+ * Only the operator's values are read: the cloaker customer (`cl_sid`, `cl_domain`), the per-visit
+ * `cl_did` as an attribute, the launcher UUID and the 16-digit id in `fb_campaign_name`.
+ */
+function visitFields(visit: Record<string, unknown> | null): Pick<LanderConfig, "cloaker" | "launcherId" | "fbCampaignNameId"> {
+  const fields = obj(visit?.fields);
+  const out: Pick<LanderConfig, "cloaker" | "launcherId" | "fbCampaignNameId"> = {};
+  const cloaker: LanderCloaker = { sid: cloakerId(fields?.cl_sid), domain: hostName(fields?.cl_domain), did: cloakerId(fields?.cl_did) };
+  if (cloaker.sid || cloaker.domain || cloaker.did) out.cloaker = cloaker;
+  const launcher = uuid(fields?.launcher) ?? uuid(visit?.launcher);
+  if (launcher) out.launcherId = launcher;
+  const name = text(fields?.fb_campaign_name);
+  const id = name ? CAMPAIGN_NAME_ID.exec(name)?.[1] : undefined;
+  if (id) out.fbCampaignNameId = id;
+  return out;
 }
 
 /** Reads the `window.aio` record of a landing page; null when the page has none or it does not parse. */
@@ -99,6 +157,7 @@ export function extractLanderConfig(html: string): LanderConfig | null {
     landerTypeId: uuid(landing?.lander_type_uuid),
     sourceId: uuid(source?.uuid),
     sourceName: text(source?.name),
+    ...visitFields(visit),
   };
   return cfg.ownerId || cfg.campaignId || cfg.templateId ? cfg : null;
 }

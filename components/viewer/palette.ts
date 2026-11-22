@@ -20,6 +20,8 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   shared_doc: "#0891b2",
   onion: "#334155",
   messenger_invite: "#2563eb",
+  cloaker_account: "#7c2d12",
+  launcher_account: "#9f1239",
   advertiser: "#4f46e5",
   endpoint: "#be123c",
   hidden_fields: "#9333ea",

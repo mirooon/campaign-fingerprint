@@ -76,7 +76,7 @@ Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − �
 |---|---|---|---|
 | url, tracker, wallet | 1,0 | cname_target, imagehash | 0,65 |
 | host, domain, endpoint (backend), crm_key, meta_ad, platform_campaign | 0,95 | advertiser, ip, hidden_fields, comment, domain_pattern, click_server | 0,6 |
-| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account | 0,9 | asset | 0,55 |
+| email, phone, telegram, shared_doc, onion, messenger_invite, platform_account, cloaker_account, launcher_account | 0,9 | asset | 0,55 |
 | path_id | 0,85 | favicon, kit_string | 0,5 |
 | cert, campaign_param, bank_account (nie jest silny) | 0,8 | comment_block, template_phrase | 0,45 |
 | ad_payer | 0,65 | nameserver, page_template | 0,35 |
@@ -265,6 +265,16 @@ Leave-one-out daje to samo: 0 sklejeń. Przed sprawdzeniem podstawy etykiet skle
 **Proponowane poprawki sprawdzone bez zmiany kodu** (`--config`): relacja odnośnika ×0,3 usuwa pierwsze sklejenie, ale rozdziela parę jednej kampanii z 25 spraw, która stoi na tym samym wzorcu. IP i system autonomiczny jako ślady, które nie łączą same, usuwają sklejenia pustych stron, ale rozbijają 299 z 878 trafnych par walidacji. Sam system autonomiczny albo samo IP nie usuwają sklejeń. Żadna poprawka nie spełniła warunku „usuwa sklejenie i nie zmienia żadnego trafnego przypisania”, więc `lib/graph/config.ts` zostaje bez zmian. Cztery znane sklejenia są w teście oznaczone jako oczekiwany błąd (`it.fails`). Rozwiązanie wymaga nowych danych, nie wag: liczby domen na adresie IP z pasywnego DNS i rozróżnienia celu odnośnika (własny lander operatora czy usługa wielu klientów).
 
 **Test w repozytorium.** `tests/hardNegatives.real.test.ts` z `tests/fixtures/hard-negatives-real.json`. Plik zawiera 114 par: 97 prawdziwych i 17 pochodnych. Z każdej pary zostaje tylko struktura: typy wspólnych śladów, waga, dyskonto, siła, podobieństwo, to, czy reklama ma infrastrukturę, i konto platformy zastąpione stałą. Domen, identyfikatorów, nazwisk ani tekstów w pliku nie ma (sprawdzone skanerem wycieków). Test sprawdza, że żadna para nie trafia do jednej kampanii, a pary, które grupę tworzą samym swoim powiązaniem (33), trafiają do jednej grupy podobnych. Zastrzeżenia: etykiety są nasze, kategorie motywu i pustej strony wykrywają proste reguły, a odsetek dotyczy wybranych, najtrudniejszych par, nie wszystkich możliwych.
+
+## 4g. Pola rekordu platformy stron: cloaker i launcher (B-331, B-345, 22.11.2026)
+
+Platforma stron zapisuje w `window.aio.visit.fields` makra wizyty. Część z nich opisuje operatora, nie odwiedzającego:
+
+- `cloaker_account` (waga 0,9, jak Telegram): para `cl_domain` + `cl_sid` cloakera Cloakerson. `cl_sid` to numer klienta cloakera, `cl_domain` to host cloakera, który go obsługuje. Ta sama para to jedno opłacone konto klienta, czyli jeden operator, tak samo konkretny jak kanał kontaktu. Sam `cl_sid` nie łączy (numery powtarzają się między hostami cloakerów), sama domena też nie (jeden host obsługuje wielu klientów): obie wartości trafiają wtedy tylko do atrybutów materiału. `cl_did` to identyfikator wizyty lub urządzenia: atrybut, bez wagi. `cl_clid` (kliknięcie analityka) jest redagowany razem z resztą danych wizyty.
+- `launcher_account` (waga 0,9, jak konto na platformie stron): UUID z `visit.fields.launcher` (albo `visit.launcher`). Na 11 z 12 stron z tym polem w próbce launcher jest równy `owner_uuid`, czyli to ten sam dowód co `platform_account`. Wtedy nie powstaje drugi ślad (nie liczymy jednego dowodu dwa razy), a materiał dostaje tylko atrybut `launcherSameAsOwner`. Bez `owner_uuid` launcher zastępuje właściciela (`platform_account`, jak parametr `launcher=` w linkach platformy). Osobny węzeł powstaje tylko, gdy launcher różni się od właściciela: to konto, z którego uruchomiono reklamy, niezależne od konta stron.
+- 16-cyfrowy identyfikator w `fb_campaign_name` (np. „PL(PL) - Nazwa - 1234567890123456 - 2”) trafia do `campaign_param` z kluczem `fb_campaign_name_id=<id>` (waga 0,8). Klucz jest osobny, a nie `campaign_id`, bo nie wiadomo, czy to identyfikator kampanii, czy konta reklamowego.
+
+Ograniczenie: launcher różny od właściciela na jednej stronie i ten sam UUID jako `owner_uuid` na innej nie łączą się przez ten węzeł (różne typy). Na próbce takiego przypadku nie ma.
 
 ## 5. Duplikaty i „za mało danych”
 

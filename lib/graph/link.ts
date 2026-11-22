@@ -16,7 +16,7 @@ import { hammingDistance } from "../media/imageHash";
 import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { verificationTokens } from "../osint/extract";
-import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
 import { companyIdsOfMaterial } from "../text/companyIds";
 import { applyShopContext } from "../osint/shopSignals";
 import { brandInPath, hostingOutsideEu } from "../osint/infraSignals";
@@ -454,6 +454,57 @@ export function buildEvidenceGraph(
       add(id, "imagehash", [itemNode, id], 1, `ten sam plik kreacji (${what}, SHA-256 ${f.sha.slice(0, 16)}…)`);
     }
 
+    /**
+     * Fields of the platform's visitor record (B-331, B-345): the cloaker customer account keyed by cloaker
+     * host and `cl_sid` (a sid alone or a host alone is an attribute: sid numbers repeat across cloaker
+     * hosts, one host serves many customers), `cl_did` as an attribute, the launcher UUID and the 16-digit
+     * id of the Meta campaign name. A launcher equal to `owner_uuid` is the same evidence as the platform
+     * account and adds no pivot; without an owner it is the owner (as `launcher=` in platform links);
+     * only a different UUID becomes a launcher account of its own.
+     */
+    const addVisitFields = (lc: LanderConfig, from: string, basePath: string[], relation: number) => {
+      const cl = lc.cloaker;
+      if (cl) {
+        itemData.cloaker = { sid: cl.sid, domain: cl.domain, did: cl.did };
+        itemData.cloakerInSource = true;
+        if (cl.sid && cl.domain) {
+          const key = `${cl.domain}/${cl.sid}`;
+          const id = g.node("cloaker_account", key, `konto cloakera ${cl.sid} na ${cl.domain}`, { sid: cl.sid, cloakerHost: cl.domain });
+          g.edge(from, id, "built_on", `platforma stron zapisuje w kodzie konto klienta cloakera (cl_sid ${cl.sid}, cl_domain ${cl.domain})`);
+          add(id, "cloaker_account", [...basePath, id], relation, `to samo konto klienta cloakera (cl_sid ${cl.sid} na ${cl.domain})`);
+        }
+      }
+      if (lc.launcherId) {
+        itemData.launcher = lc.launcherId;
+        if (lc.launcherId === lc.ownerId) itemData.launcherSameAsOwner = true;
+        else if (!lc.ownerId) {
+          const id = g.node("platform_account", lc.launcherId, `konto ${lc.launcherId.slice(0, 8)}… na platformie stron`, { ownerId: lc.launcherId, platform: lc.platform });
+          g.edge(from, id, "built_on", `pole launcher rekordu platformy wskazuje konto (ta sama wartość co owner_uuid na innych stronach)`);
+          add(id, "platform_account", [...basePath, id], relation, `to samo konto na platformie stron (launcher ${lc.launcherId})`);
+          itemData.platformAccount ??= lc.launcherId;
+          itemData.platformAccountSource ??= "launcher";
+        } else {
+          const id = g.node("launcher_account", lc.launcherId, `konto launchera ${lc.launcherId.slice(0, 8)}…`, { launcherId: lc.launcherId, ownerId: lc.ownerId });
+          g.edge(from, id, "built_on", `rekord platformy zapisuje konto, z którego uruchomiono reklamy (launcher ${lc.launcherId}, inne niż owner_uuid ${lc.ownerId})`);
+          add(id, "launcher_account", [...basePath, id], relation, `to samo konto narzędzia do uruchamiania reklam (launcher ${lc.launcherId})`);
+        }
+      }
+      if (lc.fbCampaignNameId) {
+        const v = lc.fbCampaignNameId;
+        itemData.fbCampaignNameId = v;
+        const id = g.node("campaign_param", `fb_campaign_name_id=${v}`, `fb_campaign_name_id=${v}`, {
+          canonicalName: "fb_campaign_name_id",
+          name: "fb_campaign_name",
+          value: v,
+          cyrillic: false,
+          macro: false,
+          origin: "script",
+        });
+        g.edge(from, id, "carries_param", `16-cyfrowy identyfikator w nazwie kampanii Meta (fb_campaign_name) w rekordzie platformy stron`);
+        add(id, "campaign_param", [...basePath, id], relation, `ten sam identyfikator w nazwie kampanii Meta (${v})`);
+      }
+    };
+
     const addContacts = (
       from: string,
       basePath: string[],
@@ -870,6 +921,7 @@ export function buildEvidenceGraph(
             g.edge(finalUrlNode, id, "built_on", `strona zbudowana na szablonie platformy (lander_template_uuid ${lc.templateId})`);
             add(id, "page_template", [...finalPath, id], rel, `ten sam szablon strony na platformie (lander_template_uuid ${lc.templateId})`);
           }
+          addVisitFields(lc, finalUrlNode, finalPath, rel);
         }
         // Traces seen only in the page's requests (HAR, scan): pixel IDs and third-party hosts (B-158)
         for (const t of kit.requestTrackers ?? []) {

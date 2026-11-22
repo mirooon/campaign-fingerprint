@@ -272,6 +272,8 @@ export interface Campaign {
   strongComponents: number;
   /** Attributes for filtering and triage (not linking evidence). */
   attributes: CampaignAttributes;
+  /** Analyst decisions (corrections.json, B-281) that touched this campaign, each starting with "decyzja analityka". */
+  analystNotes?: string[];
   /** Group of similar campaigns (same kit, template or narrative) this campaign belongs to, if any. */
   familyId?: string | null;
   /**

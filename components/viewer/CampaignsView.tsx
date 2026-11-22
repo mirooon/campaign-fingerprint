@@ -72,6 +72,11 @@ function Card({ c, open, minLinkScore, graph, assignments, ctRecords, decision, 
               {!c.topEvidence.length && <li className="text-xs text-slate-600">Materiał bez powiązań.</li>}
             </ul>
           </div>
+          {(c.analystNotes?.length ?? 0) > 0 && (
+            <ul className="rounded border border-blue-300 bg-blue-50 px-2 py-1 text-xs text-blue-900">
+              {c.analystNotes!.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
           {bridgeNote(c) && <p className="rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">{bridgeNote(c)}</p>}
           {weakestLinkNote(c, minLinkScore) && <p className="text-xs text-slate-700">{weakestLinkNote(c, minLinkScore)}</p>}
           {narrativeSummaryLine(c.attributes.narrative) && <p className="text-xs text-slate-700">{narrativeSummaryLine(c.attributes.narrative)}</p>}

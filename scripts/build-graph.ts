@@ -1,4 +1,4 @@
-/** bun run build-graph -- [--enriched data/work/enriched.json] [--text tfidf|embedding|none] */
+/** bun run build-graph -- [--enriched data/work/enriched.json] [--text tfidf|embedding|none] [--corrections corrections.json] */
 import { buildGraphConfigFile } from "../lib/pipeline/linkConfigFile";
 import { DEFAULTS, runBuildGraph } from "../lib/pipeline/steps";
 import { cli, main } from "./_cli";
@@ -11,8 +11,9 @@ const args = cli(
     "near-misses": { type: "string" },
     config: { type: "string" },
     text: { type: "string" },
+    corrections: { type: "string" },
   } as const,
-  `Użycie: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--near-misses near-misses.json; domyślnie obok campaigns] [--config linking.json; domyślnie wagi wbudowane, dla danych próbki data/sample/linking.json] [--text tfidf|embedding|none]`,
+  `Użycie: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--near-misses near-misses.json; domyślnie obok campaigns] [--config linking.json; domyślnie wagi wbudowane, dla danych próbki data/sample/linking.json] [--text tfidf|embedding|none] [--corrections corrections.json; domyślnie obok campaigns, korekty analityka]`,
 );
 
 void main(async () => {
@@ -26,5 +27,6 @@ void main(async () => {
     nearMisses: args["near-misses"],
     config: buildGraphConfigFile(args.config, enriched),
     text,
+    corrections: args.corrections,
   });
 });

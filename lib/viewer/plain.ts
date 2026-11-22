@@ -177,6 +177,7 @@ export const TECHNIQUE_LABEL: Record<string, string> = {
   trial_subscription: "okres próbny z automatycznym odnowieniem subskrypcji",
   blik_via_messenger: "kod BLIK przez komunikator",
   fake_courier_payment: "strona udająca kuriera z polem karty i wyborem paczkomatu",
+  spaced_text: "tekst rozstrzelony litera po literze",
 };
 
 /** Techniques that only describe a shop page: they explain and never link (unlike the techniques of the second level). */
@@ -377,6 +378,13 @@ export const LINE_TYPE_LABEL: Record<string, string> = {
  * campaigns.
  */
 export const TECHNIQUE_INFO: Record<string, TypeInfo> = {
+  spaced_text: {
+    name: TECHNIQUE_LABEL.spaced_text,
+    what: "Podpis albo napis w reklamie zapisany literami oddzielonymi spacjami („P o b i e r z”).",
+    why: "Sztuczka przeciw filtrom tekstu platformy: słowo kluczowe nie pasuje do listy zakazanych fraz. Atrybut, nie ślad łączący.",
+    example: "„Z a r e j e s t r u j  s i ę”",
+    sentence: "Reklama rozstrzela litery, żeby ominąć filtry tekstu platformy",
+  },
   fake_security_alert: {
     name: TECHNIQUE_LABEL.fake_security_alert,
     what: "Strona straszy wirusem, zablokowanym komputerem albo zhakowanym kontem, podaje numer telefonu jako jedyne wyjście i nie pozwala łatwo jej opuścić (pełny ekran, okna alertu, pułapka „wstecz”, dźwięk alarmu).",

@@ -307,8 +307,13 @@ export function buildEvidenceGraph(
     if (item.extra?.case) itemData.case = item.extra.case;
 
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
-    // Text spaced out letter by letter (B-337): an attribute, and the OCR text is glued back before any matching
-    if (hasSpacedText(enr?.ocrText) || hasSpacedText(item.text)) itemData.spacedText = true;
+    // Text spaced out letter by letter (B-337): an attribute and the technique `spaced_text`, read from the
+    // ad text and every OCR source (main and further screenshots, video frames); the OCR text is glued back
+    // before any matching
+    if ([item.text, enr?.ocrText, enr?.extraOcrText, enr?.videoOcrText].some((t) => hasSpacedText(t))) {
+      itemData.spacedText = true;
+      itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "spaced_text"])];
+    }
     const ui = enr?.ocrText ? stripUiChrome(despaceText(enr.ocrText)) : null;
     // Fake "as seen on" strip of media logos (B-338): an attribute of the material
     const seenOn = asSeenOn([item.text, ui?.text].filter(Boolean).join("\n"));

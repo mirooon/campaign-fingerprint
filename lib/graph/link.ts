@@ -26,6 +26,7 @@ import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { adStart } from "../text/adStart";
+import { advertiserNameStyle, commentLanguage, landerSlugStyle, mixedScriptName } from "../text/namingStyle";
 import { scarcityCounter } from "../osint/pageTechniques";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";
@@ -914,6 +915,8 @@ export function buildEvidenceGraph(
         if (platforms.size) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...platforms])].sort();
         if (kit.domSimhash) itemData.domSimhash = kit.domSimhash;
         if (kit.cyrillicComments) itemData.cyrillic = true;
+        const commentLangs = [...new Set(kit.comments.map(commentLanguage).filter((l): l is "uk" | "ru" => !!l))].sort();
+        if (commentLangs.length) itemData.codeCommentLang = commentLangs;
         // Comments written into the page: the set of authors is part of the template
         const cb = kit.commentBlock;
         if (cb) {
@@ -1010,6 +1013,7 @@ export function buildEvidenceGraph(
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
       if (cp.cyrillic) itemData.cyrillic = true;
+      if (mixedScriptName(cp.value)) itemData.namingMixedScript = true;
       // a value new for every click is shared only by one visit: no pivot between materials
       if (perClick.has(cp.canonicalName)) continue;
       const value = cp.value.trim();
@@ -1147,6 +1151,11 @@ export function buildEvidenceGraph(
     if (started) itemData.adStartWeekday = started;
     // A pressure counter ("N places left") in the creative's OCR or the ad text: a technique attribute (B-346)
     if (scarcityCounter([item.text, enr?.ocrText].filter(Boolean).join("\n"))) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "scarcity_counter"])];
+    // Style of the folder name of the landing page and of the advertiser's page name (B-341, B-347): attributes, never traces
+    const slugStyle = hostUrls.map((u) => { try { return u ? landerSlugStyle(new URL(u).pathname) : null; } catch { return null; } }).find((s) => s !== null);
+    if (slugStyle) itemData.landerSlugStyle = slugStyle;
+    const nameStyle = advertiserNameStyle(advertiser ?? enr?.adLibrary?.find((r) => r.pageName)?.pageName ?? null, item.text);
+    if (nameStyle) itemData.advertiserNameStyle = nameStyle;
     const snowflakes = discordSnowflakes([item.text, enr?.ocrText, ...(landingPage?.extract?.outboundUrls ?? [])].filter(Boolean).join("\n"));
     if (snowflakes.length) itemData.discordSnowflakes = snowflakes;
 

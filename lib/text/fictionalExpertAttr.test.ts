@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectFictionalExperts } from "./fictionalExpert";
+import { detectFictionalExperts } from "./fictionalExpertAttr";
 
 const LIST = [{ name: "Anna Przykładowa", aliases: ["prof. Przykładowa"] }];
 

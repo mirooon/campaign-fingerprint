@@ -25,7 +25,7 @@ import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type P
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
-import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpert";
+import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpertAttr";
 import { adStart } from "../text/adStart";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";

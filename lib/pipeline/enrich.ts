@@ -18,7 +18,7 @@ import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
 import { verifyExperts, recordedExpertLookup, type ExpertCheck, type ExpertLookup } from "../osint/expertVerify";
-import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpert";
+import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpertAttr";
 import { detectAiImageMeta, type AiImageMeta } from "../media/aiImageMeta";
 import { hashFavicon, hashImage } from "../media/imageHash";
 import { brandVectors, matchBrand, type BrandHit } from "../media/brand";

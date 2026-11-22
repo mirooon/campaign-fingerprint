@@ -27,6 +27,11 @@ export interface TestItemSpec {
   imageEmbedding?: number[];
   /** CLIP video embedding (frame mean). */
   videoEmbedding?: number[];
+  /** dHashes of the shots of the video creative. */
+  videoShots?: string[];
+  /** Replaced-captions overlay and source watermark of the video creative. */
+  videoOverlay?: NonNullable<EnrichedDataset["perItem"][string]["videoOverlay"]>;
+  sourceWatermark?: NonNullable<EnrichedDataset["perItem"][string]["sourceWatermark"]>;
   trackers?: TrackerId[];
   pageTitle?: string;
   pageText?: string;
@@ -274,6 +279,9 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
       ...(s.videoSha256 ? { videoSha256: s.videoSha256 } : {}),
       ...(s.imageEmbedding ? { imageEmbedding: s.imageEmbedding } : {}),
       ...(s.videoEmbedding ? { videoEmbedding: s.videoEmbedding } : {}),
+      ...(s.videoShots ? { videoShots: s.videoShots } : {}),
+      ...(s.videoOverlay ? { videoOverlay: s.videoOverlay } : {}),
+      ...(s.sourceWatermark ? { sourceWatermark: s.sourceWatermark } : {}),
       ...(s.speakerEmbedding ? { speakerEmbedding: s.speakerEmbedding } : {}),
       ...(s.adLibrary ? { adLibrary: s.adLibrary } : {}),
       ...(s.creativeBrand ? { creativeBrand: s.creativeBrand } : {}),

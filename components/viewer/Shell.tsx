@@ -12,6 +12,8 @@ import { validItemKey } from "./compare";
 import CtFeedPanel, { useCtFeed } from "./CtFeedPanel";
 import { buildIndex } from "./graphView";
 import HowItWorks from "./HowItWorks";
+import QualityView from "./QualityView";
+import RecognizedView from "./RecognizedView";
 import { Empty, Help, StrengthLegend, SyntheticBadge } from "./ui";
 import Viewer from "./Viewer";
 
@@ -23,7 +25,7 @@ export interface ShellProps {
   synthetic: boolean;
 }
 
-type Tab = "analyze" | "campaigns" | "graph" | "compare" | "how" | "ct" | "expert";
+type Tab = "analyze" | "campaigns" | "graph" | "compare" | "how" | "ct" | "people" | "quality" | "expert";
 
 const TABS: Array<{ id: Tab; label: string }> = [
   { id: "analyze", label: "Analizuj materiał" },
@@ -32,6 +34,8 @@ const TABS: Array<{ id: Tab; label: string }> = [
   { id: "compare", label: "Porównaj" },
   { id: "how", label: "Jak to działa" },
   { id: "ct", label: "Nowe domeny" },
+  { id: "people", label: "Kogo rozpoznajemy" },
+  { id: "quality", label: "Jakość danych" },
 ];
 
 /** Tab of the address: `?tab=`, or the one an old link implies (?a=&b= → Porównaj, ?k= → Kampanie, ?panel=ct → Nowe domeny, ?n= / ?p= → graf). */
@@ -120,7 +124,7 @@ export default function Shell({ graph, campaigns, summaries, synthetic }: ShellP
           />
         )}
         {tab === "campaigns" && (
-          <CampaignsView campaigns={campaigns} openId={params.get("k")} onOpen={(id) => go({ tab: "campaigns", k: id })} onCompare={(x, y) => go({ tab: "compare", a: x, b: y })} />
+          <CampaignsView campaigns={campaigns} graph={graph} ctRecords={ctFeed.records} openId={params.get("k")} onOpen={(id) => go({ tab: "campaigns", k: id })} onCompare={(x, y) => go({ tab: "compare", a: x, b: y })} />
         )}
         {tab === "compare" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">
@@ -138,6 +142,8 @@ export default function Shell({ graph, campaigns, summaries, synthetic }: ShellP
             />
           </div>
         )}
+        {tab === "people" && <RecognizedView />}
+        {tab === "quality" && <QualityView />}
         {tab === "how" && <HowItWorks rules={campaigns.method.rules ?? []} />}
         {tab === "ct" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">
@@ -148,7 +154,7 @@ export default function Shell({ graph, campaigns, summaries, synthetic }: ShellP
         )}
         {isExpert && (
           <div className="md:[&>div]:h-[calc(100vh-6.5rem)] [&>div]:min-h-0">
-            <Viewer graph={graph} campaigns={campaigns} summaries={summaries} />
+            <Viewer key={tab} graph={graph} campaigns={campaigns} summaries={summaries} initialReduced={tab === "graph"} />
           </div>
         )}
       </main>

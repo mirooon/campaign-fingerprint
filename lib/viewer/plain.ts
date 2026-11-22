@@ -3,7 +3,7 @@
  * example, and the sentence a premise of that type becomes. Also the glossary (§9) used by the "?"
  * bubbles and the Słowniczek page, and the help notes moved here from the expert DetailsPanel.
  */
-import type { EntityType, SimilarityEdgeType } from "@/lib/graph/model";
+import { CREATIVE_FILE_PREFIX, type EntityType, type SimilarityEdgeType } from "@/lib/graph/model";
 import type { ShopFlag } from "@/lib/osint/shopSignals";
 import { familyOf, type FeatureFamily } from "./families";
 
@@ -74,6 +74,8 @@ export function typeInfo(type: string | null | undefined): TypeInfo | null {
 
 export interface EvidenceText {
   evidence: string;
+  /** Id of the shared node (kind = pivot): tells the creative-file node from an ordinary image hash. */
+  pivot?: string | null;
   pivotType?: string | null;
   edgeType?: string | null;
 }
@@ -88,6 +90,7 @@ export function cleanEvidence(text: string): string {
 
 /** Plain sentence of a premise: the type sentence, or the cleaned description for an unknown type. */
 export function premiseSentence(ev: EvidenceText): string {
+  if (ev.pivotType === "imagehash" && ev.pivot?.startsWith(`imagehash:${CREATIVE_FILE_PREFIX}`)) return "Reklamy mają ten sam plik reklamy (identyczny co do bajtu)";
   const info = typeInfo(ev.pivotType ?? ev.edgeType ?? null);
   if (info) return info.sentence;
   const t = cleanEvidence(ev.evidence);
@@ -353,10 +356,10 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   cyrillic: { name: "Cyrylica w kodzie strony", source: "z kodu strony", role: "describes" },
   cloakingSuspected: { name: "Podejrzenie cloakingu", source: "z dwóch pobrań strony", role: "describes", term: "cloaking" },
   ocrText: { name: "Tekst ze zrzutu", source: "z OCR zrzutu", role: "helps", term: "ocr" },
-  asrText: { name: "Transkrypcja nagrania", source: "z nagrania (ASR)", role: "helps" },
+  asrText: { name: "Transkrypcja nagrania", source: "z nagrania (ASR)", role: "helps", term: "transkrypcja" },
   text: { name: "Tekst reklamy", source: "z materiału", role: "helps" },
-  dhash: { name: "Odcisk obrazu", source: "ze zrzutu", role: "links" },
-  domSimhash: { name: "Odcisk budowy strony", source: "z HAR albo zapisu strony", role: "helps" },
+  dhash: { name: "Odcisk obrazu", source: "ze zrzutu", role: "links", term: "odcisk_obrazu" },
+  domSimhash: { name: "Odcisk budowy strony", source: "z HAR albo zapisu strony", role: "helps", term: "odcisk_budowy" },
 };
 
 export function featureInfo(key: string): FeatureInfo {
@@ -394,7 +397,18 @@ export type TermId =
   | "za_malo_danych"
   | "baza"
   | "kompletnosc"
-  | "sila_w_kampanii";
+  | "sila_w_kampanii"
+  | "trasa_klikniecia"
+  | "sprawa"
+  | "strona_przyneta"
+  | "lejek"
+  | "transkrypcja"
+  | "biblioteka_reklam"
+  | "baza_osob"
+  | "rozbrojony_adres"
+  | "znizka"
+  | "odcisk_obrazu"
+  | "odcisk_budowy";
 
 export interface Term {
   term: string;
@@ -426,6 +440,17 @@ export const GLOSSARY: Record<TermId, Term> = {
   clickid: { term: "Identyfikator kliknięcia (clickid)", text: "Znacznik dopisywany do linku po kliknięciu reklamy. Niektóre formaty zdradzają serwer, który przekierował ruch." },
   szablon_strony: { term: "Szablon strony", text: "Wspólny układ i kod strony. Ten sam szablon u różnych kont oznacza podobne kampanie, a nie jedną." },
   konto_platformy: { term: "Konto na platformie stron", text: "Identyfikator właściciela w narzędziu do budowy stron. To samo konto to ten sam operator." },
+  trasa_klikniecia: { term: "Trasa kliknięcia", text: "Droga od reklamy do strony oszusta: link śledzący, przekierowania, strona-przynęta, formularz albo sklep. Pokazuje, przez jakie adresy przechodzi ofiara. Domena zarejestrowana tuż przed emisją reklamy zwykle powstała na potrzeby kampanii, np. „zarejestrowana 2 dni przed emisją”." },
+  sprawa: { term: "Sprawa", text: "Folder z plikami jednego zgłoszenia: zrzut reklamy, zapisana strona, HAR, wideo. Z jednej sprawy powstaje jeden materiał albo więcej, jeśli zawiera kilka reklam.", why: "Podział na sprawy decyduje, które pliki liczą się razem.", example: "folder „zgloszenie-12” z zrzutem i zapisem strony" },
+  strona_przyneta: { term: "Strona-przynęta", text: "Strona, na którą trafia osoba po kliknięciu w reklamę: fałszywy artykuł, wywiad albo oferta. Jej zadaniem jest namówić do podania danych lub wpłaty.", why: "Zwykle to na niej zostają ślady operatora: tracker, formularz, szablon.", example: "artykuł „znana osoba ujawnia sposób na zarobek”" },
+  lejek: { term: "Lejek", text: "Rząd liczb pokazujący, ile z wgranych plików stało się materiałami, ile z nich to duplikaty, a ile trafiło do znanych kampanii, nowych albo oznaczono „za mało danych”. Liczby się sumują.", example: "9 plików → 6 materiałów → 1 duplikat" },
+  transkrypcja: { term: "Transkrypcja", text: "Tekst wypowiedzi z nagrania, odczytany automatycznie. Może zawierać błędy, więc służy do porównania treści, nie jest cytatem.", why: "Pozwala porównać treść nagrań, także gdy obrazy się różnią." },
+  biblioteka_reklam: { term: "Biblioteka reklam", text: "Publiczny rejestr reklam, który prowadzą platformy (Meta, Google, TikTok) zgodnie z prawem o usługach cyfrowych. Podaje reklamodawcę, daty emisji i często płatnika.", why: "Daje stałe identyfikatory konta reklamowego, których nie da się podmienić w zrzucie.", example: "numer reklamy i nazwa płatnika" },
+  baza_osob: { term: "Baza referencyjna osób", text: "Zamknięta lista osób publicznych, z którymi porównujemy twarze i głosy z materiałów. Dla każdej mamy kilka zdjęć lub fragmentów nagrań i źródło, które wskazało ją jako podszywaną.", why: "Wynik to „podobna twarz do X”, wskazówka do sprawdzenia, nigdy ustalenie tożsamości." },
+  rozbrojony_adres: { term: "Rozbrojony adres", text: "Adres strony zapisany tak, żeby nie dało się go kliknąć przez pomyłkę: hxxps zamiast https i [.] w miejscu kropki. Kopiowanie kopiuje właśnie taką wersję.", example: "hxxps://przyklad[.]test/start" },
+  znizka: { term: "Zniżka", text: "Obniżenie wagi śladu, który wygląda na wspólny, ale należy do wielu niezależnych stron (duża sieć, darmowy certyfikat, usługa wielu klientów). Ślad ze zniżką słabiej łączy albo wcale.", why: "Chroni przed łączeniem kampanii po infrastrukturze, z której korzystają wszyscy.", example: "wspólny serwer popularnego hostingu" },
+  odcisk_obrazu: { term: "Odcisk obrazu", text: "Krótki skrót wyliczony z obrazu reklamy. Dwa podobne obrazy mają podobne odciski, więc wykrywamy tę samą grafikę z drobną zmianą (napis, kadr).", why: "Pozwala łączyć warianty tej samej kreacji bez porównywania obrazów piksel po pikselu." },
+  odcisk_budowy: { term: "Odcisk budowy strony", text: "Skrót wyliczony z układu znaczników strony (bez treści). Strony zbudowane z tego samego zestawu mają podobny odcisk.", why: "Wskazuje ten sam zestaw stron, który bywa sprzedawany wielu operatorom, więc sam nie łączy w kampanię." },
   cloaking: { term: "Cloaking", text: "Strona pokazuje co innego robotowi platformy reklamowej, a co innego użytkownikowi, żeby przejść moderację." },
   sila_przeslanki: { term: "Siła przesłanki", text: "Jak mocno jedna przesłanka łączy dwa materiały. Wysoka łączy sama, średnia liczy się razem z innymi, „wymaga potwierdzenia” potrzebuje drugiego rodzaju śladu, pominięta się nie liczy.", why: "Od siły zależy, czy przesłanka wystarczy do połączenia.", example: "to samo konto na platformie stron: wysoka" },
   pewnosc: { term: "Pewność", text: "Jak bardzo ufamy werdyktowi: pewne, prawdopodobne albo niepewne. Niepewny werdykt warto sprawdzić ręcznie.", why: "Mówi, który wynik warto zweryfikować samodzielnie.", example: "pewne: najlepsze powiązanie ma przesłankę o wysokiej sile" },

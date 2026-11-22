@@ -53,7 +53,7 @@ Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca ekspor
 
 ## 2. Jak przeanalizować własne materiały
 
-**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Zakładka „Kampanie” pokazuje bazę, „Porównaj” dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
+**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Karta wyniku pokazuje też trasę kliknięcia (reklama → link śledzący → przekierowania → strona-przynęta) i „Dodaj do bazy” (działa na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu). Zakładka „Kampanie” pokazuje bazę, a w karcie kampanii macierz wspólnych śladów, ewolucję (co się zmieniło, a co zostało) i oś czasu; „Porównaj” zestawia dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” to pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
 
 **Wiersz poleceń** (`analyze-material`; w Dockerze poprzedź `docker compose run --rm app`):
 
@@ -281,7 +281,7 @@ Kod trafił do tego repozytorium bez historii git. Lokalne commity z 21.11 miał
 Stan z ostatniego commitu przed wydarzeniem (19.11.2026), 260 plików:
 
 - katalog główny: `package.json`, `bun.lock`, `tsconfig.json`, `eslint.config.mjs`, `vitest.config.mts`, `next.config.ts`, `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `.gitignore`, `AGENTS.md`, README;
-- `app/`: layout, strona, style, API `analyze`, `ct-feed`, `image`;
+- `app/`: layout, strona, style, API `material`, `analyze-material`, `click-route`, `add-to-base`, `evidence`, `ct-feed`, `image`;
 - `components/viewer/`: AnalyzeForm, CampaignList, ComparePanel, CtFeedPanel, DetailsPanel, GraphCanvas, Viewer, compare (z testem), graphView, palette;
 - `lib/`: cache (z testem);
 - `lib/osint/`: urls, ip, fetchPage, extract, pagekit, domainPattern, campaignParams, crypto, dns, rdap, ct, asn (każdy z testem);
@@ -341,6 +341,7 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i14b | wariant kreacji: dołączanie, nigdy scalanie (`attachContentVariants`) |
 | i14c | ślady zestawu stron nie sumują się w kampanię, biblioteka landerów „666”, konflikt kont wygrywa z silnym `path_id` |
 | i2 | nowy interfejs: zakładki „Analizuj materiał”, „Kampanie”, „Porównaj”, „Graf powiązań”, „Jak to działa”, API zadań (`/api/material`), moduły `lib/viewer`, dymki pomocy |
+| i2fix | GUI po zmianach backendu: pola `basis`, wariantu, narracji, mostu, twarzy i głosów (`lib/viewer/fields.ts`), ewolucja kampanii z macierzą śladów i osią czasu (`lib/viewer/evolution.ts`), trasa kliknięcia (`/api/click-route`), „Dodaj do bazy” (`/api/add-to-base`), stara analiza tylko w Trybie eksperta |
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
 | i15 | galeria głosów osób publicznych: `--speaker` z dopasowaniem okien (`voices`), `data/voices`, `scripts/py/build_voice_index.py`, `bun run voice:eval`, próg z pomiaru |
 | i5 | persona z twarzy: `--faces` (OpenCV YuNet + SFace), zamknięta lista osób publicznych (`data/osoby-publiczne.json`, 31 osób ze zdjęciami w `data/faces`), `scripts/py/face_embed.py`, `setup-face.sh`, próg z pomiaru |
@@ -369,7 +370,7 @@ lib/watch/      harmonogram skanów: przepisy, źródła (CT, biblioteki reklam,
 lib/licenses.ts logika skryptu licencji pakietów
 scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-graph, evaluate, pipeline, analyze-material,
                 summarize, evidence, cache-freeze, ct-watch, ct-backfill, watch, backtest-ct, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
-app/, components/viewer/   przeglądarka i API (`/api/analyze-material`, `/api/material`, `/api/analyze`, `/api/image`, `/api/ct-feed`)
+app/, components/viewer/   przeglądarka i API (analiza z GUI: `/api/material` z zadaniami, postępem i CSV; ta sama analiza jednym żądaniem, używana przez panel „Nowa reklama” w Trybie eksperta: `/api/analyze-material`; karty: `/api/click-route`, `/api/add-to-base`, `/api/evidence`; `/api/image`, `/api/ct-feed`)
 docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl
 docs/           METODYKA.md, TECHNICAL.md, GUI.md

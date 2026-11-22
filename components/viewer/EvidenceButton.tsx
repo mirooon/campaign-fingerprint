@@ -17,9 +17,9 @@ async function errorMessage(res: Response): Promise<string> {
 /**
  * "Pobierz paczkę dowodów": downloads the ZIP of one campaign from `POST /api/evidence`
  * (evidence.json, list for the CERT warning list, DSA Art. 16 notice, SHA-256 manifest).
- * `jobId` is given for campaigns of new materials (N1...). A failure shows its message next to the button.
+ * `jobId` is given for campaigns of new materials (N1...). `blockedReason` (the analyst rejected the campaign) turns the button off and shows why. A failure shows its message next to the button.
  */
-export default function EvidenceButton({ campaignId, jobId }: { campaignId: string; jobId?: string }) {
+export default function EvidenceButton({ campaignId, jobId, blockedReason }: { campaignId: string; jobId?: string; blockedReason?: string | null }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const download = async () => {
@@ -42,10 +42,11 @@ export default function EvidenceButton({ campaignId, jobId }: { campaignId: stri
   };
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <button type="button" onClick={download} disabled={busy} className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:opacity-60" title="ZIP z evidence.json, listą domen dla CERT, zgłoszeniem DSA i sumami SHA-256. Narzędzie niczego nie wysyła.">
+      <button type="button" onClick={download} disabled={busy || !!blockedReason} className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:opacity-60" title="ZIP z evidence.json, listą domen dla CERT, zgłoszeniem DSA i sumami SHA-256. Narzędzie niczego nie wysyła.">
         {busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Download size={13} aria-hidden />}
         Pobierz paczkę
       </button>
+      {blockedReason && <span className="text-xs text-slate-700">{blockedReason}</span>}
       {error && <span role="alert" className="text-xs text-red-800">{error}</span>}
     </span>
   );

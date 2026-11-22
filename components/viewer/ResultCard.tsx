@@ -9,10 +9,15 @@ import { bestCampaignLink } from "@/lib/pipeline/materialCsv";
 import { completeness, type CaseProvenance } from "@/lib/viewer/completeness";
 import { contribution } from "@/lib/viewer/contribution";
 import { FAMILY_HINT, FAMILY_LABEL, FAMILY_ORDER, featureFamily, familyOf, type FeatureFamily } from "@/lib/viewer/families";
+import { authorNotes } from "@/lib/viewer/authorNotes";
+import { bridgeNote, brandNote, domainAgeNote, faceLines, humanizeId, narrativeLine, platformAccountLines, voiceLines, weakestLinkNote } from "@/lib/viewer/fields";
 import { fmtNum } from "@/lib/viewer/format";
 import { resultConfidence, variantNote } from "@/lib/viewer/materialView";
+import { closestLink, verdictScale, ZONE_LABEL, type Zone } from "@/lib/viewer/scale";
 import { ADDRESS_COMPLETENESS_LABEL, cleanEvidence, EMAIL_DOMAIN_KIND_LABEL, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, SHOP_FLAG_INFO, SHOP_TECHNIQUES, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
+import AddToBaseButton from "./AddToBaseButton";
+import ClickRoute from "./ClickRoute";
 import { Defanged, Help, StrengthBadge, StrengthLegend } from "./ui";
 
 export interface ResultContext {
@@ -24,6 +29,10 @@ export interface ResultContext {
   skipped: Array<{ id: string; reason: string }>;
   failedLookups: string[];
   lookups: boolean;
+  /** Why "Dodaj do bazy" is off (the bundled sample base is read-only); null when the base can grow. */
+  addToBaseDisabled: string | null;
+  /** Threshold of a group of similar campaigns (`familyMinScore`), the second mark of the scale of the verdict. */
+  familyMinScore: number;
 }
 
 /** Case record of the import for a material (by case id, then by material id). */
@@ -106,6 +115,31 @@ function ContributionBar({ link, ctx }: { link: MaterialLink; ctx: ResultContext
   );
 }
 
+/**
+ * Scale of the verdict (B-022): the best score on a 0–1 bar with the two thresholds marked (joining into a campaign,
+ * joining into a group of similar campaigns), the zones "nowy wzorzec · grupa podobnych · kampania" and one sentence
+ * that says why the material landed where it did, also when a rule changed the outcome.
+ */
+function ScaleBar({ item, ctx }: { item: MaterialItemResult; ctx: ResultContext }) {
+  const scale = verdictScale(item, { campaign: ctx.minLinkScore, family: ctx.familyMinScore });
+  const pct = (v: number) => `${Math.min(1, Math.max(0, v)) * 100}%`;
+  const zones: Zone[] = ["new", "family", "campaign"];
+  return (
+    <div>
+      <div className="relative h-3 w-full rounded bg-slate-100" role="img" aria-label={`Skala: wynik ${scale.closest ? fmtNum(scale.closest.score) : "brak"}, próg kampanii ${fmtNum(ctx.minLinkScore)}, próg grupy podobnych ${fmtNum(ctx.familyMinScore)}; strefa ${ZONE_LABEL[scale.zone]}`}>
+        <span className="absolute top-0 h-full w-0.5 bg-rose-700" style={{ left: pct(ctx.minLinkScore) }} aria-hidden />
+        <span className="absolute top-0 h-full w-0.5 bg-violet-700" style={{ left: pct(ctx.familyMinScore) }} aria-hidden />
+        {scale.closest && <span className="absolute -top-0.5 h-4 w-2 -translate-x-1 rounded-sm bg-slate-900" style={{ left: pct(scale.closest.score) }} aria-hidden />}
+      </div>
+      <p className="mt-1 flex flex-wrap gap-x-3 text-xs text-slate-600">
+        {zones.map((z) => <span key={z} className={z === scale.zone ? "font-semibold text-slate-900" : ""}>{z === scale.zone ? "● " : "○ "}{ZONE_LABEL[z]}</span>)}
+        <span>czerwona kreska: próg kampanii {fmtNum(ctx.minLinkScore)} · fioletowa: próg grupy podobnych {fmtNum(ctx.familyMinScore)}</span>
+      </p>
+      <p className="mt-1 text-sm text-slate-800">{scale.sentence}</p>
+    </div>
+  );
+}
+
 interface VerdictLook {
   title: string;
   cls: string;
@@ -164,6 +198,8 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
         </p>
       )}
       {camp?.attributes.basis === "content" && <p className="mt-1 rounded bg-white/70 px-2 py-1 text-xs text-slate-800">Kampania z treści, bez infrastruktury: słabsza podstawa niż wspólne konto czy serwer.</p>}
+      {camp && bridgeNote(camp) && <p className="mt-1 rounded border border-amber-400 bg-amber-50 px-2 py-1 text-xs text-amber-900">{bridgeNote(camp)}</p>}
+      {camp && weakestLinkNote(camp, ctx.minLinkScore) && <p className="mt-1 text-xs text-slate-700">{weakestLinkNote(camp, ctx.minLinkScore)}</p>}
       {item.verdict === "similar_campaigns" && item.apart.length > 0 && <p className="mt-1 text-xs text-slate-800">Osobno, bo: {item.apart.join("; ")}.</p>}
       {item.verdict === "insufficient" && (item.missing?.length ?? 0) > 0 && (
         <div className="mt-2 text-sm">
@@ -174,9 +210,11 @@ function Verdict({ item, ctx, onShowCampaign, onCompare }: { item: MaterialItemR
         </div>
       )}
       {best && item.verdict !== "insufficient" && <div className="mt-2"><ContributionBar link={best} ctx={ctx} /></div>}
+      {item.verdict !== "insufficient" && <div className="mt-2"><ScaleBar item={item} ctx={ctx} /></div>}
       <div className="mt-2 flex flex-wrap gap-2 text-sm">
         {item.campaign && <button type="button" className="rounded-md bg-slate-900 px-2.5 py-1 text-white" onClick={() => onShowCampaign(item.campaign!)}>Pokaż kampanię</button>}
-        {best && <button type="button" className="rounded-md border border-slate-400 bg-white px-2.5 py-1" onClick={() => onCompare(item.id, best.other)}>Porównaj z najbliższym materiałem</button>}
+        {(best ?? closestLink(item)) && <button type="button" className="rounded-md border border-slate-400 bg-white px-2.5 py-1" onClick={() => onCompare(item.id, (best ?? closestLink(item))!.other)}>Porównaj z najbliższym materiałem</button>}
+        {item.verdict !== "duplicate" && item.verdict !== "insufficient" && <AddToBaseButton jobId={ctx.jobId} ids={[item.id]} disabledReason={ctx.addToBaseDisabled} />}
       </div>
     </section>
   );
@@ -209,6 +247,35 @@ function WhyNot({ item, ctx }: { item: MaterialItemResult; ctx: ResultContext })
   );
 }
 
+/**
+ * "Co rozpoznano" section: faces and voices similar to people of the closed list (for a human to check, never an
+ * identification), the brand imitated on the creative, the narrative and the age of the domain against the ad.
+ */
+function Recognition({ item, ctx }: { item: MaterialItemResult; ctx: ResultContext }) {
+  const names = new Map<string, string>();
+  for (const c of ctx.campaigns.values()) for (const p of c.attributes.personas) names.set(p.id, p.name);
+  const nameOf = (id: string) => names.get(id) ?? humanizeId(id);
+  const f = item.features;
+  const narrative = f.narrative as Parameters<typeof narrativeLine>[0];
+  const lines = [
+    ...faceLines(item.faces, nameOf),
+    ...voiceLines(item.voices, nameOf),
+    brandNote(f.creativeBrand as Parameters<typeof brandNote>[0]),
+    narrativeLine(narrative),
+    domainAgeNote(typeof f.domainAgeDays === "number" ? f.domainAgeDays : null, "domain"),
+    domainAgeNote(typeof f.certAgeDays === "number" ? f.certAgeDays : null, "cert"),
+  ].filter((l): l is string => !!l);
+  if (!lines.length) return null;
+  return (
+    <section aria-label="Co rozpoznano">
+      <h4 className="mb-1.5 text-sm font-semibold">Co rozpoznano</h4>
+      <ul className="list-disc space-y-0.5 pl-5 text-sm">
+        {lines.map((l, i) => <li key={i}>{l.charAt(0).toUpperCase() + l.slice(1)}</li>)}
+      </ul>
+    </section>
+  );
+}
+
 /** Section 5: the four families with counts, one row per feature (name, value, source, role), techniques and raw data. */
 function Features({ item }: { item: MaterialItemResult }) {
   const [raw, setRaw] = useState(false);
@@ -224,13 +291,20 @@ function Features({ item }: { item: MaterialItemResult }) {
     if (f && p.df > 0) shared.set(f, (shared.get(f) ?? 0) + 1);
   }
   const techniques = item.techniques ?? [];
-  const warning = item.features.platformAccountWarning;
+  const notes = authorNotes((item.pivots ?? []).filter((p) => p.type === "comment").map((p) => p.label));
   return (
     <div className="space-y-2">
-      {typeof warning === "string" && warning && (
-        <p className="rounded border border-amber-400 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-900">
-          Uwaga: najemca strony różni się od konta platformy ({warning}). Ślad może pochodzić ze wspólnej biblioteki, nie od jednego operatora.
-        </p>
+      {platformAccountLines(item.features).map((line, i) => (
+        <p key={i} className={`rounded border px-2.5 py-1.5 text-xs ${line.startsWith("Uwaga") ? "border-amber-400 bg-amber-50 text-amber-900" : "border-slate-200 bg-white text-slate-700"}`}>{line}</p>
+      ))}
+      {notes.length > 0 && (
+        <div className="rounded border border-violet-300 bg-violet-50 px-2.5 py-1.5 text-sm">
+          <b>Notatki autora strony</b>
+          <p className="text-xs text-slate-700">Zostawione w kodzie strony: pokazują, jak strona została wyreżyserowana (fałszywe komentarze, makieta posta). To dowód scenariusza, nie ślad operatora.</p>
+          <ul className="mt-1 list-disc pl-5 text-xs">
+            {notes.map((n, i) => <li key={i}><span className="font-medium">{n.label}:</span> {n.text}</li>)}
+          </ul>
+        </div>
       )}
       {FAMILY_ORDER.map((f) => {
         const rows = byFamily.get(f) ?? [];
@@ -358,6 +432,8 @@ export default function ResultCard({ item, ctx, onShowCampaign, onCompare }: { i
         <h4 className="mb-1.5 text-sm font-semibold">Cechy materiału<Help term="cecha" /></h4>
         <Features item={item} />
       </section>
+      {item.verdict !== "duplicate" && <ClickRoute itemId={item.id} jobId={ctx.jobId} />}
+      <Recognition item={item} ctx={ctx} />
       <ShopSection item={item} />
       <section aria-label="Kompletność danych">
         <h4 className="mb-1.5 text-sm font-semibold">Kompletność danych<Help term="kompletnosc" /></h4>

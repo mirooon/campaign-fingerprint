@@ -27,6 +27,8 @@ const STYLE: StylesheetJson = [
     selector: "node.item",
     style: { shape: "round-rectangle", "font-size": 9, "font-weight": "bold", color: "#0f172a" },
   },
+  { selector: "node.campaign", style: { shape: "ellipse", "font-size": 11, "font-weight": "bold", color: "#0f172a", "text-valign": "center", "text-margin-y": 0, "border-width": 2, "border-color": "#0f172a" } },
+  { selector: "node.expandable.trace", style: { "border-style": "double", "border-width": 3, "border-color": "#475569" } },
   { selector: "node.strong", style: { "border-width": 2, "border-color": "#0f172a" } },
   { selector: "node.discounted", style: { opacity: 0.55, "border-style": "dashed", "border-width": 2, "border-color": "#64748b" } },
   {

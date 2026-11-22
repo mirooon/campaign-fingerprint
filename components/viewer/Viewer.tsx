@@ -6,28 +6,33 @@ import { evaluateClustering } from "@/lib/graph/eval";
 import { ENTITY_LABELS_PL, ENTITY_TYPES, isSimilarityEdge, type CampaignsFile, type EvidenceGraph } from "@/lib/graph/model";
 import type { CampaignSummary } from "@/lib/pipeline/summary";
 import AnalyzeForm from "./AnalyzeForm";
+import ThresholdPreview from "./ThresholdPreview";
 import CampaignList from "./CampaignList";
 import ComparePanel from "./ComparePanel";
 import { campaignHasPersona, personaOptions, validItemKey } from "./compare";
 import CtFeedPanel, { useCtFeed } from "./CtFeedPanel";
 import DetailsPanel from "./DetailsPanel";
 import GraphCanvas from "./GraphCanvas";
-import { buildIndex, toElements, visibleNodes } from "./graphView";
+import { reducedGraph } from "@/lib/viewer/reducedGraph";
+import { buildIndex, reducedToElements, toElements, visibleNodes } from "./graphView";
 import { TYPE_COLORS } from "./palette";
 
 export interface ViewerProps {
   graph: EvidenceGraph;
   campaigns: CampaignsFile;
   summaries: Record<string, CampaignSummary>;
+  /** Start in the reduced graph (campaigns and shared traces, materials folded) instead of the full one. */
+  initialReduced?: boolean;
 }
 
-type Panel = "details" | "compare" | "analyze" | "ct";
+type Panel = "details" | "compare" | "analyze" | "ct" | "thresholds";
 
 const PANELS: Array<{ id: Panel; label: string }> = [
   { id: "details", label: "Szczegóły" },
   { id: "compare", label: "Porównaj reklamy" },
   { id: "analyze", label: "Nowa reklama" },
   { id: "ct", label: "Nowe domeny" },
+  { id: "thresholds", label: "Progi" },
 ];
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -39,7 +44,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   );
 }
 
-export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
+export default function Viewer({ graph, campaigns, summaries, initialReduced = false }: ViewerProps) {
   const idx = useMemo(() => buildIndex(graph, campaigns), [graph, campaigns]);
   const personas = useMemo(() => personaOptions(campaigns.campaigns), [campaigns]);
   // Deep links for demos: /?k=K01&n=item:c1-08, /?a=c1-01&b=c1-04 (comparison), /?p=adam-testowy (persona),
@@ -73,7 +78,14 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
     () => visibleNodes(graph, campaigns, idx, { campaignId, sharedOnly, hideSingletons, personaId }),
     [graph, campaigns, idx, campaignId, sharedOnly, hideSingletons, personaId],
   );
-  const elements = useMemo(() => toElements(graph, idx, visible, colorBy), [graph, idx, visible, colorBy]);
+  const [reduced, setReduced] = useState(initialReduced);
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [seed, setSeed] = useState<string | null>(null);
+  const reducedView = useMemo(() => (reduced ? reducedGraph(graph, campaigns.campaigns, { expanded, seed: seed ?? undefined }) : null), [reduced, graph, campaigns, expanded, seed]);
+  const elements = useMemo(
+    () => (reducedView ? reducedToElements(reducedView, idx.campaignIndex) : toElements(graph, idx, visible, colorBy)),
+    [reducedView, graph, idx, visible, colorBy],
+  );
   const similarityShown = useMemo(() => new Set(graph.edges.filter((e) => isSimilarityEdge(e.type)).map((e) => e.type)), [graph]);
 
   const evaluation = useMemo(() => {
@@ -101,6 +113,19 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
     setCampaignId(null);
     if (personaId && itemIds.some((id) => !campaigns.campaigns.some((c) => c.id === campOf(id) && campaignHasPersona(c, personaId)))) setPersonaChoice(null);
     if (itemIds.some((id) => (idx.campaignIndex.get(campOf(id) ?? "")?.size ?? 1) < 2)) setHideSingletons(false);
+  };
+
+  /** Click in the graph: in the reduced view a campaign or a trace unfolds (second click folds it), a trace or a material is also shown in the details panel. */
+  const onGraphClick = (id: string | null) => {
+    if (reduced && id && (id.startsWith("campaign:") || reducedView?.nodes.some((n) => n.id === id && n.kind === "trace"))) {
+      setExpanded((prev) => {
+        const next = new Set(prev);
+        if (!next.delete(id)) next.add(id);
+        return next;
+      });
+      if (id.startsWith("campaign:")) return;
+    }
+    selectNode(id);
   };
 
   /** Selects a node (graph click or a link in a panel) and shows it in the details panel. */
@@ -169,8 +194,33 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
               wg typu encji
             </button>
           </div>
-          <Toggle checked={sharedOnly} onChange={setSharedOnly} label="tylko współdzielone encje" />
-          <Toggle checked={hideSingletons} onChange={setHideSingletons} label="ukryj niepowiązane reklamy" />
+          <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label="Widok grafu">
+            <button type="button" aria-pressed={reduced} onClick={() => setReduced(true)} className={`px-2 py-1 ${reduced ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
+              zredukowany
+            </button>
+            <button type="button" aria-pressed={!reduced} onClick={() => setReduced(false)} className={`px-2 py-1 ${!reduced ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
+              pełny
+            </button>
+          </div>
+          {reduced ? (
+            <>
+              {selected?.startsWith("item:") && seed !== idx.nodeById.get(selected)?.key && (
+                <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs" onClick={() => { setSeed(idx.nodeById.get(selected)?.key ?? null); setExpanded(new Set()); }}>
+                  rozwijaj graf od materiału {idx.nodeById.get(selected)?.key}
+                </button>
+              )}
+              {(seed || expanded.size > 0) && (
+                <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs" onClick={() => { setSeed(null); setExpanded(new Set()); }}>
+                  pokaż wszystkie kampanie
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <Toggle checked={sharedOnly} onChange={setSharedOnly} label="tylko współdzielone encje" />
+              <Toggle checked={hideSingletons} onChange={setHideSingletons} label="ukryj niepowiązane reklamy" />
+            </>
+          )}
         </div>
       </header>
 
@@ -188,7 +238,7 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
         </aside>
 
         <main className="relative h-[65vh] min-w-0 bg-white md:h-auto md:flex-1">
-          <GraphCanvas elements={elements} selectedId={selected} onSelect={selectNode} onShiftSelect={addToCompare} markedIds={markedIds} />
+          <GraphCanvas elements={elements} selectedId={selected} onSelect={onGraphClick} onShiftSelect={addToCompare} markedIds={markedIds} />
           <div className="pointer-events-none absolute bottom-2 left-2 flex max-w-[85%] flex-wrap gap-x-3 gap-y-1 rounded-md bg-white/90 px-2 py-1 text-[10px] text-slate-600 shadow-sm md:max-w-[70%]">
             {typesShown.map((t) => (
               <span key={t} className="flex items-center gap-1">
@@ -212,7 +262,9 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
             )}
           </div>
           <div className="absolute right-2 top-2 rounded bg-white/90 px-2 py-0.5 text-[11px] text-slate-500 shadow-sm">
-            {campaignId ? `Kampania ${campaignId}` : personaName ? `Kampanie z personą ${personaName}` : "Wszystkie kampanie"} · {visible.size} węzłów
+            {reducedView
+              ? `Widok zredukowany${seed ? ` od materiału ${seed}` : ""} · ${reducedView.nodes.length} węzłów · kliknij kampanię albo ślad, żeby rozwinąć`
+              : `${campaignId ? `Kampania ${campaignId}` : personaName ? `Kampanie z personą ${personaName}` : "Wszystkie kampanie"} · ${visible.size} węzłów`}
           </div>
         </main>
 
@@ -239,6 +291,8 @@ export default function Viewer({ graph, campaigns, summaries }: ViewerProps) {
           <div className="p-4">
             {panel === "ct" ? (
               <CtFeedPanel state={ctFeed} campaignIds={campaignIds} onSelectCampaign={(id) => selectCampaign(id)} />
+            ) : panel === "thresholds" ? (
+              <ThresholdPreview />
             ) : panel === "analyze" ? (
               <AnalyzeForm onSelectCampaign={(id) => selectCampaign(id)} />
             ) : panel === "compare" ? (

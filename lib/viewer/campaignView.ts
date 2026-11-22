@@ -4,15 +4,17 @@
  * and materials without links. Pure functions.
  */
 import type { Campaign, CampaignFamily } from "@/lib/graph/model";
+import { NARRATIVE_TOPIC_LABEL, topicName } from "./fields";
 import { fmtNum } from "./format";
 
 /** Mean link strength inside a campaign from which it is called "wysoka" / "średnia". */
 export const COHESION_HIGH = 0.7;
 export const COHESION_MEDIUM = 0.4;
 
-/** "Adam Testowy · przyklad.test · K03": the impersonated person and the main domain, then the id. */
+/** "Adam Testowy · inwestycje · przyklad.test · K03": the impersonated person, the main narrative, the main domain, then the id. */
 export function campaignTitle(c: Campaign): string {
-  const parts = [c.attributes.personas[0]?.name, c.domains[0], c.id].filter((p): p is string => !!p);
+  const topic = c.attributes.narrative?.topics[0];
+  const parts = [c.attributes.personas[0]?.name, topic ? topicName(topic.id, topic.subtopics) : undefined, c.domains[0], c.id].filter((p): p is string => !!p);
   return parts.join(" · ");
 }
 
@@ -53,4 +55,38 @@ export function groupCampaigns(campaigns: Campaign[], families: CampaignFamily[]
   }
   const rest = campaigns.filter((c) => !inFamily.has(c.id));
   return { families: groups, alone: rest.filter((c) => c.size > 1), singletons: rest.filter((c) => c.size <= 1) };
+}
+
+export interface CampaignFilter {
+  /** Main narrative topic id (`attributes.narrative.topics[].id`). */
+  topic?: string;
+  /** Page platform id (`attributes.platforms[].id`). */
+  platform?: string;
+  /** ISO date or date-time: only campaigns active on or after it (last ad not earlier). */
+  from?: string;
+  /** Only campaigns that started on or before it (first ad not later). */
+  to?: string;
+}
+
+/** Narrative topics present among the campaigns for a filter list, most campaigns first. */
+export function narrativeOptions(campaigns: Campaign[]): Array<{ id: string; label: string; campaigns: number }> {
+  const counts = new Map<string, number>();
+  for (const c of campaigns) for (const t of c.attributes.narrative?.topics ?? []) counts.set(t.id, (counts.get(t.id) ?? 0) + 1);
+  return [...counts].map(([id, n]) => ({ id, label: NARRATIVE_TOPIC_LABEL[id] ?? id, campaigns: n })).sort((a, b) => b.campaigns - a.campaigns || a.label.localeCompare(b.label, "pl"));
+}
+
+/** Page platforms (page builders, tracker products) present among the campaigns for a filter list, most campaigns first. */
+export function platformOptions(campaigns: Campaign[]): Array<{ id: string; campaigns: number }> {
+  const counts = new Map<string, number>();
+  for (const c of campaigns) for (const p of c.attributes.platforms ?? []) counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
+  return [...counts].map(([id, n]) => ({ id, campaigns: n })).sort((a, b) => b.campaigns - a.campaigns || a.id.localeCompare(b.id));
+}
+
+/** Whether a campaign passes the narrative, platform and period filter; an empty filter passes all. A campaign without dates fails a date filter. */
+export function campaignMatchesFilter(c: Campaign, f: CampaignFilter): boolean {
+  if (f.topic && !(c.attributes.narrative?.topics ?? []).some((t) => t.id === f.topic)) return false;
+  if (f.platform && !(c.attributes.platforms ?? []).some((p) => p.id === f.platform)) return false;
+  if (f.from && !(c.lastSeen && c.lastSeen >= f.from)) return false;
+  if (f.to && !(c.firstSeen && c.firstSeen.slice(0, f.to.length) <= f.to)) return false;
+  return true;
 }

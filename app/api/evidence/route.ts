@@ -1,7 +1,7 @@
 /**
  * POST /api/evidence  { campaign, jobId?, submitter? { name?, email?, address?, role? } }
  * Evidence pack of one campaign as a ZIP (evidence.json, evidence.md, cert-domains.txt,
- * dsa-art16-notice.md, manifest.sha256, files/). `campaign` is a campaign of the run (K01...) or,
+ * dsa-art16-notice.md, manifest.sha256, files/). A campaign the analyst marked "odrzucone" or "do weryfikacji" (`/api/decisions`) is refused (409). `campaign` is a campaign of the run (K01...) or,
  * with `jobId`, a campaign of new materials of that analysis job (N1...). An unknown id answers
  * with an error message (404), not a server error. Nothing is sent anywhere: the pack only prepares documents.
  */
@@ -9,6 +9,8 @@ import path from "node:path";
 import { z } from "zod";
 import { buildEvidenceZip } from "@/lib/viewer/evidenceExport";
 import { DATA_DIR } from "@/lib/viewer/data";
+import { exportBlockReason } from "@/lib/viewer/decisions";
+import { currentDecisionsFile, loadDecisions } from "@/lib/viewer/decisionsFile";
 import { getJob } from "@/lib/viewer/jobs";
 import { rateLimitResponse } from "@/lib/viewer/rateLimit";
 
@@ -32,6 +34,12 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = Body.safeParse(json);
   if (!parsed.success) return Response.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
   const { campaign, jobId, submitter } = parsed.data;
+  // the analyst's decision gates the pack of a campaign of the base (K...); campaigns of a new analysis (N...) have none
+  if (!jobId) {
+    const decisions = loadDecisions(currentDecisionsFile());
+    const blocked = decisions.ok ? exportBlockReason(decisions.file, campaign) : null;
+    if (blocked) return Response.json({ error: blocked }, { status: 409 });
+  }
   const job = jobId ? getJob(jobId) : undefined;
   if (jobId && !job) return Response.json({ error: "Nie ma takiego zadania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
   if (job && job.status !== "done") return Response.json({ error: "Analiza tego zadania jeszcze się nie skończyła" }, { status: 409 });

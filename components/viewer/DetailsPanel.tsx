@@ -1,6 +1,7 @@
 "use client";
 
-import { ENTITY_LABELS_PL, type EntityType, type GraphNode, type PairEvidence } from "@/lib/graph/model";
+import { nodeTypeLabel } from "@/lib/viewer/fields";
+import { type EntityType, type GraphNode, type PairEvidence } from "@/lib/graph/model";
 import { personaMentions, PERSONA_SOURCE_LABELS, weightFormula, weightPartsOf } from "./compare";
 import { holdersOf, pathLabel, type GraphIndex } from "./graphView";
 import { TYPE_COLORS } from "./palette";
@@ -287,7 +288,7 @@ export default function DetailsPanel({ node, idx, onSelect, onCompare }: Details
       <div>
         <div className="flex items-center gap-2">
           <span className="h-2.5 w-2.5 rounded-full" style={{ background: TYPE_COLORS[node.type] }} aria-hidden />
-          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{ENTITY_LABELS_PL[node.type]}</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-slate-500">{nodeTypeLabel(node)}</span>
           {node.campaignId && <span className="ml-auto rounded bg-slate-900 px-1.5 py-0.5 font-mono text-[11px] text-white">{node.campaignId}</span>}
         </div>
         <h2 className="mt-1 break-words text-base font-semibold text-slate-900">{isItem ? `Reklama ${node.key}` : node.label}</h2>

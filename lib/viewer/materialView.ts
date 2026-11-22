@@ -6,8 +6,8 @@ import type { MaterialItemResult, MaterialResult } from "@/lib/pipeline/analyzeM
 import { bestCampaignLink, MATERIAL_CSV_COLUMNS, materialConfidence, materialCsvRow } from "@/lib/pipeline/materialCsv";
 import type { Confidence } from "./strength";
 
-/** Filter of the result table: a verdict group (`fresh` = new campaign, also the one similar to known ones). */
-export type ResultFilter = "all" | "known" | "fresh" | "duplicate" | "insufficient" | "similar" | "new";
+/** Filter of the result table: a verdict group (`fresh` = new campaign, also the one similar to known ones), or `uncertain` = verdicts the tool is unsure of (to check by hand). */
+export type ResultFilter = "all" | "known" | "fresh" | "duplicate" | "insufficient" | "similar" | "new" | "uncertain";
 
 export interface BatchSummary {
   files: number;
@@ -48,9 +48,10 @@ export function batchSummary(result: Pick<MaterialResult, "items">, files: numbe
   };
 }
 
-/** Items of one filter group of the result table. */
+/** Items of one filter group of the result table. `uncertain` cuts across verdicts: those whose confidence is "niepewne" (never "za mało danych", which has none). */
 export function filterItems(items: MaterialItemResult[], filter: ResultFilter): MaterialItemResult[] {
-  const verdicts: Record<Exclude<ResultFilter, "all">, MaterialItemResult["verdict"][]> = {
+  if (filter === "uncertain") return items.filter((i) => resultConfidence(i) === "uncertain");
+  const verdicts: Record<Exclude<ResultFilter, "all" | "uncertain">, MaterialItemResult["verdict"][]> = {
     known: ["known_campaign"],
     fresh: ["similar_campaigns", "new_campaign"],
     similar: ["similar_campaigns"],

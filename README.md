@@ -86,7 +86,7 @@ Bez Dockera: [Bez Dockera](#bez-dockera).
 
 ## Jak działa metoda
 
-Z każdego materiału narzędzie wyciąga ślady w pięciu rodzinach (tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory) i waży je ręcznie ustalonymi wagami, ze zniżką za infrastrukturę wspólną i za częstość w zbiorze; przesłanki jednej pary łączy wzorem noisy-OR. Kampanię (ten sam operator) tworzą silne dowody albo kilka różnych rodzajów dowodów, a słabsze powiązania dają grupy podobnych kampanii (Louvain); każde połączenie ma jawną listę przesłanek. `confidence` i `score` w wyniku to siła przesłanek, nie prawdopodobieństwo.
+Z każdego materiału narzędzie wyciąga ślady w pięciu rodzinach (tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory) i waży je ręcznie ustalonymi wagami, ze zniżką za infrastrukturę wspólną i za częstość w zbiorze; przesłanki jednej pary łączy wzorem noisy-OR. Kampanię (ten sam operator) tworzy silny dowód albo jeden rodzaj śladu operatora (np. konto platformy stron, serwer trackera, NS, kontakt), jeśli po zniżkach wynik pary przekracza próg; sam szablon strony, sama persona ani jeden rodzaj treści jej nie tworzą. Słabsze powiązania dają grupy podobnych kampanii (Louvain); każde połączenie ma jawną listę przesłanek. `confidence` i `score` w wyniku to siła przesłanek, nie prawdopodobieństwo.
 
 - Opis na pięć minut: [Skrót w metodyce](docs/METODYKA.md#skrót-jak-działa-łączenie); pełny: [docs/METODYKA.md](docs/METODYKA.md).
 - Katalog śladów i cech (generowany poleceniem `bun run features:catalog`): [docs/CECHY.md](docs/CECHY.md). Zaczyna się od [śladów, których nie dają typowe narzędzia](docs/CECHY.md#ślady-których-nie-dają-typowe-narzędzia), z wynikiem na próbce.

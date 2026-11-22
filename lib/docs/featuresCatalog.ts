@@ -170,13 +170,12 @@ function renderHighlights(out: string[], highlights: FeatureHighlight[]): void {
 
 /** Renders the catalog as Markdown (Polish). `date` and `commit` go to the totals section. */
 export function renderCatalog(data: CatalogData, config: LinkConfig, date: string, commit: string): string {
-  const rules = config.campaignRules;
   const out: string[] = [];
   out.push("# Katalog cech");
   out.push("");
   out.push("Plik generowany: `bun run features:catalog`. Nie edytuj ręcznie.");
   out.push("");
-  out.push(`Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej ${rules.minEvidenceKinds} różne rodzaje śladów; ślady „tylko z innym śladem” nigdy nie łączą samodzielnie, a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).`);
+  out.push(`Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej jeden rodzaj śladu z poziomu „kampania” (wynik pary po zniżkach od ${config.minLinkScore}); ślady „tylko z innym śladem” nie łączą samodzielnie, chyba że po zniżkach i rzadkości zostają mocne (od ${config.strongThreshold}, np. backend formularza z identyfikatorem klienta), a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).`);
   out.push("");
   renderHighlights(out, data.highlights);
   out.push("## 1. Ślady łączące");

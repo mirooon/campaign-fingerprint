@@ -233,7 +233,10 @@ export interface LinkConfig {
   kit: {
     /** Multiplier for endpoints on the page's own host (path template = kit fingerprint, not a backend). */
     sameOriginEndpointFactor: number;
-    /** Extra multiplier for same-origin endpoint paths with at most 2 segments ("/api/x", "/send"). */
+    /**
+     * Multiplier for same-origin endpoint paths with at most 2 segments ("/api/x", "/send"). Discounts do not
+     * multiply (`listFactor` keeps the smallest), so it only matters when it is below `sameOriginEndpointFactor`.
+     */
     shortEndpointPathFactor: number;
     /** Minimum number of non-generic hidden input names to form a pivot. */
     minHiddenFields: number;
@@ -437,7 +440,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     launcher_account: 0.9,
     platform_campaign: 0.95,
     page_template: 0.35,
-    // Same tracker process (machine + PID in the xid click ID): shared click routing, not proof of one buyer.
+    // Same tracker server (the machine in the xid click ID; the PID is not part of the key): shared click routing, not proof of one buyer.
     click_server: 0.6,
     // Same clicked ad (ad ID inside fbclid).
     meta_ad: 0.95,

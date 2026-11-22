@@ -2,7 +2,7 @@
 
 Plik generowany: `bun run features:catalog`. Nie edytuj ręcznie.
 
-Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej 2 różne rodzaje śladów; ślady „tylko z innym śladem” nigdy nie łączą samodzielnie, a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).
+Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej jeden rodzaj śladu z poziomu „kampania” (wynik pary po zniżkach od 0.15); ślady „tylko z innym śladem” nie łączą samodzielnie, chyba że po zniżkach i rzadkości zostają mocne (od 0.7, np. backend formularza z identyfikatorem klienta), a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).
 
 ## Ślady, których nie dają typowe narzędzia
 

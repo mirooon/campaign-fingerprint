@@ -60,7 +60,7 @@ Skala w tabelach niżej: „waga” to waga typu węzła z `typeWeights` (0–1)
 
 ## 4. Cloakery
 
-**Wzorzec.** Skrypt (często usługa wielu klientów) sprawdza odwiedzającego i pokazuje stronę lub biel. Z zewnątrz widać różnicę treści między profilami (crawler kontra telefon z polskim adresem) oraz żądanie do hosta skryptu. Jedna z obserwowanych usług (w sprawach nazywana „Cloakerson”) nie ma publicznych wyników w wyszukiwarce; obserwowalny ślad to żądanie do hosta „delivered” z błędem adresu względnego.
+**Wzorzec.** Skrypt (często usługa wielu klientów) sprawdza odwiedzającego i pokazuje stronę lub biel. Z zewnątrz widać różnicę treści między profilami (crawler kontra telefon z polskim adresem) oraz żądanie do hosta skryptu. Jedna z obserwowanych usług (nazwa handlowa usługi widoczna w konfiguracji strony; tu ją pomijamy) nie ma publicznych wyników w wyszukiwarce; obserwowalny ślad to żądanie do hosta „delivered” z błędem adresu względnego.
 
 **Jak rozpoznaje narzędzie.** Opcjonalny test cloakingu (dwa dodatkowe pobrania strony: UA crawlera i UA mobilny) zapisuje, czy adres końcowy i DOM się różnią (`cloakingSuspected` w atrybutach kampanii). To **atrybut**, nie łącznik. Host skryptu cloakera należy do usług wielu klientów (sekcja 6) i nie łączy.
 

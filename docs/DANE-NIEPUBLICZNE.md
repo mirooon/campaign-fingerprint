@@ -6,9 +6,10 @@ Repozytorium jest publiczne, więc nie ma w nim niczego, co wyliczono z poufnych
 
 | Katalog | Zawartość |
 |---|---|
-| `baza/` | Gotowy przebieg na sprawach: `graph.json`, `campaigns.json`, `enriched.json` oraz wagi łączenia (`linking.json`) i lista osób (`personas.json`), jeśli istniały. Tego czyta GUI i `analyze-material --data`. |
+| `baza/` | Gotowy przebieg na sprawach: `graph.json`, `campaigns.json`, `enriched.json`, `near-misses.json` (pary celowo niepołączone, zakładka „Celowo nie połączone”), lista osób (`personas.json`) oraz, jeśli istniały, decyzje analityka (`decyzje.json`, `corrections.json`) i własne wagi łączenia (`linking.json`; gdy przebieg zbudowano wagami wbudowanymi, pliku nie ma i README paczki to odnotowuje). Tego czyta GUI i `analyze-material --data`. |
 | `zbior/` | Wzbogacony zbiór (JSON i CSV) z `bun run export-dataset`. |
 | `wiedza/` | Wzorce kampanii z przykładami ze spraw, wyniki i metryki, walidacja, wnioski o twarzach, tekście, komentarzach i zrzutach. |
+| `pomiary/` | Skrypty i małe pliki wyników pomiarów jakości metody (końcowa bramka testów, odporność na niepełne zgłoszenia, wrażliwość wag, twarde negatywy, walidacja spoza próbki, bliskie pary, oczekiwane powiązania MUSI/POWINNO) z własnym `README.md`: które liczby z `docs/METODYKA.md` skąd pochodzą i jak je powtórzyć na własnej kopii spraw. Jedyne miejsce w paczce z plikami `.py` i `.sh`; ścieżki z komputera zespołu zastąpione zmienną `WARSZTAT`. |
 | `etykiety/` | Opcjonalnie: etykiety zespołu (nie właściciela danych), tylko gdy paczkę zbudowano z `--with-labels`. |
 | `README.md` | Co jest w tej konkretnej paczce, skąd pochodzi i czego w niej brakuje. |
 | `MANIFEST.json` | Lista plików z SHA-256 i rozmiarem, commit repozytorium, data i wersja przebiegu. |

@@ -17,7 +17,7 @@ Rekord pliku (schemat `input-file`): `id` (wymagane), `platform`, `advertiser`, 
 ## Wyjście
 
 - **Wynik pełny:** `--json wynik.json` (albo `-` na standardowe wyjście): `MaterialResult` (schemat `material-result`): `items[]` z werdyktem (`known_campaign`, `similar_campaigns`, `new_campaign`, `duplicate`, `insufficient`), kampanią, podobnymi kampaniami, powiązaniami z przesłankami (`links[].evidence[]`: tekst, waga, siła), brakami (`missing`), błędami; `steps[]` (każdy krok z powodem pominięcia), `skipped[]`, `notes[]`. Szczegóły zagnieżdżone (cechy, przesłanki) są w schemacie opisane luźno: stabilna część kontraktu to werdykt, kampanie i przesłanki.
-- **Partia CSV:** `--csv wynik.csv`, kolumny w stałej kolejności: `material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data` (`confidence`: `certain`, `likely`, `uncertain`).
+- **Partia CSV:** `--csv wynik.csv`, kolumny w stałej kolejności: `material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data, blisko_bez_polaczenia` (`confidence`: `certain`, `likely`, `uncertain`).
 - **Zbiór wzbogacony:** `bun run export-dataset -- --data <baza> --out <katalog> --csv` (kolumny: `material_id, campaign_id, family_id, features, top_premises, ad_library_url, basis, persona, deepfake_score`; bez wektorów głosu i twarzy) i `--neo4j <katalog>` (graf do `neo4j-admin database import`).
 
 ## Uruchomienie w kontenerze bez sieci

@@ -10,6 +10,12 @@ import { DEFAULT_LINK_CONFIG, type LinkConfig } from "@/lib/graph/config";
 import { ENTITY_TYPES, SIMILARITY_EDGE_TYPES } from "@/lib/graph/model";
 import { DEFAULT_NARRATIVE_CONFIG, type NarrativeConfig } from "@/lib/text/narrative";
 import { FEATURE_INFO, NARRATIVE_LABEL, ROLE_LABEL, SHOP_TECHNIQUES, TECHNIQUE_INFO, TECHNIQUE_LABEL, TYPE_INFO, type TypeInfo } from "@/lib/viewer/plain";
+import { FEATURE_HIGHLIGHTS, HIGHLIGHTS_SAMPLE, highlightedTypes, type FeatureHighlight } from "./featureHighlights";
+
+/** Heading of the highlighted-traces section; its GitHub anchor is HIGHLIGHTS_ANCHOR. */
+export const HIGHLIGHTS_HEADING = "Ślady, których nie dają typowe narzędzia";
+/** GitHub anchor of HIGHLIGHTS_HEADING (lower case, punctuation dropped, spaces to hyphens). */
+export const HIGHLIGHTS_ANCHOR = "ślady-których-nie-dają-typowe-narzędzia";
 
 /** Where a pivot type acts in linking. */
 export type PivotLevel = "kampania" | "grupa" | "tylko z innym śladem";
@@ -21,6 +27,12 @@ export interface PivotRow {
   level: PivotLevel;
   /** What the trace is and where it comes from (TYPE_INFO.what). */
   origin: string | null;
+  /** Why it matters when linking (TYPE_INFO.why). */
+  why: string | null;
+  /** Synthetic example value (TYPE_INFO.example). */
+  example: string | null;
+  /** Listed in the highlighted-traces section (FEATURE_HIGHLIGHTS). */
+  highlighted: boolean;
   /** Names of the material features that feed this type (FEATURE_INFO with a matching key). */
   sourceFeatures: string[];
   /** Similarity edge between two ads (not an entity). */
@@ -35,6 +47,8 @@ export interface FeatureRow {
 }
 
 export interface CatalogData {
+  /** Traces that typical tools do not give (featureHighlights.ts). */
+  highlights: FeatureHighlight[];
   pivots: PivotRow[];
   linkingFeatures: FeatureRow[];
   attributes: FeatureRow[];
@@ -70,9 +84,18 @@ function similarityWeight(type: string, config: LinkConfig): number | null {
   return map[type] ?? null;
 }
 
-/** Collects the catalog from the registries; anything without a Polish label ends up in `undescribed`. */
-export function collectCatalog(root: string, config: LinkConfig = DEFAULT_LINK_CONFIG, narrative: NarrativeConfig = DEFAULT_NARRATIVE_CONFIG): CatalogData {
+/**
+ * Collects the catalog from the registries; anything without a Polish label ends up in `undescribed`, and so
+ * does a key of the highlights registry that is neither a described pivot type nor a described attribute.
+ */
+export function collectCatalog(
+  root: string,
+  config: LinkConfig = DEFAULT_LINK_CONFIG,
+  narrative: NarrativeConfig = DEFAULT_NARRATIVE_CONFIG,
+  highlights: FeatureHighlight[] = FEATURE_HIGHLIGHTS,
+): CatalogData {
   const undescribed: string[] = [];
+  const starred = highlightedTypes(highlights);
   const rules = config.campaignRules;
   const familyOnly = new Set(rules.familyOnlyKinds ?? []);
   const notAlone = new Set([...rules.notAloneKinds, ...(config.nonStrongTypes ?? []), ...(rules.contentKinds ?? [])]);
@@ -89,8 +112,12 @@ export function collectCatalog(root: string, config: LinkConfig = DEFAULT_LINK_C
     const sourceFeatures = Object.entries(FEATURE_INFO)
       .filter(([key]) => key.toLowerCase() === type.replace(/_/g, "").toLowerCase())
       .map(([, f]) => f.name);
-    return { type, label: info?.name ?? null, weight, level, origin: info?.what ?? null, sourceFeatures, similarity };
+    return { type, label: info?.name ?? null, weight, level, origin: info?.what ?? null, why: info?.why ?? null, example: info?.example ?? null, highlighted: starred.has(type), sourceFeatures, similarity };
   });
+  for (const h of highlights) {
+    for (const t of h.types) if (!infoOf(t) || !types.includes(t)) undescribed.push(`wyróżniony ślad „${h.title}”: ${t} (brak typu śladu albo wpisu w TYPE_INFO)`);
+    for (const a of h.attributes) if (!FEATURE_INFO[a]) undescribed.push(`wyróżniony ślad „${h.title}”: ${a} (brak wpisu w FEATURE_INFO)`);
+  }
 
   const featureRow = (key: string): FeatureRow => {
     const f = FEATURE_INFO[key];
@@ -119,7 +146,26 @@ export function collectCatalog(root: string, config: LinkConfig = DEFAULT_LINK_C
     return { id, label: NARRATIVE_LABEL[id] ?? null };
   });
 
-  return { pivots, linkingFeatures, attributes, techniques, topics, hooks, undescribed };
+  return { highlights, pivots, linkingFeatures, attributes, techniques, topics, hooks, undescribed };
+}
+
+/** Writes the highlighted-traces section: mechanism, what typical tools miss, and the aggregate result on the sample. */
+function renderHighlights(out: string[], highlights: FeatureHighlight[]): void {
+  if (!highlights.length) return;
+  out.push(`## ${HIGHLIGHTS_HEADING}`);
+  out.push("");
+  out.push(`Typowe narzędzia OSINT łączą strony po domenie, adresie IP, rekordach WHOIS i DNS, certyfikacie i hashu obrazu. Te ślady też zbieramy (sekcja 1), a poniżej są te, które odczytujemy sami z kodu strony, linków, identyfikatorów i nagrań. „Na próbce” podaje tylko liczby z przebiegu na ${HIGHLIGHTS_SAMPLE.materials} materiałach próbki organizatora (commit \`${HIGHLIGHTS_SAMPLE.commit}\`), bez wartości; para to dwa materiały połączone tą przesłanką. W tabeli sekcji 1 te typy mają ★.`);
+  out.push("");
+  for (const h of highlights) {
+    out.push(`### ${h.title}`);
+    out.push("");
+    out.push([...h.types, ...h.attributes].map((k) => `\`${k}\``).join(" · "));
+    out.push("");
+    out.push(`- **Jak odczytujemy:** ${h.how}`);
+    out.push(`- **Czego nie widzą typowe narzędzia:** ${h.missed}`);
+    out.push(`- **Na próbce:** ${h.sample}`);
+    out.push("");
+  }
 }
 
 /** Renders the catalog as Markdown (Polish). `date` and `commit` go to the totals section. */
@@ -132,15 +178,21 @@ export function renderCatalog(data: CatalogData, config: LinkConfig, date: strin
   out.push("");
   out.push(`Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej ${rules.minEvidenceKinds} różne rodzaje śladów; ślady „tylko z innym śladem” nigdy nie łączą samodzielnie, a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).`);
   out.push("");
+  renderHighlights(out, data.highlights);
   out.push("## 1. Ślady łączące");
   out.push("");
   out.push(`Próg mocnego śladu: ${config.strongThreshold}; minimalny wynik krawędzi: ${config.minLinkScore}; wspólny ślad występujący w więcej niż ${config.maxPivotDf} materiałach jest pomijany (maxPivotDf). Poziom: **kampania** (może łączyć w jedną kampanię), **grupa** (tylko podobne kampanie), **tylko z innym śladem** (wspiera, nie łączy samodzielnie).`);
   out.push("");
-  out.push("| Typ | Nazwa | Waga | Poziom | Skąd |");
-  out.push("|---|---|---|---|---|");
+  if (data.pivots.some((p) => p.highlighted)) {
+    out.push(`★ oznacza ślad opisany szerzej w sekcji [${HIGHLIGHTS_HEADING}](#${HIGHLIGHTS_ANCHOR}).`);
+    out.push("");
+  }
+  out.push("| Typ | Nazwa | Waga | Poziom | Skąd | Po co | Przykład |");
+  out.push("|---|---|---|---|---|---|---|");
   for (const p of data.pivots.filter((p) => p.label && p.weight !== null)) {
     const kind = p.similarity ? " (podobieństwo dwóch materiałów)" : "";
-    out.push(`| \`${p.type}\` | ${cell(p.label)}${kind} | ${p.weight} | ${p.level} | ${cell(p.origin)}${p.sourceFeatures.length ? ` Cecha materiału: ${cell(p.sourceFeatures.join(", "))}.` : ""} |`);
+    const star = p.highlighted ? " ★" : "";
+    out.push(`| \`${p.type}\` | ${cell(p.label)}${kind}${star} | ${p.weight} | ${p.level} | ${cell(p.origin)}${p.sourceFeatures.length ? ` Cecha materiału: ${cell(p.sourceFeatures.join(", "))}.` : ""} | ${cell(p.why)} | ${cell(p.example)} |`);
   }
   out.push("");
   out.push("### Cechy materiału, które łączą albo pomagają");
@@ -184,6 +236,7 @@ export function renderCatalog(data: CatalogData, config: LinkConfig, date: strin
   out.push("");
   out.push("| Sekcja | Liczba |");
   out.push("|---|---|");
+  out.push(`| Wyróżnione ślady (sekcja na początku) | ${data.highlights.length} |`);
   out.push(`| Ślady łączące (typy) | ${data.pivots.length} (kampania: ${data.pivots.filter((p) => p.level === "kampania").length}, grupa: ${data.pivots.filter((p) => p.level === "grupa").length}, tylko z innym śladem: ${data.pivots.filter((p) => p.level === "tylko z innym śladem").length}) |`);
   out.push(`| Cechy materiału łączące albo pomagające | ${data.linkingFeatures.length} |`);
   out.push(`| Atrybuty materiału i kampanii | ${data.attributes.length} |`);

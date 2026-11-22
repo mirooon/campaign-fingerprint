@@ -89,7 +89,7 @@ Bez Dockera: [Bez Dockera](#bez-dockera).
 Z każdego materiału narzędzie wyciąga ślady w pięciu rodzinach (tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory) i waży je ręcznie ustalonymi wagami, ze zniżką za infrastrukturę wspólną i za częstość w zbiorze; przesłanki jednej pary łączy wzorem noisy-OR. Kampanię (ten sam operator) tworzą silne dowody albo kilka różnych rodzajów dowodów, a słabsze powiązania dają grupy podobnych kampanii (Louvain); każde połączenie ma jawną listę przesłanek. `confidence` i `score` w wyniku to siła przesłanek, nie prawdopodobieństwo.
 
 - Opis na pięć minut: [Skrót w metodyce](docs/METODYKA.md#skrót-jak-działa-łączenie); pełny: [docs/METODYKA.md](docs/METODYKA.md).
-- Katalog śladów i cech (generowany poleceniem `bun run features:catalog`): [docs/CECHY.md](docs/CECHY.md).
+- Katalog śladów i cech (generowany poleceniem `bun run features:catalog`): [docs/CECHY.md](docs/CECHY.md). Zaczyna się od [śladów, których nie dają typowe narzędzia](docs/CECHY.md#ślady-których-nie-dają-typowe-narzędzia), z wynikiem na próbce.
 - Wzorce kampanii: [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md). Źródła metadanych i ich wartość: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md).
 - Formaty, wagi, CLI, konfiguracja: [docs/TECHNICAL.md](docs/TECHNICAL.md). Kontrakt wejścia i wyjścia: [docs/INTEGRACJA.md](docs/INTEGRACJA.md). AI Act, RODO, DSA: [docs/ZGODNOSC.md](docs/ZGODNOSC.md).
 
@@ -98,7 +98,7 @@ Z każdego materiału narzędzie wyciąga ślady w pięciu rodzinach (tekst i os
 | Kryterium | Funkcja | Polecenie albo ekran |
 |---|---|---|
 | Metoda korelacji i grupowania | wagi, reguły kampanii, union-find, Louvain, wyjaśnienie każdej krawędzi | [docs/METODYKA.md](docs/METODYKA.md); `lib/graph/`; `bun run evaluate`; GUI: „Porównaj” |
-| Cechy i źródła danych | pięć rodzin cech, ekstrakcja ze strony, HAR, zrzutu, nagrania; źródła publiczne | [docs/CECHY.md](docs/CECHY.md); `bun run enrich -- --help`; [Pochodzenie danych](#pochodzenie-danych); `lib/osint/`, `lib/media/` |
+| Cechy i źródła danych | pięć rodzin cech, ekstrakcja ze strony, HAR, zrzutu, nagrania; źródła publiczne; ślady spoza typowych narzędzi (rekord panelu platformy stron, token Mety w kodzie, serwer kliknięć z identyfikatora xid, trojan w zestawie stron, odcisk montażu wideo) | [docs/CECHY.md](docs/CECHY.md), na początku [ślady, których nie dają typowe narzędzia](docs/CECHY.md#ślady-których-nie-dają-typowe-narzędzia); `bun run enrich -- --help`; [Pochodzenie danych](#pochodzenie-danych); `lib/osint/`, `lib/media/` |
 | Demonstrator end-to-end | baza → analiza nowego materiału → CSV i GUI | [Uruchomienie dla jury](#uruchomienie-dla-jury); GUI: „Analizuj materiał” (twarze, CLIP, audio, głosy i archiwum tylko z CLI) |
 | Czytelność powiązań | przesłanki prostym językiem, siła, pewność, powód rozdzielenia | GUI: karta wyniku, „Porównaj”, „Celowo nie połączone”, „Jak to działa”; kolumna `top_premise` |
 | Wdrożenie i przenośność | Docker bez sieci i kluczy, tryb lokalny, konfiguracja plikiem | [Instalacja i konfiguracja](#instalacja-i-konfiguracja); `docker-compose.yml`; `.env.example` |

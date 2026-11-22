@@ -249,7 +249,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
               <li>Zrzut: odczytamy z niego tekst i adres z paska przeglądarki.</li>
               <li>HAR to zapis ruchu sieciowego z przeglądarki.</li>
               <li>Zapisana strona: porównamy jej budowę, nie otwieramy jej.</li>
-              <li>Wideo: odczytamy tekst z klatek. Plik zbioru (CSV, JSON): na razie wczytaj poleceniem <code>bun run ingest</code>.</li>
+              <li>Wideo: odczytamy tekst z klatek. Plik zbioru (CSV, JSON): na razie przeanalizuj poleceniem <code>bun run analyze-material -- --dataset &lt;plik&gt;</code>.</li>
             </ul>
           </div>
 

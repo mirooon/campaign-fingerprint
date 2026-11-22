@@ -20,9 +20,9 @@ git clone https://github.com/mirooon/odcisk-kampanii.git && unzip -q odcisk-kamp
 
 To jedno polecenie:
 
-1. buduje obraz Dockera (za pierwszym razem 2,5–3 minuty);
+1. buduje obraz Dockera (za pierwszym razem 3–5 minut, zależnie od maszyny);
 2. analizuje **212 publicznych stron oszustw spoza Waszej próbki** (skany urlscan, kopie Wayback, prasa) przeciw bazie z 25 spraw i porównuje wynik z naszymi etykietami;
-3. otwiera **GUI z danymi na http://localhost:3000**: 240 materiałów (25 spraw + 212 stron), kampanie z przesłankami i grupy podobnych kampanii.
+3. otwiera **GUI z danymi na http://localhost:3000**: 240 materiałów (28 z 25 spraw, bo niektóre sprawy mają kilka stron, i 212 stron publicznych), kampanie z przesłankami i grupy podobnych kampanii.
 
 Czego się spodziewać (sprawdzone na kodzie końcowym, z rozpakowanej paczki):
 
@@ -94,7 +94,7 @@ Gdzie w GUI i w kodzie widać każde z kryteriów oceny: [sekcja 4](#4-kryteria-
 
 ## 1. Szybki start w Dockerze
 
-Wymagania: Docker z Compose v2. Pierwsza budowa obrazu trwa 2,5–3 minuty (pomiar z I7), kolejne ok. 40–50 sekund; gdy obraz już jest, `up -d` startuje od razu. Obraz `odcisk-kampanii:latest` ma 2,7 GB na dysku (670 MB skompresowany) i zawiera bun, zbudowany interfejs, tesseract (polski), ffmpeg, chromaprint i Pythona. Pliki wymieniasz z kontenerem przez katalog `./dane` (w kontenerze `/dane`).
+Wymagania: Docker z Compose v2. Pierwsza budowa obrazu trwa 3–5 minut, zależnie od maszyny (2,5–3 min w pomiarze z I7, 4 min 53 s na obciążonej maszynie 22.11), kolejne ok. 40–50 sekund; gdy obraz już jest, `up -d` startuje od razu. Obraz `odcisk-kampanii:latest` ma ok. 3,3 GB na dysku i zawiera bun, zbudowany interfejs, tesseract (polski), ffmpeg, chromaprint i Pythona. Pliki wymieniasz z kontenerem przez katalog `./dane` (w kontenerze `/dane`).
 
 ```bash
 docker compose up -d                                                # GUI na http://localhost:3000
@@ -334,7 +334,7 @@ Rozszerzanie znanej kampanii: `bun run adlib -- expand --campaign K01 --data dan
 - Przestrzega warunków korzystania ze źródeł (np. nieoficjalny endpoint biblioteki reklam jest opcją z opisanym ryzykiem).
 - Nie wydaje nakazów ani decyzji: proponuje powiązania, o zgłoszeniu decyduje człowiek.
 - Nie renderuje stron i nie wykonuje ich JavaScriptu.
-- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (31 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
+- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (31 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#13-czego-nie-robimy-i-dlaczego)).
 
 ## Pochodzenie danych
 

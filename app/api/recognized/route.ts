@@ -6,6 +6,9 @@
 import path from "node:path";
 import { loadRecognized } from "@/lib/viewer/recognizedFile";
 
+/** Read the galleries on every request: without this `next build` prerenders the response once, and galleries added after the build never show. */
+export const dynamic = "force-dynamic";
+
 /** GET /api/recognized: `{ people, notes }`; `notes` says which gallery is missing or unreadable. */
 export async function GET(): Promise<Response> {
   return Response.json(loadRecognized(path.join(/*turbopackIgnore: true*/ process.cwd(), "data")), { headers: { "cache-control": "no-store" } });

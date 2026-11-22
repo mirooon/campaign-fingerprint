@@ -383,8 +383,16 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     if (!single && (input.url || input.text)) items.push(bareRecord(input));
     const imported = new Set(records.map((r) => String(r.case ?? r.id)));
     for (const n of names) {
-      if (imported.has(n)) progress(n, "import", "done", `${records.filter((r) => String(r.case ?? r.id) === n).length} rekord(y)`);
-      else progress(n, "import", "skipped", skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`))?.reason ?? `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`);
+      if (imported.has(n)) {
+        progress(n, "import", "done", `${records.filter((r) => String(r.case ?? r.id) === n).length} rekord(y)`);
+        continue;
+      }
+      // A case the importer passed over without a word (only files it does not read) joins `skipped`
+      // too: the batch CSV then carries an `insufficient` row for it instead of losing it silently.
+      const noted = skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`));
+      const reason = noted?.reason ?? `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`;
+      if (!noted) skipped.push({ id: n, reason });
+      progress(n, "import", "skipped", reason);
     }
   }
   if (input.datasetFile) {

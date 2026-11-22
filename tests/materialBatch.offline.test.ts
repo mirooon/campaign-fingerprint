@@ -9,6 +9,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeMaterial, type MaterialProgress, type MaterialResult } from "../lib/pipeline/analyzeMaterial";
+import { materialCsv } from "../lib/pipeline/materialCsv";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
 import { batchSummary } from "../lib/viewer/materialView";
 import { runSample, SAMPLE, sampleItems } from "./sampleRun";
@@ -207,6 +208,26 @@ describe("analyzeMaterial: batch of cases", () => {
     expect(b.verdict).toBe("duplicate");
     expect(b.duplicateOf?.id).toBe("wideo-a");
     expect(b.duplicateOf?.reason).toContain("ten sam plik wideo (SHA-256)");
+  }, 60_000);
+});
+
+describe("analyzeMaterial: case the importer cannot read", () => {
+  it("keeps a case of only unreadable files in the batch result: skipped with a reason and an insufficient CSV row", async () => {
+    const res = await analyzeMaterial(
+      {
+        caseDirs: [
+          caseWith("czytelna", { "Strona.html": page("https://czytelna-oferta.example/lp", "Oferta", "<p>Zapisz się na webinar o oszczędzaniu w kryzysie.</p>") }),
+          caseWith("tylko-notatka", { "notatka.docx": "nie jest to strona, zrzut ani wideo" }),
+        ],
+      },
+      ctx("w-unreadable"),
+    );
+    expect(res.items.map((i) => i.id)).toEqual(["czytelna"]);
+    expect(res.skipped).toEqual([{ id: "tylko-notatka", reason: expect.stringContaining("brak strony, zrzutu ani wideo") }]);
+    const rows = materialCsv(res).trim().split("\n");
+    expect(rows).toHaveLength(3);
+    expect(rows[2].startsWith("tylko-notatka,tylko-notatka,insufficient,,,,,uncertain,,,")).toBe(true);
+    expect(rows[2]).toContain("brak strony, zrzutu ani wideo"); // the reason sits quoted in missing_data
   }, 60_000);
 });
 

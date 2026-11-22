@@ -86,6 +86,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   messenger_invite: "infra",
   c2_host: "infra",
   cloaker_account: "infra",
+  meta_token: "infra",
   launcher_account: "infra",
   affiliate_account: "infra",
 };

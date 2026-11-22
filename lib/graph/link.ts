@@ -28,6 +28,7 @@ import { brandInPath, hostingOutsideEu } from "../osint/infraSignals";
 import { tlsSignals } from "../osint/tlsSignals";
 import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerContext } from "../osint/payerKind";
 import { maskUrl } from "../osint/redact";
+import { maskTokensDeep, metaTokenKeysIn } from "../osint/metaToken";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { SHOT_HAMMING, sharedShots } from "../media/videoShots";
@@ -1196,6 +1197,16 @@ export function buildEvidenceGraph(
       ...(landingPage?.kit?.affiliateIds ?? []),
       ...affiliateIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...outboundUrls]),
     ], new Set((landingPage?.kit?.crmKeys ?? []).map((k) => k.sha256)));
+    // Meta access token (B-144): only the SHA-256 key is a node; the raw token never enters the graph
+    const tokenKeys = new Set([
+      ...(landingPage?.kit?.metaTokens ?? []),
+      ...metaTokenKeysIn([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...outboundUrls]),
+    ]);
+    for (const k of [...tokenKeys].sort()) {
+      const id = g.node("meta_token", k, `token dostępu Meta (sha256 ${k}…)`, { sha256Prefix: k });
+      g.edge(itemNode, id, "carries_param", `token dostępu Meta w adresie lub kodzie strony (sha256 ${k}…)`);
+      add(id, "meta_token", [itemNode, id], 1, `ten sam token dostępu Meta (sha256 ${k}…)`);
+    }
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
       if (cp.cyrillic) itemData.cyrillic = true;
@@ -1396,6 +1407,8 @@ export function buildEvidenceGraph(
     if (companyNotes.length) itemData.companyIdNotes = companyNotes;
     for (const c of companyIds) {
       const isAccount = c.kind === "iban" || c.kind === "nrb";
+      // an account number with a wrong mod-97 sum is a typo or a made-up number, not a payment pivot (B-168); it stays a feature of the material
+      if (isAccount && !c.valid) continue;
       const type = isAccount ? "bank_account" : "company_id";
       const key = isAccount ? c.value : `${c.kind}:${c.value}`;
       const label = isAccount ? `rachunek ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;
@@ -1835,8 +1848,9 @@ export function buildEvidenceGraph(
   }
   links.sort((x, y) => y.score - x.score || x.a.localeCompare(y.a) || x.b.localeCompare(y.b));
 
-  const nodes = [...g.nodes.values()].sort((x, y) => x.id.localeCompare(y.id));
-  const edges = [...g.edges.values()].sort((x, y) => x.id.localeCompare(y.id));
+  // last line of defence (B-144): a raw Meta token in any string of the graph (a URL kept in item data, a redirect chain) is masked
+  const nodes = maskTokensDeep([...g.nodes.values()].sort((x, y) => x.id.localeCompare(y.id)));
+  const edges = maskTokensDeep([...g.edges.values()].sort((x, y) => x.id.localeCompare(y.id)));
   const byType: Partial<Record<EntityType, number>> = {};
   for (const t of ENTITY_TYPES) {
     const c = nodes.filter((nd) => nd.type === t).length;
@@ -1858,7 +1872,7 @@ export function buildEvidenceGraph(
     },
     nodes,
     edges,
-    links,
+    links: maskTokensDeep(links),
     ...(options.includeItemPivots ? { itemPivots: Object.fromEntries(factsByItem) } : {}),
   };
 }

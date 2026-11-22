@@ -43,7 +43,7 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `meta_ad` | Identyfikator reklamy | 0.95 | kampania | Numer klikniętej reklamy zapisany w linku. |
 | `ad_payer` | Płatnik reklamy | 0.65 | tylko z innym śladem | Płatnik zadeklarowany platformie reklamowej (biblioteka reklam). |
 | `comment_block` | Blok fałszywych komentarzy | 0.45 | tylko z innym śladem | Zestaw zmyślonych komentarzy wpisany na stałe w stronę. |
-| `technique` | Technika strony | 0.2 | grupa | Sposób działania strony, np. fałszywy sklep z aplikacjami, pułapka „wstecz”. |
+| `technique` | Technika strony | 0.2 | grupa | Sposób działania strony, np. fałszywy sklep z aplikacjami, pułapka „wstecz”, licznik presji, blokada narzędzi deweloperskich, kit formularza sieci CPA (kit:formFb). |
 | `crm_key` | Klucz API CRM | 0.95 | kampania | Tajny klucz konta w CRM albo sieci afiliacyjnej, z którym formularz wysyła zgłoszenie. Pokazujemy tylko skrót (początek, koniec i sha256), nigdy cały klucz. |
 | `template_phrase` | Zdanie szablonu | 0.45 | tylko z innym śladem | Rzadkie zdanie z tekstu strony albo z podziękowania po wysłaniu formularza, takie samo na stronach w różnych domenach. Zdanie z wpadką (powtórzone słowa, mieszane alfabety) waży więcej. |
 | `profit_claim` | Obiecywany zysk | 0.2 | grupa | Kwota i okres obiecywanego zarobku z tekstu, zrzutu albo nagrania. |
@@ -51,9 +51,18 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `shared_doc` | Dokument, formularz lub czat udostępniony linkiem | 0.9 | kampania | Adres dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym, podany na stronie, w reklamie, na zrzucie albo w ruchu strony. |
 | `onion` | Adres .onion | 0.9 | kampania | Adres ukrytej usługi w sieci Tor (wersja 3, 56 znaków). |
 | `messenger_invite` | Zaproszenie lub konto komunikatora | 0.9 | kampania | Zaproszenie na Discorda, konto albo grupa Signal, Viber lub Line podane na stronie, w reklamie albo na zrzucie. |
+| `c2_host` | Serwer C2 trojana w zestawie strony | 0.95 | kampania | Adres serwera, do którego skrypt skopiowanego zestawu strony (np. fałszywa biblioteka lazysizes) wysyła ciasteczka lub dane logowania z fałszywego panelu trackera. |
+| `fictional_expert` | Zmyślony ekspert | 0.75 | kampania | Tytuł „dr” lub „prof.” z imieniem i nazwiskiem, którego nie ma na liście osób publicznych (np. „dr Jan Testowy”), użyty na stronie, w reklamie lub na zrzucie jako autorytet. Cecha materiału: Zmyślony lekarz (prawdopodobnie AI). |
+| `lead_flow` | Lejek leadów platformy stron | 0.5 | tylko z innym śladem | Ten sam formularz, lista przepływów albo klucz zdarzeń zapisane w kodzie stron z jednej platformy. |
+| `overlay_template` | Szablon podmienionych napisów | 0.45 | tylko z innym śladem | Układ montażu: rozmyty lub zakryty pasek na dole cudzego nagrania i własne napisy operatora (rodzaj, kolor, położenie i rozmiar względem kadru). |
+| `reused_footage` | Znak źródła cudzego nagrania | 0.45 | tylko z innym śladem | Nazwa lub logo studia albo stacji w rogu kadru: znak oryginału, z którego wzięto nagranie. Znaki edytorów i platform (CapCut, TikTok i inne) są pomijane. |
 | `company_id` | Identyfikator firmy na stronie | 0.5 | tylko z innym śladem | Numer firmy podany w stopce, regulaminie albo danych sprzedawcy: NIP, REGON, KRS, unijny numer VAT, numer spółki w Wielkiej Brytanii. |
 | `bank_account` | Rachunek bankowy na stronie | 0.8 | tylko z innym śladem | Numer rachunku (IBAN albo polski NRB) podany jako konto do wpłat. |
 | `postal_address` | Adres siedziby sklepu | 0.5 | tylko z innym śladem | Pełny adres podany na stronie: ulica, numer, kod pocztowy i miasto (zapis ujednolicony: „ul.” i „ulica”, kod z myślnikiem i bez to ten sam adres). |
+| `cloaker_account` | Konto klienta cloakera | 0.9 | kampania | Numer klienta (cl_sid) w serwisie ukrywającym stronę przed moderacją, zapisany przez platformę stron razem z domeną cloakera (cl_domain). |
+| `launcher_account` | Konto narzędzia do uruchamiania reklam | 0.9 | kampania | Identyfikator (launcher) konta, z którego uruchomiono reklamy, zapisany przez platformę stron, gdy różni się od właściciela strony. |
+| `affiliate_account` | Konto w sieci afiliacyjnej | 0.9 | kampania | Identyfikatory partnera sieci afiliacyjnej w linku zamówienia, zakodowanym parametrze referer albo w ukrytych polach formularza: zespół i użytkownik (team_id, user_id), strumień (stream_id) albo oferta (offer_uuid), zawsze razem z adresem sieci. |
+| `hosting_account` | Konto na hostingu wideo | 0.6 | tylko z innym śladem | Biblioteka wideo jednego klienta usługi hostingu (adres hosta wideo z identyfikatorem biblioteki). |
 | `similar_image` | Podobna kreacja (podobieństwo dwóch materiałów) | 0.6 | tylko z innym śladem | Obrazy reklam różnią się tylko drobiazgami. |
 | `similar_image_semantic` | Podobny obraz (podobieństwo dwóch materiałów) | 0.45 | tylko z innym śladem | Obrazy przedstawiają to samo, choć nie są kopią. |
 | `similar_text` | Podobny tekst (podobieństwo dwóch materiałów) | 0.5 | tylko z innym śladem | Teksty reklam są do siebie bardzo podobne. |
@@ -77,6 +86,7 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `platformAccount` | Konto na platformie stron | łączy | z kodu strony |
 | `metaAdId` | Identyfikator reklamy | łączy | z linku (fbclid) |
 | `ocrText` | Tekst ze zrzutu | pomaga | z OCR zrzutu |
+| `videoOcrText` | Napisy w wideo | pomaga | z napisów w wideo (OCR klatek co 2 s) |
 | `asrText` | Transkrypcja nagrania | pomaga | z nagrania (ASR) |
 | `text` | Tekst reklamy | pomaga | z materiału |
 | `dhash` | Odcisk obrazu | łączy | ze zrzutu |
@@ -94,10 +104,15 @@ Opisują materiał, nie łączą go z innymi.
 | `uiView` | Widok na zrzucie | z OCR zrzutu |
 | `advertiserImpersonatesName` | Reklamodawca podszywa się pod osobę | z nazwy reklamodawcy i listy osób (atrybut, nie dowód kampanii) |
 | `profitClaims` | Obiecywany zysk (kwota i okres) | z tekstu reklamy, strony, OCR albo transkrypcji (atrybut; łączy tylko podobne kampanie w grupę) |
+| `fictionalExpert` | Zmyślony lekarz (prawdopodobnie AI) | z tytułu (dr, prof.) i nazwiska spoza listy osób publicznych w reklamie zdrowotnej (atrybut, nie dowód kampanii) |
+| `expertNotInRegister` | Lekarz bez wpisu w rejestrze (prawdopodobnie zmyślony) | z nagranej odpowiedzi rejestru lekarzy (wtyczka opcjonalna, wyłączona domyślnie; etykieta, nie dowód kampanii) |
+| `liveStream` | Fałszywa transmisja na żywo | z metadanych nagrania (yt-dlp: was_live, is_live; atrybut, nie dowód kampanii) |
+| `aiImageMeta` | Obraz wygenerowany przez AI (znacznik w pliku) | z metadanych pliku obrazu: C2PA, IPTC, EXIF albo opis generatora (atrybut; bez metadanych brak wniosku) |
 | `advertiserMismatch` | Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści) | z nazwy reklamodawcy (lokalna firma albo osoba prywatna) i narracji inwestycyjnej (atrybut, nie dowód kampanii) |
 | `displayedDomainMismatch` | Domena pokazana w reklamie różni się od strony docelowej | z OCR zrzutu albo tekstu reklamy i z łańcucha przekierowań (atrybut, nie dowód kampanii) |
 | `displayedBrandDomain` | Pokazana domena należy do znanej marki (bank, portal, sklep) | z listy marek (atrybut) |
 | `clickfix` | Polecenie kopiowane do schowka (ClickFix) | ze skryptu strony: tylko rodzaj i skrót SHA-256, samo polecenie jest ładunkiem złośliwego oprogramowania i nie jest zapisywane (atrybut) |
+| `stealerKit` | Trojan w zestawie strony (kradzież ciasteczek lub haseł z fałszywego panelu trackera) | ze skryptów strony i pobranych bibliotek na darmowych hostingach: sprawdzenie ścieżki /admin lub /panel plus wysyłka ciasteczka lub danych logowania do obcego hosta (atrybut; sam host C2 jest śladem) |
 | `idnConfusable` | Adres udaje inny adres (znak podobny do „/”, „.” lub „-” albo mieszane alfabety) | z adresu strony, przekierowań, paska przeglądarki na zrzucie i linków (atrybut: opisuje, jak adres wygląda dla oka) |
 | `adStartWeekday` | Dzień tygodnia startu reklamy | z daty pierwszej emisji w bibliotece reklam, UTC (atrybut; rozkład w kampanii opisuje rytm operatora) |
 | `discordSnowflakes` | Data utworzenia serwera lub konta Discord (z identyfikatora) | z linków discord.com/channels i discord.com/users: górne bity identyfikatora to czas utworzenia (atrybut: „zegar powstania”) |
@@ -105,8 +120,16 @@ Opisują materiał, nie łączą go z innymi.
 | `phoneLines` | Rodzaj numeru telefonu | z lokalnych metadanych libphonenumber-js, bez wysyłania numeru do usług (atrybut: numery VoIP bywają jednorazowe, więc waga numeru zależy od jego rzadkości) |
 | `phoneCountryMismatch` | Kraj numeru inny niż rynek reklamy | z numeru i rynku reklamy (atrybut) |
 | `tollFreeOnAlert` | Numer bezpłatny na stronie z fałszywym alarmem | z numeru i techniki strony (atrybut) |
+| `fictionalExperts` | Zmyśleni eksperci (dr, prof. spoza listy osób publicznych) | z tekstu strony, reklamy, zrzutu i nagrania (atrybut; imię i nazwisko jest też śladem) |
 | `narrative` | Narracja i haczyki | z tekstu reklamy, strony, OCR i transkrypcji (atrybut; cecha grupy kampanii, nie dowód) |
 | `localizedUi` | Słownik interfejsu w wielu językach | ze skryptu strony (kody języków; lokalizacja platformy stron, nie ślad tekstu, atrybut) |
+| `residue` | Wykomentowana stara wersja | z komentarzy w kodzie strony (atrybut; ten sam stary akapit na dwóch stronach to ślad wspólnego szablonu, nie dowód) |
+| `foreignSegments` | Ślad innej wersji (wstawka w innym języku) | z tekstu strony, skryptów, komentarzy lub nazw reklamy (atrybut; kampania może działać też w kraju tego języka, to podpowiedź, nie wniosek o autorze) |
+| `foreignPersona` | Persona z innego kraju w nazwie reklamy | z parametrów reklamy (ad_name, adset_name, campaign_name) przy kodzie PL (atrybut) |
+| `typography` | Typografia tekstu | z tekstu reklamy i strony (atrybut; ten sam tekst z inną typografią to inna redakcja szablonu, nie inny właściciel) |
+| `translationArtifacts` | Ślady tłumaczenia | z tekstu strony i napisów (atrybut; mieszane alfabety, kalki, skoki ty/wy, liczebniki słownie; bez wniosków o narodowości) |
+| `brandStyle` | Styl nazwy marki | z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut) |
+| `advertiserNameKind` | Rodzaj nazwy reklamodawcy | z nazwy reklamodawcy (wygenerowana marka, osoba, lokalny biznes; atrybut) |
 | `adPlatform` | Biblioteka reklam | z rekordu biblioteki |
 | `adAdvertiserLegalName` | Nazwa prawna reklamodawcy | z rekordu biblioteki |
 | `adAdvertiserLocation` | Kraj reklamodawcy | z rekordu biblioteki |
@@ -117,6 +140,7 @@ Opisują materiał, nie łączą go z innymi.
 | `payerKinds` | Rodzaj płatnika z biblioteki reklam | z nazwy płatnika i beneficjenta (samodeklaracja z DSA, platforma jej nie weryfikuje) |
 | `payerSuspicious` | Podejrzany płatnik reklamy | z nazwy płatnika (zaślepka, bełkot z klawiatury albo imię i nazwisko w obcym alfabecie) |
 | `payerEqualsBeneficiary` | Płatnik równy beneficjentowi | z biblioteki reklam |
+| `companyRegistry` | Rejestry firm (biała lista VAT, KRS) | z rejestrów publicznych dla NIP i KRS ze strony (opcja --company-registry; nazwa, siedziba, status, data wpisu, bez danych osób); niezgodność nazwy lub adresu, wykreślenie, młoda firma i wiek firmy względem domeny to wyjaśnienia, nie dowód kampanii |
 | `legalEntities` | Nazwy podmiotów z formą prawną | z tekstu strony, kodu, JSON-LD albo zrzutu (OCR) |
 | `emailDomainKinds` | Rodzaj domeny adresów e-mail | z adresów e-mail na stronie (darmowa skrzynka, domena sklepu albo inna domena) |
 | `addressCompleteness` | Kompletność adresu na stronie | z tekstu strony i JSON-LD (pełny, samo miasto, skrytka albo brak) |
@@ -201,6 +225,12 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 - `secrecy`: tajemnica (nie mów bankowi ani rodzinie)
 - `withdrawal_fee`: opłata lub podatek przed wypłatą
 - `urgency_lock`: grożenie blokadą konta w terminie
+- `nationwide`: „cała Polska” (powszechność)
+- `millions_of_poles`: „miliony Polaków”
+- `pharma_villain`: koncerny farmaceutyczne jako winowajca
+- `state_program_pays`: program państwowy pokrywa koszty
+- `custody`: kajdanki lub areszt
+- `video_removed`: nagranie usunięto lub zablokowano
 
 ## Bez opisu
 
@@ -217,6 +247,11 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 - atrybut: certAgeDays (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
 - atrybut: pagePlatforms (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
 - atrybut: inputExtra (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
+- atrybut: namingMixedScript (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
+- atrybut: codeCommentLang (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
+- atrybut: landerSlugStyle (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
+- atrybut: advertiserNameStyle (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
+- atrybut: adCreatedApprox (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)
 - technika: fake_comments (brak wpisu w TECHNIQUE_INFO)
 - technika: fake_app_store (brak wpisu w TECHNIQUE_INFO)
 - technika: back_trap (brak wpisu w TECHNIQUE_INFO)
@@ -235,12 +270,12 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 
 | Sekcja | Liczba |
 |---|---|
-| Ślady łączące (typy) | 50 (kampania: 26, grupa: 3, tylko z innym śladem: 21) |
-| Cechy materiału łączące albo pomagające | 16 |
-| Atrybuty materiału i kampanii | 67 |
+| Ślady łączące (typy) | 59 (kampania: 31, grupa: 3, tylko z innym śladem: 25) |
+| Cechy materiału łączące albo pomagające | 17 |
+| Atrybuty materiału i kampanii | 86 |
 | Techniki manipulacji | 16 |
 | Tematy narracji | 22 |
-| Haczyki narracji | 6 |
-| Bez opisu | 26 |
+| Haczyki narracji | 12 |
+| Bez opisu | 31 |
 
-Wygenerowano: 2026-11-22, commit `c4922a5`.
+Wygenerowano: 2026-11-22, commit `4c01d2a`.

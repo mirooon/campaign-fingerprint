@@ -352,6 +352,10 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       })),
       // ClickFix: kind and SHA-256 of the copied command only; the command is a malware payload and is never written
       clickfix_command: (data.clickfix as { kind: string; sha256: string } | undefined) ?? null,
+      // trojan in the lander kit (B-333): signals and C2 hosts, the hosts defanged like the other addresses of the report
+      stealer_kit: data.stealerKit
+        ? { signals: (data.stealerKit as { signals: string[] }).signals, c2_hosts: (data.stealerKit as { c2Hosts: string[] }).c2Hosts.map((h) => defangUrl(`https://${h}/`)) }
+        : null,
       // the domain shown in the ad against the page it leads to, defanged like the other addresses of the report
       displayed_domain_mismatch: shown
         ? { displayed: defangUrl(shown.displayed), landing: defangUrl(shown.landing), source: shown.source, confidence: shown.confidence, brand_domain: data.displayedBrandDomain === true }
@@ -787,6 +791,8 @@ function signalsLine(ad: Record<string, unknown>): string | null {
   if (techniques.length) parts.push(`techniki strony: ${techniques.map((t) => t.label).join(", ")}`);
   const click = ad.clickfix_command as { kind: string; sha256: string } | null;
   if (click) parts.push(`polecenie ClickFix: rodzaj ${click.kind}, SHA-256 ${click.sha256}`);
+  const stealer = ad.stealer_kit as { signals: string[]; c2_hosts: string[] } | null;
+  if (stealer) parts.push(`trojan w zestawie strony (${stealer.signals.join(", ")}), serwer C2: ${stealer.c2_hosts.join(", ")}`);
   const shown = ad.displayed_domain_mismatch as { displayed: string; landing: string; brand_domain: boolean } | null;
   if (shown) parts.push(`w reklamie pokazano domenę ${shown.displayed}${shown.brand_domain ? " (znana marka)" : ""}, a link prowadzi do ${shown.landing}`);
   const lookAlike = ad.look_alike_host as { looks_like: string; char: string } | null;

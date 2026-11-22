@@ -40,6 +40,7 @@ export const TYPE_INFO: Record<AnyType, TypeInfo> = {
   telegram: { name: "Telegram", what: "Kanał albo konto Telegram podane na stronie.", why: "Ten sam kanał kontaktu to zwykle ten sam operator.", example: "t.me/kanal_przyklad", sentence: "Strony kierują do tego samego kanału Telegram" },
   shared_doc: { name: "Dokument, formularz lub czat udostępniony linkiem", what: "Adres dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym, podany na stronie, w reklamie, na zrzucie albo w ruchu strony.", why: "Taki zasób należy do jednego konta, więc ten sam identyfikator w dwóch materiałach wskazuje jednego operatora. Rozmowa z czatem AI bywa wklejonym planem kampanii.", example: "formularz Google z tym samym identyfikatorem na dwóch stronach", sentence: "Materiały odsyłają do tego samego udostępnionego dokumentu, formularza lub czatu" },
   onion: { name: "Adres .onion", what: "Adres ukrytej usługi w sieci Tor (wersja 3, 56 znaków).", why: "Ten sam adres to ten sam zasób operatora; adresów wersji 2 nie liczymy, bo wygasły.", example: "56 znaków i .onion", sentence: "Materiały podają ten sam adres .onion" },
+  c2_host: { name: "Serwer C2 trojana w zestawie strony", what: "Adres serwera, do którego skrypt skopiowanego zestawu strony (np. fałszywa biblioteka lazysizes) wysyła ciasteczka lub dane logowania z fałszywego panelu trackera.", why: "Wszystkie kopie tego samego pobranego zestawu zgłaszają się do tego samego serwera, więc wspólny adres wskazuje jednego operatora zestawu.", example: "c2.przyklad.test", sentence: "Skrypty tych stron wysyłają dane do tego samego serwera C2" },
   messenger_invite: { name: "Zaproszenie lub konto komunikatora", what: "Zaproszenie na Discorda, konto albo grupa Signal, Viber lub Line podane na stronie, w reklamie albo na zrzucie.", why: "To samo zaproszenie lub konto to zwykle ten sam operator (jak kanał Telegram).", example: "discord.gg/kodprzyklad", sentence: "Materiały kierują do tego samego zaproszenia lub konta komunikatora" },
   advertiser: { name: "Reklamodawca", what: "Nazwa profilu, który opublikował reklamę.", why: "Ten sam profil to to samo konto reklamowe; nazwy bywają jednak ogólne i powtarzalne.", example: "Wiadomości Dnia Demo", sentence: "Reklamy opublikował ten sam reklamodawca" },
   endpoint: { name: "Backend formularza", what: "Adres, na który strona wysyła dane z formularza.", why: "Wspólny backend na różnych domenach to mocny ślad; publiczne serwisy formularzy pomijamy.", example: "zbieracz.test/api/zapis", sentence: "Formularze obu stron wysyłają dane pod ten sam adres" },
@@ -49,6 +50,7 @@ export const TYPE_INFO: Record<AnyType, TypeInfo> = {
   domain_pattern: { name: "Wzorzec nazwy domeny", what: "Powtarzalny schemat nazw domen, np. zwrot<liczba>-<słowo>.test.", why: "Domeny z jednego schematu zwykle rejestruje jeden operator seriami.", example: "zwrot12-abc.test, zwrot37-xyz.test", sentence: "Domeny są zbudowane według tego samego wzorca nazw" },
   cname_target: { name: "Przekierowanie domeny (CNAME)", what: "Wpis, który kieruje domenę na inny serwer.", why: "Wspólny, nietypowy cel przekierowania wskazuje wspólną infrastrukturę; duże sieci CDN pomijamy.", example: "ruch.przyklad.test", sentence: "Domeny są przekierowane na ten sam serwer (CNAME)" },
   campaign_param: { name: "Parametr kampanii", what: "Znacznik kampanii dopisany do linku reklamy (np. utm_campaign).", why: "Ta sama nietypowa wartość to zwykle ta sama kampania reklamowa; ogólne wartości pomijamy.", example: "utm_campaign=lato_07", sentence: "Linki reklam mają ten sam parametr kampanii" },
+  fictional_expert: { name: "Zmyślony ekspert", what: "Tytuł „dr” lub „prof.” z imieniem i nazwiskiem, którego nie ma na liście osób publicznych (np. „dr Jan Testowy”), użyty na stronie, w reklamie lub na zrzucie jako autorytet.", why: "Zmyśloną postać wymyśla jeden operator, więc to samo imię i nazwisko (także z literówką) na różnych domenach wskazuje jednego autora. Imię często powtarzane w zbiorze traci wagę.", example: "dr Jan Testowy i dr Jan Testowyy", sentence: "Materiały powołują się na tego samego zmyślonego eksperta" },
   persona: { name: "Persona", what: "Osoba, pod którą podszywa się reklama.", why: "Ta sama osoba pojawia się w wielu niezależnych kampaniach, dlatego sama nie łączy materiałów.", example: "Adam Testowy", sentence: "Reklamy wykorzystują wizerunek tej samej osoby" },
   path_id: { name: "Identyfikator konta w ścieżkach", what: "Losowy identyfikator w adresach plików strony, nadany przez kreator stron.", why: "Ten sam identyfikator to to samo konto w kreatorze stron.", example: "/a1b2c3d4-…/style.css", sentence: "Pliki stron leżą pod tym samym identyfikatorem konta w kreatorze stron" },
   param_schema: { name: "Szablon linku śledzącego", what: "Nazwy parametrów linku i rodzaj ich wartości.", why: "Wskazuje system kierowania ruchem, z którego korzysta wielu klientów: ślad pomocniczy.", example: "sub1, sub2, clickid", sentence: "Linki mają ten sam układ parametrów śledzących" },
@@ -118,6 +120,7 @@ export const TYPE_NOTES: Partial<Record<EntityType, string>> = {
   domain_pattern: "Wzorzec nazwy domeny z zamiennikami <n> (cyfry) i <lorem> (słowo z lorem ipsum); powstaje tylko, gdy obejmuje co najmniej dwie domeny.",
   cname_target: "Wspólny cel rekordu CNAME. Duże CDN i platformy hostingowe są dyskontowane.",
   campaign_param: "Parametr kampanii z adresu URL (utm_*, sub1–5, aff_id, flow, pid…), z ukrytego pola formularza albo z konfiguracji w skrypcie strony (pochodzenie: „z formularza”, „ze skryptu”). Ogólne wartości (np. facebook, cpc) i niewypełnione makra są dyskontowane; identyfikator kliknięcia (clickid) nie łączy materiałów.",
+  fictional_expert: "Klucz `tytuł:imię nazwisko` (małe litery, bez polskich znaków, końcówka fleksyjna obcięta) z tekstu strony, reklamy, zrzutu lub nagrania. Warianty z literówką (odległość edycji ≤ 1, ≤ 2 dla długich nazw) zlewane do najczęstszego. Pomijane są osoby z listy osób publicznych. Waga 0,75; rzadkość przez IDF i limit maxPivotDf.",
   persona: "Słaby sygnał: ta sama osoba bywa wykorzystywana w wielu kampaniach. Służy do filtrowania i priorytetów, nie do łączenia. Brak danych biometrycznych.",
   path_id: "Losowy identyfikator (UUID) w ścieżkach zasobów ładowanych z domeny strony: konto kreatora stron obsługującego wiele domen.",
   param_schema: "Nazwy parametrów linku i rodzaj ich wartości. Wskazuje system kierowania ruchem, który może mieć wielu klientów: dowód pomocniczy.",
@@ -133,6 +136,7 @@ export const TYPE_NOTES: Partial<Record<EntityType, string>> = {
   kit_string: "Znormalizowany komunikat programisty (≥ 3 słowa, małe litery, liczby jako #) z własnych skryptów strony, wpisanych w stronę i zewnętrznych z tej samej domeny. Para stron dostaje jedną przesłankę: co najmniej dwa wspólne komunikaty albo jeden długi (≥ 5 słów). Maska: skrypty SDK platformy i frameworków, biblioteki, słowniki interfejsu w wielu językach, komunikaty ze stron ≥ 5 kont platformy. Ślad zestawu stron: do kampanii potrzebny drugi rodzaj dowodu.",
   shared_doc: "Klucz `usługa:identyfikator` dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym (usługa llm_chat). Waga jak Telegram, rzadkość przez IDF i limit maxPivotDf. Odpowiedniki z dokumentacji dostawców i strony pomocy platform są pomijane. Operator, który wkleja dane kampanii do czatu i udostępnia link, zostawia ślad tego samego czatu.",
   onion: "Adres .onion wersji 3 (56 znaków). Adresy wersji 2 (16 znaków) wygasły w 2021 r. i są tylko atrybutem materiału. Waga jak Telegram.",
+  c2_host: "Nazwa hosta serwera C2, do którego trojan w skrypcie zestawu (ścieżka /admin lub /panel plus wysyłka ciasteczka lub danych logowania do obcego hosta) przesyła dane. Waga 0,95; rzadkość przez IDF i maxPivotDf.",
   messenger_invite: "Klucz `usługa:identyfikator` zaproszenia lub konta: discord, signal, signal_group, viber, line (numer wa.me trafia do telefonów). Serwery społeczności samych platform są pomijane. Waga jak Telegram.",
   profit_claim: "Para kwota i okres z obietnicy zysku (np. 3000 zł w ciągu dnia). Standardowe kwoty wpłaty (np. 250 USD) nie łączą. Liczy się tylko dla grup podobnych kampanii.",
   company_id: "NIP, REGON, KRS, unijny numer VAT albo numer spółki w UK odczytany z widocznego tekstu, kodu, JSON-LD i zrzutów (OCR). Sprawdzamy sumę kontrolną tam, gdzie numer ją ma (NIP, REGON): błędna suma wskazuje zmyślony numer, ale taki numer też łączy strony, które go współdzielą. Numery pośredników (operatorzy płatności, kurierzy) pomijamy. Sam nie łączy w kampanię: dane firmy można skopiować.",
@@ -492,6 +496,15 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
       return c.kind && c.sha256 ? [`rodzaj: ${c.kind}`, `SHA-256: ${c.sha256.slice(0, 16)}…`] : [];
     },
   },
+  stealerKit: {
+    name: "Trojan w zestawie strony (kradzież ciasteczek lub haseł z fałszywego panelu trackera)",
+    source: "ze skryptów strony i pobranych bibliotek na darmowych hostingach: sprawdzenie ścieżki /admin lub /panel plus wysyłka ciasteczka lub danych logowania do obcego hosta (atrybut; sam host C2 jest śladem)",
+    role: "describes",
+    format: (v) => {
+      const c = v as { signals?: string[]; c2Hosts?: string[] };
+      return [...(c.signals?.length ? [`sygnały: ${c.signals.join(", ")}`] : []), ...(c.c2Hosts ?? []).map((h) => `C2: ${h}`)];
+    },
+  },
   idnConfusable: {
     name: "Adres udaje inny adres (znak podobny do „/”, „.” lub „-” albo mieszane alfabety)",
     source: "z adresu strony, przekierowań, paska przeglądarki na zrzucie i linków (atrybut: opisuje, jak adres wygląda dla oka)",
@@ -525,6 +538,7 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   },
   phoneCountryMismatch: { name: "Kraj numeru inny niż rynek reklamy", source: "z numeru i rynku reklamy (atrybut)", role: "describes" },
   tollFreeOnAlert: { name: "Numer bezpłatny na stronie z fałszywym alarmem", source: "z numeru i techniki strony (atrybut)", role: "describes" },
+  fictionalExperts: { name: "Zmyśleni eksperci (dr, prof. spoza listy osób publicznych)", source: "z tekstu strony, reklamy, zrzutu i nagrania (atrybut; imię i nazwisko jest też śladem)", role: "describes" },
   narrative: {
     name: "Narracja i haczyki",
     source: "z tekstu reklamy, strony, OCR i transkrypcji (atrybut; cecha grupy kampanii, nie dowód)",

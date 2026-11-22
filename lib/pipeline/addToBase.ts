@@ -102,7 +102,8 @@ export function withoutVoiceVectors(data: EnrichedDataset, ids: Set<string>): En
   const perItem = Object.fromEntries(
     Object.entries(data.perItem).map(([id, e]) => {
       if (!ids.has(id) || !e.speakerEmbedding) return [id, e];
-      const { speakerEmbedding: _dropped, ...rest } = e;
+      const rest = { ...e };
+      delete rest.speakerEmbedding;
       return [id, rest];
     }),
   );

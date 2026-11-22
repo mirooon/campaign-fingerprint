@@ -68,6 +68,7 @@ Tabela jest wygenerowana poleceniem `bun run licenses -- --write LICENCJE.md` (s
 | has-property-descriptors | 1.0.2 | MIT | przechodnia | biblioteka w procesie | npm |
 | json-schema-to-ts | 3.1.1 | MIT | przechodnia | biblioteka w procesie | npm |
 | json-stringify-safe | 5.0.1 | ISC | przechodnia | biblioteka w procesie | npm |
+| jsqr | 1.4.0 | Apache-2.0 | bezpośrednia | biblioteka w procesie | npm |
 | layout-base | 2.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
 | libphonenumber-js | 1.13.17 | MIT | bezpośrednia | biblioteka w procesie | npm |
 | long | 5.3.2 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |

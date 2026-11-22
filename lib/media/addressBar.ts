@@ -20,7 +20,7 @@ export const TOP_STRIP = 0.14;
 export interface ObservedAddress extends AddressBarHit {
   /** Image or video the address was read from. */
   file: string;
-  source: "address_bar" | "address_bar_video";
+  source: "address_bar" | "address_bar_video" | "qr_code";
   /** Second of the recording (video only). */
   frameTime?: number;
 }

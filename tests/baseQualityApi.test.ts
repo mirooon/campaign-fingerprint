@@ -10,6 +10,9 @@ import { clusterCampaigns } from "../lib/graph/cluster";
 import type { EvidenceGraph, GraphNode } from "../lib/graph/model";
 import type { BaseQuality } from "../lib/viewer/baseQuality";
 
+// The route opts out of prerendering with `connection()`, which throws outside a Next.js request scope.
+vi.mock("next/server", async (importOriginal) => ({ ...(await importOriginal<typeof import("next/server")>()), connection: async () => {} }));
+
 const dirs: string[] = [];
 afterEach(() => {
   vi.unstubAllEnvs();

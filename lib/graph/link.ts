@@ -17,13 +17,9 @@ import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { affiliateIdsFromUrls, type AffiliateId } from "../osint/affiliateIds";
 import { verificationTokens } from "../osint/extract";
-<<<<<<< HEAD
 import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
-=======
 import { leadFlowLabel } from "../osint/leadFlow";
 import { asSeenOn, despaceText, hasSpacedText } from "../osint/pageTraits";
-import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
->>>>>>> linia-f
 import { companyIdsOfMaterial } from "../text/companyIds";
 import { applyShopContext } from "../osint/shopSignals";
 import { evaluateCompanyRegistry } from "../osint/companyRegistry";

@@ -34,7 +34,7 @@ Skrypt wypisuje w terminalu cztery kroki (`== 1/4` … `== 4/4`):
 | Warianty oznaczone jako „podobne” do właściwej kampanii | 11 / 78 |
 | Czas analizy 212 materiałów | ok. 1,5 s |
 
-Skrypt `start.sh` wypisuje przy wariantach „podobnych” 2/78 zamiast 11/78: `zbior-publiczny/sprawdz.py` w paczce dzieli listę kampanii po `|`, a CSV rozdziela je `;`, więc pomija wiersze z kilkoma podobnymi kampaniami. Poprawna liczba (11/78) jest w `zbior-publiczny/WALIDACJA.md` w paczce.
+Skrypt `start.sh` wypisuje przy wariantach „podobnych” liczbę mniejszą niż 11/78: `zbior-publiczny/sprawdz.py` w paczce dzieli listę kampanii po `|`, a CSV rozdziela je `;`, więc pomija wiersze z kilkoma podobnymi kampaniami. Poprawna liczba (11/78) jest w `zbior-publiczny/WALIDACJA.md` w paczce.
 
 Pozostałe warianty dostają werdykt „nowa kampania”, bo publicznym skanom brakuje śladów z linku reklamy. Narzędzie woli nie połączyć, niż połączyć błędnie. Etykiety 212 stron nadał zespół, częściowo po tych samych śladach, których używa narzędzie, dlatego najbardziej miarodajny jest wynik 134/134 ([walidacja](docs/METODYKA.md#walidacja-na-materiałach-spoza-próbki)).
 

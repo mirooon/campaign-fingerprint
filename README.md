@@ -6,7 +6,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne. Skąd pochodzą dane i z jakich źródeł narzędzie korzysta: [Pochodzenie danych](#pochodzenie-danych).
 
-**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia). · [docs/CECHY.md](docs/CECHY.md) (katalog wszystkich śladów i cech, generowany: `bun run features:catalog`).
+**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia) · [docs/CECHY.md](docs/CECHY.md) (katalog wszystkich śladów i cech, generowany: `bun run features:catalog`).
 
 ## 1. Szybki start w Dockerze
 
@@ -265,7 +265,7 @@ Rozszerzanie znanej kampanii: `bun run adlib -- expand --campaign K01 --data dan
 | **Biblioteki reklam** (Meta, `--ad-library`) | publiczna strona, przez MetaAdsCollector | nie (`.cache/`) |
 | Przykład wzorca nazw domen z publicznego komunikatu CSIRT KNF | publiczny komunikat | tak, w jednym teście |
 
-Każdy materiał zebrany z sieci przez narzędzia zbierające ma w `zrodlo.json` pole ze źródłem (adres i datę dostępu), a import spraw zapisuje `provenance.json` obok wyniku. Lista obserwowanych osób nie jest dołączona (w próbce są tylko fikcyjne). Gotową bazę i wiedzę z danych poufnych opisuje [docs/DANE-NIEPUBLICZNE.md](docs/DANE-NIEPUBLICZNE.md) (osobna paczka niepubliczna; plik doda późniejsze zadanie). Walidacja na materiałach spoza próbki: [docs/METODYKA.md](docs/METODYKA.md#walidacja-na-materiałach-spoza-próbki).
+Każdy materiał zebrany z sieci przez narzędzia zbierające ma w `zrodlo.json` pole ze źródłem (adres i datę dostępu), a import spraw zapisuje `provenance.json` obok wyniku. Lista obserwowanych osób nie jest dołączona (w próbce są tylko fikcyjne). Gotową bazę i wiedzę z danych poufnych opisuje [docs/DANE-NIEPUBLICZNE.md](docs/DANE-NIEPUBLICZNE.md) (osobna paczka niepubliczna). Walidacja na materiałach spoza próbki: [docs/METODYKA.md](docs/METODYKA.md#walidacja-na-materiałach-spoza-próbki).
 
 ## Licencje
 
@@ -332,7 +332,7 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 
 ### Funkcje powstałe 21–22.11.2026 (w trakcie wydarzenia)
 
-Źródło: historia git tego repozytorium (commity kontrolne po zadaniach; wcześniejsza historia nie została przeniesiona, zob. wyżej) i raporty zadań. Wszystkie z datą 21.11.2026, bo po tej dacie nie ma jeszcze commitów (stan z 21.11.2026).
+Źródło: historia git tego repozytorium (commity kontrolne po zadaniach, 21–22.11.2026; wcześniejsza historia nie została przeniesiona, zob. wyżej) i raporty zadań. Tabela wymienia zadania z pierwszej doby; późniejsze (22.11.2026) opisują komunikaty commitów w `git log`.
 
 | Zadanie | Co powstało |
 |---|---|
@@ -374,7 +374,8 @@ scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-grap
 app/, components/viewer/   przeglądarka i API (analiza z GUI: `/api/material` z zadaniami, postępem i CSV; ta sama analiza jednym żądaniem, używana przez panel „Nowa reklama” w Trybie eksperta: `/api/analyze-material`; karty: `/api/click-route`, `/api/add-to-base`, `/api/evidence`; `/api/image`, `/api/ct-feed`)
 docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl
-docs/           METODYKA.md, TECHNICAL.md, GUI.md
+docs/           METODYKA.md, TECHNICAL.md, GUI.md, INTEGRACJA.md, CECHY.md, WZORCE-KAMPANII.md, ZRODLA-METADANYCH.md,
+                ZGODNOSC.md, DANE-NIEPUBLICZNE.md; schema/ (JSON Schema wejścia i wyniku, przykład wejścia)
 ```
 
 Pozostałe opisy techniczne (architektura potoku, tryb live, formaty wejścia, opcjonalne kroki wzbogacania, paczka dowodów, watcher CT, dostawcy LLM, API, zmienne środowiskowe, testy, ograniczenia): [docs/TECHNICAL.md](docs/TECHNICAL.md).

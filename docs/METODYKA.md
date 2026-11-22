@@ -200,6 +200,49 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 
 **Gdzie to zobaczyć.** `near-misses.json` obok `campaigns.json` (zapisuje go każdy `build-graph`), zakładka „Celowo nie połączone” w przeglądarce, pole `nearMisses` i kolumna `blisko_bez_polaczenia` w wyniku analizy nowego materiału. Format: `docs/TECHNICAL.md`, §5.3c.
 
+Bliskie pary z tego przebiegu weszły do zbioru twardych negatywów z prawdziwych materiałów (punkt 4f), gdzie sprawdzamy, czy narzędzie nie skleja ich w kampanię.
+
+## 4f. Twarde negatywy z prawdziwych materiałów (zadanie I21, 22.11.2026)
+
+**Po co.** Najczęstszy błąd narzędzi tego typu to fałszywe sklejenie: dwa materiały różnych operacji w jednej kampanii, bo mają tę samą przynętę. Wcześniejsze testy twardych negatywów były tylko syntetyczne. Teraz mamy zbiór par z prawdziwych materiałów (25 spraw próbki i 212 materiałów walidacji) i stały test w repozytorium, że żadna z nich nie trafia do jednej kampanii. Grupa podobnych kampanii jest dozwolona.
+
+**Sześć kategorii przynęty** (para może mieć kilka):
+
+1. ta sama osoba w reklamie (z listy osób publicznych);
+2. ten sam motyw lub narracja (inwestycja, wywiad w mediach, zdrowie, kasyno, oferta sklepu: słowa kluczowe);
+3. podobny tekst albo obraz (krawędź podobieństwa w grafie, CLIP, pHash) bez wspólnej pełnowagowej infrastruktury;
+4. wspólny ślad zdyskontowany (CDN, platforma, kreator, rejestrator, NS, biblioteka JS, ogólny parametr kampanii);
+5. domeny zarejestrowane tego samego dnia albo podobne leksykalnie;
+6. strona pusta, błąd pobierania, cloaking albo strona zaparkowana.
+
+Do tego jako osobne źródło bliskie pary z punktu 4e.
+
+**Metoda doboru.** Bierzemy pary z różnych kampanii według etykiet (etykiety zespołu dla 25 spraw, etykiety walidacji dla pozostałych) i zostawiamy te, które spełniają co najmniej jedną kategorię. Wybór idzie od najtrudniejszych, czyli od najwyższego wyniku pary w grafie, z limitem par na kategorię i na materiał oraz udziału jednego typu pary. **Etykieta „różne kampanie” musi mieć podstawę.** Jeśli obie reklamy mają wspólny pełnowagowy identyfikator operatora (konto platformy stron, serwer kliknięć, tracker albo zarejestrowaną domenę), to według definicji naszych etykiet jest to ta sama kampania. Wtedy para trafia do „niepewnych” i nie liczy się jako negatyw. Inaczej podstawą są różne identyfikatory tego samego typu („inne konta”, „inne domeny”) albo same różne etykiety. W kategoriach z mniej niż trzema parami prawdziwymi dokładamy pary **pochodne**: bierzemy prawdziwą sprawę i podmieniamy jedną warstwę tak, żeby powstała inna operacja z tą samą przynętą. Na przykład ta sama treść i osoba z innym backendem formularza i innym kontem albo ten sam kreator i CDN z inną treścią i innym trackerem. Pary pochodne liczymy osobno. Pomiar ma dwie części: wynik pary we wspólnym grafie (sklejone, tylko grupa, rozdzielone) i leave-one-out, czyli materiał A analizowany jako nowy względem bazy bez całej jego sprawy.
+
+**Wynik (pary prawdziwe, kod po zadaniu I20; para z kilkoma kategoriami liczy się w każdej):**
+
+| kategoria | pary | sklejone | tylko grupa | rozdzielone |
+|---|---|---|---|---|
+| ta sama osoba | 6 | 0 | 0 | 6 |
+| ten sam motyw | 28 | 0 | 12 | 16 |
+| podobny tekst lub obraz | 9 | 0 | 8 | 1 |
+| wspólny ślad zdyskontowany | 65 | 0 | 20 | 45 |
+| podobne domeny | 7 | 0 | 4 | 3 |
+| pusta strona | 31 | 0 | 10 | 21 |
+| bliskie pary (4e) | 52 | 0 | 12 | 40 |
+| **razem (pary bez powtórzeń)** | **97** | **0 (0%)** | **25** | **72** |
+
+Leave-one-out daje to samo: 0 sklejeń. Przed sprawdzeniem podstawy etykiet sklejonych było 25 z 104 wybranych par. Wszystkie 25 okazały się parami bez podstawy: wspólne konto platformy stron przy etykiecie walidacji, która mówi tylko „konto spoza znanych kampanii”, kopia archiwalna sprawy bez własnej etykiety, wariant znanej kampanii zapisany w innym zapisie etykiety, dwie podrodziny jednej domeny. Wśród 200 par bez podstawy narzędzie skleja 51, zawsze przez wspólne konto platformy albo wspólną domenę, czyli zgodnie z definicją kampanii.
+
+**Pary pochodne:** 18 (po 3 w każdej kategorii), sklejone 5. Jedna to błąd generatora: wariant zachował wartość parametru kampanii w formularzu, a to silny ślad operatora. Tę parę wykluczamy z testu. Cztery to znane słabości metody:
+
+- **podobny tekst + domena, do której strona tylko linkuje (1 para).** Kopia strony z tymi samymi zdaniami szablonu linkuje do tej samej domeny co oryginał (cel przycisku, kasa sprzedawcy oferty). Domena z odnośnika ma relację ×0,4 i po mnożeniu przekracza próg zdyskontowanego śladu, więc liczy się jako ślad operatora i razem z zestawem strony tworzy kampanię.
+- **dwie puste strony na jednym adresie IP spoza list (3 pary).** Jeden rodzaj śladu operatora wystarcza do kampanii, a IP hostingu współdzielonego wygląda tak samo jak serwer jednego operatora.
+
+**Proponowane poprawki sprawdzone bez zmiany kodu** (`--config`): relacja odnośnika ×0,3 usuwa pierwsze sklejenie, ale rozdziela parę jednej kampanii z 25 spraw, która stoi na tym samym wzorcu. IP i system autonomiczny jako ślady, które nie łączą same, usuwają sklejenia pustych stron, ale rozbijają 299 z 878 trafnych par walidacji. Sam system autonomiczny albo samo IP nie usuwają sklejeń. Żadna poprawka nie spełniła warunku „usuwa sklejenie i nie zmienia żadnego trafnego przypisania”, więc `lib/graph/config.ts` zostaje bez zmian. Cztery znane sklejenia są w teście oznaczone jako oczekiwany błąd (`it.fails`). Rozwiązanie wymaga nowych danych, nie wag: liczby domen na adresie IP z pasywnego DNS i rozróżnienia celu odnośnika (własny lander operatora czy usługa wielu klientów).
+
+**Test w repozytorium.** `tests/hardNegatives.real.test.ts` z `tests/fixtures/hard-negatives-real.json`. Plik zawiera 114 par: 97 prawdziwych i 17 pochodnych. Z każdej pary zostaje tylko struktura: typy wspólnych śladów, waga, dyskonto, siła, podobieństwo, to, czy reklama ma infrastrukturę, i konto platformy zastąpione stałą. Domen, identyfikatorów, nazwisk ani tekstów w pliku nie ma (sprawdzone skanerem wycieków). Test sprawdza, że żadna para nie trafia do jednej kampanii, a pary, które grupę tworzą samym swoim powiązaniem (33), trafiają do jednej grupy podobnych. Zastrzeżenia: etykiety są nasze, kategorie motywu i pustej strony wykrywają proste reguły, a odsetek dotyczy wybranych, najtrudniejszych par, nie wszystkich możliwych.
+
 ## 5. Duplikaty i „za mało danych”
 
 **Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym wideo (ten sam plik po SHA-256 albo klatki CLIP ≥ 0,97 razem z tym samym dźwiękiem na całej długości), tym samym identyfikatorze reklamy, tym samym adresie strony z identycznym szablonem albo identycznej treści strony (SHA-256 zapisanego HTML). Sprawa, której wszystkie pliki (HAR, HTML, zrzuty, wideo) są już we wcześniejszej sprawie tej samej paczki z tym samym SHA-256, też jest duplikatem, nawet gdy tamta ma pliki dodatkowe. Ten sam tekst nie wystarcza, a to samo wideo z innym wstępem to wariant, nie duplikat. Duplikat dostaje kampanię oryginału.

@@ -255,3 +255,46 @@ describe("enrichItems: company registers (opt-in)", () => {
     expect(asked).toEqual([]);
   });
 });
+
+describe("enrichItems: RDAP and DNS without an answer", () => {
+  const body = "<html><body><p>Oferta</p></body></html>";
+  const item: Item = { ...deadItem, landingUrl: "https://www.sklep.example/", text: "Zapisz się: https://formularz.test/zapis" };
+  type Dns = Awaited<ReturnType<EnrichmentSources["dns"]>>;
+  const answer = (name: string, errors: Dns["errors"] = {}): Dns => ({ name, a: [], aaaa: [], cname: [], ns: [], mx: [], txt: [], errors });
+  /** Live sources: RDAP of formularz.test fails (no network), sklep.example has no record; DNS of www.sklep.example times out and NS/MX/TXT of formularz.test throws. */
+  const failing = (): EnrichmentSources => ({
+    ...deadLive({ status: 200, body }),
+    rdap: async (domain) => {
+      if (domain === "formularz.test") throw new TypeError("fetch failed", { cause: { code: "ENOTFOUND" } });
+      return null;
+    },
+    dns: async (name, types) => {
+      if (name === "www.sklep.example") return answer(name, { A: "timeout", AAAA: "timeout" });
+      if (name === "formularz.test" && types.includes("NS")) throw new Error("queryNs ECONNREFUSED formularz.test");
+      return answer(name);
+    },
+  });
+
+  it("puts each failure into the record's errors with the reason, and lists the failed lookups of its domains", async () => {
+    const out = await enrichItems([item], { sources: failing(), baseDir: "." });
+    const enr = out.perItem[item.id];
+    expect(enr.errors).toEqual([
+      "RDAP nie odpowiedział dla formularz.test: brak połączenia z siecią",
+      "DNS nie odpowiedział dla formularz.test: brak połączenia z siecią",
+      "DNS nie odpowiedział dla www.sklep.example: A, AAAA: brak odpowiedzi w limicie czasu",
+    ]);
+    expect(enr.lookups).toEqual({ domains: ["formularz.test", "sklep.example"], failed: ["dns:formularz.test", "dns:sklep.example", "rdap:formularz.test"] });
+    // a registry without a record (null) is data, not a failure; the run goes on past a DNS query that throws
+    expect(enr.errors.some((e) => e.includes("RDAP nie odpowiedział dla sklep.example"))).toBe(false);
+    expect(out.domains["formularz.test"].rdap).toBeNull();
+  });
+
+  it("lists the looked-up domains without failures when everything answers, and nothing when RDAP and DNS are skipped", async () => {
+    const ok = await enrichItems([item], { sources: deadLive({ status: 200, body }), baseDir: "." });
+    expect(ok.perItem[item.id].lookups).toEqual({ domains: ["formularz.test", "sklep.example"], failed: [] });
+    expect(ok.perItem[item.id].errors).toEqual([]);
+    const skipped = await enrichItems([item], { sources: failing(), baseDir: ".", skip: { rdap: true, dns: true } });
+    expect(skipped.perItem[item.id].lookups).toBeUndefined();
+    expect(skipped.perItem[item.id].errors).toEqual([]);
+  });
+});

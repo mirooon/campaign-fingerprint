@@ -40,6 +40,7 @@ import { readQrAddresses } from "../media/qr";
 import { extractCampaignParams } from "../osint/campaignParams";
 import { extractFromHtml, extractFromText, type PageExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
+import type { DnsRecords, DnsRecordType } from "../osint/dns";
 import { canonicalIp, isIpAddress, isPublicIp } from "../osint/ip";
 import { foreignScriptCandidates } from "../osint/stealerKit";
 import { domSimhash, extractPageKit, ownScriptUrls, withRequestUrls, type PageKit, type PageScript } from "../osint/pagekit";
@@ -58,6 +59,7 @@ import {
   type CompiledWatchlist,
   type PersonaMatch,
 } from "../text/persona";
+import { dnsErrorReason, lookupErrorLine, lookupReason } from "./lookupFailures";
 import type { EnrichmentSources } from "./sources";
 import type {
   CloakingCheck,
@@ -248,6 +250,25 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
 /** Videos of a record: its own, then the further ones (the landing page's video). */
 function videosOf(it: Item): string[] {
   return [it.videoPath, ...(it.extraVideoPaths ?? [])].filter((v): v is string => !!v);
+}
+
+/**
+ * Hosts the addresses of one record lead to: the landing page, URLs in the ad text, the address bar (not
+ * a platform's own page), and the redirect chain and final address of its page. The same addresses the
+ * host step collects for the whole batch, kept per record so that a failed lookup reaches its records.
+ */
+function recordHosts(enr: ItemEnrichment, page: PageInfo | undefined): Set<string> {
+  const out = new Set<string>();
+  const add = (u: string | null | undefined) => {
+    const n = u ? normalizeUrl(u) : null;
+    if (n) out.add(n.host);
+  };
+  add(enr.landing?.url);
+  for (const u of enr.text?.urls ?? []) add(u);
+  for (const o of enr.observedUrls ?? []) if (!o.platform) add(o.url);
+  for (const hop of page?.fetch.redirectChain ?? []) add(hop.url);
+  add(page?.fetch.finalUrl);
+  return out;
 }
 
 /**
@@ -920,6 +941,30 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     }
   }
 
+  /** Lookups that got no answer, with the reason: DNS by the name asked (host or domain), RDAP by domain. */
+  const dnsFailures = new Map<string, string[]>();
+  const rdapFailures = new Map<string, string>();
+  /**
+   * DNS answer for a name. Error codes in the answer (timeout, SERVFAIL, refused; "no such record" is not
+   * one) and a thrown error are kept in `dnsFailures` with the reason; a throw gives an empty answer, so the
+   * run goes on as with an RDAP failure.
+   */
+  const askDns = async (name: string, types: DnsRecordType[]): Promise<DnsRecords> => {
+    const fail = (reason: string) => dnsFailures.set(name, [...(dnsFailures.get(name) ?? []), reason]);
+    try {
+      const rec = await sources.dns(name, types);
+      const reason = dnsErrorReason(rec.errors);
+      if (reason) fail(reason);
+      return rec;
+    } catch (e) {
+      const reason = lookupReason(e);
+      fail(reason);
+      const errors: DnsRecords["errors"] = {};
+      for (const t of types) errors[t] = reason;
+      return { name, a: [], aaaa: [], cname: [], ns: [], mx: [], txt: [], errors };
+    }
+  };
+
   // 2. Hosts from landing URLs, redirect chains, final URLs and URLs in ad copy (+ CNAME chains)
   const hostSet = new Set<string>();
   const addUrlHost = (u: string | null | undefined) => {
@@ -946,7 +991,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         } else if (skip.dns) {
           hosts[host] = { host, registrableDomain: domain, dns: null, ips: [], cnameChain: [] };
         } else {
-          const rec = await sources.dns(host, ["A", "AAAA", "CNAME"]);
+          const rec = await askDns(host, ["A", "AAAA", "CNAME"]);
           const ips = [...new Set([...rec.a, ...rec.aaaa].map((ip) => canonicalIp(ip)).filter((x): x is string => !!x))].sort();
           // Follow the CNAME chain (max 4 hops). Called without the limiter to avoid nested waits.
           const cnameChain: string[] = [];
@@ -978,7 +1023,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       if (!skip.dns) {
         tasks.push(
           dnsLimit(async () => {
-            const rec = await sources.dns(domain, ["NS", "MX", "TXT"]);
+            const rec = await askDns(domain, ["NS", "MX", "TXT"]);
             info.ns = rec.ns;
             info.mx = rec.mx;
             info.txt = rec.txt;
@@ -990,8 +1035,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           rdapLimit(async () => {
             try {
               info.rdap = await sources.rdap(domain);
-            } catch {
+            } catch (e) {
+              // no record (HTTP 404) is null, not a throw: a throw is a failure of the registry or the network
               info.rdap = null;
+              rdapFailures.set(domain, lookupReason(e));
             }
           }),
         );
@@ -1017,6 +1064,33 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       progress("domains", ++done, domainSet.size);
     }),
   );
+
+  // 3a. Lookups of each record: the domains its addresses lead to, and the ones RDAP or DNS gave no answer for,
+  // also as error lines of the record, so that the result says why the registration or hosting data is missing
+  if (!skip.rdap || !skip.dns) {
+    for (const enr of Object.values(perItem)) {
+      const page = enr.pageKey ? pages[enr.pageKey] : undefined;
+      const names = recordHosts(enr, page);
+      const own = new Set([...names].map((h) => hosts[h]?.registrableDomain).filter((d): d is string => !!d && !!domains[d]));
+      for (const d of page?.extract?.contact?.otherEmailDomains ?? []) if (domains[d]) own.add(d);
+      if (!own.size) continue;
+      const failed = new Set<string>();
+      for (const d of [...own].sort()) {
+        const why = rdapFailures.get(d);
+        if (why === undefined) continue;
+        failed.add(`rdap:${d}`);
+        enr.errors.push(lookupErrorLine("rdap", d, why));
+      }
+      for (const name of [...new Set([...own, ...names])].sort()) {
+        const why = dnsFailures.get(name);
+        const domain = own.has(name) ? name : hosts[name]?.registrableDomain;
+        if (!why || !domain || !own.has(domain)) continue;
+        failed.add(`dns:${domain}`);
+        enr.errors.push(lookupErrorLine("dns", name, why.join("; ")));
+      }
+      enr.lookups = { domains: [...own].sort(), failed: [...failed].sort() };
+    }
+  }
 
   // 3b. Company registers (opt-in): VAT white list by NIP, KRS extract by number, for the identifiers of each landing page
   if (opts.companyRegistry) {

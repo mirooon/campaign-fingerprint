@@ -22,6 +22,7 @@ import type { FaceHit } from "../media/face";
 import type { SourceWatermark, SubtitleOverlay } from "../media/videoOverlay";
 import type { VoiceSpan } from "../media/speaker";
 import type { PersonaMatch } from "../text/persona";
+import type { RecordLookups } from "./lookupFailures";
 
 /** Normalised ad record (output of ingest). */
 export interface Item {
@@ -201,6 +202,8 @@ export interface ItemEnrichment {
   companyRegistry?: CompanyRegistryRecord[];
   /** Outcome of the archive step for the landing page (opt-in); absent when the page was fetched live or the step is off. */
   archive?: { status: "used" | "rejected" | "none" | "skipped"; detail: string };
+  /** RDAP and DNS of the registrable domains the record leads to, and which of them got no answer (also as lines in `errors`); absent when the record leads to no domain. */
+  lookups?: RecordLookups;
   errors: string[];
 }
 

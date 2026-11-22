@@ -26,6 +26,7 @@ import type { CompiledWatchlist } from "../text/persona";
 import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./caseImport";
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
+import { lookupsOffReason, lookupsOutcome, parseLookupErrorLine } from "./lookupFailures";
 import { fixtureSources, type EnrichmentSources } from "./sources";
 import { resolveCasePath } from "./casePath";
 import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
@@ -219,6 +220,11 @@ export interface MaterialResult {
   /** Campaigns made of new records only (linked with each other, not with the existing run). */
   newCampaigns?: Array<{ id: string; members: string[]; evidence: string[] }>;
   skipped: Array<{ id: string; reason: string }>;
+  /**
+   * Passive lookups of the new records' domains that got no answer, "rdap:<domain>" or "dns:<domain>" (the format
+   * of the import's `failedLookups`), sorted; each record also carries them as lines in `errors`. Empty offline.
+   */
+  failedLookups?: string[];
   /** Outcome of every step per case (done, skipped with the reason in `detail`, error); the "start" events are left out. */
   steps: MaterialProgress[];
   notes: string[];
@@ -472,7 +478,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     for (const c of caseIds) for (const [step, on, applies] of planned) if (on && itemsOf(c).some(applies)) progress(c, step, "error", (e as Error).message);
     throw e;
   }
-  reportMediaSteps(extra, caseIds, itemsOf, media, !!ctx.live, toolNotes, progress);
+  reportMediaSteps(extra, caseIds, itemsOf, media, ctx.live ? null : lookupsOffReason(process.env), toolNotes, progress);
   if (ctx.archive) reportArchiveStep(extra, caseIds, itemsOf, progress);
 
   // 3. One graph and the campaign rules over the existing dataset plus the new records
@@ -739,7 +745,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     progress(c, "group", "done", [...new Set(v)].join(", "));
   }
   ctx.onAnalyzed?.({ items: extra.items, enriched: extra, importDir });
-  return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, steps, notes };
+  const failedLookups = [...new Set([...newIds].flatMap((id) => extra.perItem[id]?.lookups?.failed ?? []))].sort();
+  return { mode: ctx.live ? "hybrid" : "offline", items: results, newCampaigns, skipped, failedLookups, steps, notes };
 }
 
 /**
@@ -758,13 +765,17 @@ function readCaseFiles(caseId: string, dir: string, notes: string[]): CaseFiles 
   return { caseId, files };
 }
 
-/** Outcome of the media and lookup steps per case, from what the enrichment produced. */
+/**
+ * Outcome of the media and lookup steps per case, from what the enrichment produced. `lookupsOff` is the reason
+ * of a run without live lookups (null: they ran); the lookups step then counts the domains RDAP and DNS did
+ * not answer for (`lookupsOutcome`).
+ */
 function reportMediaSteps(
   extra: EnrichedDataset,
   caseIds: string[],
   itemsOf: (c: string) => Item[],
   media: { ocr: boolean; asr: boolean; audio: boolean; clip: boolean; voice: boolean; faces: boolean },
-  live: boolean,
+  lookupsOff: string | null,
   toolNotes: Map<string, string>,
   progress: (caseId: string, step: MaterialStep, status: MaterialProgress["status"], detail?: string) => void,
 ): void {
@@ -773,7 +784,8 @@ function reportMediaSteps(
     const enr = its.map((it) => extra.perItem[it.id]).filter(Boolean);
     const img = its.some((it) => !!(it.imagePath || it.imageUrl || it.extraImagePaths?.length));
     const vid = its.some((it) => !!(it.videoPath || it.extraVideoPaths?.length));
-    const errs = enr.flatMap((e) => e.errors);
+    // a lookup line names a domain, which must not pass for an error of a media step ("clip…", "audio…")
+    const errs = enr.flatMap((e) => e.errors).filter((e) => !parseLookupErrorLine(e));
     const errOf = (re: RegExp) => errs.find((e) => re.test(e));
     const report = (step: MaterialStep, on: boolean, offWhy: string, applies: boolean, missingWhy: string, tool: string | null, done: boolean, doneWhy: string, errRe: RegExp) => {
       if (!on) return progress(c, step, "skipped", offWhy);
@@ -790,7 +802,8 @@ function reportMediaSteps(
     report("clip", media.clip, "CLIP wyłączony", img || vid, "brak obrazu i wideo", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "brak osadzenia", /clip/i);
     report("voice", media.voice, "głos wyłączony", vid, "brak wideo", "głos mówcy", enr.some((e) => e.voices !== undefined), "adapter nie zwrócił wyniku", /speaker|głos/i);
     report("faces", media.faces, "twarze wyłączone", img || vid, "brak obrazu i wideo", "twarze", enr.some((e) => e.faces !== undefined), "adapter nie zwrócił wyniku", /faces/i);
-    report("lookups", live, "tryb offline: bez zapytań sieciowych, tylko strony z materiału", true, "", null, true, "", /dns|rdap|asn/i);
+    const lookups = lookupsOutcome(enr.map((e) => e.lookups), lookupsOff);
+    progress(c, "lookups", lookups.status, lookups.detail);
   }
 }
 

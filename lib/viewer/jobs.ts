@@ -26,6 +26,7 @@ export interface JobCase {
 export interface JobResult extends MaterialResult {
   /** Case records of the import (provenance.json of the job). */
   provenance?: CaseProvenance[];
+  /** RDAP and DNS lookups without an answer ("rdap:<domain>", "dns:<domain>"), of the import and of the analysis (`jobFailedLookups`). */
   failedLookups?: string[];
   /** Passive lookups were on. */
   lookups: boolean;
@@ -106,6 +107,15 @@ export function applyProgress(job: Job, e: MaterialProgress): void {
   if (e.step === "group" && e.status === "done" && c.status !== "error") c.status = "done";
 }
 
+/**
+ * Lookups of a job that got no answer: those of the import (provenance.json, written by an import with lookups)
+ * and those of the analysis (`MaterialResult.failedLookups`, the live RDAP and DNS of the material's domains),
+ * without repeats. The completeness list of each material picks the ones of its domains.
+ */
+export function jobFailedLookups(res: Pick<MaterialResult, "failedLookups">, prov: { failedLookups?: string[] } | null): string[] {
+  return [...new Set([...(prov?.failedLookups ?? []), ...(res.failedLookups ?? [])])].sort();
+}
+
 /** Case record for the browser: without the file checksums, which carry server paths and belong to the evidence pack. */
 function withoutFiles(c: CaseProvenance & { files?: unknown }): CaseProvenance {
   const copy = { ...c };
@@ -162,7 +172,7 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
         const res = JSON.parse(readFileSync(out, "utf8")) as MaterialResult;
         const provFile = path.join(job.dir, "praca", "import", "provenance.json");
         const prov = existsSync(provFile) ? (JSON.parse(readFileSync(provFile, "utf8")) as { cases?: CaseProvenance[]; failedLookups?: string[] }) : null;
-        finish(job, { ...res, provenance: (prov?.cases ?? []).map(withoutFiles), failedLookups: prov?.failedLookups ?? [], lookups: job.live, fileCount: job.fileCount }, null);
+        finish(job, { ...res, provenance: (prov?.cases ?? []).map(withoutFiles), failedLookups: jobFailedLookups(res, prov), lookups: job.live, fileCount: job.fileCount }, null);
         return;
       } catch (e) {
         finish(job, null, `Nie udało się odczytać wyniku: ${(e as Error).message}`);

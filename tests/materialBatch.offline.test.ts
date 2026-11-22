@@ -9,6 +9,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { analyzeMaterial, type MaterialProgress, type MaterialResult } from "../lib/pipeline/analyzeMaterial";
+import { lookupsOffReason } from "../lib/pipeline/lookupFailures";
 import { materialCsv } from "../lib/pipeline/materialCsv";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
 import { batchSummary } from "../lib/viewer/materialView";
@@ -326,7 +327,8 @@ describe("analyzeMaterial: progress", () => {
     expect(of("postep-pusta", "import")[1]).toMatch(/^skipped: /);
     expect(of("postep-obraz", "ocr")).toEqual(["skipped: OCR wyłączony"]);
     expect(of("postep-strona", "asr")).toEqual(["skipped: transkrypcja wyłączona"]);
-    expect(of("postep-strona", "lookups")).toEqual(["skipped: tryb offline: bez zapytań sieciowych, tylko strony z materiału"]);
+    // offline is the default of the container: the step is skipped with the reason, never shown as a failure
+    expect(of("postep-strona", "lookups")).toEqual([`skipped: ${lookupsOffReason(process.env)}`]);
     for (const step of ["features", "compare"]) expect(of("postep-strona", step)).toEqual(["start", "done"]);
     expect(of("postep-strona", "group")[0]).toBe("start");
     expect(of("postep-strona", "group")[1]).toMatch(/^done: /);

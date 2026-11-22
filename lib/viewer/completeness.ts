@@ -3,6 +3,7 @@
  * of every gap on the comparison. Built from the case record of provenance.json, the result's
  * errors, skipped entries, notes and `missing`, or from the node data of a material in the base.
  */
+import { belongsToDomain, parseLookupErrorLine } from "../pipeline/lookupFailures";
 
 export type CheckStatus = "ok" | "missing" | "warn";
 
@@ -49,13 +50,13 @@ export interface CompletenessInput {
   errors?: string[];
   /** Skipped entries that belong to this material. */
   skipped?: Array<{ id: string; reason: string }>;
-  /** Failed lookups of the import ("rdap:domain", "ct:domain"). */
+  /** Failed lookups of the import and of the analysis ("rdap:domain", "dns:domain", "ct:domain"). */
   failedLookups?: string[];
   /** Backend list of what to add (verdicts insufficient / new_campaign). */
   missing?: string[];
   /** Passive lookups (DNS, RDAP) were on for this run; undefined = unknown. */
   lookups?: boolean;
-  /** Domains of the material (to pick its failed lookups). */
+  /** Domains of the material (to pick its failed lookups; an IDN label "żółw.pl (xn--…)" counts with both names). Absent: every failed lookup is shown. */
   domains?: string[];
 }
 
@@ -68,8 +69,11 @@ function hasAny(f: Record<string, unknown>, keys: string[]): boolean {
   });
 }
 
-/** Plain-Polish text of a technical error, or null to keep the original. */
+/** Plain-Polish text of a technical error (a failed RDAP or DNS lookup names its domain), or the original when there is none. */
 export function plainError(e: string): string {
+  const lookup = parseLookupErrorLine(e);
+  if (lookup?.kind === "rdap") return `Rejestr domen (RDAP) nie odpowiedział dla domeny ${lookup.name}: brak daty rejestracji i rejestratora`;
+  if (lookup?.kind === "dns") return `Serwery DNS nie odpowiedziały dla ${lookup.name}: brak adresu IP i serwerów nazw`;
   const rdap = /rdap[^a-z0-9]*(?:dla\s+)?([a-z0-9.-]+\.[a-z]{2,})?/i.exec(e);
   if (/rdap/i.test(e)) return `Rejestr domen (RDAP) nie odpowiedział${rdap?.[1] ? ` dla domeny ${rdap[1]}` : ""}: brak daty rejestracji i rejestratora`;
   if (/\bdns\b/i.test(e)) return "Serwery DNS nie odpowiedziały: brak adresu IP i serwerów nazw";
@@ -80,6 +84,11 @@ export function plainError(e: string): string {
   return e;
 }
 
+/**
+ * Checklist of one material: the sources it holds (screenshot, page, HAR, address, video, advertiser), passive
+ * lookups that were off or got no answer for its domains (with the reason from its error line), the remaining
+ * errors in plain Polish, skipped files and the backend list of what to add.
+ */
 export function completeness(input: CompletenessInput): Completeness {
   const p = input.provenance ?? null;
   const f = input.features ?? {};
@@ -133,17 +142,29 @@ export function completeness(input: CompletenessInput): Completeness {
   if (input.lookups === false) {
     items.push({ id: "lookups", status: "warn", label: "dane o domenach nie były pobierane", effect: "Praca bez internetu: brak rejestratora, daty rejestracji i serwerów nazw; porównujemy to, co jest w plikach" });
   }
-  const doms = new Set((input.domains ?? []).map((d) => d.toLowerCase()));
+  // the material's domains: an IDN pivot is labelled "żółw.pl (xn--w-....pl)", a failed lookup names the ASCII form
+  const doms = input.domains ? input.domains.flatMap((d) => d.toLowerCase().split(/[\s()]+/)).filter((d) => d.includes(".")) : null;
+  const lookupLines = (input.errors ?? []).map(parseLookupErrorLine).filter((l): l is NonNullable<typeof l> => !!l);
+  const shownLookups: Array<{ kind: string; domain: string }> = [];
   for (const fl of input.failedLookups ?? []) {
-    const [kind, domain] = fl.split(":");
-    if (doms.size && domain && !doms.has(domain.toLowerCase())) continue;
-    const what = kind === "rdap" ? "Rejestr domen (RDAP) nie odpowiedział" : kind === "ct" ? "Rejestr certyfikatów nie odpowiedział" : "Zapytanie nie powiodło się";
-    items.push({ id: `lookup:${fl}`, status: "warn", label: `${what} dla domeny ${domain ?? "?"}`, effect: "Brak tych danych w porównaniu; reszta analizy poszła dalej" });
+    const cut = fl.indexOf(":");
+    const kind = cut < 0 ? fl : fl.slice(0, cut);
+    const domain = cut < 0 ? "" : fl.slice(cut + 1).toLowerCase();
+    if (doms && !(domain && doms.some((d) => belongsToDomain(domain, d)))) continue;
+    if (shownLookups.some((s) => s.kind === kind && s.domain === domain)) continue;
+    shownLookups.push({ kind, domain });
+    const what = kind === "rdap" ? "Rejestr domen (RDAP) nie odpowiedział" : kind === "dns" ? "Serwery DNS nie odpowiedziały" : kind === "ct" ? "Rejestr certyfikatów nie odpowiedział" : "Zapytanie nie powiodło się";
+    const lost = kind === "rdap" ? "Bez daty rejestracji i rejestratora tej domeny w porównaniu" : kind === "dns" ? "Bez adresów IP i serwerów nazw tej domeny w porównaniu" : "Brak tych danych w porównaniu";
+    // the reason comes from the material's own error line for that domain (analysis with live lookups)
+    const reason = lookupLines.find((l) => l.kind === kind && domain && belongsToDomain(l.name, domain) && l.reason)?.reason;
+    items.push({ id: `lookup:${fl}`, status: "warn", label: `${what} dla domeny ${domain || "?"}`, effect: `${reason ? `Powód: ${reason}. ` : ""}${lost}; reszta analizy poszła dalej` });
   }
 
-  // errors and skipped parts
+  // errors and skipped parts (an error line of a lookup already shown above is not repeated)
   const seen = new Set<string>();
   for (const e of input.errors ?? []) {
+    const lookup = parseLookupErrorLine(e);
+    if (lookup && shownLookups.some((s) => s.kind === lookup.kind && belongsToDomain(lookup.name, s.domain))) continue;
     const label = plainError(e);
     if (seen.has(label)) continue;
     seen.add(label);

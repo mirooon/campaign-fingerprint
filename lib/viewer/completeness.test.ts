@@ -31,6 +31,24 @@ describe("completeness (§8.9)", () => {
     const warns = c.items.filter((i) => i.status === "warn");
     expect(warns.map((w) => w.label)).toEqual(["Rejestr domen (RDAP) nie odpowiedział dla domeny a.test"]);
   });
+  it("a failed DNS lookup of the analysis warns for the material's domain with the reason from its error line, which is not listed twice", () => {
+    const c = completeness({
+      features: { landingUrl: "https://www.a.test/" },
+      errors: ["DNS nie odpowiedział dla www.a.test: A, AAAA: brak odpowiedzi w limicie czasu", "RDAP nie odpowiedział dla kontakt.test: odpowiedź HTTP 503"],
+      failedLookups: ["dns:a.test", "rdap:b.test"],
+      domains: ["a.test"],
+      lookups: true,
+    });
+    expect(c.items.filter((i) => i.status === "warn").map((w) => [w.label, w.effect])).toEqual([
+      ["Serwery DNS nie odpowiedziały dla domeny a.test", "Powód: A, AAAA: brak odpowiedzi w limicie czasu. Bez adresów IP i serwerów nazw tej domeny w porównaniu; reszta analizy poszła dalej"],
+      ["Rejestr domen (RDAP) nie odpowiedział dla domeny kontakt.test: brak daty rejestracji i rejestratora", undefined],
+    ]);
+  });
+  it("a material without domains gets no failed lookup of the batch; an IDN domain matches by its ASCII name", () => {
+    expect(completeness({ features: { ocrText: "x" }, failedLookups: ["rdap:a.test"], domains: [] }).items.some((i) => i.id.startsWith("lookup:"))).toBe(false);
+    const idn = completeness({ features: { ocrText: "x" }, failedLookups: ["rdap:xn--w-uga1v8h.test"], domains: ["żółw.test (xn--w-uga1v8h.test)"] });
+    expect(idn.items.find((i) => i.id === "lookup:rdap:xn--w-uga1v8h.test")?.label).toBe("Rejestr domen (RDAP) nie odpowiedział dla domeny xn--w-uga1v8h.test");
+  });
   it("offline run, errors, skipped and backend 'missing'", () => {
     const c = completeness({ features: { landingUrl: "https://a.test/", ocrText: "x" }, lookups: false, errors: ["rdap a.test: timeout"], skipped: [{ id: "x/notatka.txt", reason: "nieobsługiwany plik" }], missing: ["plik HAR z wizyty na stronie"] });
     expect(c.items.some((i) => i.id === "lookups")).toBe(true);
@@ -45,5 +63,7 @@ describe("completeness (§8.9)", () => {
   it("plain errors", () => {
     expect(plainError("tesseract: failed")).toMatch(/OCR/);
     expect(plainError("coś innego")).toBe("coś innego");
+    expect(plainError("DNS nie odpowiedział dla www.a.test: A: SERVFAIL")).toBe("Serwery DNS nie odpowiedziały dla www.a.test: brak adresu IP i serwerów nazw");
+    expect(plainError("RDAP nie odpowiedział dla a.test: brak połączenia z siecią")).toBe("Rejestr domen (RDAP) nie odpowiedział dla domeny a.test: brak daty rejestracji i rejestratora");
   });
 });

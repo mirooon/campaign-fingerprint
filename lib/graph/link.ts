@@ -20,6 +20,7 @@ import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
 import { leadFlowLabel } from "../osint/leadFlow";
 import { asSeenOn, despaceText, hasSpacedText } from "../osint/pageTraits";
+import { hostingAccounts as hostingAccountsIn } from "../osint/hostingAccounts";
 import { companyIdsOfMaterial } from "../text/companyIds";
 import { applyShopContext } from "../osint/shopSignals";
 import { evaluateCompanyRegistry } from "../osint/companyRegistry";
@@ -307,8 +308,13 @@ export function buildEvidenceGraph(
     if (item.extra?.case) itemData.case = item.extra.case;
 
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
-    // Text spaced out letter by letter (B-337): an attribute, and the OCR text is glued back before any matching
-    if (hasSpacedText(enr?.ocrText) || hasSpacedText(item.text)) itemData.spacedText = true;
+    // Text spaced out letter by letter (B-337): an attribute and the technique `spaced_text`, read from the
+    // ad text and every OCR source (main and further screenshots, video frames); the OCR text is glued back
+    // before any matching
+    if ([item.text, enr?.ocrText, enr?.extraOcrText, enr?.videoOcrText].some((t) => hasSpacedText(t))) {
+      itemData.spacedText = true;
+      itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "spaced_text"])];
+    }
     const ui = enr?.ocrText ? stripUiChrome(despaceText(enr.ocrText)) : null;
     // Fake "as seen on" strip of media logos (B-338): an attribute of the material
     const seenOn = asSeenOn([item.text, ui?.text].filter(Boolean).join("\n"));
@@ -924,13 +930,17 @@ export function buildEvidenceGraph(
             add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `pliki strony ładowane z tej samej witryny konta na darmowym hostingu (${asset.host})`);
           }
         }
-        // Account on video hosting named in the page or its requests (B-342, notAloneKinds)
-        for (const h of kit.hostingAccounts ?? []) {
+        // Account on video or code hosting named in the page, its requests or its file addresses (B-342,
+        // B-148: jsDelivr `/gh/<user>`; notAloneKinds). File addresses are read here too, so the trace does
+        // not depend on the extraction having seen the account. Listed on the material as an attribute.
+        const accounts = [...new Set([...(kit.hostingAccounts ?? []), ...hostingAccountsIn(kit.assets.map((a) => a.url).join("\n"))])].sort();
+        for (const h of accounts) {
           const [service, ...rest] = h.split(":");
           const id = g.node("hosting_account", h, `${service} ${rest.join(":")}`, { service });
-          g.edge(finalUrlNode, id, "mentions", `zasób wideo z konta ${service} ${rest.join(":")}`);
-          add(id, "hosting_account", [...finalPath, id], rel, `to samo konto na hostingu wideo (${service} ${rest.join(":")})`);
+          g.edge(finalUrlNode, id, "mentions", `zasób z konta ${service} ${rest.join(":")}`);
+          add(id, "hosting_account", [...finalPath, id], rel, `to samo konto na hostingu (${service} ${rest.join(":")})`);
         }
+        if (accounts.length) itemData.hostingAccounts = [...new Set([...((itemData.hostingAccounts as string[] | undefined) ?? []), ...accounts])].sort();
         for (const text of kit.comments) {
           const cyr = /[\u0400-\u04FF]/.test(text);
           const id = g.node("comment", text, `„${text.length > 60 ? `${text.slice(0, 59)}…` : text}”`, { text, cyrillic: cyr });
@@ -1010,6 +1020,7 @@ export function buildEvidenceGraph(
           g.edge(finalUrlNode, id, "uses_tracker", "identyfikator trackera w adresie żądania strony (HAR)");
           add(id, "tracker", [...finalPath, id], rel, `ten sam identyfikator ${label} (z żądań strony)`);
         }
+        const requestHosts = new Set<string>();
         for (const host of kit.requestHosts ?? []) {
           // public services and the browser's own traffic say nothing about the operator: no node at all
           if (discounter.domainDiscount(registrableDomain(host)) || discounter.browserHost(host)) continue;
@@ -1023,7 +1034,10 @@ export function buildEvidenceGraph(
           });
           g.edge(finalUrlNode, id, "posts_to", `strona wysyła żądania do ${host} (HAR)`);
           add(id, "endpoint", [...finalPath, id], rel, `ten sam host spoza domeny strony w jej żądaniach (${host})`);
+          requestHosts.add(host);
         }
+        // Third-party hosts kept above (push, trackers, back-button scripts) listed on the material (B-158)
+        if (requestHosts.size) itemData.requestHosts = [...new Set([...((itemData.requestHosts as string[] | undefined) ?? []), ...requestHosts])].sort();
         // Platforms of the page (B-190): an attribute read from the platform paths of its files and backends
         const platforms = new Set<string>(lc?.platform ? [lc.platform] : tenants.length ? ["aio"] : []);
         for (const path of [...kit.assets.map((a) => a.path), ...kit.endpoints.map((e) => e.pathTemplate)]) {

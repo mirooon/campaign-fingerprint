@@ -132,7 +132,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   c2_host: "Serwer C2 trojana w zestawie strony",
   fictional_expert: "Zmyślony ekspert (dr, prof.)",
   lead_flow: "Wspólny lejek leadów platformy stron",
-  hosting_account: "Konto na hostingu wideo",
+  hosting_account: "Konto na hostingu wideo lub kodu",
   overlay_template: "Szablon podmienionych napisów w wideo",
   reused_footage: "Znak źródła cudzego nagrania",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",

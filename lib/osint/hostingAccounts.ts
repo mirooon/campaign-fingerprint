@@ -8,15 +8,22 @@
 /** Host of a Bunny Stream library: `vz-<library>-<zone>.b-cdn.net`; group 1 is the library id. */
 const BUNNY_STREAM_HOST = /\bvz-([0-9a-f]{8})-[0-9a-f]{3}\.b-cdn\.net\b/gi;
 
+/**
+ * A file served by jsDelivr straight from a GitHub repository: `cdn.jsdelivr.net/gh/<user>/<repo>…`
+ * (B-148); group 1 is the GitHub account. The CDN domain itself is shared by everyone, the account is not.
+ */
+const JSDELIVR_GH = /\bcdn\.jsdelivr\.net\/gh\/([a-z0-9](?:[a-z0-9-]{0,38}))\/[^\s"'<>]/gi;
+
 /** Most accounts kept per page. */
 const MAX_ACCOUNTS = 10;
 
 /**
  * Keys `service:account` of the hosting accounts named in a text (page source or a list of request
- * addresses), unique and sorted. Today only `bunny_stream:<library>`.
+ * addresses), unique and sorted: `bunny_stream:<library>` and `gh:<GitHub user>` (jsDelivr `/gh/`).
  */
 export function hostingAccounts(text: string): string[] {
   const found = new Set<string>();
   for (const m of (text ?? "").slice(0, 3_000_000).matchAll(BUNNY_STREAM_HOST)) found.add(`bunny_stream:${m[1].toLowerCase()}`);
+  for (const m of (text ?? "").slice(0, 3_000_000).matchAll(JSDELIVR_GH)) found.add(`gh:${m[1].toLowerCase()}`);
   return [...found].sort().slice(0, MAX_ACCOUNTS);
 }

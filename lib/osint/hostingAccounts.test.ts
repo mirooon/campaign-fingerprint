@@ -10,4 +10,9 @@ describe("hostingAccounts", () => {
   it("ignores the plain CDN domain and other hosts", () => {
     expect(hostingAccounts(`<img src="https://site.b-cdn.net/a.jpg"><a href="https://vz-nothex-123.b-cdn.net/">`)).toEqual([]);
   });
+
+  it("names the GitHub account behind a jsDelivr /gh/ file, not the CDN itself", () => {
+    const html = `<script src="https://cdn.jsdelivr.net/gh/TestUser/lib-x@1.0/a.js"></script><script src="https://cdn.jsdelivr.net/npm/jquery@3/dist/jquery.min.js"></script>`;
+    expect(hostingAccounts(html)).toEqual(["gh:testuser"]);
+  });
 });

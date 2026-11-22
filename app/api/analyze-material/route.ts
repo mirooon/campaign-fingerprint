@@ -14,9 +14,7 @@ import path from "node:path";
 import type { MaterialResult } from "@/lib/pipeline/analyzeMaterial";
 import { DATA_DIR } from "@/lib/viewer/data";
 import { rateLimitResponse } from "@/lib/viewer/rateLimit";
-import { maxBytes } from "@/lib/viewer/upload";
-
-const MAX_FILES = 400;
+import { limitLabel, maxBytes, maxFiles } from "@/lib/viewer/upload";
 
 function run(cmd: string, args: string[], timeoutMs: number): Promise<{ code: number | null; stderr: string }> {
   return new Promise((resolve) => {
@@ -46,7 +44,7 @@ async function flattenSingleTop(dir: string): Promise<void> {
 export async function POST(request: Request): Promise<Response> {
   const limited = rateLimitResponse(request);
   if (limited) return limited;
-  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${Math.round(maxBytes() / 1024 / 1024)} MB` }, { status: 413 });
+  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
   let form: FormData;
   try {
     form = await request.formData();
@@ -57,7 +55,7 @@ export async function POST(request: Request): Promise<Response> {
   const url = String(form.get("url") ?? "").trim().slice(0, 2048);
   const text = String(form.get("text") ?? "").trim().slice(0, 5000);
   if (!files.length && !url && !text) return Response.json({ error: "Dodaj pliki sprawy, link albo treść reklamy" }, { status: 400 });
-  if (files.length > MAX_FILES) return Response.json({ error: `Za dużo plików (maks. ${MAX_FILES})` }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
   if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "Brak przebiegu do porównania (campaigns.json)" }, { status: 503 });
 
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");

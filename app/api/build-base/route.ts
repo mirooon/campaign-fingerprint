@@ -11,9 +11,7 @@ import path from "node:path";
 import { baseSummary, buildBaseRefusal, replaceQuestion, restoreBase, setAsideBase } from "@/lib/viewer/buildBase";
 import { DATA_DIR, SAMPLE_BASE } from "@/lib/viewer/data";
 import { rateLimitResponse } from "@/lib/viewer/rateLimit";
-import { maxBytes } from "@/lib/viewer/upload";
-
-const MAX_FILES = 4000;
+import { limitLabel, maxBytes, maxFiles } from "@/lib/viewer/upload";
 
 /** Runs a command; resolves to its exit code (null on a signal or timeout) and stderr. */
 function run(cmd: string, args: string[], timeoutMs: number): Promise<{ code: number | null; stderr: string }> {
@@ -61,7 +59,7 @@ export async function POST(request: Request): Promise<Response> {
   if (limited) return limited;
   const refusal = buildBaseRefusal(SAMPLE_BASE);
   if (refusal) return Response.json({ error: refusal }, { status: 403 });
-  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${Math.round(maxBytes() / 1024 / 1024)} MB` }, { status: 413 });
+  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
   let form: FormData;
   try {
     form = await request.formData();
@@ -70,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
   }
   const files = form.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
   if (!files.length) return Response.json({ error: "Dodaj folder spraw (jeden podfolder na sprawę) albo ZIP" }, { status: 400 });
-  if (files.length > MAX_FILES) return Response.json({ error: `Za dużo plików (maks. ${MAX_FILES})` }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
   const summary = baseSummary(DATA_DIR);
   if (summary.exists && form.get("confirm") !== "1") return Response.json({ error: "Potwierdź zastąpienie bazy", question: replaceQuestion(summary) }, { status: 409 });
 

@@ -26,7 +26,7 @@ Zakładki u góry: Analizuj materiał (domyślna) · Kampanie · Graf powiązań
 | plik zbioru (CSV, JSON) | w interfejsie jeszcze nie analizowany; użyj `bun run analyze-material -- --dataset <plik>` |
 | plik systemowy, nieobsługiwany | pomijane |
 
-Limit wgrywania: 500 MB (`MATERIAL_MAX_MB`).
+Limit wgrywania: domyślnie brak. Pliki idą pojedynczo i strumieniowo na dysk (pasek postępu w kroku wgrywania), więc partia wielu GB nie trafia do pamięci. Przy publicznym adresie ustaw `MATERIAL_MAX_MB` i `MATERIAL_MAX_FILES`.
 
 Co robi analiza uruchomiona z przeglądarki (`lib/viewer/materialRunner.ts`): OCR zrzutów i klatek, pasek adresu, odczyt stron i HAR, porównanie z bazą, a przy zaznaczonym polu z kroku 4 także DNS, RDAP i ASN. Transkrypcja (`--asr`), odcisk dźwięku (`--audio`), głos (`--speaker`), twarze (`--faces`), CLIP (`--clip`) i biblioteka reklam (`--ad-library`) są **poza przeglądarką**: włączasz je w `bun run analyze-material` albo przy budowie bazy. Wiersze „podobna twarz” i „głos podobny” w karcie wyniku pojawią się więc tylko dla wyniku z takiej analizy albo dla materiałów z bazy.
 
@@ -81,7 +81,7 @@ Etykieta „dane syntetyczne” stoi w nagłówku, gdy baza to próbka dołączo
 
 ## Zmienne środowiskowe
 
-`VIEWER_DATA_DIR`, `MATERIAL_WORK_DIR` (pliki zadań, domyślnie katalog tymczasowy), `MATERIAL_MAX_MB` (limit wgrywania, domyślnie 500), `MATERIAL_TIMEOUT_MS`, `LINK_CONFIG`, `PERSONAS_FILE`, `BUN_BIN`.
+`VIEWER_DATA_DIR`, `MATERIAL_WORK_DIR` (pliki zadań, domyślnie katalog tymczasowy), `MATERIAL_MAX_MB` i `MATERIAL_MAX_FILES` (limit wgrywania w MB i liczby plików; domyślnie bez limitu, pliki idą pojedynczo i strumieniowo na dysk), `MATERIAL_TIMEOUT_MS`, `LINK_CONFIG`, `PERSONAS_FILE`, `BUN_BIN`.
 
 ## Zależności dodane dla GUI
 

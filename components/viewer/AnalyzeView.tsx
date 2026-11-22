@@ -105,6 +105,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
   const [off, setOff] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [upload, setUpload] = useState<{ done: number; total: number; bytes: number; totalBytes: number } | null>(null);
   const [job, setJob] = useState<PublicJob | null>(null);
   const [filter, setFilter] = useState<ResultFilter>("all");
   const [open, setOpen] = useState<string | null>(null);
@@ -164,23 +165,23 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
     async (overrides?: { url: string; text: string; live: boolean }) => {
       setBusy(true);
       setError(null);
-      const form = new FormData();
       const chosen = cases.filter((c) => !off.has(c.name) && c.analyzable);
       const byPath = new Map(picked.map((p) => [p.path, p.file]));
       const { top } = stripCommonTop(inputFiles);
+      const queue: { file: File; path: string; caseName: string }[] = [];
       for (const c of chosen) {
         for (const f of c.files) {
           const file = byPath.get(f.path);
           if (!file) continue;
-          form.append("files", file, file.name);
-          form.append("paths", top && f.path.startsWith(`${top}/`) ? f.path.slice(top.length + 1) : f.path);
-          form.append("cases", c.name);
+          queue.push({ file, path: top && f.path.startsWith(`${top}/`) ? f.path.slice(top.length + 1) : f.path, caseName: c.name });
         }
       }
+      const form = new FormData();
       form.append("url", overrides?.url ?? url);
       form.append("text", overrides?.text ?? text);
       form.append("live", (overrides?.live ?? live) ? "1" : "0");
       try {
+        if (queue.length) form.append("uploadId", await uploadFiles(queue, setUpload));
         const res = await fetch("/api/material", { method: "POST", body: form });
         const body = (await res.json()) as { jobId?: string; error?: string };
         if (!res.ok || !body.jobId) throw new Error(body.error ?? "Nie udało się rozpocząć analizy");
@@ -192,6 +193,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         setError((e as Error).message);
       } finally {
         setBusy(false);
+        setUpload(null);
       }
     },
     [cases, off, picked, inputFiles, url, text, live, onJob],
@@ -310,6 +312,14 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
             <button type="button" onClick={loadExample} disabled={busy} className="rounded-md border border-slate-400 bg-white px-3 py-2 text-sm">Wczytaj przykład</button>
             <span className="text-xs text-slate-500">Przykład to wymyślona reklama, sprawdzana bez internetu.</span>
           </div>
+          {upload && (
+            <div className="space-y-1" role="status" aria-live="polite">
+              <p className="text-sm text-slate-700">Wgrywanie: {upload.done} z {upload.total} plików ({fmtMb(upload.bytes)} z {fmtMb(upload.totalBytes)})</p>
+              <div className="h-2 w-full max-w-md overflow-hidden rounded bg-slate-200">
+                <div className="h-full bg-slate-900 transition-all" style={{ width: `${upload.totalBytes ? Math.round((upload.bytes / upload.totalBytes) * 100) : 0}%` }} />
+              </div>
+            </div>
+          )}
           {error && <p role="alert" className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">{error}</p>}
         </section>
       )}
@@ -570,4 +580,45 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
 /** Thumbnail of a screenshot served by the job API (only from the job folder). */
 function ThumbImg({ jobId, path }: { jobId: string; path: string }) {
   return <Image src={`/api/material/${jobId}/image?path=${encodeURIComponent(path)}`} alt="Miniatura zrzutu" width={48} height={48} unoptimized className="h-12 w-12 rounded border border-slate-200 object-cover" />;
+}
+
+/** Size in MB (or GB above 1024 MB) for the upload progress. */
+function fmtMb(bytes: number): string {
+  const mb = bytes / 1024 / 1024;
+  return mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`;
+}
+
+/**
+ * Sends the batch file by file (4 at a time) into an upload session, so the server streams each file
+ * to disk and a batch of many GB never travels as one request. Returns the session id for /api/material.
+ */
+async function uploadFiles(
+  queue: { file: File; path: string; caseName: string }[],
+  onProgress: (p: { done: number; total: number; bytes: number; totalBytes: number }) => void,
+): Promise<string> {
+  const res = await fetch("/api/material/upload", { method: "POST" });
+  const body = (await res.json()) as { uploadId?: string; error?: string };
+  if (!res.ok || !body.uploadId) throw new Error(body.error ?? "Nie udało się rozpocząć wgrywania");
+  const id = body.uploadId;
+  const totalBytes = queue.reduce((s, q) => s + q.file.size, 0);
+  let done = 0;
+  let bytes = 0;
+  let next = 0;
+  onProgress({ done, total: queue.length, bytes, totalBytes });
+  const worker = async () => {
+    while (next < queue.length) {
+      const q = queue[next++];
+      const qs = new URLSearchParams({ case: q.caseName, path: q.path });
+      const r = await fetch(`/api/material/upload/${id}?${qs}`, { method: "PUT", body: q.file });
+      if (!r.ok) {
+        const err = (await r.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? `Nie udało się wgrać pliku ${q.path}`);
+      }
+      done += 1;
+      bytes += q.file.size;
+      onProgress({ done, total: queue.length, bytes, totalBytes });
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, worker));
+  return id;
 }

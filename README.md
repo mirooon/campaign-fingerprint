@@ -43,6 +43,55 @@ Wynik: `odcisk-kampanii-sample-data/wynik-wlasne.csv` (werdykt dla każdego mate
 
 Szczegóły i opcje (inny port, zrzuty Waszych spraw w GUI, skrypty pomiarów w `pomiary/`): `README.md` w paczce. Bez paczki narzędzie uruchomisz według sekcji 1 poniżej.
 
+## Dla jury: pierwsze uruchomienie w 5 minut
+
+Potrzebny jest Docker Desktop (albo Docker z Compose v2). Narzędzie działa bez internetu i bez kluczy. Na Windowsie polecenia uruchom w WSL albo Git Bash, a jeśli to nie działa, użyj [poleceń bez skryptu](#1-szybki-start-w-dockerze).
+
+**Krok 1. Demo na danych syntetycznych z repozytorium** (pierwszy raz ok. 3 min, bo budowany jest obraz; potem kilka sekund)
+
+```bash
+git clone <adres repozytorium> && cd odcisk-kampanii
+./jury.sh demo
+```
+
+Przeglądarka otworzy http://localhost:3000. W terminalu zobaczysz osiem materiałów i pięć różnych werdyktów:
+
+```
+1-znana-kampania    known_campaign     K01  Należy do kampanii K01 (silny dowód: ten sam host …)
+2-podobne-kampanie  similar_campaigns  -    Nowa kampania, podobna do K06, K07 …
+3-duplikat          duplicate          K02  Duplikat materiału baza-c2-a: identyczny obraz …
+4-za-malo-danych    insufficient       -    Za mało danych do porównania: brak adresu strony …
+6-ewolucja-1..3     new_campaign       N1   Nowa kampania … Razem z: 6-ewolucja-2, 6-ewolucja-3
+```
+
+**Krok 2. Baza z Waszej próbki** (np. sprawy przekazane zespołom; folder albo zip, każda sprawa w osobnym podfolderze)
+
+```bash
+./jury.sh baza ~/Pobrane/probka          # ok. 10 s na 15 spraw; GUI pokaże kampanie z próbki
+```
+
+**Krok 3. Ocena nowych materiałów względem tej bazy** (np. zbiór ukryty)
+
+```bash
+./jury.sh analizuj ~/Pobrane/nowe        # ok. 40 s na 10 spraw
+```
+
+Wynik: `./dane/wynik-<nazwa>.csv`, czyli jeden wiersz na materiał: werdykt, kampania, siła przesłanek i najsilniejsza przesłanka prostym językiem ([kolumny](#wynik-kolumny-csv)). Terminal podsumowuje werdykty. Karty wyników z pełnymi przesłankami zobaczysz w GUI: wgraj te same pliki w zakładce „Analizuj materiał”, a w zakładce „Kampanie” obejrzysz bazę.
+
+Duże zbiory (wiele GB) można wgrać także w GUI: pliki idą pojedynczo i strumieniowo na dysk (`./dane/praca`), bez limitu rozmiaru i liczby plików, z paskiem postępu.
+
+Układ danych wejściowych rozpoznawany jest sam: podfolder to sprawa, luźny plik to osobny materiał, zip jest rozpakowywany. Pliki są kopiowane do `./dane/jury/` (kontener widzi tylko `./dane`), a oryginały zostają nietknięte.
+
+| Gdy | Zrób |
+|---|---|
+| port 3000 jest zajęty | `PORT=3100 ./jury.sh demo` |
+| widzisz komunikaty `skipped` (asr, clip, lookups) | to normalne: kontener działa bez sieci i bez dużych modeli; powód jest w wyniku |
+| widzisz `pominiętych: N` przy imporcie | to podstrony w sprawach bez adresu strony, a nie całe sprawy (liczba spraw podana obok) |
+| chcesz zatrzymać | `./jury.sh stop` |
+| zmieniono kod | `REBUILD=1 ./jury.sh demo` |
+
+Gdzie w GUI i w kodzie widać każde z kryteriów oceny: [sekcja 4](#4-kryteria-oceny-gdzie-to-zobaczyć). Metodyka na jednej stronie: [sekcja 3](#3-metodyka-w-10-zdaniach).
+
 ## 1. Szybki start w Dockerze
 
 Wymagania: Docker z Compose v2. Pierwsza budowa obrazu trwa 2,5–3 minuty (pomiar z I7), kolejne ok. 40–50 sekund; gdy obraz już jest, `up -d` startuje od razu. Obraz `odcisk-kampanii:latest` ma 2,7 GB na dysku (670 MB skompresowany) i zawiera bun, zbudowany interfejs, tesseract (polski), ffmpeg, chromaprint i Pythona. Pliki wymieniasz z kontenerem przez katalog `./dane` (w kontenerze `/dane`).

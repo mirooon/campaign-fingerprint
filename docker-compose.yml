@@ -14,7 +14,7 @@ services:
       target: run
     image: odcisk-kampanii:latest
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     volumes:
       - ./dane:/dane
       # A ready base from the non-public data pack (read-only) instead of the one built into ./dane/baza,
@@ -25,6 +25,8 @@ services:
     environment:
       VIEWER_DATA_DIR: ${VIEWER_DATA_DIR:-/dane/baza}
       CASES_DIR: ${CASES_DIR:-}
+      # GUI uploads (any size, streamed file by file) land on the host disk, not in the container layer
+      MATERIAL_WORK_DIR: ${MATERIAL_WORK_DIR:-/dane/praca}
       ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
       TZ: ${TZ:-Europe/Warsaw}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
@@ -52,7 +54,7 @@ services:
     image: odcisk-kampanii:full
     profiles: ["full"]
     ports:
-      - "3000:3000"
+      - "${PORT:-3000}:3000"
     volumes:
       - ./dane:/dane
       - ${WHISPER_MODEL_DIR:-~/models/whisper}:/models/whisper:ro

@@ -1184,8 +1184,9 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 | `CT_FEED_FILE` | `data/ct-watch.jsonl` | `scripts/ct-watch.ts`, `scripts/ct-backfill.ts`, `app/api/ct-feed/route.ts` | feed kandydatów |
 | `VIEWER_DATA_DIR` | `data/` | `lib/viewer/data.ts` | katalog z `graph.json`, `campaigns.json`, `enriched.json` (przebieg pokazywany w GUI i porównywany w `analyze-material`); `bun run base` zapisuje tu bazę. W kontenerze `/dane/baza` |
 | `MATERIAL_WORK_DIR` | katalog tymczasowy systemu (`analiza-kampanii`) | `lib/viewer/jobs.ts` | pliki wgrane w GUI i wyniki zadań, poza repozytorium (w kontenerze `/dane/praca`) |
-| `MATERIAL_TIMEOUT_MS` | `1800000` (30 min) | `lib/viewer/jobs.ts` | po tym czasie zadanie analizy z GUI jest przerywane |
-| `MATERIAL_MAX_MB` | `500` | `lib/viewer/upload.ts`, `app/api/material/route.ts` | limit wgrywania; powyżej: 413 |
+| `MATERIAL_TIMEOUT_MS` | `21600000` (6 h) | `lib/viewer/jobs.ts` | po tym czasie zadanie analizy z GUI jest przerywane; `0` wyłącza limit |
+| `MATERIAL_MAX_MB` | bez limitu | `lib/viewer/upload.ts`, `lib/viewer/uploadSession.ts` | limit wgrywania w MB; powyżej: 413. GUI wysyła pliki pojedynczo (`POST /api/material/upload`, potem `PUT /api/material/upload/<id>` na plik) i serwer zapisuje je strumieniowo na dysk, więc partia wielu GB nie trafia do pamięci; ZIP-y powyżej 100 MB rozpakowuje strumieniowo Python (`zipfile`). Ustaw tylko przy publicznym adresie |
+| `MATERIAL_MAX_FILES` | bez limitu | `lib/viewer/upload.ts` | limit liczby wgranych plików (analiza z GUI i budowa bazy); powyżej: błąd 400 |
 | `PERSONAS` | `<katalog bazy>/personas.json`, potem katalog wyżej | `scripts/analyze-material.ts` | lista osób dla `analyze-material` (to samo co `--personas`) |
 | `PERSONAS_FILE` | – | `app/api/material/route.ts` | lista osób dla zadań z GUI |
 | `BUN_BIN` | `bun` z `PATH` | `lib/viewer/jobs.ts`, `app/api/analyze-material/route.ts` | binarium buna, którym GUI uruchamia analizę (w kontenerze `/usr/local/bin/bun`) |

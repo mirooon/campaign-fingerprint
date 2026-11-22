@@ -122,7 +122,9 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
   job.startedAt = new Date().toISOString();
   const runner = path.join(process.cwd(), "lib", "viewer", "materialRunner.ts");
   const child = spawn(process.env.BUN_BIN ?? "bun", [runner, specFile], { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"] });
-  const timeout = setTimeout(() => child.kill("SIGKILL"), Number(process.env.MATERIAL_TIMEOUT_MS ?? 30 * 60_000));
+  // big batches (many GB) take long: default 6 h, MATERIAL_TIMEOUT_MS=0 switches the limit off
+  const timeoutMs = Number(process.env.MATERIAL_TIMEOUT_MS ?? 6 * 60 * 60_000);
+  const timeout = setTimeout(() => child.kill("SIGKILL"), timeoutMs > 0 ? timeoutMs : 2 ** 31 - 1);
   let buf = "";
   child.stdout.setEncoding("utf8");
   child.stdout.on("data", (chunk: string) => {

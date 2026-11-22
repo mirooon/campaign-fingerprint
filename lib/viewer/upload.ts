@@ -4,14 +4,27 @@
  */
 import { unzipSync } from "fflate";
 
-export const DEFAULT_MAX_MB = 500;
-export const MAX_FILES = 2000;
 /** A ZIP entry may not expand more than this many times (zip bomb). */
 export const MAX_RATIO = 200;
 
+/**
+ * Upload size limit in bytes. Unset (local use, the container) means no limit: evaluators may
+ * bring many GB of material. Set MATERIAL_MAX_MB only when the app is exposed publicly.
+ */
 export function maxBytes(): number {
-  const mb = Number(process.env.MATERIAL_MAX_MB ?? DEFAULT_MAX_MB);
-  return (Number.isFinite(mb) && mb > 0 ? mb : DEFAULT_MAX_MB) * 1024 * 1024;
+  const mb = Number(process.env.MATERIAL_MAX_MB || 0);
+  return Number.isFinite(mb) && mb > 0 ? mb * 1024 * 1024 : Number.POSITIVE_INFINITY;
+}
+
+/** Limit on the number of uploaded files (MATERIAL_MAX_FILES); unset means no limit. */
+export function maxFiles(): number {
+  const n = Number(process.env.MATERIAL_MAX_FILES || 0);
+  return Number.isFinite(n) && n > 0 ? n : Number.POSITIVE_INFINITY;
+}
+
+/** Human-readable limit for error messages. */
+export function limitLabel(bytes: number): string {
+  return `${Math.round(bytes / 1024 / 1024)} MB`;
 }
 
 /** Relative path inside the case folder, or null when it tries to leave it (zip-slip, absolute, drive letter, NUL). */
@@ -36,7 +49,7 @@ export class UploadError extends Error {}
  * Entries of a ZIP, checked before decompression (declared sizes) and after (real sizes).
  * Unsafe names are skipped and reported; limits throw UploadError.
  */
-export function extractZip(buf: Uint8Array, limits: { maxBytes: number; maxFiles: number } = { maxBytes: maxBytes(), maxFiles: MAX_FILES }): { entries: ZipEntry[]; rejected: string[] } {
+export function extractZip(buf: Uint8Array, limits: { maxBytes: number; maxFiles: number } = { maxBytes: maxBytes(), maxFiles: maxFiles() }): { entries: ZipEntry[]; rejected: string[] } {
   let declared = 0;
   let count = 0;
   const rejected: string[] = [];
@@ -53,7 +66,7 @@ export function extractZip(buf: Uint8Array, limits: { maxBytes: number; maxFiles
         count += 1;
         declared += f.originalSize;
         if (count > limits.maxFiles) throw new UploadError(`Za dużo plików w archiwum (maks. ${limits.maxFiles})`);
-        if (declared > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${Math.round(limits.maxBytes / 1024 / 1024)} MB`);
+        if (declared > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${limitLabel(limits.maxBytes)}`);
         if (f.size > 0 && f.originalSize / f.size > MAX_RATIO && f.originalSize > 10 * 1024 * 1024) throw new UploadError(`Podejrzanie silna kompresja pliku ${rel} (możliwa bomba ZIP)`);
         return true;
       },
@@ -66,7 +79,7 @@ export function extractZip(buf: Uint8Array, limits: { maxBytes: number; maxFiles
   const entries: ZipEntry[] = [];
   for (const [name, data] of Object.entries(files)) {
     real += data.length;
-    if (real > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${Math.round(limits.maxBytes / 1024 / 1024)} MB`);
+    if (real > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${limitLabel(limits.maxBytes)}`);
     entries.push({ path: safeRelative(name)!, data });
   }
   return { entries, rejected };

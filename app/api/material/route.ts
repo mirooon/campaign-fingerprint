@@ -5,8 +5,11 @@
  *   cases:  case of every file (one per file, same order) — the split chosen in the preview
  *   url, text: optional link and ad text
  *   live=1: passive lookups (DNS, RDAP) for the domains of the material; asr=1: transcribe videos
+ *   uploadId: instead of `files`, a session whose files were already streamed one by one with
+ *          PUT /api/material/upload/<id> (the GUI does this, so batches of many GB never sit in memory)
  * The case split is computed in the browser (lib/viewer/caseDetect.ts). Files go to
  * MATERIAL_WORK_DIR/<job>/sprawy/<case>/; ZIPs are unpacked there with size and path checks.
+ * No size or file-count limit unless MATERIAL_MAX_MB / MATERIAL_MAX_FILES are set (public deployments).
  */
 import { existsSync } from "node:fs";
 import { mkdir, readdir, rename, rm, writeFile } from "node:fs/promises";
@@ -15,7 +18,8 @@ import { safeCaseName } from "@/lib/viewer/caseDetect";
 import { DATA_DIR, SAMPLE_BASE } from "@/lib/viewer/data";
 import { rateLimitResponse } from "@/lib/viewer/rateLimit";
 import { newJobId, registerJob, startJob, workRoot, type Job, type JobCase } from "@/lib/viewer/jobs";
-import { extractZip, MAX_FILES, maxBytes, safeRelative, UploadError } from "@/lib/viewer/upload";
+import { extractZip, limitLabel, maxBytes, maxFiles, safeRelative, UploadError } from "@/lib/viewer/upload";
+import { closeUploadSession, getUploadSession, unpackZipOnDisk } from "@/lib/viewer/uploadSession";
 
 /** A case folder holding one top folder only: its content is the case (folder upload, ZIP of a folder). */
 async function flattenSingleTop(dir: string): Promise<void> {
@@ -44,20 +48,29 @@ export async function POST(request: Request): Promise<Response> {
   const text = String(form.get("text") ?? "").trim().slice(0, 5000);
   // ANALYZE_OFFLINE=1 (the container default) switches the passive lookups off whatever the form asks for.
   const live = form.get("live") !== "0" && process.env.ANALYZE_OFFLINE !== "1";
-  if (!files.length && !url && !text) return Response.json({ error: "Dodaj pliki, link albo tekst reklamy" }, { status: 400 });
-  if (files.length > MAX_FILES) return Response.json({ error: `Za dużo plików (maks. ${MAX_FILES})` }, { status: 400 });
+  const uploadId = String(form.get("uploadId") ?? "");
+  const session = uploadId ? getUploadSession(uploadId) : undefined;
+  if (uploadId && !session) return Response.json({ error: "Nie ma takiej sesji wgrywania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
+  if (!files.length && !session?.files && !url && !text) return Response.json({ error: "Dodaj pliki, link albo tekst reklamy" }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
   const limit = maxBytes();
   const total = files.reduce((s, f) => s + f.size, 0);
-  if (total > limit) return Response.json({ error: `Pliki mają razem ${Math.round(total / 1024 / 1024)} MB, limit to ${Math.round(limit / 1024 / 1024)} MB (MATERIAL_MAX_MB)` }, { status: 413 });
+  if (total > limit) return Response.json({ error: `Pliki mają razem ${Math.round(total / 1024 / 1024)} MB, limit to ${limitLabel(limit)} (MATERIAL_MAX_MB)` }, { status: 413 });
   if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "Brak bazy porównawczej (campaigns.json). Uruchom: bun run pipeline --offline" }, { status: 503 });
 
-  const id = newJobId();
-  const dir = path.join(workRoot(), id);
-  const casesDir = path.join(dir, "sprawy");
-  const counts = new Map<string, number>();
+  const id = session?.id ?? newJobId();
+  const dir = session?.dir ?? path.join(workRoot(), id);
+  const casesDir = session?.casesDir ?? path.join(dir, "sprawy");
+  const counts = new Map<string, number>(session?.counts ?? []);
+  if (session) closeUploadSession(session.id);
   try {
     await mkdir(casesDir, { recursive: true });
     let unpacked = 0;
+    for (const zip of session?.zips ?? []) {
+      const caseDir = path.join(casesDir, path.relative(casesDir, zip).split(path.sep)[0]);
+      unpacked += await unpackZipOnDisk(zip, caseDir, limit - (session?.bytes ?? 0) - unpacked);
+      await flattenSingleTop(path.join(path.dirname(zip), path.basename(zip).replace(/\.zip$/i, "")));
+    }
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
       const rel = safeRelative(paths[i] || f.name);
@@ -70,7 +83,7 @@ export async function POST(request: Request): Promise<Response> {
       const data = new Uint8Array(await f.arrayBuffer());
       counts.set(caseName, (counts.get(caseName) ?? 0) + 1);
       if (/\.zip$/i.test(rel)) {
-        const { entries } = extractZip(data, { maxBytes: limit - unpacked, maxFiles: MAX_FILES });
+        const { entries } = extractZip(data, { maxBytes: limit - unpacked, maxFiles: maxFiles() });
         const target = path.join(path.dirname(dest), path.basename(rel).replace(/\.zip$/i, ""));
         for (const e of entries) {
           const out = path.join(target, e.path);
@@ -90,7 +103,7 @@ export async function POST(request: Request): Promise<Response> {
       caseDirs.push(path.join(casesDir, name));
     }
     const cases: JobCase[] = [...counts.entries()].map(([name, n]) => ({ name, status: "waiting", steps: [], files: n }));
-    const job: Job = { id, createdAt: new Date().toISOString(), status: "running", cases, log: [], dir, live, fileCount: files.length, together: caseDirs.length > 1 };
+    const job: Job = { id, createdAt: new Date().toISOString(), status: "running", cases, log: [], dir, live, fileCount: files.length + (session?.files ?? 0), together: caseDirs.length > 1 };
     registerJob(job);
     const fixtures = path.join(DATA_DIR, "sample", "fixtures");
     await startJob(job, {

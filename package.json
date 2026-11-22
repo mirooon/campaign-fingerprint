@@ -34,6 +34,7 @@
     "licenses": "bun scripts/licenses.ts",
     "export-dataset": "bun scripts/export-dataset.ts",
     "source-stats": "bun scripts/source-stats.ts",
+    "meta-id-suffix": "bun scripts/meta-id-suffix.ts",
     "contract-schema": "bun scripts/contract-schema.ts",
     "report": "bun scripts/report.ts",
     "adlib": "bun scripts/adlib.ts",

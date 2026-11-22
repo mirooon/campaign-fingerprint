@@ -138,6 +138,16 @@ export class Discounter {
         }
         break;
       }
+      case "mx": {
+        const hosts = (p.data.mx as string[] | undefined) ?? p.key.split(" + ");
+        const matches = hosts.map((h) => firstRule(lists.mxSuffixes ?? [], (r) => suffixMatch(h, r.match)));
+        // Only when every MX of the set is a shared provider: an own mail server stays specific.
+        if (matches.length && matches.every((m) => m)) {
+          const loosest = matches.reduce((a, b) => (a!.factor >= b!.factor ? a : b))!;
+          out.push({ reason: loosest.reason, factor: loosest.factor, rule: `mxSuffixes:${loosest.match}` });
+        }
+        break;
+      }
       case "registrar": {
         const name = String(p.data.registrar ?? p.key).toLowerCase();
         const r = firstRule(lists.registrars, (rule) => name.includes(rule.match.toLowerCase()));

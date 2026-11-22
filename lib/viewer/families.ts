@@ -59,6 +59,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   ip: "infra",
   asn: "infra",
   nameserver: "infra",
+  mx: "infra",
   registrar: "infra",
   cert: "infra",
   tracker: "infra",

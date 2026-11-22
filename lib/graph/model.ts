@@ -13,6 +13,7 @@ export const ENTITY_TYPES = [
   "ip",
   "asn",
   "nameserver",
+  "mx",
   "registrar",
   "cert",
   "tracker",
@@ -92,6 +93,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   ip: "Adres IP",
   asn: "ASN",
   nameserver: "Serwery NS",
+  mx: "Serwer poczty (MX)",
   registrar: "Rejestrator",
   cert: "Certyfikat",
   tracker: "Tracker",
@@ -149,6 +151,7 @@ export type EdgeType =
   | "resolves_to"
   | "announced_by"
   | "uses_ns"
+  | "uses_mx"
   | "registered_with"
   | "registration_burst"
   | "has_cert"

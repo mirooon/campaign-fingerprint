@@ -28,6 +28,7 @@ export const TYPE_INFO: Record<AnyType, TypeInfo> = {
   domain: { name: "Domena", what: "Adres strony, np. przyklad.test. Oszuści często rejestrują nowe domeny na kilka dni.", why: "Wspólna domena łączy materiały samodzielnie, chyba że to duży serwis używany przez wielu.", example: "przyklad.test", sentence: "Obie reklamy prowadzą do tej samej domeny" },
   ip: { name: "Adres IP", what: "Numer serwera, na którym działa strona.", why: "Ten sam mały serwer może wskazywać jednego właściciela; wspólne adresy dużych firm hostingowych pomijamy.", example: "192.0.2.10", sentence: "Strony działają na tym samym adresie IP" },
   asn: { name: "Sieć (ASN)", what: "Numer sieci operatora, w której stoi serwer.", why: "W jednej sieci są tysiące niezależnych stron, więc to słaby ślad.", example: "AS64500", sentence: "Serwery stoją w tej samej sieci operatora" },
+  mx: { name: "Serwer poczty (MX)", what: "Serwer, który odbiera pocztę domeny.", why: "Własny serwer poczty to ślad operatora; wspólne usługi (Google, Microsoft, Zoho, poczta rejestratora) pomijamy, a ślad nigdy nie łączy kampanii sam.", example: "mail.poczta-przyklad.test", sentence: "Domeny mają ten sam własny serwer poczty" },
   nameserver: { name: "Serwery nazw (NS)", what: "Serwery, które wskazują, gdzie działa domena.", why: "Ta sama nietypowa para serwerów może łączyć domeny jednego właściciela.", example: "ns1.dns-przyklad.test", sentence: "Domeny korzystają z tych samych serwerów nazw" },
   registrar: { name: "Rejestrator", what: "Firma, w której kupiono domenę.", why: "Popularny rejestrator mówi niewiele, rejestracje seriami mówią więcej.", example: "Rejestrator Przykładowy", sentence: "Domeny kupiono u tego samego rejestratora" },
   cert: { name: "Certyfikat HTTPS", what: "Plik potrzebny stronie do działania przez https. Każdy certyfikat trafia do publicznego rejestru.", why: "Jeden certyfikat na kilka domen zwykle wystawia jeden właściciel; darmowe urzędy certyfikacji pomijamy.", example: "certyfikat dla a.test i b.test", sentence: "Domeny mają wspólny certyfikat HTTPS" },
@@ -697,6 +698,15 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
     source: "z tekstu strony i napisów (atrybut; mieszane alfabety, kalki, skoki ty/wy, liczebniki słownie; bez wniosków o narodowości)",
     role: "describes",
     format: (v) => Object.entries(v as Record<string, number>).map(([k, n]) => `${{ mixed_alphabet: "słowa z mieszanym alfabetem", calque: "kalki", form_switch: "przeskoki ty/wy", spelled_numbers: "liczebniki słownie w napisach" }[k] ?? k}: ${n}`),
+  },
+  languageErrors: {
+    name: "Błędy językowe strony",
+    source: "z tekstu strony (atrybut bez wagi, B-325: akapity w innym języku niż reszta strony albo słowa z mieszanym alfabetem w zdaniu)",
+    role: "describes",
+    format: (v) => {
+      const e = v as { foreignParagraphLangs?: string[]; mixedWords?: number };
+      return [...(e.foreignParagraphLangs?.length ? [`akapity w innym języku: ${e.foreignParagraphLangs.join(", ")}`] : []), ...(e.mixedWords ? [`słowa z mieszanym alfabetem: ${e.mixedWords}`] : [])];
+    },
   },
   brandStyle: { name: "Styl nazwy marki", source: "z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut)", role: "describes" },
   advertiserNameKind: {

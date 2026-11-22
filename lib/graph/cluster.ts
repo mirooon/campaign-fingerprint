@@ -281,7 +281,7 @@ export type LinkVerdict = "campaign" | "below" | "single_kind" | "account_confli
 /**
  * Rule kind of a piece of evidence: the pivot type, the similarity edge type, "creative_sha256" for the same
  * creative file, "scam_brand" for the scam's own brand, "tracker_host" for a host of the page's requests,
- * "adsense_publisher" for an AdSense publisher ID or "advertiser_name" for an advertiser known only by its
+ * "adsense_publisher" for an AdSense publisher ID, "affiliate_team" for the team+user pair of an affiliate network (B-330) or "advertiser_name" for an advertiser known only by its
  * display name (no library account ID): ad accounts are stolen and resold, so the name alone does not
  * merge campaigns (I23).
  */
@@ -291,6 +291,7 @@ export function evidenceKind(e: ItemLink["evidence"][number]): string {
   if (e.pivot?.startsWith("campaign_param:scam_brand=")) return "scam_brand";
   if (e.pivot?.startsWith("endpoint:tracker_host:")) return "tracker_host";
   if (e.pivot?.startsWith("tracker:adsense:")) return "adsense_publisher";
+  if (e.pivot?.startsWith("affiliate_account:team:")) return "affiliate_team";
   return e.pivotType ?? e.edgeType ?? e.kind;
 }
 

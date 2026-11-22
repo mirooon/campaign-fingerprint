@@ -78,6 +78,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   shared_doc: "infra",
   onion: "infra",
   messenger_invite: "infra",
+  affiliate_account: "infra",
 };
 
 /** Feature keys of a material (`MaterialItemResult.features`, item node data) and their family. */

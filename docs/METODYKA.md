@@ -188,6 +188,7 @@ Na 25 sprawach jury kampanie i F1 par się nie zmieniły (0,897, 14 kampanii). `
 - `shared_doc`: dokument, arkusz, formularz (Google, Notion, Microsoft Forms, Typeform, Jotform) i udostępniona rozmowa z modelem językowym (usługa `llm_chat`: operator wkleja dane kampanii do czatu i udostępnia link). Klucz `usługa:identyfikator`. Identyfikatory przykładowe z dokumentacji dostawców i strony pomocy są pomijane (lista w `lib/osint/contactConfig.ts`).
 - `onion`: adres .onion wersji 3. Adres wersji 2 wygasł w 2021 r., więc jest tylko atrybutem (`onionV2`).
 - `messenger_invite`: zaproszenia i konta Discord, Signal, Viber i Line (`usługa:identyfikator`); numer z `wa.me` jest zwykłym telefonem. Serwery społeczności samych platform są pomijane.
+- `affiliate_account` (B-330, waga 0,9): konto partnera sieci afiliacyjnej z linku zamówienia (`click.php?team_id=…&user_id=…`), zdekodowanego parametru `referer` (base64) albo ukrytych pól formularza. Klucz to rodzaj, host sieci (host linku albo akcji formularza) i wartość: `stream_id` i `offer_uuid` łączą same; para `team_id`+`user_id` to małe liczby, więc ma relację 0,7 (poniżej progu silnego dowodu) i rodzaj reguły `affiliate_team` w `notAloneKinds`. Bez hosta nic nie łączy. `api_key` trafia do węzła `crm_key` tylko jako SHA-256. `sub1`, `sub2`, `x_id`, `sid`, `cid` są atrybutami węzła.
 
 Źródłem są tekst i atrybuty strony, tekst reklamy, OCR zrzutu i adresy żądań z HAR. Żaden z tych adresów nie jest otwierany: to zasoby operatora, narzędzie czyta tylko zapis.
 

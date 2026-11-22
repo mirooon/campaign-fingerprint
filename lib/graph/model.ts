@@ -63,6 +63,8 @@ export const ENTITY_TYPES = [
   "bank_account",
   // postal address of a shop (street, number, postal code, city), a trace that only supports a link
   "postal_address",
+  // account of an affiliate network (B-330): team+user pair, stream or offer UUID, scoped to the network host
+  "affiliate_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -113,6 +115,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",
+  affiliate_account: "Konto w sieci afiliacyjnej",
 };
 
 export type EdgeType =

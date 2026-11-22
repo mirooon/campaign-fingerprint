@@ -13,6 +13,7 @@
  */
 import { createHash } from "node:crypto";
 import { isIP } from "node:net";
+import { AIO, unescapeJsString } from "./landerConfig";
 
 /** Placeholder written in place of a redacted value. */
 export const REDACTED = "[zredagowane]";
@@ -136,6 +137,29 @@ export function redactPageHtml(html: string): { text: string; changed: boolean }
   const found = new Set<string>();
   let out = html;
   const analyst = (k: string) => VISIT_ANALYST_KEYS.includes(k) || VISITOR_KEYS.includes(k.toLowerCase());
+  // 0. the platform record `window.aio = JSON.parse('…')`: the visitor record redacted on the parsed object and the record
+  //    written back, so it still parses (text replacement inside the string literal breaks it and the lander config is lost);
+  //    the literal is then set aside, so the text steps below do not touch it again
+  const literals: string[] = [];
+  out = out.replace(AIO, (whole: string, body: string) => {
+    let data: unknown;
+    try {
+      data = JSON.parse(unescapeJsString(body));
+    } catch {
+      return whole;
+    }
+    const visit = asObj(asObj(data)?.visit);
+    if (visit) {
+      for (const [k, v] of Object.entries(visit)) {
+        if (VISIT_KEEP_KEYS.includes(k) || v === null || v === "") continue;
+        if (analyst(k) && (typeof v === "string" || typeof v === "number")) remember(found, JSON.stringify(v));
+        visit[k] = REDACTED;
+      }
+    }
+    const literal = JSON.stringify(data).replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+    literals.push(whole.replace(body, () => literal));
+    return `\u0000AIO${literals.length - 1}\u0000`;
+  });
   // 1. the visitor record: every key except the operator's (only the analyst's values are removed elsewhere too)
   const visitStart = /"visit"\s*:\s*\{/g;
   for (let m = visitStart.exec(out); m; m = visitStart.exec(out)) {
@@ -154,6 +178,7 @@ export function redactPageHtml(html: string): { text: string; changed: boolean }
     remember(analyst(key) ? found : null, raw.replace(/^'|'$/g, '"'));
     return `${head}"${REDACTED}"`;
   });
+  out = out.replace(/\u0000AIO(\d+)\u0000/g, (_, i: string) => literals[Number(i)]);
   // 4. the analyst's removed values elsewhere in the text
   for (const v of found) out = out.split(v).join(REDACTED);
   out = maskText(out);

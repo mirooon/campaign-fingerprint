@@ -90,7 +90,7 @@ Tabela zawiera każdy rodzaj śladu z konfiguracji (poza `item`, waga 0). Opisy 
 | Waga | Typy |
 |---|---|
 | 1,0 | `url`, `tracker`, `wallet` |
-| 0,95 | `host`, `domain`, `endpoint` (backend formularza), `crm_key`, `meta_ad`, `platform_campaign`, `c2_host` |
+| 0,95 | `host`, `domain`, `endpoint` (backend formularza), `crm_key`, `meta_ad`, `platform_campaign`, `c2_host`, `meta_token` (token dostępu Mety, tylko skrót SHA-256) |
 | 0,9 | `email`, `phone`, `telegram`, `shared_doc`, `onion`, `messenger_invite`, `affiliate_account`, `platform_account`, `cloaker_account`, `launcher_account` |
 | 0,85 | `path_id` |
 | 0,8 | `cert`, `campaign_param`, `bank_account` (nie jest silny: `nonStrongTypes`) |
@@ -100,6 +100,7 @@ Tabela zawiera każdy rodzaj śladu z konfiguracji (poza `item`, waga 0). Opisy 
 | 0,55 | `asset` |
 | 0,5 | `favicon`, `kit_string`, `company_id` (NIP, REGON, KRS, VAT), `postal_address` (adres sklepu), `lead_flow` (lejek leadów platformy stron) |
 | 0,45 | `comment_block`, `template_phrase`, `overlay_template` (układ podmienionych napisów w wideo), `reused_footage` (znak źródła cudzego nagrania) |
+| 0,4 | `mx` (własny serwer poczty domeny; masowi dostawcy poczty ze zniżką) |
 | 0,35 | `nameserver`, `page_template` |
 | 0,2 | `technique`, `profit_claim` |
 | 0,12 | `param_schema` |
@@ -108,7 +109,7 @@ Tabela zawiera każdy rodzaj śladu z konfiguracji (poza `item`, waga 0). Opisy 
 
 **Silny dowód** to przesłanka o wadze ≥ `strongThreshold` (0,7), której ślad występuje w mniej niż połowie zbioru i w najwyżej 20 materiałach (`maxStrongDfRatio`, `maxStrongDf`). Wyjątek: `bank_account` mimo wagi 0,8 nie jest silny.
 
-**Ślady, które nie łączą kampanii same** (`campaignRules.notAloneKinds`; ślad jest przesłanką, ale kampania wymaga drugiego, niezależnego rodzaju dowodu): `similar_dom`, `comment`, `asset`, `hidden_fields`, `page_template`, `favicon`, `endpoint` (backend bez identyfikatora klienta), `param_schema`, `comment_block`, `ad_payer`, `scam_brand`, `tracker_host`, `adsense_publisher`, `template_phrase`, `advertiser_name` (sama nazwa reklamodawcy), `kit_string`, `company_id`, `bank_account`, `postal_address`, `overlay_template`, `reused_footage`, `hosting_account`, `lead_flow`, `affiliate_team` (para `team_id`+`user_id`). Nazwy bez odpowiednika w tabeli to rodzaje reguł, nie typy węzłów.
+**Ślady, które nie łączą kampanii same** (`campaignRules.notAloneKinds`; ślad jest przesłanką, ale kampania wymaga drugiego, niezależnego rodzaju dowodu): `similar_dom`, `comment`, `asset`, `hidden_fields`, `page_template`, `favicon`, `endpoint` (backend bez identyfikatora klienta), `param_schema`, `comment_block`, `ad_payer`, `scam_brand`, `tracker_host`, `adsense_publisher`, `template_phrase`, `advertiser_name` (sama nazwa reklamodawcy), `kit_string`, `company_id`, `bank_account`, `postal_address`, `overlay_template`, `reused_footage`, `hosting_account`, `lead_flow`, `affiliate_team` (para `team_id`+`user_id`), `mx`. Nazwy bez odpowiednika w tabeli to rodzaje reguł, nie typy węzłów.
 
 **Ślady, które łączą tylko w grupę podobnych kampanii** (`campaignRules.familyOnlyKinds`): `technique`, `persona`, `profit_claim`.
 

@@ -1,6 +1,6 @@
 # Dokumentacja techniczna: Odcisk kampanii
 
-Opisuje to, co kod robi w wersji oddanej (stan po zadaniach z 21.11.2026). Odwołania do kodu wskazują plik; funkcję lub stałą znajdziesz wyszukiwaniem po nazwie z tekstu, bo numery linii szybko się przesuwają. Osobne dokumenty: [../README.md](../README.md) (uruchomienie), [METODYKA.md](METODYKA.md) (metodyka dla osoby oceniającej), [../LICENCJE.md](../LICENCJE.md) (licencje), [GUI.md](GUI.md) (interfejs), [ZGODNOSC.md](ZGODNOSC.md) (AI Act, RODO, DSA). Sekcje o uruchomieniu, trybie live, bibliotekach i pochodzeniu danych, które stały w README do 21.11.2026, są w §17.
+Opisuje to, co kod robi w wersji oddanej (stan na 22.11.2026, HEAD gałęzi `main`; liczby oznaczone datą 21.11.2026 pochodzą z pomiarów z tego dnia). Odwołania do kodu wskazują plik; funkcję lub stałą znajdziesz wyszukiwaniem po nazwie z tekstu, bo numery linii szybko się przesuwają. Osobne dokumenty: [../README.md](../README.md) (uruchomienie), [METODYKA.md](METODYKA.md) (metodyka dla osoby oceniającej), [../LICENCJE.md](../LICENCJE.md) (licencje), [GUI.md](GUI.md) (interfejs), [ZGODNOSC.md](ZGODNOSC.md) (AI Act, RODO, DSA). Sekcje o uruchomieniu, trybie live, bibliotekach i pochodzeniu danych, które stały w README do 21.11.2026, są w §17.
 
 ## Spis treści
 
@@ -313,7 +313,7 @@ Wszystkie są domyślnie wyłączone i włączane flagami `enrich`/`pipeline` (�
 | NER (`--ner`) | imiona i nazwiska osób z tekstu przez skonfigurowany LLM, wynik w cache `ner` | `enrich.ts`, `persona.ts` |
 | OCR (`--ocr`), ASR (`--asr`), odcisk audio (`--audio`) | adaptery z §3.3; ASR i odcisk tylko dla reklam z `videoPath` | `enrich.ts` |
 | Głos mówcy (`--speaker`; galeria osób: §4.16) | SpeechBrain ECAPA-TDNN (VoxCeleb) i VAD przez `scripts/py/speaker_embed.py` w venv `.venv-speaker` (`scripts/py/setup-speaker.sh`, env `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`); jeden proces na całą partię, cache `.cache/speaker`. Krawędź `similar_voice` przy cosinusie ≥ 0,6 (ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych); para z tą samą ścieżką (Chromaprint) jest pomijana. Rodzaj treści (`campaignRules.contentKinds`, §5.4 pkt 5): sklonowany głos jednej osoby publicznej pasuje między niezależnymi operatorami, więc sam nie łączy | `lib/media/speaker.ts`, `adLibraryVoice.test.ts` |
-| Twarze (`--faces`) | OpenCV YuNet (wykrywanie) i SFace (wektor 128 liczb) przez `scripts/py/face_embed.py` w venv `.venv-face` (`scripts/py/setup-face.sh`, env `FACE_PYTHON`, `FACE_MODEL_DIR`); jeden proces na całą partię, bez cache. Dopasowanie w TS (`matchFaces`) tylko do zamkniętej listy 8 osób (`data/faces/index.json`); wynik to ramka i, dla podobnej twarzy, id osoby i podobieństwo. Szczegóły i próg z pomiaru: §4.14 | `lib/media/face.ts`, `face.test.ts`, `tests/faceGroup.offline.test.ts` |
+| Twarze (`--faces`) | OpenCV YuNet (wykrywanie) i SFace (wektor 128 liczb) przez `scripts/py/face_embed.py` w venv `.venv-face` (`scripts/py/setup-face.sh`, env `FACE_PYTHON`, `FACE_MODEL_DIR`); jeden proces na całą partię, bez cache. Dopasowanie w TS (`matchFaces`) tylko do zamkniętej listy 31 osób publicznych (`data/faces/index.json`, zdjęcia z Wikimedia Commons); wynik to ramka i, dla podobnej twarzy, id osoby i podobieństwo. Szczegóły i próg z pomiaru: §4.14 | `lib/media/face.ts`, `face.test.ts`, `tests/faceGroup.offline.test.ts` |
 | Biblioteka reklam Mety (`--ad-library`, tylko live) | MetaAdsCollector (`uv tool install meta-ads-collector`, env `META_ADS_PYTHON`) przez `scripts/py/ad_library.py`: zapytanie „Zobacz szczegóły reklamy” po samym identyfikatorze biblioteki, bez klucza API, działa też dla zdjętych reklam. Identyfikatory z kolumny `ad_library_id` i z OCR zrzutów. Zwraca płatnika i beneficjenta (DSA), `is_ad_taken_down`, naruszone zasady, zasięg w UE i grupę docelową; cache `.cache/adlibrary` (1 dzień). Płatnik to pivot `ad_payer` (waga 0,65, krawędź `paid_by`; w `notAloneKinds`, więc sam nie łączy kampanii, §4.12); dane trafiają do węzła reklamy (`adLibrary`, `adTakenDown`). Endpoint publicznej strony biblioteki: może przestać działać po zmianach u Mety | `lib/osint/adLibrary.ts`, `adLibraryVoice.test.ts` |
 
 ---
@@ -1077,7 +1077,7 @@ Zwraca `{feed, records, updatedAt}`: najnowsze wpisy feedu watchera CT (§16.6),
 ### 8.6 Ochrona i jej braki
 
 - W trybie live `/api/analyze` pobiera adresy od użytkownika przez `fetchPage` i `fetchBinary` z ochroną SSRF (§11).
-- **Nie ma limitowania zapytań, uwierzytelniania ani kolejki.** Każde żądanie live wykonuje zapytania DNS/RDAP/ASN i GET-y. Przed publicznym wdrożeniem trzeba dodać rate limit albo ustawić `ANALYZE_OFFLINE=1`.
+- **Jest tylko prosty limit zapytań w pamięci procesu (`lib/viewer/rateLimit.ts`, `ANALYZE_RATE_LIMIT`), nie ma uwierzytelniania ani kolejki.** Każde żądanie live wykonuje zapytania DNS/RDAP/ASN i GET-y. Przed publicznym wdrożeniem trzeba dodać uwierzytelnianie albo ustawić `ANALYZE_OFFLINE=1`.
 - `/api/ct-feed` tylko czyta lokalny plik i niczego nie pobiera z sieci.
 
 ---
@@ -1120,7 +1120,7 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 
 ### 9.1 Kontener i CLI dla osób oceniających (od 21.11.2026, zadanie i7)
 
-Obraz (`Dockerfile`, cel `run`) zawiera `bun` w wersji z `packageManager`, `node_modules`, zbudowane GUI, `scripts/`, `lib/`, `app/` i `data/sample` (żadnych innych danych: `.dockerignore` wyklucza `data/work`, `.cache`, `.env*`, uploady i `dane/`). Narzędzia: `tesseract-ocr` z językiem polskim, `ffmpeg` z `ffprobe`, `libchromaprint-tools` (`fpcalc`), `unzip` (wgrywanie ZIP w `/api/analyze-material`), Python 3 z venv `/opt/venv` i `scripts/py/requirements.txt` (dziś bez pakietów; tu dopisują swoje lekkie pakiety kolejne zadania). Użytkownik `node`, wolumen `/dane`.
+Obraz (`Dockerfile`, cel `run`) zawiera `bun` w wersji z `packageManager`, `node_modules`, zbudowane GUI, `scripts/`, `lib/`, `app/` i `data/sample` (żadnych innych danych: `.dockerignore` wyklucza `data/work`, `.cache`, `.env*`, uploady i `dane/`). Narzędzia: `tesseract-ocr` z językiem polskim, `ffmpeg` z `ffprobe`, `libchromaprint-tools` (`fpcalc`), `unzip` (wgrywanie ZIP w `/api/analyze-material`), Python 3 z venv `/opt/venv` i `scripts/py/requirements.txt` (klient BigQuery dla `scripts/py/google_atc.py` oraz `opencv-python-headless` i `numpy` dla twarzy; cięższe pakiety profilu `full` w `docker/requirements-full.txt`). Użytkownik `node`, wolumen `/dane`.
 
 Szybki start (`docker compose`, katalog `./dane` na hoście to `/dane` w kontenerze):
 
@@ -1247,7 +1247,7 @@ Profile `docker compose`: domyślny (`app`) pomija ASR (brak whisper.cpp i model
 | `campaignRules.infrastructureKinds` / `infrastructureMinWeight` | §5.4 pkt 5 / 0,3 | `config.ts` | co jest infrastrukturą reklamy i od jakiej wagi się liczy |
 | `campaignRules.sameCreative.clipMinCosine` / `creativeFileWeight` | 0,97 / 0,95 | `config.ts` | próg „tych samych klatek” (razem z tym samym dźwiękiem) i waga tego samego pliku kreacji |
 | `campaignRules.contentVariant` (`imageHamming` / `clipMinCosine`) | 6 / 0,95 | `config.ts` | wariant kreacji (§5.4 pkt 7): maks. odległość dHash i min. cosinus CLIP „prawie identycznej” kreacji; `null` wyłącza dołączanie wariantów |
-| `campaignRules.familyOnlyKinds` | `technique`, `persona` | `config.ts` | rodzaje liczone tylko do grup podobnych kampanii |
+| `campaignRules.familyOnlyKinds` | `technique`, `persona`, `profit_claim` | `config.ts` | rodzaje liczone tylko do grup podobnych kampanii |
 | `campaignRules.notAloneKinds` / `minEvidenceKinds` | §5.4 pkt 4 / 2 | `config.ts` | ślady zestawu stron: jeden rodzaj razem, kampania wymaga dowodu spoza nich i spoza treści; ile rodzajów (z dowodem operatora) łączy |
 | `campaignRules.accountConflictOverStrongKinds` | `path_id` | `config.ts` | silny dowód tych rodzajów nie łączy różnych kont platformy stron (§5.4 pkt 3) |
 | `nearMiss` (`minScoreRatio` / `maxPairs`) | 0,5 / 200 | `config.ts` | raport bliskich par (§5.6): od jakiej części `minLinkScore` para trafia na listę i ile par zapisać (0 wyłącza listę); nie zmienia żadnej decyzji łączenia |
@@ -1314,16 +1314,16 @@ Próbka: `data/sample/ct-lexicon.json` dodaje fikcyjne marki „KryptoZysk” i 
 | Limity | czas, bajty po dekompresji (bomba gzip), liczba przekierowań, piksele obrazu, wielkość wejścia API, limity kitu strony, limit wzbogaceń watchera na minutę | §10.3 |
 | TLS | domyślnie weryfikacja certyfikatów; `FETCH_INSECURE_TLS=1` ją wyłącza | `fetchPage.ts`, `fetchPage.ts` |
 | Prywatność | live nie wysyła IP niepublicznych do Team Cymru; nic nie trafia do innych usług niż wymienione i skonfigurowany LLM (streszczenia, embeddingi, opcjonalny NER) | `enrich.ts` |
-| Biometria | brak: persona tylko z tekstu i danych wejściowych; paczka dowodów nie zawiera wzorców twarzy ani głosu | §4.8, §15 |
+| Biometria | opcjonalna i lokalna: twarze (`--faces`, zamknięta lista osób publicznych) i głos (`--speaker`, galeria 10 osób); do paczki dowodów trafia wynik dopasowania (id osoby, podobieństwo), nie wzorce biometryczne | §4.14–4.16, §15 |
 | Pliki | `/api/image` serwuje tylko obrazy wewnątrz `baseDir` (ochrona przed path traversal) | `app/api/image/route.ts` |
 | Dane | `.cache/` zawiera surowe HTML pobranych stron i wyniki zapytań, `data/work/` pełne wzbogacenie i archiwum HTML, `data/evidence/` paczki dowodów, `data/ct-watch.jsonl` feed; wszystkie w `.gitignore`, `.env*` też (poza `.env.example`) | `.gitignore` |
-| Braki | brak rate limitu i uwierzytelnienia w API (§8.6); prompt injection w streszczeniach i NER tylko ograniczone (§7) | |
+| Braki | brak uwierzytelnienia w API, limit zapytań tylko prosty, w pamięci procesu (§8.6); prompt injection w streszczeniach i NER tylko ograniczone (§7) | |
 
 ---
 
 ## 12. Testy
 
-`bun run test`: wszystkie testy muszą przechodzić; aktualną liczbę podaje wynik polecenia. Po zadaniu i5 (21.11.2026) było 658 testów w 75 plikach, od tego czasu przybyło ich wiele; i5 dodał `lib/media/face.test.ts`, `tests/faceGroup.offline.test.ts` i testy aliasów `@handle` w `lib/text/persona.test.ts`). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzi brak. Tabela poniżej opisuje pokrycie z pierwotnego zestawu (liczby w kolumnie „Testy” z 19.11.2026 są orientacyjne); nowsze pliki testów leżą obok modułów (`*.test.ts`) i w `tests/`.
+`bun run test`: wszystkie testy muszą przechodzić; aktualną liczbę podaje wynik polecenia. Na 22.11.2026 jest ok. 1670 przypadków testowych w 244 plikach `*.test.ts` (liczba rośnie z każdym zadaniem); zadanie i5 dodało `lib/media/face.test.ts`, `tests/faceGroup.offline.test.ts` i testy aliasów `@handle` w `lib/text/persona.test.ts`). Testy nie korzystają z sieci (`vitest.config.mts` ustawia `CACHE=off`). Wyjątek: lokalny serwer HTTP na 127.0.0.1 w `fetchPage.test.ts`. Trzy testy uruchamiają lokalne narzędzia (tesseract, fpcalc) i są pomijane, gdy narzędzi brak. Tabela poniżej opisuje pokrycie z pierwotnego zestawu (liczby w kolumnie „Testy” z 19.11.2026 są orientacyjne); nowsze pliki testów leżą obok modułów (`*.test.ts`) i w `tests/`.
 
 | Plik | Testy | Pokrycie |
 |---|---|---|
@@ -1530,7 +1530,7 @@ Wywołanie zewnętrznego systemu (DROZD) z pipeline'u to nowe wyjście danych. S
 
 Osoby nie są identyfikowane z twarzy ani głosu, a paczka nie zawiera wzorców biometrycznych. Test `tests/evidence.offline.test.ts` sprawdza m.in., że obserwacje nie zawierają wyników modeli i że każda linia manifestu się weryfikuje.
 
-**Czego paczka nie robi:** nie archiwizuje stron sama (WARC tylko z HAR ze sprawy; strony z cloakingiem nie są pobierane „z profilu ofiary”), a zrzuty ekranu są tylko te ze sprawy; znacznik RFC 3161 powstaje tylko z `--tsa` i nie ma mocy kwalifikowanej bez dostawcy kwalifikowanego (art. 41 eIDAS); rekordy z biblioteki reklam (art. 39 DSA) są tylko dla reklam wzbogaconych `--ad-library`; status CERT pochodzi z lokalnej kopii listy, która może być nieaktualna; nie koreluje się z DSA Transparency Database (B-273); wyniki twarzy i głosu (I5, I15) nie trafiają do paczki, bo w tej gałęzi nie ma ich w `ItemEnrichment` (B-264). Czas zapytania RDAP nie jest zapisywany przez `enrich`. Te kroki trzeba wykonać przed zgłoszeniem.
+**Czego paczka nie robi:** nie archiwizuje stron sama (WARC tylko z HAR ze sprawy; strony z cloakingiem nie są pobierane „z profilu ofiary”), a zrzuty ekranu są tylko te ze sprawy; znacznik RFC 3161 powstaje tylko z `--tsa` i nie ma mocy kwalifikowanej bez dostawcy kwalifikowanego (art. 41 eIDAS); rekordy z biblioteki reklam (art. 39 DSA) są tylko dla reklam wzbogaconych `--ad-library`; status CERT pochodzi z lokalnej kopii listy, która może być nieaktualna; nie koreluje się z DSA Transparency Database (B-273); wyniki twarzy i głosu (I5, I15) nie trafiają do paczki dowodów: są w `ItemEnrichment` (`faces`, `voices`) i w wyniku analizy, ale `lib/evidence` jeszcze ich nie czyta (B-264 otwarte). Czas zapytania RDAP nie jest zapisywany przez `enrich`. Te kroki trzeba wykonać przed zgłoszeniem.
 
 ---
 

@@ -81,6 +81,41 @@ function deadLive(opts: { created?: string; status?: number; body?: string; erro
   };
 }
 
+describe("enrichItems: domains of contact addresses", () => {
+  it("looks up the domain of an e-mail address that is not the shop's own, once, and not a free mailbox or the shop's domain", async () => {
+    const body = '<html><body><p>Kontakt: info@inny.test, biuro@sklep.example, kontakt@gmail.com</p></body></html>';
+    const item: Item = { ...deadItem, landingUrl: "https://sklep.example/" };
+    const asked: string[] = [];
+    const sources = { ...deadLive({ status: 200, body }), rdap: async (domain: string) => (asked.push(domain), null) };
+    const out = await enrichItems([item], { sources, baseDir: "." });
+    expect(Object.keys(out.domains).sort()).toEqual(["inny.test", "sklep.example"]);
+    expect(asked.filter((d) => d === "inny.test")).toHaveLength(1);
+  });
+});
+
+describe("enrichItems: contact domain that serves no website", () => {
+  const body = "<html><body><p>Kontakt: info@inny.test</p></body></html>";
+  const item: Item = { ...deadItem, landingUrl: "https://sklep.example/" };
+  const withMx = (answers: boolean): EnrichmentSources => {
+    const base = deadLive({ status: 200, body });
+    return {
+      ...base,
+      dns: async (name) => ({ name, a: [], aaaa: [], cname: [], ns: [], mx: name === "inny.test" ? ["mx.inny.test"] : [], txt: [], errors: {} }) as unknown as Awaited<ReturnType<EnrichmentSources["dns"]>>,
+      fetchPage: async (url, o) => (url.includes("inny.test") && !answers ? (await deadLive().fetchPage(url, o)) : base.fetchPage(url, o)),
+    };
+  };
+  it("marks a live-checked contact domain with MX records and no HTTP answer", async () => {
+    const out = await enrichItems([item], { sources: withMx(false), baseDir: "." });
+    expect(out.domains["inny.test"].contactDomainDead).toBe(true);
+    expect(out.domains["sklep.example"].contactDomainDead).toBeUndefined();
+  });
+  it("leaves a contact domain that answers, and never asks in an offline run", async () => {
+    expect((await enrichItems([item], { sources: withMx(true), baseDir: "." })).domains["inny.test"].contactDomainDead).toBeUndefined();
+    const offline = { ...withMx(false), mode: "offline" as const };
+    expect((await enrichItems([item], { sources: offline, baseDir: "." })).domains["inny.test"].contactDomainDead).toBeUndefined();
+  });
+});
+
 function archiveSource(name: "urlscan" | "wayback", copies: ArchivedCopy[], calls: string[] = []): ArchiveSource {
   return { name, available: async () => ({ ok: true }), lookup: async (url) => (calls.push(url), copies) };
 }

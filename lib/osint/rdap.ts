@@ -18,6 +18,8 @@ export interface RdapInfo {
   nameservers: string[];
   abuseEmail: string | null;
   source: string | null;
+  /** The registrant entity carries a redaction or privacy-service marker (REDACTED, "privacy", "proxy"); absent when it does not or when the response has no registrant. Most registrars do this, so it is a weak hint. */
+  registrantHidden?: boolean;
 }
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -170,6 +172,9 @@ export function parseRdap(json: unknown, domain: string): RdapInfo {
         .filter(Boolean),
     ),
   ].sort();
+
+  const registrant = findEntity(root, "registrant");
+  if (registrant && /redact|privacy|proxy|withheld|not disclosed|data protected|gdpr/i.test(JSON.stringify(registrant))) info.registrantHidden = true;
 
   const abuse = findEntity(root, "abuse");
   const abuseEmail = abuse ? vcardValue(abuse, "email") : null;

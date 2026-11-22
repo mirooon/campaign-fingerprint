@@ -69,6 +69,7 @@ describe("parseRdap", () => {
       status: ["active", "client transfer prohibited"],
       nameservers: ["ns1.hosting-x.test", "ns2.hosting-x.test"],
       abuseEmail: "abuse@rejestrator.example",
+      registrantHidden: true,
       source: "https://rdap.registry.example/domain/zysk-krypto-a.example",
     });
   });
@@ -92,6 +93,18 @@ describe("parseRdap", () => {
       expect(info.registrar).toBeNull();
       expect(info.status).toEqual([]);
     }
+  });
+});
+
+describe("parseRdap: hidden registrant", () => {
+  const entity = (fn: string) => ({ roles: ["registrant"], vcardArray: ["vcard", [["version", {}, "text", "4.0"], ["fn", {}, "text", fn]]] });
+  it("marks a registrant behind a redaction marker or a privacy service", () => {
+    expect(parseRdap({ ldhName: "przyklad.test", entities: [entity("REDACTED FOR PRIVACY")] }, "przyklad.test").registrantHidden).toBe(true);
+    expect(parseRdap({ ldhName: "przyklad.test", entities: [entity("Whois Privacy Service")] }, "przyklad.test").registrantHidden).toBe(true);
+  });
+  it("leaves a named registrant and a response without a registrant unmarked", () => {
+    expect(parseRdap({ ldhName: "przyklad.test", entities: [entity("Firma Przykładowa")] }, "przyklad.test").registrantHidden).toBeUndefined();
+    expect(parseRdap({ ldhName: "przyklad.test" }, "przyklad.test").registrantHidden).toBeUndefined();
   });
 });
 

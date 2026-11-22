@@ -50,6 +50,8 @@ export const ENTITY_TYPES = [
   // identifiers of a company on a page (NIP, REGON, KRS, VAT, UK number) and bank accounts (IBAN, NRB)
   "company_id",
   "bank_account",
+  // postal address of a shop (street, number, postal code, city), a trace that only supports a link
+  "postal_address",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -92,6 +94,7 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   technique: "Technika strony",
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
+  postal_address: "Adres siedziby sklepu",
 };
 
 export type EdgeType =

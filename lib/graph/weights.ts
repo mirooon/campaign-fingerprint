@@ -260,6 +260,12 @@ export class Discounter {
         if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `companyIdIntermediaries:${rule.match}` });
         break;
       }
+      case "postal_address": {
+        // a virtual office or an intermediary that gives its address to many unrelated shops
+        const rule = firstRule(lists.postalAddressExclusions ?? [], (r) => r.match === p.key);
+        if (rule) out.push({ reason: rule.reason, factor: rule.factor, rule: `postalAddressExclusions:${rule.match}` });
+        break;
+      }
       case "param_schema": {
         // The link format of a tracker product (e.g. "/click?key=<32 hex>"): a trait of the platform type
         const parts = String(p.data.schema ?? p.key).split("|");

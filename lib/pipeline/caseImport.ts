@@ -45,6 +45,7 @@ import {
 } from "./collectedCase";
 import { redactHar, redactPageHtml } from "../osint/redact";
 import { hashCaseFiles, type CaseFileRecord, type CaseFileRole } from "./caseFiles";
+import type { TlsDetails } from "../osint/tlsSignals";
 
 export interface CaseLookups {
   /** Passive DNS answers for the requested record types (missing types = no records). */
@@ -121,6 +122,8 @@ interface HarEntry {
   _initiator?: HarInitiator;
   _resourceType?: string;
   serverIPAddress?: string;
+  /** Certificate of the connection (Chrome): issuer, names, validity as epoch seconds. */
+  _securityDetails?: { issuer?: string; subjectName?: string; sanList?: string[]; validFrom?: number | string; validTo?: number | string };
   startedDateTime?: string;
   request: { method: string; url: string };
   response: { status: number; headers?: Array<{ name: string; value: string }>; content?: { mimeType?: string; text?: string; encoding?: string } };
@@ -131,9 +134,18 @@ interface HttpFixture {
   bodyFile: string;
   /** URLs the page requested while loading (from the HAR): traces visible only in the requests. */
   requests?: string[];
+  /** Certificate the page was served with (HAR `_securityDetails`). */
+  tls?: TlsDetails;
 }
 
 const MAX_REQUESTS = 1000;
+
+/** Certificate details of a HAR entry as the fixture field `tls`; empty when the entry carries none (a HAR of plain HTTP or from a tool that does not record them). */
+function tlsOfEntry(e: HarEntry): { tls?: TlsDetails } {
+  const d = e._securityDetails;
+  if (!d || (!d.issuer && !d.sanList?.length && !d.subjectName)) return {};
+  return { tls: { issuer: d.issuer ?? null, validFrom: d.validFrom ?? null, validTo: d.validTo ?? null, sanList: d.sanList ?? [], subjectName: d.subjectName ?? null } };
+}
 
 /** Unique http(s) request URLs of a HAR, in recorded order. */
 function requestUrls(entries: HarEntry[]): string[] {
@@ -762,6 +774,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) },
         bodyFile,
         ...(requests.length ? { requests } : {}),
+        ...(c.main ? tlsOfEntry(c.main) : {}),
       };
       if (!c.main && c.htmlName) {
         // Images of the saved page (favicon), under the addresses its rewritten links resolve to.

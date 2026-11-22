@@ -46,6 +46,20 @@ Cecha to ślad, który może się powtórzyć w innym materiale. Narzędzie nie 
 
 **Które cechy działają dziś** (B-104): wszystkie wymienione, o ile materiał je zawiera. Cechy opcjonalne wymagają włączenia i narzędzi: OCR (`--ocr`, tesseract), transkrypcja (`--asr`), odcisk dźwięku (`--audio`), CLIP (`--clip`, wymaga modelu), głos (`--speaker`), twarze (`--faces`, OpenCV, wymaga venv z `scripts/py/setup-face.sh` i modeli ok. 40 MB), biblioteka reklam (`--ad-library`), zapytania sieciowe DNS/RDAP/ASN (`--lookups` albo `--live`). Brakujący krok jest oznaczony w wyniku jako `skipped` z powodem. Domyślny obraz Dockera ma modele twarzy (YuNet, SFace), ale nie ma modeli ASR, CLIP ani głosu, i nie wychodzi do sieci, więc te cechy są wtedy puste. Galeria głosów nie jest jeszcze zaimplementowana i nie występuje w tym dokumencie jako metoda.
 
+### Sygnały sklepu
+
+Część reklam prowadzi do fałszywych sklepów. Analityk sprawdza je ręcznie w kilkanaście minut, więc narzędzie czyta to samo ze strony (`lib/osint/shopSignals.ts`, `lib/osint/contact.ts`): linki do regulaminu, zwrotów, polityki prywatności i kontaktu; ceny przekreślone i rabaty (udział produktów z rabatem, mediana, maksimum, rabat na cały sklep: co najmniej 70% produktów z rabatem co najmniej 50%); brak frazy o najniższej cenie z 30 dni (dyrektywa Omnibus, w Polsce od 1.01.2023); chwyty „ktoś właśnie kupił”, „ostatnie sztuki”, licznik czasu, historia o likwidacji sklepu i dodatkowy rabat za krypto; metody płatności (tylko przelew, tylko metody trudne do cofnięcia: krypto, BLIK, karty podarunkowe; odbiorca wpłaty jako osoba prywatna albo tytuł „prezent”); czas realizacji; opinie (rozkład ocen, okno dat, anonimowość; same 5/5, opinie z kilku dni, brak opinii); nazwa i rok w stopce; deklarowany staż; rodzaj domeny adresów e-mail (darmowa skrzynka, domena sklepu, inna domena) i kompletność adresu (pełny, samo miasto, skrytka).
+
+**Te cechy wyjaśniają, nie łączą.** Uczciwe sklepy też bywają bez ceny z 30 dni, z samymi opiniami 5/5, z jedną metodą płatności albo z adresem na Gmailu, więc żadna z nich nie ma wagi w grafie i żadna nie jest dowodem. Pokazujemy je w karcie materiału („Sklep”) i w paczce dowodowej, z liczbą albo cytatem, na których się opierają. Słowniki fraz są ogólne i wielojęzyczne (PL, EN, DE, CS, SK, RO, HU) i leżą w `lib/osint/shopSignalsConfig.ts`. Deklarowanego stażu nie porównujemy z archiwum, dopóki zapis nie niesie daty pierwszej migawki (wtedy dojdzie flaga „staż sprzeczny z archiwum”).
+
+**Jedyny nowy ślad łączący to adres.** Pełny adres (ulica, numer, kod pocztowy, miasto; zapis ujednolicony, bez numeru lokalu) tworzy węzeł `postal_address` o wadze 0,5. Ten sam adres na dwóch sklepach to wspólny szablon albo ta sama ręka, ale adres łatwo skopiować ze stopki cudzego sklepu, a biura wirtualne wynajmują go niezwiązanym firmom, więc łączy tylko z drugim rodzajem dowodu (`campaignRules.notAloneKinds`), a adresy takich pośredników trafiają na listę wykluczeń (`lists.postalAddressExclusions`, uzupełnianą ręcznie). Samo miasto i skrytka pocztowa nie są śladem.
+
+**Atrybuty infrastruktury i domeny** (też bez wagi): wystawca certyfikatu TLS (darmowy certyfikat to tylko kontekst: kłódka nic nie mówi o sprzedawcy), certyfikat wystawiony na inną domenę albo wygasły (z HAR, `securityDetails`), znana marka w ścieżce adresu przy domenie bez tej marki (`/inpost/…`), platforma sklepu (WordPress, WooCommerce, Shopify, Shopline, PrestaShop…, dopisywana do atrybutu platformy strony), hosting poza UE i EOG (kraj z wzbogacenia ASN, bez nowych zapytań), rzadki TLD (słaby sygnał, tło z Listy CERT nie jest dołączone), nazwa domeny w innym języku niż strona, zasłonięty rejestrant w RDAP, administrator danych z polityki prywatności na innej domenie niż adresy kontaktowe, niespójny asortyment (≥ 3 niezwiązane kategorie w katalogu do 50 produktów albo towary spoza kategorii nazwy sklepu), opinie bez odpowiedzi sprzedawcy, strona udająca kuriera z polem karty i wyborem paczkomatu oraz domena adresu kontaktowego z rekordem MX, która nie odpowiada po HTTP(S) (tylko przebieg z siecią). Tekstu „wygenerowanego przez AI” nie oceniamy: detektory tekstu AI są zawodne, a metoda odrzuca detektory pojedynczego materiału.
+
+**Rejestry firm.** Odpis z KRS (`api-krs.ms.gov.pl`, bez klucza) pozwoliłby porównać nazwę, siedzibę i datę wpisu firmy z danymi na stronie; nie jest zbudowany. CEIDG wymaga konta i tokenu, więc go pomijamy; to możliwość na później.
+
+Źródła listy cech: szkolenie SekurakTV „Jak się nie dać oszukać? Sprawdzamy e-sklepy technikami OSINT-owymi” (szybki audyt e-sklepu: [youtube.com/watch?v=URdgnHObeXE](https://www.youtube.com/watch?v=URdgnHObeXE)) i SYNACK Time „Identifying SCAM Store Websites” ([youtube.com/watch?v=EfHzsg-MSJc](https://www.youtube.com/watch?v=EfHzsg-MSJc)).
+
 ## 3. Wagi
 
 Każdy ślad (encja, np. konkretny tracker) dostaje wagę. Waga to iloczyn trzech rzeczy:
@@ -66,7 +80,7 @@ Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − �
 | path_id | 0,85 | favicon | 0,5 |
 | cert, campaign_param, bank_account (nie jest silny) | 0,8 | comment_block | 0,45 |
 | ad_payer | 0,65 | nameserver, page_template | 0,35 |
-| | | company_id (NIP, REGON, KRS, VAT) | 0,5 |
+| | | company_id (NIP, REGON, KRS, VAT), postal_address (adres sklepu) | 0,5 |
 | | | technique | 0,2 |
 | | | param_schema | 0,12 |
 | | | persona | 0,1 |

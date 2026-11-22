@@ -18,6 +18,9 @@ import { clickIdsFromUrls } from "../osint/clickIds";
 import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
 import { companyIdsOfMaterial } from "../text/companyIds";
+import { applyShopContext } from "../osint/shopSignals";
+import { brandInPath, hostingOutsideEu } from "../osint/infraSignals";
+import { tlsSignals } from "../osint/tlsSignals";
 import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerContext } from "../osint/payerKind";
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
@@ -619,6 +622,7 @@ export function buildEvidenceGraph(
       const finalDomain = finalUrlNode ? (g.nodes.get(finalUrlNode)?.data.registrableDomain as string | null | undefined) : null;
       const fdi = finalDomain ? dataset.domains[finalDomain] : undefined;
       if (finalDomain && fdi) {
+        if (fdi.rdap?.registrantHidden) itemData.registrantHidden = true;
         const age = domainAgeAt(fdi.rdap?.created, (fdi.ct?.certs ?? []).map((c) => c.notBefore), item.firstSeen);
         if (age.domainAgeDays !== null) itemData.domainAgeDays = age.domainAgeDays;
         if (age.certAgeDays !== null) itemData.certAgeDays = age.certAgeDays;
@@ -843,6 +847,27 @@ export function buildEvidenceGraph(
           if (!list.includes(t)) itemData.techniques = [...list, t];
         }
       }
+      // Infrastructure attributes of the landing page (they explain, they never link): the certificate, a brand in the
+      // path of a domain without it, the shop platform, hosting outside the EU and the EEA
+      if (page) {
+        const finalHost = normalizeUrl(page.fetch.finalUrl)?.host;
+        if (page.tls && finalHost) {
+          const tls = tlsSignals(page.tls, finalHost, item.firstSeen);
+          if (tls.issuer) itemData.certIssuer = tls.issuer;
+          if (tls.certMismatch) itemData.certMismatch = true;
+          if (tls.certExpired) itemData.certExpired = true;
+        }
+        const brand = brandInPath(page.fetch.finalUrl) ?? brandInPath(enr.landing.url);
+        if (brand) itemData.brandInPath = brand;
+        if (page.extract?.cms?.length) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...page.extract.cms])].sort();
+        const site = page.extract?.siteAttributes;
+        if (site?.tldRare) itemData.tldRare = site.tldRare;
+        if (site?.domainLangMismatch) itemData.domainLangMismatch = `domena: ${site.domainLangMismatch.domainLang}, strona: ${site.domainLangMismatch.pageLang}`;
+        if (site?.privacyControllerMismatch) itemData.privacyControllerMismatch = site.privacyControllerMismatch.controllerDomains;
+        if (site?.fakeCourierPayment) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "fake_courier_payment"])];
+        const outside = hostingOutsideEu((finalHost ? (dataset.hosts[finalHost]?.ips ?? []) : []).map((ip) => dataset.ips[ip]?.country));
+        if (outside) itemData.hostingOutsideEu = outside;
+      }
       if (page?.cloaking) {
         itemData.cloakingSuspected = page.cloaking.suspected;
         if (page.cloaking.suspected) itemData.cloakingReasons = page.cloaking.reasons;
@@ -1017,6 +1042,35 @@ export function buildEvidenceGraph(
       const id = g.node(type, key, label, { kind: c.kind, value: c.value, valid: c.valid, check: c.check });
       g.edge(itemNode, id, "mentions", `${isAccount ? "rachunek bankowy" : "identyfikator firmy"} na ${c.source === "ocr" ? "zrzucie ekranu (OCR)" : "stronie"}${c.valid ? "" : " (nie przechodzi sprawdzenia)"}`);
       add(id, type, [itemNode, id], 1, isAccount ? `ten sam rachunek bankowy ${c.value}` : `ten sam identyfikator firmy ${c.kind.toUpperCase()} ${c.value}`);
+    }
+    // Shop signals (legal pages, discounts, payments, reviews ...) and contact data of the landing page: attributes
+    // of the material that explain why it looks like a fake shop, never a trace. The one exception is a full postal
+    // address (postal_address, campaignRules.notAloneKinds): an address copied from another shop's footer links.
+    if (pageEx?.shopSignals) {
+      const shop = applyShopContext(pageEx.shopSignals, { firstSeen: item.firstSeen });
+      itemData.shopSignals = shop;
+      if (shop.techniques.length) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), ...shop.techniques])];
+    }
+    const contact = pageEx?.contact;
+    if (contact) {
+      if (contact.emailDomains.length) itemData.emailDomainKinds = Object.fromEntries(contact.emailDomains.map((e) => [e.email, e.kind]));
+      if (contact.address.completeness !== "none") itemData.addressCompleteness = contact.address.completeness;
+      if (contact.phoneAreaMismatch) itemData.phoneAreaMismatch = contact.phoneAreaMismatch;
+      for (const a of contact.address.addresses) {
+        const id = g.node("postal_address", a.key, `${a.street} ${a.number}, ${a.postalCode} ${a.city}`, { street: a.street, number: a.number, flat: a.flat, postalCode: a.postalCode, city: a.city });
+        g.edge(itemNode, id, "mentions", "adres siedziby na stronie sklepu");
+        add(id, "postal_address", [itemNode, id], 1, `ten sam adres: ${a.street} ${a.number}, ${a.postalCode} ${a.city}`);
+      }
+      // the domain of a contact address other than the shop's is linked like any domain the page points to
+      const deadContactDomains = contact.otherEmailDomains.filter((d) => dataset.domains[d]?.contactDomainDead);
+      if (deadContactDomains.length) itemData.contactDomainDead = deadContactDomains;
+      for (const d of contact.otherEmailDomains) {
+        const disc = discounter.domainDiscount(d);
+        if (disc && disc.factor === 0) continue;
+        const id = g.node("domain", d, d, { registrableDomain: d });
+        g.edge(itemNode, id, "links_to", "domena adresu e-mail kontaktowego (inna niż domena sklepu)");
+        add(id, "domain", [itemNode, id], config.outboundLinkFactor, `adres e-mail na domenie ${d}`);
+      }
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
     if (narrative) {

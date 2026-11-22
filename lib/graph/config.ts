@@ -304,6 +304,11 @@ export interface LinkConfig {
      * shops: payment operators, couriers, shop platforms. Factor 0: the identifier links nothing.
      */
     companyIdIntermediaries?: ListRule[];
+    /**
+     * Keys of postal addresses (postal_address, "street number|postal code|city" without diacritics) of virtual
+     * offices and intermediaries that appear in many unrelated shops. Factor 0: the address links nothing.
+     */
+    postalAddressExclusions?: ListRule[];
     /** Exact `name:shape` part of a link template (param_schema) that is the link format of a tracker product. */
     paramSchemaPlatformParts?: ListRule[];
     /** Hidden input names ignored when building the hidden-field set (CSRF, form-service keys ...). */
@@ -386,6 +391,10 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // The same bank account (IBAN, NRB): a shared recipient of money, stronger than a company number,
     // but mule accounts are shared between unrelated groups, so it never joins a campaign alone either.
     bank_account: 0.8,
+    // The postal address of a shop (street, number, postal code, city): the same address on several shops is a
+    // shared template or one hand, but an address is easy to copy from another shop's footer, so it only supports
+    // a link (campaignRules.notAloneKinds). Virtual offices are listed in lists.postalAddressExclusions.
+    postal_address: 0.5,
   },
   strongThreshold: 0.7,
   nonStrongTypes: ["bank_account"],
@@ -397,7 +406,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "company_id", "bank_account"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "company_id", "bank_account", "postal_address"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators
     familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
@@ -830,6 +839,12 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { match: "nip:6793087624", name: "InPost S.A." },
       { match: "nip:5260250995", name: "Poczta Polska S.A." },
     ].map(({ match, name }) => ({ match, factor: 0, reason: `identyfikator pośrednika (${name}): występuje w stopkach wielu niezwiązanych sklepów` })),
+    // filled by hand with addresses of virtual offices that many unrelated shops give; the repository keeps only a fictional example
+    postalAddressExclusions: [{ match: "biurowa 1|00000|przykladowo", name: "biuro wirtualne (przykład)" }].map(({ match, name }) => ({
+      match,
+      factor: 0,
+      reason: `adres pośrednika (${name}): podają go sklepy niezwiązane ze sobą`,
+    })),
     paramSchemaPlatformParts: [
       { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora", platform: "binom" },
       { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora", platform: "aio" },

@@ -34,6 +34,7 @@ import { caseFilesOf, REDACTORS, SOURCE_FILE_DIR, SOURCE_FILE_LABEL, type PackPr
 import { sharedTraces } from "./traces";
 import { planCertDomains, renderCertReasons } from "./certDomains";
 import { certStatus, type CertListSnapshot } from "./certList";
+import { renderShopSignals, shopFacts } from "./shopFacts";
 import { DEFAULT_NARRATIVE_CONFIG, topicQuote, type MaterialNarrative } from "../text/narrative";
 
 export const GOOD_FAITH_STATEMENT =
@@ -324,6 +325,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       payer_notes: library.payerNotes,
       company_identifiers: companyFacts.companyIds.map((c) => ({ kind: c.kind, value: c.value, checksum_valid: c.valid, check: c.check, source: c.source, quote: c.quote })),
       legal_entities: companyFacts.legalEntities,
+      shop_signals: shopFacts(page?.extract, item.firstSeen),
       repository_record: library.records,
       first_seen_utc: utc(item.firstSeen),
       last_seen_utc: utc(item.lastSeen ?? item.firstSeen),
@@ -848,7 +850,7 @@ ${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.adve
 
 ${obs.ads.map((a) => `- ${a.item_id}: ${a.ad_text ? `„${cell(String(a.ad_text).slice(0, 300))}”` : "brak tekstu"}`).join("\n")}
 
-${renderAdIdentity(obs.ads)}### Domeny
+${renderAdIdentity(obs.ads)}${renderShopSignals(obs.ads)}### Domeny
 
 | Domena | Rejestrator | Utworzona (UTC) | NS | IP (ASN) |
 |---|---|---|---|---|

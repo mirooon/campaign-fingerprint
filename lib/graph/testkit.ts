@@ -7,6 +7,8 @@ import type { PageExtract, TrackerId } from "../osint/extract";
 import { normalizeEndpointPath, type EndpointRef, type PageKit } from "../osint/pagekit";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import { extractCompanyIds } from "../text/companyIds";
+import type { TlsDetails } from "../osint/tlsSignals";
+import { extractContactSignals } from "../osint/contact";
 import { personaSlug, type PersonaMatch } from "../text/persona";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
 
@@ -42,6 +44,10 @@ export interface TestItemSpec {
   personaCategories?: Record<string, string>;
   params?: Array<{ name: CampaignParamName; value: string }>;
   kit?: Partial<PageKit>;
+  /** Certificate the page was served with (HAR securityDetails). */
+  tls?: TlsDetails;
+  /** Shop platforms read from the page (PageExtract.cms). */
+  cms?: string[];
   /** Raw OCR text of the creative (e.g. a screenshot of the ad). */
   ocrText?: string;
   /** Transcript of the video creative (ASR). */
@@ -79,7 +85,7 @@ export interface TestInfra {
   /** host -> IPs */
   hosts?: Record<string, string[]>;
   /** ip -> asn, asName */
-  asns?: Record<string, { asn: number; asName: string }>;
+  asns?: Record<string, { asn: number; asName: string; country?: string }>;
   /** domain -> NS list */
   ns?: Record<string, string[]>;
   /** domain -> TXT records */
@@ -190,11 +196,14 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           wallets: s.wallets ?? [],
           // as extractFromHtml reads them from the visible text
           ...(s.pageText ? (({ companyIds, legalEntities }) => ({ companyIds, legalEntities }))(extractCompanyIds({ text: s.pageText })) : {}),
+          ...(s.cms ? { cms: s.cms } : {}),
+          ...(s.pageText ? { contact: extractContactSignals({ html: "", text: s.pageText, url: landing.url, emails: s.emails ?? [], phones: s.phones ?? [] }) } : {}),
         }),
         favicon:
           s.faviconMmh3 === undefined
             ? null
             : { url: new URL("/favicon.ico", landing.url).toString(), hashes: { mmh3: s.faviconMmh3, sha256: `sha-${s.faviconMmh3}`, dhash: null, ahash: null, format: "ico" }, error: null },
+        ...(s.tls ? { tls: s.tls } : {}),
         kit: emptyKit(s.kit),
         archiveFile: null,
         cloaking: null,
@@ -207,7 +216,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
         for (const ip of ips) {
           const a = infra.asns?.[ip];
           ds.ips[ip] = a
-            ? { ip, asn: a.asn, asns: [a.asn], prefix: null, country: null, registry: null, allocated: null, asName: a.asName }
+            ? { ip, asn: a.asn, asns: [a.asn], prefix: null, country: a.country ?? null, registry: null, allocated: null, asName: a.asName }
             : null;
         }
         const d = registrableDomain(nu.host);

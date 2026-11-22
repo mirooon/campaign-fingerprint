@@ -11,7 +11,7 @@ import { contribution } from "@/lib/viewer/contribution";
 import { FAMILY_HINT, FAMILY_LABEL, FAMILY_ORDER, featureFamily, familyOf, type FeatureFamily } from "@/lib/viewer/families";
 import { fmtNum } from "@/lib/viewer/format";
 import { resultConfidence, variantNote } from "@/lib/viewer/materialView";
-import { cleanEvidence, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
+import { ADDRESS_COMPLETENESS_LABEL, cleanEvidence, EMAIL_DOMAIN_KIND_LABEL, featureInfo, premiseFamily, premiseSentence, ROLE_LABEL, SHOP_FLAG_INFO, SHOP_TECHNIQUES, TECHNIQUE_LABEL, typeInfo } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, evidenceStrength, ruleText, sortByStrength } from "@/lib/viewer/strength";
 import { Defanged, Help, StrengthBadge, StrengthLegend } from "./ui";
 
@@ -255,7 +255,7 @@ function Features({ item }: { item: MaterialItemResult }) {
               {f === "page" && techniques.map((t) => (
                 <li key={t} className="px-2.5 py-1.5">
                   <span className="font-medium">{TECHNIQUE_LABEL[t] ?? t}</span>
-                  <span className="block text-xs text-slate-500">sposób działania: łączy podobne kampanie</span>
+                  <span className="block text-xs text-slate-500">{SHOP_TECHNIQUES.has(t) ? "chwyt sklepu: wyjaśnia, nie łączy" : "sposób działania: łączy podobne kampanie"}</span>
                 </li>
               ))}
               {!rows.length && !(f === "page" && techniques.length) && <li className="px-2.5 py-1.5 text-slate-500">Nic nie odczytano.</li>}
@@ -266,6 +266,39 @@ function Features({ item }: { item: MaterialItemResult }) {
       <button type="button" className="text-xs text-slate-700 underline" onClick={() => setRaw((v) => !v)}>{raw ? "Ukryj surowe dane" : "Pokaż surowe dane"}</button>
       {raw && <pre className="max-h-64 overflow-auto rounded bg-slate-900 p-2 text-xs text-slate-100">{JSON.stringify(item.features, null, 2)}</pre>}
     </div>
+  );
+}
+
+/**
+ * "Sklep" section: flags of a fake-shop page with the figure or quote each rests on, the payment methods, and
+ * the contact data (kind of the e-mail domains, completeness of the address). Every line is an explanation that
+ * honest shops can trigger too, so the section says outright that it does not link anything.
+ */
+function ShopSection({ item }: { item: MaterialItemResult }) {
+  const shop = item.shop;
+  if (!shop) return null;
+  const emailKinds = item.features.emailDomainKinds as Record<string, string> | undefined;
+  const completeness = item.features.addressCompleteness as string | undefined;
+  return (
+    <section aria-label="Sklep">
+      <h4 className="mb-1.5 text-sm font-semibold">Sklep</h4>
+      <p className="mb-1.5 text-xs text-slate-600">Cechy strony sklepu wyjaśniają, dlaczego wygląda podejrzanie. Uczciwe sklepy też mogą je mieć, więc nie łączą materiałów w kampanie.</p>
+      <ul className="divide-y divide-slate-100 rounded-md border border-slate-200 bg-white text-sm">
+        {shop.flags.length === 0 && <li className="px-2.5 py-1.5 text-slate-500">Żadna z cech sklepu nie wystąpiła.</li>}
+        {shop.flags.map((f) => (
+          <li key={f} className="px-2.5 py-1.5">
+            <span className="font-medium">{SHOP_FLAG_INFO[f].name}</span>
+            <span className="block text-xs text-slate-600">{shop.details[f] || SHOP_FLAG_INFO[f].what}</span>
+            <span className="block text-xs text-slate-500">{SHOP_FLAG_INFO[f].sentence}</span>
+          </li>
+        ))}
+        {shop.paymentMethods.length > 0 && <li className="px-2.5 py-1.5">Metody płatności: {shop.paymentMethods.join(", ")}</li>}
+        {completeness && <li className="px-2.5 py-1.5">Adres na stronie: {ADDRESS_COMPLETENESS_LABEL[completeness] ?? completeness}</li>}
+        {emailKinds && Object.keys(emailKinds).length > 0 && (
+          <li className="px-2.5 py-1.5">E-mail: {[...new Set(Object.values(emailKinds))].map((k) => EMAIL_DOMAIN_KIND_LABEL[k] ?? k).join(", ")}</li>
+        )}
+      </ul>
+    </section>
   );
 }
 
@@ -325,6 +358,7 @@ export default function ResultCard({ item, ctx, onShowCampaign, onCompare }: { i
         <h4 className="mb-1.5 text-sm font-semibold">Cechy materiału<Help term="cecha" /></h4>
         <Features item={item} />
       </section>
+      <ShopSection item={item} />
       <section aria-label="Kompletność danych">
         <h4 className="mb-1.5 text-sm font-semibold">Kompletność danych<Help term="kompletnosc" /></h4>
         <CompletenessList item={item} ctx={ctx} />

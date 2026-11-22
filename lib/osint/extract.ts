@@ -14,6 +14,10 @@
  * the regexes are deliberately conservative. Never throws on malformed HTML.
  */
 import { extractCompanyIds, type CompanyId } from "../text/companyIds";
+import { extractContactSignals, type ContactSignals } from "./contact";
+import { detectCms } from "./infraSignals";
+import { extractSiteAttributes, type SiteAttributes } from "./siteAttributes";
+import { extractShopSignals, type ShopSignals } from "./shopSignals";
 import { findWallets, type WalletMatch } from "./crypto";
 import { extractUrlsFromText, hostOf, normalizeUrl, registrableDomain, resolveUrl } from "./urls";
 
@@ -67,6 +71,14 @@ export interface PageExtract {
   legalEntities?: string[];
   /** Why part of the company data was not read (a JSON-LD block that is not JSON). */
   companyIdNotes?: string[];
+  /** Signals of a fake shop (lib/osint/shopSignals.ts); null when the page is not a shop, absent in files written before they were read. */
+  shopSignals?: ShopSignals | null;
+  /** Domain kinds of the e-mail addresses, completeness of the postal address (lib/osint/contact.ts). */
+  contact?: ContactSignals;
+  /** Shop platforms named by the generator tag or by the paths in the markup (lib/osint/infraSignals.ts). */
+  cms?: string[];
+  /** Weak attributes of the page and its domain (rare TLD, language of the domain name, privacy controller, fake courier payment); only with a page address. */
+  siteAttributes?: SiteAttributes;
 }
 
 export interface TextExtract {
@@ -818,6 +830,10 @@ export function extractFromHtml(html: string, baseUrl?: string): PageExtract {
     result.companyIds = company.companyIds;
     result.legalEntities = company.legalEntities;
     result.companyIdNotes = company.notes;
+    result.shopSignals = extractShopSignals({ html, url: baseUrl, legalEntities: company.legalEntities });
+    result.cms = detectCms({ generator: result.generator, html });
+    if (baseUrl) result.siteAttributes = extractSiteAttributes({ html, text: parts.text, url: baseUrl, emails: result.emails });
+    result.contact = extractContactSignals({ html, text: parts.text, url: baseUrl, emails: result.emails, phones: result.phones });
   } catch {
     // Malformed input: return whatever was extracted so far.
   }

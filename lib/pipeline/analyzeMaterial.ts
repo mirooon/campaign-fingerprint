@@ -28,6 +28,7 @@ import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "
 import { fixtureSources, type EnrichmentSources } from "./sources";
 import { resolveCasePath } from "./casePath";
 import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
+import type { ShopSignals } from "../osint/shopSignals";
 import type { EnrichedDataset, Item } from "./types";
 import { contentWords } from "../text/uiChrome";
 
@@ -186,8 +187,10 @@ export interface MaterialItemResult {
   missing?: string[];
   /** Block of comments written into the landing page: its size and how many other records (run and batch) carry the same block. */
   fakeComments?: { count: number; repeatedInOtherItems: number };
-  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments. */
+  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments, and the shop tricks (recent_purchase_popup ...). */
   techniques?: string[];
+  /** Signals of a fake shop on the landing page (attributes that explain, never link); absent when the page is not a shop. */
+  shop?: ShopSignals;
   /** Traits of the record (graph pivots) with their weight and how many records of the existing run share them. */
   pivots?: MaterialPivot[];
   /** The page features come from an archived copy, not from a live fetch: which archive. Absent for a page fetched live or without a page. */
@@ -292,7 +295,7 @@ const FEATURE_KEYS = [
   "advertiserImpersonatesName", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "narrative", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "emailDomainKinds", "addressCompleteness", "phoneAreaMismatch", "certIssuer", "certMismatch", "certExpired", "brandInPath", "hostingOutsideEu", "tldRare", "domainLangMismatch", "privacyControllerMismatch", "registrantHidden", "contactDomainDead", "narrative", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
 ];
 
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */
@@ -593,6 +596,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       newCampaign: null,
       ...(block ? { fakeComments: { count: Number(data.fakeCommentCount ?? 0), repeatedInOtherItems: Math.max(0, block.df - 1) } } : {}),
       ...(Array.isArray(data.techniques) && data.techniques.length ? { techniques: data.techniques as string[] } : {}),
+      ...(data.shopSignals ? { shop: data.shopSignals as ShopSignals } : {}),
       ...(archivedPage?.bodySource ? { bodySource: archivedPage.bodySource } : {}),
       ...(archiveStatus ? { archive: { ...archiveStatus, ...(archivedPage?.archive ? { copy: archivedPage.archive } : {}) } } : {}),
       pivots: pivotsOf(id),

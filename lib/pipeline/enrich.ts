@@ -481,7 +481,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         }
       }
       const cloaking = opts.cloaking ? await checkCloaking(url) : null;
-      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking, ...(bodySource ? { bodySource } : {}), ...(archive ? { archive } : {}) };
+      const tls = sources.tlsFor?.(url) ?? (res.finalUrl !== url ? sources.tlsFor?.(res.finalUrl) : null) ?? null;
+      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking, ...(tls ? { tls } : {}), ...(bodySource ? { bodySource } : {}), ...(archive ? { archive } : {}) };
       pages[url] = info;
       return info;
     })();
@@ -852,6 +853,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
 
   // 3. Registrable domains: NS/MX/TXT, RDAP, CT
   const domainSet = new Set(Object.values(hosts).map((h) => h.registrableDomain).filter((d): d is string => !!d));
+  // domains of contact addresses other than the shop's own: enriched like any domain of the page (MX, RDAP, age)
+  const contactDomains = new Set<string>();
+  for (const p of Object.values(pages)) for (const d of p.extract?.contact?.otherEmailDomains ?? []) contactDomains.add(d);
+  for (const d of contactDomains) domainSet.add(d);
   const domains: Record<string, DomainInfo> = {};
   done = 0;
   await Promise.all(
@@ -891,6 +896,11 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         );
       }
       await Promise.all(tasks);
+      // a contact domain with mail records that serves no website: only a live run asks (one GET of its home page)
+      if (contactDomains.has(domain) && info.mx.length && sources.mode === "live") {
+        const home = await sources.fetchPage(`https://${domain}/`).catch(() => null);
+        if (!home || home.status === null) info.contactDomainDead = true;
+      }
       domains[domain] = info;
       progress("domains", ++done, domainSet.size);
     }),

@@ -39,6 +39,14 @@ export const VISIT_KEEP_KEYS = [
 ];
 
 /**
+ * Keys of `visit.fields` (the per-visit macros of the platform record) that name the operator: the launcher
+ * account, the cloaker customer (`cl_sid`, `cl_domain`; `cl_did` is kept as an attribute, B-331) and the
+ * campaign name the buyer gave the ad (B-345). Every other key of `fields` (click ids such as `fbclid` and
+ * `cl_clid`, tokens, scores of the analyst's visit) is redacted.
+ */
+export const VISIT_FIELDS_KEEP_KEYS = ["launcher", "cl_sid", "cl_domain", "cl_did", "fb_campaign_name"];
+
+/**
  * Keys of the visitor record that identify the analyst (network, browser, location, session,
  * cookies, what was typed into the form). Their values are also removed from the rest of the page;
  * values of other redacted keys (click ids, the visit query, tokens) are removed only in place, so
@@ -152,6 +160,11 @@ export function redactPageHtml(html: string): { text: string; changed: boolean }
     if (visit) {
       for (const [k, v] of Object.entries(visit)) {
         if (VISIT_KEEP_KEYS.includes(k) || v === null || v === "") continue;
+        const fields = k === "fields" ? asObj(v) : null;
+        if (fields) {
+          for (const [fk, fv] of Object.entries(fields)) if (!VISIT_FIELDS_KEEP_KEYS.includes(fk) && fv !== null && fv !== "") fields[fk] = REDACTED;
+          continue;
+        }
         if (analyst(k) && (typeof v === "string" || typeof v === "number")) remember(found, JSON.stringify(v));
         visit[k] = REDACTED;
       }

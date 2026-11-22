@@ -414,6 +414,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     // Explicit records of a landing-page platform: the account and the campaign name the operator,
     // the template names a kit that several accounts may use.
     platform_account: 0.9,
+    // A cloaker customer account (cl_sid on one cloaker host, B-331): one paying customer of the cloaker, as
+    // specific as a Telegram contact. The launcher account (B-345) differs from owner_uuid only on some
+    // pages; the same UUID is one account of the ad-launching tool, weighted like the platform account.
+    cloaker_account: 0.9,
+    launcher_account: 0.9,
     platform_campaign: 0.95,
     page_template: 0.35,
     // Same tracker process (machine + PID in the xid click ID): shared click routing, not proof of one buyer.
@@ -485,6 +490,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "cname_target",
       "endpoint",
       "platform_account",
+      "cloaker_account",
+      "launcher_account",
       "platform_campaign",
       "click_server",
       "meta_ad",

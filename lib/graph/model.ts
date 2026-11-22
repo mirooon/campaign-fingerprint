@@ -67,6 +67,10 @@ export const ENTITY_TYPES = [
   "bank_account",
   // postal address of a shop (street, number, postal code, city), a trace that only supports a link
   "postal_address",
+  // fields of the platform's visitor record (B-331, B-345): the cloaker customer account and the account
+  // the ads were launched from, when it differs from the page owner
+  "cloaker_account",
+  "launcher_account",
 ] as const;
 
 export type EntityType = (typeof ENTITY_TYPES)[number];
@@ -119,6 +123,8 @@ export const ENTITY_LABELS_PL: Record<EntityType, string> = {
   company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
   bank_account: "Rachunek bankowy (IBAN, NRB)",
   postal_address: "Adres siedziby sklepu",
+  cloaker_account: "Konto klienta cloakera",
+  launcher_account: "Konto narzędzia do uruchamiania reklam",
 };
 
 export type EdgeType =

@@ -356,6 +356,18 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       stealer_kit: data.stealerKit
         ? { signals: (data.stealerKit as { signals: string[] }).signals, c2_hosts: (data.stealerKit as { c2Hosts: string[] }).c2Hosts.map((h) => defangUrl(`https://${h}/`)) }
         : null,
+      // fields of the landing-page platform's visitor record (B-331, B-345): cloaker customer, launcher account,
+      // id in the Meta campaign name; the cloaker host is defanged like the other addresses of the report
+      platform_visit_fields: data.cloaker || data.launcher || data.fbCampaignNameId
+        ? {
+            cloaker: data.cloaker
+              ? { sid: (data.cloaker as { sid: string | null }).sid, host: (data.cloaker as { domain: string | null }).domain ? defangHost((data.cloaker as { domain: string }).domain) : null, did: (data.cloaker as { did: string | null }).did }
+              : null,
+            launcher: (data.launcher as string | undefined) ?? null,
+            launcher_same_as_owner: data.launcherSameAsOwner === true,
+            fb_campaign_name_id: (data.fbCampaignNameId as string | undefined) ?? null,
+          }
+        : null,
       // the domain shown in the ad against the page it leads to, defanged like the other addresses of the report
       displayed_domain_mismatch: shown
         ? { displayed: defangUrl(shown.displayed), landing: defangUrl(shown.landing), source: shown.source, confidence: shown.confidence, brand_domain: data.displayedBrandDomain === true }

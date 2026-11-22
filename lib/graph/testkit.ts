@@ -98,6 +98,8 @@ export interface TestInfra {
   asns?: Record<string, { asn: number; asName: string; country?: string }>;
   /** domain -> NS list */
   ns?: Record<string, string[]>;
+  /** domain -> MX hosts */
+  mx?: Record<string, string[]>;
   /** domain -> TXT records */
   txt?: Record<string, string[]>;
   /** domain -> registrar/created, RDAP status (e.g. "client hold") */
@@ -237,7 +239,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
           ds.domains[d] = {
             domain: d,
             ns: infra.ns?.[d] ?? [],
-            mx: [],
+            mx: infra.mx?.[d] ?? [],
             txt: infra.txt?.[d] ?? [],
             rdap: r
               ? { domain: d, registrar: r.registrar, registrarIanaId: r.ianaId ?? null, created: r.created, expires: null, updated: null, status: r.status ?? [], nameservers: [], abuseEmail: null, source: null }

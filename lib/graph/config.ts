@@ -277,6 +277,8 @@ export interface LinkConfig {
     ipCidrs: CidrRule[];
     /** Suffix match on each nameserver host. */
     nameserverSuffixes: ListRule[];
+    /** Suffix match on each MX host (B-177): shared mail providers are not an operator trace. Optional so older override files stay valid. */
+    mxSuffixes?: ListRule[];
     /**
      * RDAP statuses (lower case, spaces ignored: "client hold" = "clientHold") of a domain taken off the
      * air by its registrar or registry. Such a domain gets `suspended: true`; its live DNS then points at
@@ -404,6 +406,8 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     ip: 0.6,
     favicon: 0.5,
     nameserver: 0.35,
+    // Own mail server (B-177): in campaignRules.notAloneKinds, mass mail providers are discounted (lists.mxSuffixes).
+    mx: 0.4,
     registrar: 0.05,
     asn: 0.05,
     // Research ranking (backend > kit > domain pattern > CNAME > campaign metadata > ... > persona)
@@ -483,7 +487,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "overlay_template", "reused_footage", "hosting_account", "lead_flow", "affiliate_team"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher", "template_phrase", "advertiser_name", "kit_string", "company_id", "bank_account", "postal_address", "overlay_template", "reused_footage", "hosting_account", "lead_flow", "affiliate_team", "mx"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators; a profit
     // claim belongs to the script of the scheme, which many operators copy
     familyOnlyKinds: ["technique", "persona", "profit_claim"],
@@ -616,6 +620,32 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { cidr: "199.36.158.100/32", factor: 0.05, reason: "Firebase Hosting" },
       // registrars point suspended domains at a public resolver address: a trait of the suspension, not of an operator
       { cidr: "1.1.1.0/24", factor: 0.02, reason: "adres zastępczy zawieszonej domeny (publiczny resolver, wpisywany przez rejestratora)" },
+    ],
+    mxSuffixes: [
+      { match: "google.com", factor: 0.05, reason: "poczta Google (masowo współdzielona)" },
+      { match: "googlemail.com", factor: 0.05, reason: "poczta Google (masowo współdzielona)" },
+      { match: "outlook.com", factor: 0.05, reason: "poczta Microsoft (masowo współdzielona)" },
+      { match: "protection.outlook.com", factor: 0.05, reason: "poczta Microsoft 365 (masowo współdzielona)" },
+      { match: "hotmail.com", factor: 0.05, reason: "poczta Microsoft (masowo współdzielona)" },
+      { match: "zoho.com", factor: 0.05, reason: "poczta Zoho (masowo współdzielona)" },
+      { match: "zoho.eu", factor: 0.05, reason: "poczta Zoho (masowo współdzielona)" },
+      { match: "yandex.net", factor: 0.05, reason: "poczta Yandex (masowo współdzielona)" },
+      { match: "yandex.ru", factor: 0.05, reason: "poczta Yandex (masowo współdzielona)" },
+      { match: "mail.ru", factor: 0.05, reason: "poczta Mail.ru (masowo współdzielona)" },
+      { match: "privateemail.com", factor: 0.05, reason: "poczta Namecheap (rejestrator)" },
+      { match: "registrar-servers.com", factor: 0.05, reason: "poczta Namecheap (rejestrator)" },
+      { match: "secureserver.net", factor: 0.05, reason: "poczta GoDaddy (rejestrator)" },
+      { match: "domaincontrol.com", factor: 0.05, reason: "poczta GoDaddy (rejestrator)" },
+      { match: "ovh.net", factor: 0.1, reason: "poczta OVH (hosting, masowo współdzielona)" },
+      { match: "home.pl", factor: 0.1, reason: "poczta home.pl (hosting)" },
+      { match: "nazwa.pl", factor: 0.1, reason: "poczta nazwa.pl (hosting)" },
+      { match: "emailsrvr.com", factor: 0.1, reason: "poczta Rackspace (hosting)" },
+      { match: "titan.email", factor: 0.1, reason: "poczta Titan (hosting)" },
+      { match: "hostinger.com", factor: 0.1, reason: "poczta Hostinger (hosting)" },
+      { match: "mxrouting.net", factor: 0.1, reason: "poczta MXroute (hosting)" },
+      { match: "improvmx.com", factor: 0.05, reason: "przekierowanie ImprovMX (masowo współdzielone)" },
+      { match: "forwardemail.net", factor: 0.05, reason: "przekierowanie Forward Email (masowo współdzielone)" },
+      { match: "mailgun.org", factor: 0.1, reason: "Mailgun (masowo współdzielony)" },
     ],
     nameserverSuffixes: [
       { match: "ns.cloudflare.com", factor: 0.1, reason: "NS Cloudflare (masowo współdzielone)" },

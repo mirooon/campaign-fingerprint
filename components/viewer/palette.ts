@@ -8,6 +8,7 @@ export const TYPE_COLORS: Record<EntityType, string> = {
   ip: "#d97706",
   asn: "#a16207",
   nameserver: "#65a30d",
+  mx: "#4d7c0f",
   registrar: "#4d7c0f",
   cert: "#7c3aed",
   tracker: "#dc2626",

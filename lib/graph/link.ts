@@ -732,6 +732,13 @@ export function buildEvidenceGraph(
             g.edge(domainNode, nsNode, "uses_ns", "rekordy NS domeny");
             add(nsNode, "nameserver", [...domainPath, nsNode], Math.min(hostingRel, domainInfraRel), `te same serwery NS (${nsList.join(", ")})`);
           }
+          // Own mail server (B-177): the MX set, discounted when every host is a shared provider (weights.ts)
+          const mxList = [...new Set((di.mx ?? []).map((m) => m.toLowerCase().replace(/\.$/, "")).filter(Boolean))].sort();
+          if (mxList.length) {
+            const mxNode = g.node("mx", mxList.join(" + "), mxList.join(", "), { mx: mxList });
+            g.edge(domainNode, mxNode, "uses_mx", "rekordy MX domeny");
+            add(mxNode, "mx", [...domainPath, mxNode], domainInfraRel, `ten sam serwer poczty (${mxList.join(", ")})`);
+          }
           // Verification tokens in TXT: one per Business Manager / Search Console account, like a pixel ID
           for (const t of verificationTokens(di.txt ?? [])) {
             const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;

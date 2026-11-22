@@ -8,14 +8,14 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia) · [docs/CECHY.md](docs/CECHY.md) (katalog wszystkich śladów i cech, generowany: `bun run features:catalog`).
 
-## Dla jury: test w jednym poleceniu
+## Test w jednym poleceniu (paczka sample data)
 
-Przygotowaliśmy **paczkę z próbkami** (`odcisk-kampanii-paczka-jury-2026-11-22.zip`, 48 MB). Jest w **materiałach dodatkowych w formularzu zgłoszenia**, a także wysłana w wiadomości prywatnej (DM) do Donata Stankiewicza. Paczka zawiera bazę wyliczoną z Waszych 25 spraw, więc nie ma jej w repozytorium.
+**Paczka sample data** (`odcisk-kampanii-sample-data-2026-11-22.zip`, 49 MB). Jest w **materiałach dodatkowych w formularzu zgłoszenia**, a także wysłana w wiadomości prywatnej (DM) do Donata Stankiewicza. Paczka zawiera bazę wyliczoną z Waszych 25 spraw, więc nie ma jej w repozytorium.
 
 W katalogu, w którym leży pobrany zip (wymagania: Docker, Python 3):
 
 ```bash
-git clone https://github.com/mirooon/odcisk-kampanii.git && unzip -q odcisk-kampanii-paczka-jury-2026-11-22.zip && sh odcisk-kampanii-paczka-jury/start.sh odcisk-kampanii
+git clone https://github.com/mirooon/odcisk-kampanii.git && unzip -q odcisk-kampanii-sample-data-2026-11-22.zip && sh odcisk-kampanii-sample-data/start.sh odcisk-kampanii
 ```
 
 To jedno polecenie:
@@ -32,7 +32,16 @@ Czego się spodziewać (sprawdzone na kodzie końcowym, z rozpakowanej paczki):
 | Warianty znanych kampanii przypisane do właściwej kampanii | 34 / 78, i 2 jako „podobne” |
 | Czas analizy 212 materiałów | ok. 1,5 s |
 
-Szczegóły i opcje (inny port, zrzuty Waszych spraw w GUI): `README.md` w paczce. Bez paczki narzędzie uruchomisz według sekcji 1 poniżej.
+**Wasze własne dane** (katalog z materiałami, jeden podkatalog na sprawę, jak w danych zadania) przeciw bazie z paczki:
+
+```bash
+docker run --rm --network none -v "$PWD/odcisk-kampanii-sample-data":/dane -v "<katalog z Waszymi sprawami>":/nowe:ro \
+  odcisk-kampanii:latest bun run analyze-material -- --cases /nowe --data /dane/baza --csv /dane/wynik-wlasne.csv
+```
+
+Wynik: `odcisk-kampanii-sample-data/wynik-wlasne.csv` (werdykt dla każdego materiału: znana kampania, podobne kampanie, nowa kampania, duplikat albo za mało danych, z przesłankami). Te same materiały można też wgrać w GUI przyciskiem „Analizuj materiał”. Materiały w innym formacie (CSV, JSON, link, sam tekst): [sekcja 2](#2-jak-przeanalizować-własne-materiały).
+
+Szczegóły i opcje (inny port, zrzuty Waszych spraw w GUI, skrypty pomiarów w `pomiary/`): `README.md` w paczce. Bez paczki narzędzie uruchomisz według sekcji 1 poniżej.
 
 ## 1. Szybki start w Dockerze
 

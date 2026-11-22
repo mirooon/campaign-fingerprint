@@ -59,6 +59,26 @@ describe("evidence pack", () => {
     expect(JSON.stringify(json.observations)).not.toMatch(/"score"|deepfake|llm/i);
   });
 
+  it("carries the ad-library record: library address, payer and the advertiser account with its attributes", () => {
+    const campaignId = run.campaigns.assignments["c1-01"];
+    const members = run.campaigns.campaigns.find((c) => c.id === campaignId)!.members;
+    const libraryColumns = { ad_platform: "google", ad_id: "CR1", ad_library_url: "https://atc.example/creative/CR1", advertiser_id: "AR0001", advertiser_legal_name: "Fikcyjna Firma Sp. z o.o.", advertiser_location: "PL", advertiser_verified: "true", ad_payers: "Fundator Testowy" };
+    const enriched = { ...run.ds, items: run.ds.items.map((it) => (it.id === "c1-01" ? { ...it, extra: { ...it.extra, ...libraryColumns } } : it)) };
+    const res = exportEvidencePack({
+      campaignId, graph: run.graph, campaigns: run.campaigns, enriched, config: run.config, outDir: path.join(tmp, "c1-lib"),
+      submitter: { name: "Analityk Testowy", email: "analityk@example.org" }, packageId: "00000000-0000-4000-8000-000000000002",
+      now: () => new Date("2026-11-19T12:00:00Z"), toolVersion: { name: "starter-test", version: "0.0.0", gitCommit: null },
+    });
+    expect(members).toContain("c1-01");
+    const json = JSON.parse(readFileSync(path.join(res.outDir, "evidence.json"), "utf8"));
+    const ad = json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-01");
+    expect(ad).toMatchObject({ payer_displayed: "Fundator Testowy" });
+    expect(ad.ad_urls).toContain("https://atc.example/creative/CR1");
+    const account = json.observations.accounts.find((a: { library_account: unknown }) => a.library_account);
+    expect(account.library_account).toEqual({ platform: "google", advertiser_id: "AR0001", legal_name: "Fikcyjna Firma Sp. z o.o.", location: "PL", verified: true });
+    expect(readFileSync(path.join(res.outDir, "evidence.md"), "utf8")).toContain("Fikcyjna Firma Sp. z o.o.");
+  });
+
   it("lists every ad with IDs, URLs and UTC timestamps, and the domains with registration data", () => {
     const { json } = pack("c1-01", "c1-ads");
     expect(json.observations.ads).toHaveLength(9);
@@ -361,5 +381,15 @@ describe("evidence pack", () => {
     expect(har.in_pack).toBe("files/har/ruch.har");
     expect(har.sha256).toBe(files.find((f) => f.role === "har")!.sha256);
     expect(res.json.integrity.manifest.find((m: { file: string }) => m.file === "files/har/ruch.har").derived_from_sha256).toBe(har.sha256);
+  });
+
+  it("takes the financial offer from the narrative of the ads, with a quote marked as a conclusion", () => {
+    const c1 = pack("c1-01", "c1-knf");
+    expect(c1.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toContain("usługi inwestycyjne");
+    const offered = c1.json.observations.domains.map((d: { financial_service_offered: string | null }) => d.financial_service_offered).filter(Boolean);
+    expect(offered.length).toBeGreaterThan(0);
+    expect(offered[0]).toContain("(wniosek");
+    const c5 = pack("c5-01", "c5-knf");
+    expect(c5.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toBe("informacja (jeśli oferta dotyczy usług finansowych)");
   });
 });

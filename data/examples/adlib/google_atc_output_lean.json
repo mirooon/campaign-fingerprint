@@ -1,0 +1,16 @@
+{
+  "backend": "bq",
+  "bytesEstimated": 10398421404,
+  "detail": "lean",
+  "rows": [
+    {
+      "advertiser_id": "AR0000000000000000001",
+      "creative_id": "CR0000000000000000101",
+      "creative_page_url": "https://atc.example/advertiser/AR0000000000000000001/creative/CR0000000000000000101",
+      "ad_format_type": "VIDEO",
+      "advertiser_location": "PL",
+      "ad_funded_by": "Fundator Testowy",
+      "regions": []
+    }
+  ]
+}

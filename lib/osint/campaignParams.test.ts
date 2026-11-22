@@ -115,3 +115,24 @@ describe("campaign key of a tracker product (tracker_campaign)", () => {
     expect(extractCampaignParams(["https://alfa.example/?key=abc123", `https://alfa.example/?key=${HEX}ff`])).toEqual([]);
   });
 });
+
+describe("aliases of tracker and TDS parameters (B-140)", () => {
+  it("maps the buyer account, TDS sub IDs, campaign IDs, creative names and placement", () => {
+    const got = extractCampaignParams(["https://lp.example/?acc=zespol_7&_buyer=kupiec9&_subid=abc123x&land_id=4411&_camp_id=9921&creo=baner_zielony&utm_placement=Others"]);
+    expect(got.map((p) => [p.name, p.canonicalName])).toEqual([
+      ["acc", "buyer_account"],
+      ["_buyer", "buyer_account"],
+      ["_subid", "sub1"],
+      ["land_id", "campaign_id"],
+      ["_camp_id", "campaign_id"],
+      ["creo", "ad_name"],
+      ["utm_placement", "placement"],
+    ]);
+  });
+});
+
+describe("Google Ads campaign ID (B-159)", () => {
+  it("reads gad_campaignid as the advertiser's Google campaign", () => {
+    expect(extractCampaignParams(["https://lp.example/?gad_source=1&gad_campaignid=21987654321&gclid=Cj0KCQ"]).map((p) => [p.canonicalName, p.value])).toEqual([["google_campaign", "21987654321"]]);
+  });
+});

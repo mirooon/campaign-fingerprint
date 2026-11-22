@@ -3,6 +3,9 @@
 #   docker compose run --rm app bun run base -- --cases /dane/probka      # base of known campaigns from ./dane/probka
 #   docker compose run --rm app bun run analyze-material -- --cases /dane/nowe --csv /dane/wynik.csv
 # ./dane on the host is /dane in the container (cases in, base in ./dane/baza, results out).
+# Scan scheduler (public sources -> analysis against the base -> data/watch.jsonl):
+#   docker compose run --rm app bun run watch -- --data /dane/baza --once --sources ct --replay /dane/ct-stream.jsonl   # offline demo (works with --network none)
+#   docker compose run --rm -e URLSCAN_API_KEY -e WATCH_RECIPES=/dane/przepisy.json app bun run watch -- --data /dane/baza --every 30m --add-to-base
 # Optional profiles: full (ASR + speaker voice), llm (Ollama), ct (certstream).
 services:
   app:
@@ -29,13 +32,19 @@ services:
       OLLAMA_MODEL: ${OLLAMA_MODEL:-hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # `bun run watch` (scan scheduler): optional urlscan key, recipes file and rows file (default data/watch.jsonl)
+      URLSCAN_API_KEY: ${URLSCAN_API_KEY:-}
+      WATCH_RECIPES: ${WATCH_RECIPES:-}
+      WATCH_FILE: ${WATCH_FILE:-}
     restart: unless-stopped
 
   # Profile `full`: the same GUI and CLI plus ASR (whisper.cpp) and speaker voice (SpeechBrain, CPU).
   # Models stay on the host and are mounted read-only (nothing is downloaded in the container):
   #   docker compose --profile full up -d app-full
   #   docker compose --profile full run --rm app-full bun run analyze-material -- --cases /dane/nowe --asr --speaker --csv /dane/wynik.csv
-  # WHISPER_MODEL_DIR: folder with the ggml model (default ~/models/whisper), SPEAKER_MODEL_HOST: folder of the ECAPA model.
+  # WHISPER_MODEL_DIR: folder with the ggml model (default ~/models/whisper), SPEAKER_MODEL_HOST: folder of the ECAPA model, SPEAKER_VAD_HOST: folder of the VAD model
+  # (model folders made by setup-speaker.sh hold symlinks into the Hugging Face cache: copy them with `cp -RL` before mounting).
+  # The voice gallery (data/voices/index.json: vectors only, no recordings) is in the image; the default profile skips `--speaker` with the reason.
   app-full:
     build:
       context: .
@@ -48,12 +57,14 @@ services:
       - ./dane:/dane
       - ${WHISPER_MODEL_DIR:-~/models/whisper}:/models/whisper:ro
       - ${SPEAKER_MODEL_HOST:-~/models/speechbrain/spkrec-ecapa-voxceleb}:/models/speechbrain/spkrec-ecapa-voxceleb:ro
+      - ${SPEAKER_VAD_HOST:-~/models/speechbrain/vad-crdnn-libriparty}:/models/speechbrain/vad-crdnn-libriparty:ro
     environment:
       VIEWER_DATA_DIR: ${VIEWER_DATA_DIR:-/dane/baza}
       ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
       TZ: ${TZ:-Europe/Warsaw}
       WHISPER_MODEL: ${WHISPER_MODEL:-/models/whisper/ggml-large-v3-turbo.bin}
       SPEAKER_MODEL_DIR: /models/speechbrain/spkrec-ecapa-voxceleb
+      SPEAKER_VAD_DIR: /models/speechbrain/vad-crdnn-libriparty
     restart: unless-stopped
 
   # Profile `llm`: local Ollama for summaries, NER and embeddings.

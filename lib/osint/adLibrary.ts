@@ -17,6 +17,18 @@ import path from "node:path";
 import type { EnvMap } from "../media/asr";
 import { defaultRunner, which, type ToolRunner } from "../media/tools";
 
+/** Creative of a library ad as yt-dlp reads it from the library page (`lib/adlib/ytdlp.ts`). */
+export interface AdCreativeInfo {
+  text: string | null;
+  title: string | null;
+  imageUrl: string | null;
+  videoUrl: string | null;
+  uploader: string | null;
+  uploaderId: string | null;
+  /** ISO time the ad was started (the library's timestamp), or null. */
+  startedAt: string | null;
+}
+
 export interface AdLibraryInfo {
   id: string;
   payers: string[];
@@ -39,6 +51,10 @@ export interface AdLibraryInfo {
   /** SHA-256 of the adapter's raw JSON record of this ID (compact JSON.stringify of the parsed answer), so the answer can be checked later. */
   rawSha256?: string | null;
   error: string | null;
+  /** Creative of the ad (yt-dlp, `--ad-library`); absent when it was not asked for. */
+  creative?: AdCreativeInfo | null;
+  /** Why `creative` is null although it was asked for (no yt-dlp, the page did not answer). */
+  creativeNote?: string | null;
 }
 
 export interface AdLibraryStatus {

@@ -9,6 +9,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { readAdRecordTraces } from "../graph/adLibraryTraces";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
 import type { Campaign, CampaignsFile, EvidenceGraph, ItemLink } from "../graph/model";
 import { Discounter } from "../graph/weights";
@@ -32,6 +33,7 @@ import { caseFilesOf, REDACTORS, SOURCE_FILE_DIR, SOURCE_FILE_LABEL, type PackPr
 import { sharedTraces } from "./traces";
 import { planCertDomains, renderCertReasons } from "./certDomains";
 import { certStatus, type CertListSnapshot } from "./certList";
+import { DEFAULT_NARRATIVE_CONFIG, topicQuote, type MaterialNarrative } from "../text/narrative";
 
 export const GOOD_FAITH_STATEMENT =
   "Oświadczam, że w dobrej wierze uważam, iż informacje i zarzuty zawarte w zgłoszeniu są prawidłowe i kompletne.";
@@ -311,7 +313,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       ad_urls: [...new Set([...adUrlColumns.map(([, v]) => v), ...library.urls])],
       ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))), ...(library.ids.length ? { ad_library_id: library.ids[0] } : {}) },
       advertiser_displayed: item.advertiser,
-      payer_displayed: library.payer,
+      payer_displayed: library.payer ?? item.extra.ad_payers ?? null,
       beneficiary_displayed: library.beneficiary,
       repository_record: library.records,
       first_seen_utc: utc(item.firstSeen),
@@ -332,8 +334,18 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   // ---------------------------------------------------------------- domains (facts)
   const domainHosts = new Map<string, Set<string>>();
   const domainPages = new Map<string, PageInfo[]>();
+  // Financial service: a conclusion from the narrative of the ad (a financial topic in its copy or page),
+  // quoted, never a keyword match alone (a bare "platforma" is no investment offer)
+  const domainOffer = new Map<string, string>();
   for (const item of members) {
     const page = pagesOf(item);
+    const narrative = nodeById.get(`item:${item.id}`)?.data.narrative as MaterialNarrative | undefined;
+    const topic = narrative?.topics.find((t) => DEFAULT_NARRATIVE_CONFIG.financialTopics.includes(t.id));
+    const offerDomain = registrableDomain(page?.fetch.finalUrl ?? item.landingUrl ?? "");
+    if (topic && offerDomain && !domainOffer.has(offerDomain)) {
+      const text = [item.text, page?.extract?.title, page?.extract?.description, page?.extract?.visibleText].filter(Boolean).join("\n");
+      domainOffer.set(offerDomain, `„${topicQuote(text, topic.id) ?? topic.terms.join(", ")}” (wniosek z narracji materiału: ${topic.id})`);
+    }
     const urls = page ? [...page.fetch.redirectChain.map((h) => h.url), page.fetch.finalUrl] : item.landingUrl ? [item.landingUrl] : [];
     for (const u of urls) {
       const n = normalizeUrl(u);
@@ -412,7 +424,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           certificates: (di?.ct?.certs ?? []).slice(0, 10).map((c) => ({ issuer: c.issuer, not_before: c.notBefore, not_after: c.notAfter, san_count: c.sanDomains.length, crtsh_id: c.id })),
         },
         cert_warning_list_status: certStatusRecord(domain),
-        financial_service_offered: null,
+        financial_service_offered: domainOffer.get(domain) ?? null,
         payment_identifiers: [...new Set(kitPages.flatMap((p) => p.extract?.wallets.map((w) => `${w.kind}:${w.address}`) ?? []))],
       };
     });
@@ -479,6 +491,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       ads: own.map((m) => m.id),
       page_ids: pageIds,
       page_urls: pageIds.map(pageUrl),
+      library_account: libraryAccount(own),
     };
   });
 
@@ -498,7 +511,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     `kierujących do ${domains.length} domen (${domains.map((d) => d.domain_fqdn).join(", ") || "brak"}). ` +
     `W treści reklam lub danych wejściowych wskazano osoby: ${personaNames}. ` +
     `Reklamy łączą wspólne identyfikatory: ${sharedIdentifiers.slice(0, 5).map((s) => `${traceTypeName(s.type).toLowerCase()} ${s.value}`).join("; ") || "brak"}.`;
-  const hasFinancialOffer = members.some((m) => /inwest|zysk|dywidend|krypto|bitcoin|platform|zarab/i.test(m.text ?? ""));
+  const hasFinancialOffer = domainOffer.size > 0;
 
   const summary = opts.summaries?.[campaign.id];
   const analysis = {
@@ -704,6 +717,28 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   return { outDir, record, files: ["evidence.json", "evidence.md", "manifest.sha256", ...files, ...manifest.filter((m) => m.file.startsWith("files/")).map((m) => m.file)], certDomains };
 }
 
+/** Advertiser account named by an ad library (stable ID, legal name, country, verification), as written in the pack. */
+interface LibraryAccount {
+  platform: string;
+  advertiser_id: string;
+  legal_name: string | null;
+  location: string | null;
+  verified: boolean | null;
+}
+
+/**
+ * The library account of the ads under one displayed advertiser name: the first ad with an account ID
+ * decides (ads of one displayed name that name different accounts are rare, and the ads list keeps each ID).
+ * Null when none of the ads comes from an ad-library record.
+ */
+function libraryAccount(ads: Item[]): LibraryAccount | null {
+  for (const ad of ads) {
+    const t = readAdRecordTraces(ad.extra);
+    if (t?.advertiserId) return { platform: t.platform, advertiser_id: t.advertiserId, legal_name: t.legalName, location: t.location, verified: t.verified };
+  }
+  return null;
+}
+
 /** evidence.md: the record in tables for a reader, in plain Polish names, with dates as `YYYY-MM-DD HH:MM UTC` and addresses defanged (raw only in evidence.json and the DSA notices). */
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
@@ -711,7 +746,7 @@ function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): st
     shared_context_not_linking: { note: string; traces: Array<{ type: string; value: string; ads_with_identifier: number; discount_reasons: string[] }> };
     ads: Array<Record<string, unknown>>;
     domains: Array<Record<string, unknown>>;
-    accounts: Array<{ advertiser_displayed: string; ads: string[] }>;
+    accounts: Array<{ advertiser_displayed: string; ads: string[]; library_account: LibraryAccount | null }>;
   };
   const integrity = record.integrity as {
     manifest: ManifestEntry[];
@@ -788,7 +823,7 @@ ${obs.domains
 
 ### Konta reklamodawców
 
-${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")}`).join("\n") || "- brak"}
+${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")}${a.library_account ? `; konto w bibliotece reklam (${a.library_account.platform}): ${a.library_account.advertiser_id}${a.library_account.legal_name ? `, nazwa prawna „${a.library_account.legal_name}”` : ""}${a.library_account.location ? `, kraj ${a.library_account.location}` : ""}${a.library_account.verified === null ? "" : a.library_account.verified ? ", zweryfikowany" : ", niezweryfikowany"}` : ""}`).join("\n") || "- brak"}
 
 ## Analiza (wyniki modeli i heurystyk — wskazówki)
 

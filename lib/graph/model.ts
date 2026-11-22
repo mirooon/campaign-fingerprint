@@ -3,6 +3,7 @@
  * evidence and weights, item-item links and campaigns.
  * Type-only module (safe to import from client components).
  */
+import type { NarrativeSummary } from "../text/narrative";
 
 export const ENTITY_TYPES = [
   "item",
@@ -254,6 +255,16 @@ export interface Campaign {
    */
   variants?: ContentVariant[];
   /**
+   * A strong pivot that alone ties two or more subgroups of the campaign (each of at least
+   * `bridgeMinPartSize` members, with no other shared evidence between them): "campaign glued by one trace",
+   * a candidate for lists.pivots if the trace turns out shared. Absent when there is none.
+   */
+  bridge?: { pivot: string; type: EntityType; label: string; parts: string[][] };
+  /** The weakest member's best joining link: how close the loosest member hangs to the threshold. Absent for one member. */
+  minInternalScore?: number;
+  /** The member with that weakest best link, and how many joining links it has. */
+  weakestMember?: { id: string; score: number; links: number };
+  /**
    * Optional, for the "campaign evolution" view (campaigns of two or more members): per trait type,
    * the values every member shares (`stable`) and the types whose values differ between members
    * (`changing`, every value with the date of the first member holding it). The viewer can derive the
@@ -310,6 +321,12 @@ export interface CampaignFamily {
   topEvidence: CampaignEvidence[];
   /** Why the campaigns are kept apart (e.g. different platform accounts). */
   apart: string[];
+  /** Narratives of the members (topics with dates, hooks, IHC labels): a trait of the group, never evidence. */
+  narrative?: NarrativeSummary;
+  /** Groups of the impersonated persons (e.g. "Dziennikarze") with member counts, from the public list. */
+  personaCategories?: Array<{ category: string; count: number }>;
+  /** Brands recognised on the members' creatives, with member counts. */
+  brands?: Array<{ id: string; name: string; count: number }>;
 }
 
 export interface CampaignAttributes {
@@ -327,6 +344,14 @@ export interface CampaignAttributes {
    * "infrastructure" when no member is attached by content alone; "mixed" otherwise.
    */
   basis?: "content" | "infrastructure" | "mixed";
+  /** Narratives of the members (topics with dates, hooks, IHC labels, topic switches): an attribute, never evidence. */
+  narrative?: NarrativeSummary;
+  /** Brands recognised on the members' creatives (CLIP zero-shot), with member counts: an attribute, never evidence. */
+  brands?: Array<{ id: string; name: string; count: number }>;
+  /** Platforms of the members' pages (page builder, tracker product) from their SDK traces, with member counts: an attribute. */
+  platforms?: Array<{ id: string; count: number }>;
+  /** Members whose ad the ad library shows as taken down by the platform (B-192). */
+  takenDownCount?: number;
 }
 
 export interface CampaignsFile {

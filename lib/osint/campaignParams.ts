@@ -31,7 +31,13 @@ export type CampaignParamName =
   | "ad_id"
   | "ad_name"
   | "pixel_id"
-  | "tracker_campaign";
+  | "tracker_campaign"
+  // account of the media buyer in a tracker or TDS link (acc=, _buyer=): one buyer, a strong trace (B-140)
+  | "buyer_account"
+  // ad placement (utm_placement=Facebook_Mobile_Feed): a platform value, weak (B-140)
+  | "placement"
+  // campaign of the advertiser in Google Ads (gad_campaignid=), appended by Google to the ad's link (B-159)
+  | "google_campaign";
 
 export interface CampaignParam {
   /** Parameter name as it appeared in the URL. */
@@ -110,6 +116,19 @@ const ALIASES: Record<string, CampaignParamName> = {
   fbpixel: "pixel_id",
   fb_pixel: "pixel_id",
   px: "pixel_id",
+  // tracker and TDS aliases (B-140)
+  acc: "buyer_account",
+  _buyer: "buyer_account",
+  buyer: "buyer_account",
+  _subid: "sub1",
+  sub_1: "sub1",
+  land_id: "campaign_id",
+  _camp_id: "campaign_id",
+  creo: "ad_name",
+  utm_code: "utm_campaign",
+  placement: "placement",
+  utm_placement: "placement",
+  gad_campaignid: "google_campaign",
   // campaign key of a tracker product (Binom: "/click?key=<32 hex>", also under the renamed "f7nx2")
   key: "tracker_campaign",
   f7nx2: "tracker_campaign",

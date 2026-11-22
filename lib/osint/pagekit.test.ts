@@ -355,6 +355,26 @@ describe("path identifiers (account IDs in same-origin resource paths)", () => {
   });
 });
 
+describe("lander directories of a platform (B-164)", () => {
+  const U = "7b1d2e3f-4a5b-4c6d-8e9f-0a1b2c3d4e5f";
+
+  it("takes one resource of a saved page under the platform's lander directory", () => {
+    const html = `<html><head><link rel="icon" href="/_cdn/production/landing-cdn/${U}/favicon.png"><script src="./Oferta_files/main.js"></script></head></html>`;
+    expect(extractPageKit(html, "https://sklep-a.example/oferta").pathIds).toEqual([{ id: U, prefix: "/_cdn/production/landing-cdn/" }]);
+  });
+
+  it("takes the lander directory from the page's own address and from its requests", () => {
+    expect(extractPageKit("<html><body>x</body></html>", `https://sklep-a.example/landers/${U}/`).pathIds).toEqual([{ id: U, prefix: "/landers/" }]);
+    const kit = withRequestUrls(extractPageKit("<html><body>x</body></html>", "https://sklep-b.test/"), [`https://sklep-b.test/landers/${U}/js/app.js`], "https://sklep-b.test/");
+    expect(kit.pathIds).toEqual([{ id: U, prefix: "/landers/" }]);
+  });
+
+  it("still needs two resources for a UUID under any other directory", () => {
+    const html = `<html><head><script src="/assets/${U}/main.js"></script></head></html>`;
+    expect(extractPageKit(html, "https://sklep-a.example/").pathIds).toEqual([]);
+  });
+});
+
 describe("withRequestUrls: page resources from a request list when the page code is missing", () => {
   const PAGE = "https://lp-skan.example/pl/oferta/";
   const ID = "1f2e3d4c-5b6a-4978-8695-a4b3c2d1e0f9";

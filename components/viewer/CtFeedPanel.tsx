@@ -66,7 +66,7 @@ function Candidate({ r, known, onSelectCampaign }: { r: CtFeedRecord; known: boo
       <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px] text-slate-600">
         <dt className="text-slate-400">zaobserwowano</dt>
         <dd>
-          {time(r.observed_utc)} · {r.source === "certstream" ? "strumień CT" : r.source === "crtsh-backfill" ? "crt.sh (backfill)" : "odtworzenie (demo)"}
+          {time(r.observed_utc)} · {r.source === "certstream" ? "strumień CT" : r.source === "crtsh-backfill" ? "crt.sh (backfill)" : r.source === "watch" ? "harmonogram skanów" : "odtworzenie (demo)"}
         </dd>
         {(r.cert.issuer || r.cert.log) && (
           <>

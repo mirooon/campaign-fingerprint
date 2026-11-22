@@ -23,6 +23,9 @@
 import { createHash } from "node:crypto";
 import { closeSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { adRecordColumns } from "../adlib/toItem";
+import { parseAdRecord } from "../adlib/record";
+import { AD_RECORD_FILE, type AdRecord } from "../adlib/types";
 import { cymruAsNameQuery, cymruOriginQuery, pickCymruOrigin } from "../osint/asn";
 import type { DnsRecordType } from "../osint/dns";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
@@ -88,6 +91,10 @@ export interface ImportedCase {
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
+  /** Page ID of the advertiser from the library ad's description (`uploader_id`), or null. */
+  adPageId: string | null;
+  /** Record of a public ad library (`adlib.json`, written by `adRecordToCaseDir`), or null. */
+  adRecord: AdRecord | null;
   firstSeen: string | null;
   /** Public sources of a collected folder (address, type, entry and access dates). */
   sources: CollectedSource[];
@@ -108,6 +115,10 @@ export interface CaseImportResult {
 }
 
 interface HarEntry {
+  /** Page record of the HAR the entry belongs to (one per navigation in the browser session). */
+  pageref?: string;
+  /** What started the request (Chrome): a script stack, the parser, or another request. */
+  _initiator?: HarInitiator;
   _resourceType?: string;
   serverIPAddress?: string;
   startedDateTime?: string;
@@ -220,6 +231,70 @@ function isDocument(e: HarEntry): boolean {
  * saved URL: the page the HAR names (a HAR of a page opened from disk holds only third-party
  * frames, so it has no landing document), else the first document.
  */
+interface HarInitiator {
+  type?: string;
+  url?: string;
+  stack?: HarStack;
+}
+interface HarStack {
+  callFrames?: Array<{ url?: string }>;
+  parent?: HarStack;
+}
+
+const EXTENSION_URL = /^(?:chrome|moz|safari-web|ms-browser)-extension:\/\//i;
+
+/**
+ * Whether a request was started by a browser extension of whoever saved the HAR (B-116): its initiator, or
+ * any frame of the initiator's script stack (and its parents), runs from an extension. Such requests are
+ * the analyst's tools, not the page; a script of the page that calls a third party keeps its request.
+ */
+export function fromExtension(e: HarEntry): boolean {
+  const init = e._initiator;
+  if (!init) return false;
+  if (init.url && EXTENSION_URL.test(init.url)) return true;
+  for (let s: HarStack | undefined = init.stack, depth = 0; s && depth < 20; s = s.parent, depth++) {
+    if ((s.callFrames ?? []).some((f) => !!f.url && EXTENSION_URL.test(f.url))) return true;
+  }
+  return false;
+}
+
+/**
+ * Entries of a HAR that belong to the page of `main` (B-211): a HAR saved after browsing holds requests of
+ * earlier pages of the session, whose hosts, IPs and images are not traits of this page. With page records
+ * the entries of main's `pageref`; otherwise the entries from main's start time on, plus the redirect hops
+ * that lead to main (they precede it but are part of its navigation). Entries without a time stay. Without
+ * main (a HAR of requests only) all entries.
+ */
+export function pageEntries(entries: HarEntry[], main: HarEntry | null): HarEntry[] {
+  if (!main) return entries;
+  if (main.pageref && entries.some((e) => e.pageref && e.pageref !== main.pageref)) return entries.filter((e) => !e.pageref || e.pageref === main.pageref);
+  const start = Date.parse(main.startedDateTime ?? "");
+  if (Number.isNaN(start)) return entries;
+  const hops = new Set<HarEntry>();
+  let target = main.request.url;
+  for (let i = 0; i < entries.length; i++) {
+    const hop = entries.find((e) => !hops.has(e) && e.response.status >= 300 && e.response.status < 400 && redirectTarget(e) === target);
+    if (!hop) break;
+    hops.add(hop);
+    target = hop.request.url;
+  }
+  return entries.filter((e) => {
+    const t = Date.parse(e.startedDateTime ?? "");
+    return Number.isNaN(t) || t >= start || hops.has(e);
+  });
+}
+
+/** Absolute address in the Location header of a redirect entry, or null. */
+function redirectTarget(e: HarEntry): string | null {
+  const loc = e.response.headers?.find((h) => h.name.toLowerCase() === "location")?.value;
+  if (!loc) return null;
+  try {
+    return new URL(loc, e.request.url).toString();
+  } catch {
+    return null;
+  }
+}
+
 export function mainDocument(entries: HarEntry[], savedFrom: string | null, harPageUrl: string | null = null): HarEntry | null {
   const docs = entries.filter(isDocument);
   const on = (u: string) => docs.find((e) => e.request.url === u) ?? docs.find((e) => hostOf(e.request.url) === hostOf(u)) ?? null;
@@ -353,6 +428,8 @@ interface CaseScan {
   adLibraryId: string | null;
   /** The yt-dlp description of the video (absolute path), when there is one. */
   infoFile: string | null;
+  adPageId: string | null;
+  adRecord: AdRecord | null;
   infoTime: string | null;
   notes: string[];
   collected: Collected | null;
@@ -477,17 +554,27 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   if (videos.length > 1) notes.push(`kilka plików wideo, użyty pierwszy: ${videos[0].name}`);
   let advertiser: string | null = null;
   let adLibraryId: string | null = null;
+  let adPageId: string | null = null;
   let infoTime: string | null = null;
   const info = rootMedia.find((f) => /\.info\.json$/i.test(f.name));
   if (info) {
     try {
-      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number };
+      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number; uploader_id?: string };
       adLibraryId = /\/ads\/library\/?\?(?:.*&)?id=(\d{6,})/.exec(j.webpage_url ?? "")?.[1] ?? null;
       advertiser = j.playlist_uploader ?? j.uploader ?? null;
+      // the uploader of a library ad is its advertiser page: a stable ID, unlike the name
+      adPageId = adLibraryId && /^\d+$/.test(j.uploader_id ?? "") ? (j.uploader_id ?? null) : null;
       infoTime = typeof j.epoch === "number" ? new Date(j.epoch * 1000).toISOString() : null;
     } catch {
       notes.push(`${info.name}: nieczytelny plik opisu`);
     }
+  }
+  let adRecord: AdRecord | null = null;
+  const adFile = files.find((f) => f.dir === "" && f.name === AD_RECORD_FILE);
+  if (adFile) {
+    const parsed = parseAdRecord(readJsonNote(abs(adFile), adFile.name, notes));
+    adRecord = parsed.record;
+    if (parsed.error) notes.push(`${AD_RECORD_FILE}: pominięty (${parsed.error})`);
   }
   return {
     id,
@@ -500,6 +587,8 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     advertiser,
     adLibraryId,
     infoFile: info ? abs(info) : null,
+    adPageId,
+    adRecord,
     infoTime,
     notes,
     collected,
@@ -561,6 +650,8 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       video: s.video,
       advertiser: s.advertiser,
       adLibraryId: s.adLibraryId,
+      adPageId: s.adPageId,
+      adRecord: s.adRecord,
       sources: s.collected?.sources ?? [],
       scan: s.collected?.scan ?? null,
     };
@@ -578,7 +669,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         ...(c?.htmlName ? [{ role: "saved_html" as const, file: path.join(s.dir, ...c.htmlName.split("/")) }] : []),
         ...mediaFiles,
       ]);
-    const hasMedia = !!(media.screenshot || media.video || media.adLibraryId);
+    const hasMedia = !!(media.screenshot || media.video || media.adLibraryId || media.adRecord);
     if (!s.captures.length && !hasMedia) continue; // not a case folder
 
     // The same page saved twice (same address and title) is one capture; the copy with a HAR wins.
@@ -609,22 +700,27 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     const ids = new Set<string>();
     const push = (rec: ImportedCase) => {
       cases.push(rec);
+      // columns of a library record first: the case's own fields below win where both are known
+      const libraryColumns: Record<string, string> = rec.adRecord ? adRecordColumns(rec.adRecord) : {};
+      delete libraryColumns.id;
       records.push({
+        ...libraryColumns,
         id: rec.id,
         landing_url: rec.landingUrl,
         screenshot: rec.screenshot,
-        first_seen: rec.firstSeen,
+        first_seen: rec.firstSeen ?? libraryColumns.first_seen ?? null,
         ...(rec.id !== rec.caseId ? { case: rec.caseId } : {}),
         ...(rec.moreScreenshots.length ? { more_screenshots: rec.moreScreenshots } : {}),
         ...(rec.video ? { video: rec.video } : {}),
         ...(rec.advertiser ? { advertiser: rec.advertiser } : {}),
         ...(rec.adLibraryId ? { ad_library_id: rec.adLibraryId } : {}),
+        ...(rec.adPageId ? { advertiser_id: rec.adPageId, ad_platform: "meta" } : {}),
       });
     };
 
     if (!pages.length) {
       // a collected folder names its target even when no copy of the page survived (press images only)
-      const target = s.collected?.target ?? null;
+      const target = s.collected?.target ?? s.adRecord?.landingUrl ?? null;
       const targetHost = target ? normalizeUrl(target)?.host : null;
       if (targetHost) landingHosts.add(targetHost);
       push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, files: filesOfCapture(null), importedAt, firstSeen: mediaTime ?? s.infoTime });
@@ -636,7 +732,8 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       let itemId = pages.length > 1 && c.name ? `${id}_${c.name}` : id;
       for (let k = 2; ids.has(itemId); k++) itemId = `${id}_${c.name || "strona"}_${k}`;
       ids.add(itemId);
-      for (const e of c.har?.entries ?? []) {
+      const ownEntries = c.har ? pageEntries(c.har.entries, c.main).filter((e) => !fromExtension(e)) : [];
+      for (const e of ownEntries) {
         const host = hostOf(e.request.url);
         const ip = e.serverIPAddress?.replace(/^\[|\]$/g, "");
         if (!host || !ip) continue;
@@ -659,7 +756,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       const bodyFile = `pages/${safeName(itemId)}.html`;
       write(path.join(fix, bodyFile), body);
       const bodySource: ImportedCase["bodySource"] = c.main || c.requestsOnly ? "har" : c.archivedAt ? "wayback" : "saved-html";
-      const requests = c.har ? requestUrls(c.har.entries) : [];
+      const requests = c.har ? requestUrls(ownEntries) : [];
       http[pageKey] = {
         status: 200,
         headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) },
@@ -681,7 +778,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       }
       // Images recorded in the HAR (favicons), under their original addresses.
       let n = 0;
-      for (const e of c.har?.entries ?? []) {
+      for (const e of ownEntries) {
         if (e.request.method !== "GET" || e.response.status !== 200) continue;
         const mime = e.response.content?.mimeType ?? "";
         const k = urlKey(e.request.url);
@@ -815,6 +912,10 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     ...(has("more_screenshots") ? { extraImagePaths: "more_screenshots" } : {}),
     ...(has("video") ? { videoPath: "video" } : {}),
     ...(has("advertiser") ? { advertiser: "advertiser" } : {}),
+    ...(has("text") ? { text: "text" } : {}),
+    ...(has("platform") ? { platform: "platform" } : {}),
+    ...(has("image_url") ? { imageUrl: "image_url" } : {}),
+    ...(has("last_seen") ? { lastSeen: "last_seen" } : {}),
   };
   write(path.join(o.outDir, "mapping.json"), JSON.stringify(mapping, null, 1));
   write(path.join(o.outDir, "provenance.json"), JSON.stringify({ generatedAt: importedAt, lookups: !!o.lookups, cases, skipped, failedLookups }, null, 1));

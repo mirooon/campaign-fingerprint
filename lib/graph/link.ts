@@ -9,20 +9,26 @@
  * text similarity add item-item evidence. Pair evidence is combined (noisy-OR)
  * into ItemLinks that clustering consumes.
  */
+import { stripHallucinations } from "../media/asr";
 import { fingerprintSimilarity } from "../media/audioFp";
 import { speakerSimilarity } from "../media/speaker";
 import { hammingDistance } from "../media/imageHash";
-import { paramSchema } from "../osint/campaignParams";
+import { extractCampaignParams, paramSchema } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
+import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
-import { stripUiChrome } from "../text/uiChrome";
+import { celebBaitLabel, detectNarrative, type MaterialNarrative } from "../text/narrative";
+import { scamBrands } from "../text/scamBrand";
+import { stripGenericPhrases, stripUiChrome } from "../text/uiChrome";
+import { domainAgeAt } from "../osint/domainAge";
 import { domainTemplate, type DomainTemplate } from "../osint/domainPattern";
 import { simhashDistance } from "../osint/pagekit";
-import { normalizeUrl, registrableDomain, toUnicodeHost } from "../osint/urls";
+import { normalizeUrl, registrableDomain, toUnicodeHost, unwrapPlatformUrl } from "../osint/urls";
 import type { EnrichedDataset, Item } from "../pipeline/types";
 import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/similarity";
+import { adLibraryIdKey, adPayerKey, advertiserIdKey, readAdRecordTraces } from "./adLibraryTraces";
 import { commentNameFactors } from "./commentNames";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
 import { knownBackendLabel } from "./knownBackends";
@@ -39,7 +45,7 @@ import {
   type PairEvidence,
   type SimilarityEdgeType,
 } from "./model";
-import { combineScores, Discounter, pivotWeight } from "./weights";
+import { combineScores, Discounter, pivotWeight, platformPathRule } from "./weights";
 
 export interface BuildGraphOptions {
   config?: LinkConfig;
@@ -71,6 +77,13 @@ const TRACKER_LABELS: Record<string, string> = {
   meta_pixel: "Meta Pixel",
   tiktok_pixel: "TikTok Pixel",
   yandex_metrica: "Yandex Metrica",
+  meta_domain_verification: "token weryfikacji domeny Meta",
+  google_site_verification: "token weryfikacji Google Search Console",
+  yandex_verification: "token weryfikacji Yandex Webmaster",
+  clarity: "Microsoft Clarity",
+  matomo: "Matomo (serwer/strona)",
+  posthog: "PostHog",
+  adsense: "wydawca AdSense",
 };
 
 const TECHNIQUE_LABELS: Record<string, string> = {
@@ -79,6 +92,13 @@ const TECHNIQUE_LABELS: Record<string, string> = {
   fake_social_post: "udawany post z serwisu społecznościowego",
   fake_comments: "fałszywe komentarze wpisane w stronę",
 };
+
+/** Canonical link parameters that carry the ID of the Meta ad in templates ({{ad.id}}). */
+const META_AD_ID_PARAMS = new Set<string>(["ad_id", "utm_content", "utm_term"]);
+
+/** Most unmapped input columns kept on the item as input data, and the longest value kept. */
+const MAX_INPUT_EXTRA = 30;
+const MAX_INPUT_EXTRA_CHARS = 200;
 
 function shortUrl(url: string, max = 64): string {
   const s = url.replace(/^https?:\/\//, "");
@@ -189,6 +209,10 @@ export function buildEvidenceGraph(
     // Screenshot of the ad: kind of platform view and the ad-library ID read by OCR
     const ui = enr?.ocrText ? stripUiChrome(enr.ocrText) : null;
     if (ui?.view) itemData.uiView = ui.view;
+    if (enr?.advertiserImpersonates) {
+      itemData.advertiserImpersonates = enr.advertiserImpersonates.id;
+      itemData.advertiserImpersonatesName = enr.advertiserImpersonates.name;
+    }
     if (ui?.view === "ad_library") libraryViews.add(item.id);
     // The library ID also comes from the further screenshots of the case and from the input (e.g. a yt-dlp description of the ad)
     const libraryIds = [
@@ -214,6 +238,43 @@ export function buildEvidenceGraph(
       add(id, "campaign_param", [itemNode, id], 1, `ten sam identyfikator w bibliotece reklam (${libId}): ta sama reklama`);
     }
 
+    // Record of a public ad library (lib/adlib): the library ID of platforms other than Meta (Meta's is read above)
+    // and the payer named by the library
+    const libRecord = readAdRecordTraces(item.extra);
+    if (libRecord) {
+      // flat, readable values: they are the features of the material in the GUI and the evidence pack
+      itemData.adPlatform = libRecord.platform;
+      if (libRecord.adId) itemData.adLibraryAdId = libRecord.adId;
+      if (libRecord.advertiserId) itemData.adAdvertiserId = libRecord.advertiserId;
+      if (libRecord.legalName) itemData.adAdvertiserLegalName = libRecord.legalName;
+      if (libRecord.location) itemData.adAdvertiserLocation = libRecord.location;
+      if (libRecord.verified !== null) itemData.adAdvertiserVerified = libRecord.verified ? "tak" : "nie";
+      if (libRecord.regions.length) itemData.adRegions = libRecord.regions;
+      if (libRecord.firstShown) itemData.adFirstShown = libRecord.firstShown;
+      if (libRecord.lastShown) itemData.adLastShown = libRecord.lastShown;
+      if (libRecord.platform !== "meta" && libRecord.adId) {
+        const idNode = g.node("campaign_param", adLibraryIdKey(libRecord.platform, libRecord.adId), adLibraryIdKey(libRecord.platform, libRecord.adId), {
+          canonicalName: "ad_library_id",
+          name: `identyfikator reklamy w bibliotece ${libRecord.platform}`,
+          value: `${libRecord.platform}:${libRecord.adId}`,
+          cyrillic: false,
+          macro: false,
+          sourceUrl: libRecord.libraryUrl,
+        });
+        g.edge(itemNode, idNode, "carries_param", `identyfikator reklamy w bibliotece reklam (${libRecord.platform})`);
+        add(idNode, "campaign_param", [itemNode, idNode], 1, `ten sam identyfikator w bibliotece reklam (${libRecord.platform}: ${libRecord.adId}): ta sama reklama`);
+      }
+      for (const name of libRecord.payers) {
+        const key = normAdvertiser(name);
+        if (!key) continue;
+        const payerKey = adPayerKey(libRecord.platform, key);
+        const prev = (g.nodes.get(nodeId("ad_payer", payerKey))?.data.adLibraryIds as string[] | undefined) ?? [];
+        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev });
+        g.edge(itemNode, payerNode, "paid_by", `płatnik reklamy według biblioteki reklam (${libRecord.platform})`);
+        add(payerNode, "ad_payer", [itemNode, payerNode], 1, `ten sam płatnik reklamy w bibliotece reklam („${name}”)`);
+      }
+    }
+
     // Meta Ad Library details (opt-in): DSA payer/beneficiary as a pivot, takedown and reach on the item
     const lib = (enr?.adLibrary ?? []).filter((r) => !r.error);
     if (lib.length) {
@@ -227,8 +288,12 @@ export function buildEvidenceGraph(
         audience: r.ageMin !== null || r.ageMax !== null ? `${r.ageMin ?? "?"}–${r.ageMax ?? "?"} lat${r.gender && r.gender !== "All" ? `, ${r.gender}` : ""}` : null,
         locations: r.locations,
         pageName: r.pageName,
+        creativeText: r.creative?.text ?? null,
+        startedAt: r.creative?.startedAt ?? null,
       }));
       if (lib.some((r) => r.takenDown)) itemData.adTakenDown = true;
+      const started = lib.map((r) => r.creative?.startedAt).filter((t): t is string => !!t).sort()[0];
+      if (started && !itemData.adFirstShown) itemData.adFirstShown = started;
       const names = new Map<string, { label: string; roles: Set<string> }>();
       for (const r of lib) {
         for (const [role, list] of [["płatnik", r.payers], ["beneficjent", r.beneficiaries]] as const) {
@@ -250,10 +315,48 @@ export function buildEvidenceGraph(
       }
     }
 
-    if (advertiser) {
+    // library account of the advertiser: from a library record, or the Meta page read by `--ad-library`
+    const metaPage = lib.find((r) => r.pageId);
+    const account = libRecord?.advertiserId
+      ? { platform: libRecord.platform, id: libRecord.advertiserId }
+      : metaPage?.pageId
+        ? { platform: "meta", id: metaPage.pageId }
+        : null;
+    if (account) {
+      // the library's account ID is stable while the display name changes (a taken-over or renamed account)
+      const key = advertiserIdKey(account.platform, account.id);
+      const prev = g.nodes.get(nodeId("advertiser", key))?.data;
+      const names = [...new Set([...((prev?.names as string[] | undefined) ?? []), ...(advertiser ? [advertiser] : [])])];
+      // emission of the page: a deleted page is a disposable account; takedowns are counted per distinct library ad
+      const takenDownIds = [...new Set([...((prev?.takenDownIds as string[] | undefined) ?? []), ...(account.platform === "meta" ? lib.filter((r) => r.takenDown).map((r) => r.id) : [])])];
+      const a = g.node("advertiser", key, advertiser ?? libRecord?.legalName ?? account.id, {
+        platform: account.platform,
+        advertiserId: account.id,
+        names,
+        legalName: libRecord?.legalName ?? prev?.legalName ?? null,
+        location: libRecord?.location ?? prev?.location ?? null,
+        verified: libRecord?.verified ?? (prev?.verified as boolean | null | undefined) ?? null,
+        ...(metaPage?.pageDeleted != null ? { pageDeleted: metaPage.pageDeleted } : {}),
+        ...(metaPage?.pageVerification ? { pageVerification: metaPage.pageVerification } : {}),
+        ...(takenDownIds.length ? { takenDownIds, adsTakenDown: takenDownIds.length } : {}),
+      });
+      g.edge(itemNode, a, "posted_by", `reklamodawca według biblioteki reklam (${account.platform}), identyfikator ${account.id}`);
+      add(a, "advertiser", [itemNode, a], 1, `to samo konto reklamodawcy w bibliotece reklam (${account.platform}: ${account.id}${libRecord?.legalName ? `, „${libRecord.legalName}”` : ""})`);
+    } else if (advertiser) {
       const a = g.node("advertiser", normAdvertiser(advertiser), advertiser);
       g.edge(itemNode, a, "posted_by", "reklamodawca podany w danych reklamy");
       add(a, "advertiser", [itemNode, a], 1, `ten sam reklamodawca „${advertiser}”`);
+    }
+
+    // Input columns outside the mapping: shown as input data, and linking only for columns named in config.extraPivots
+    const extraEntries = Object.entries(item.extra).filter(([, v]) => typeof v === "string" && v.trim() !== "");
+    if (extraEntries.length) itemData.inputExtra = Object.fromEntries(extraEntries.slice(0, MAX_INPUT_EXTRA).map(([k, v]) => [k, v.length > MAX_INPUT_EXTRA_CHARS ? `${v.slice(0, MAX_INPUT_EXTRA_CHARS - 1)}…` : v]));
+    for (const [column, type] of Object.entries(config.extraPivots ?? {})) {
+      const value = item.extra[column]?.trim();
+      if (!value || !ENTITY_TYPES.includes(type) || type === "item") continue;
+      const id = g.node(type, `extra:${column}=${value}`, `${column}: ${value}`, { column, value, fromInput: true });
+      g.edge(itemNode, id, "mentions", `kolumna ${column} danych wejściowych`);
+      add(id, type, [itemNode, id], 1, `ta sama wartość kolumny ${column} z danych wejściowych („${value}”)`);
     }
 
     if (enr?.image) {
@@ -299,7 +402,8 @@ export function buildEvidenceGraph(
       }
       for (const w of src.whatsapp ?? []) {
         const isPhone = w.startsWith("+");
-        const id = isPhone ? g.node("phone", w, w, { whatsapp: true }) : g.node("telegram", w, w, { whatsappGroup: true });
+        // a group invitation has no node type of its own: the label says WhatsApp, so the viewer does not read it as Telegram
+        const id = isPhone ? g.node("phone", w, w, { whatsapp: true }) : g.node("telegram", w, `WhatsApp ${w}`, { whatsappGroup: true });
         g.edge(from, id, "mentions", `kontakt WhatsApp ${where}`);
         add(id, isPhone ? "phone" : "telegram", [...basePath, id], relation, `ten sam kontakt WhatsApp ${w}`);
       }
@@ -423,6 +527,13 @@ export function buildEvidenceGraph(
             g.edge(domainNode, nsNode, "uses_ns", "rekordy NS domeny");
             add(nsNode, "nameserver", [...domainPath, nsNode], Math.min(hostingRel, domainInfraRel), `te same serwery NS (${nsList.join(", ")})`);
           }
+          // Verification tokens in TXT: one per Business Manager / Search Console account, like a pixel ID
+          for (const t of verificationTokens(di.txt ?? [])) {
+            const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;
+            const id = g.node("tracker", `${t.kind}:${t.id}`, label, { kind: t.kind, trackerId: t.id, verification: true });
+            g.edge(domainNode, id, "uses_tracker", "token weryfikacji domeny w rekordzie DNS TXT");
+            add(id, "tracker", [...domainPath, id], domainInfraRel, `ten sam ${label} (konto platformy, które zweryfikowało domenę)`);
+          }
           if (di.rdap?.registrar) {
             const reg = di.rdap.registrar;
             const regNode = g.node("registrar", reg.toLowerCase(), reg, { registrar: reg });
@@ -481,6 +592,21 @@ export function buildEvidenceGraph(
       });
 
       const finalUrlNode: string | null = prev;
+      // Age of the landing domain and its first certificate when the material was first seen (a description, not a pivot)
+      const finalDomain = finalUrlNode ? (g.nodes.get(finalUrlNode)?.data.registrableDomain as string | null | undefined) : null;
+      const fdi = finalDomain ? dataset.domains[finalDomain] : undefined;
+      if (finalDomain && fdi) {
+        const age = domainAgeAt(fdi.rdap?.created, (fdi.ct?.certs ?? []).map((c) => c.notBefore), item.firstSeen);
+        if (age.domainAgeDays !== null) itemData.domainAgeDays = age.domainAgeDays;
+        if (age.certAgeDays !== null) itemData.certAgeDays = age.certAgeDays;
+        const dn = g.nodes.get(nodeId("domain", finalDomain));
+        if (dn) {
+          // lead of the registration and of the first certificate over the domain's earliest material (B-206)
+          if (age.domainAgeDays !== null) dn.data.leadDays = Math.min(Number(dn.data.leadDays ?? Infinity), age.domainAgeDays);
+          if (age.certAgeDays !== null) dn.data.certLeadDays = Math.min(Number(dn.data.certLeadDays ?? Infinity), age.certAgeDays);
+          if (age.firstCertificate) dn.data.firstCertificate = age.firstCertificate;
+        }
+      }
       if (finalUrlNode && ex) {
         const rel = pageRel;
         if (parked) g.node("url", g.nodes.get(finalUrlNode)!.key, "", { parked: true });
@@ -564,6 +690,14 @@ export function buildEvidenceGraph(
           });
           g.edge(finalUrlNode, id, "loads_asset", `strona ładuje ${asset.kind.toUpperCase()} ${asset.url}`);
           add(id, "asset", [...finalPath, id], rel, `ten sam plik ${asset.kind.toUpperCase()} ${asset.basename}`);
+          // Files hotlinked from one account's site on a free hosting platform: that account's hosting,
+          // not a copied kit (a buyer copies kit files to its own domain)
+          const site = asset.sameOrigin ? null : discounter.accountSite(asset.host);
+          if (site) {
+            const hostNode = g.node("host", asset.host, asset.host, { registrableDomain: registrableDomain(asset.host), isIdn: false });
+            g.edge(id, hostNode, "on_host", `plik leży na witrynie jednego konta platformy hostingowej (${site.reason})`);
+            add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `pliki strony ładowane z tej samej witryny konta na darmowym hostingu (${asset.host})`);
+          }
         }
         for (const text of kit.comments) {
           const cyr = /[\u0400-\u04FF]/.test(text);
@@ -635,6 +769,36 @@ export function buildEvidenceGraph(
             add(id, "page_template", [...finalPath, id], rel, `ten sam szablon strony na platformie (lander_template_uuid ${lc.templateId})`);
           }
         }
+        // Traces seen only in the page's requests (HAR, scan): pixel IDs and third-party hosts (B-158)
+        for (const t of kit.requestTrackers ?? []) {
+          if (ex?.trackers.some((x) => x.kind === t.kind && x.id === t.id)) continue;
+          const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;
+          const id = g.node("tracker", `${t.kind}:${t.id}`, label, { kind: t.kind, trackerId: t.id });
+          g.edge(finalUrlNode, id, "uses_tracker", "identyfikator trackera w adresie żądania strony (HAR)");
+          add(id, "tracker", [...finalPath, id], rel, `ten sam identyfikator ${label} (z żądań strony)`);
+        }
+        for (const host of kit.requestHosts ?? []) {
+          // public services and the browser's own traffic say nothing about the operator: no node at all
+          if (discounter.domainDiscount(registrableDomain(host)) || discounter.browserHost(host)) continue;
+          const id = g.node("endpoint", `tracker_host:${host}`, `host ${host} (żądania strony)`, {
+            host,
+            pathTemplate: "*",
+            sameOrigin: false,
+            via: "har",
+            registrableDomain: registrableDomain(host),
+            trackerHost: true,
+          });
+          g.edge(finalUrlNode, id, "posts_to", `strona wysyła żądania do ${host} (HAR)`);
+          add(id, "endpoint", [...finalPath, id], rel, `ten sam host spoza domeny strony w jej żądaniach (${host})`);
+        }
+        // Platforms of the page (B-190): an attribute read from the platform paths of its files and backends
+        const platforms = new Set<string>(lc?.platform ? [lc.platform] : tenants.length ? ["aio"] : []);
+        for (const path of [...kit.assets.map((a) => a.path), ...kit.endpoints.map((e) => e.pathTemplate)]) {
+          const p = platformPathRule(config.lists.endpointPlatformPaths, path)?.platform;
+          if (p) platforms.add(p);
+        }
+        if ((kit.requestClickUrls ?? []).some((u) => /[?&]upd_clickid=/i.test(u))) platforms.add("binom");
+        if (platforms.size) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...platforms])].sort();
         if (kit.domSimhash) itemData.domSimhash = kit.domSimhash;
         if (kit.cyrillicComments) itemData.cyrillic = true;
         // Comments written into the page: the set of authors is part of the template
@@ -665,12 +829,18 @@ export function buildEvidenceGraph(
 
     // Click IDs that carry more than a token: the tracker server (xid) and the clicked Meta ad (fbclid)
     const landingPage = enr?.pageKey ? dataset.pages[enr.pageKey] : undefined;
-    const clickIds = clickIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl]);
-    const machines = [...new Set(clickIds.xids.map((x) => x.machine))];
+    const clickIds = clickIdsFromUrls([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...(landingPage?.kit?.requestClickUrls ?? [])]);
+    // CTA links of the page (prelander → tracker → lander) carry the tracker's IDs too: a link, not a visit (B-154)
+    const outboundUrls = landingPage?.extract?.outboundUrls ?? [];
+    const outboundClicks = clickIdsFromUrls(outboundUrls);
+    const machines = [...new Set([...clickIds.xids, ...outboundClicks.xids].map((x) => x.machine))];
     const scopedParams = new Set(config.kit.machineScopedParams ?? []);
 
-    // Campaign parameters leaking into URLs (UTM, sub1-5, click/offer/campaign/ad/pixel IDs)
-    for (const cp of enr?.campaignParams ?? []) {
+    // Campaign parameters leaking into URLs (UTM, sub1-5, click/offer/campaign/ad/pixel IDs); those only in
+    // the page's outbound links come with the outbound relation
+    const ownParams = new Set((enr?.campaignParams ?? []).map((cp) => `${cp.canonicalName}=${cp.value.trim().toLowerCase()}`));
+    const linkParams = extractCampaignParams(outboundUrls).filter((cp) => !ownParams.has(`${cp.canonicalName}=${cp.value.trim().toLowerCase()}`));
+    for (const [cp, relation] of [...(enr?.campaignParams ?? []).map((cp) => [cp, 1] as const), ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
       const value = cp.value.trim();
       // An internal number of a tracker (campaign_id=319) names a campaign only on one tracker server:
       // every installation counts from 1, so with an xid the machine goes into the key.
@@ -689,16 +859,23 @@ export function buildEvidenceGraph(
           ...(machine ? { machine } : {}),
           ...(trackerCampaign ? { trackerCampaign: true } : {}),
         });
-        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w URL ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
+        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w ${relation < 1 ? "linku wychodzącym strony" : "URL"} ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
         const what =
           cp.canonicalName === "tracker_campaign"
             ? `ten sam klucz kampanii w trackerze (${cp.name}=${value})`
             : machine
               ? `ta sama kampania na tym samym serwerze trackera (${cp.canonicalName}=${value}, maszyna ${machine})`
               : `ten sam parametr kampanii ${cp.canonicalName}=${value}`;
-        add(id, "campaign_param", [itemNode, id], 1, what);
+        add(id, "campaign_param", [itemNode, id], relation, relation < 1 ? `${what} (w linku wychodzącym strony)` : what);
       }
       if (cp.cyrillic) itemData.cyrillic = true;
+      // A Meta ad ID in the link's parameters (utm_content={{ad.id}}, ad_id=) is the same clicked ad as the
+      // adid inside an fbclid: one meta_ad node for both (B-156)
+      if (relation === 1 && META_AD_ID_PARAMS.has(cp.canonicalName) && /^\d{15,19}$/.test(value)) {
+        const id = g.node("meta_ad", value, `reklama Meta ${value}`, { adId: value });
+        g.edge(itemNode, id, "clicked_ad", `identyfikator reklamy Mety w parametrze ${cp.name} linku`);
+        add(id, "meta_ad", [itemNode, id], 1, `ta sama reklama w Mecie (identyfikator ${value} z parametru ${cp.name})`);
+      }
     }
 
     // Links of the landing-page platform (?cuuid=…&suuid=…&launcher=…) in the ad's own link, the address
@@ -727,15 +904,17 @@ export function buildEvidenceGraph(
       itemData.landerPlatform ??= "aio";
     }
 
-    for (const x of clickIds.xids) {
+    for (const [x, relation] of [...clickIds.xids.map((x) => [x, 1] as const), ...outboundClicks.xids.map((x) => [x, config.outboundParamFactor ?? 0.8] as const)]) {
       // Keyed by the machine only: the "process ID" of this tracker product is one constant on many
       // installations (a trait of the platform, not of one server), so it stays a detail of the node.
       const prevPids = (g.nodes.get(nodeId("click_server", x.machine))?.data.pids as number[] | undefined) ?? [];
       const id = g.node("click_server", x.machine, `serwer trackera ${x.machine}`, { machine: x.machine, pids: [...new Set([...prevPids, x.pid])].sort((p, q) => p - q) });
       g.edge(itemNode, id, "routed_by", `identyfikator kliknięcia ${x.param}=${x.value} w formacie xid: wydany ${x.time}, maszyna ${x.machine}, proces ${x.pid} (stała instalacji platformy), licznik ${x.counter}`);
-      add(id, "click_server", [itemNode, id], 1, `ten sam serwer trackera (clickid w formacie xid: maszyna ${x.machine})`);
-      itemData.clickTime ??= x.time;
-      itemData.clickCounter ??= x.counter;
+      add(id, "click_server", [itemNode, id], relation, `ten sam serwer trackera (clickid w formacie xid: maszyna ${x.machine}${relation < 1 ? ", w linku wychodzącym strony" : ""})`);
+      if (relation === 1) {
+        itemData.clickTime ??= x.time;
+        itemData.clickCounter ??= x.counter;
+      }
     }
     for (const f of clickIds.fbclids) {
       if (f.appId) itemData.metaAppId ??= f.appId;
@@ -748,6 +927,8 @@ export function buildEvidenceGraph(
 
     // Template of the tracking link (parameter names + value shapes): the traffic-distribution system
     const schema = paramSchema(item.landingUrl);
+    const schemaPlatform = schema ? (config.lists.paramSchemaPlatformParts ?? []).find((r) => r.platform && schema.key.split("|").includes(r.match))?.platform : undefined;
+    if (schemaPlatform) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), schemaPlatform])].sort();
     if (schema) {
       const id = g.node("param_schema", schema.key, `szablon linku: ${schema.names.join(", ")}`, { schema: schema.key, names: schema.names });
       g.edge(itemNode, id, "follows_schema", "nazwy parametrów linku docelowego i rodzaj ich wartości");
@@ -756,18 +937,53 @@ export function buildEvidenceGraph(
 
     // Personas (impersonated people): weak signal, mainly for filtering and triage
     // One edge per persona; every way it was found is kept in the edge evidence ("; "-separated).
-    const personaHows = new Map<string, { name: string; role: string | null; hows: string[] }>();
+    const personaHows = new Map<string, { name: string; role: string | null; category: string | null; hows: string[] }>();
     for (const pm of enr?.personas ?? []) {
-      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
-      const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, hows: [] };
+      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.source === "face" ? `z twarzy (podobna twarz${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.source === "voice" ? `z głosu (głos podobny do osoby${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
+      const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, category: pm.category ?? null, hows: [] };
       if (!cur.hows.includes(how)) cur.hows.push(how);
       cur.role ??= pm.role;
+      cur.category ??= pm.category ?? null;
       personaHows.set(pm.id, cur);
     }
     for (const [pid, p] of personaHows) {
-      const id = g.node("persona", pid, p.name, { name: p.name, role: p.role });
+      const id = g.node("persona", pid, p.name, { name: p.name, role: p.role, ...(p.category ? { category: p.category } : {}) });
       g.edge(itemNode, id, "mentions_persona", `persona ${p.hows.join("; ")}`);
       add(id, "persona", [itemNode, id], 1, `ta sama persona: ${p.name}`);
+    }
+    // Group of the impersonated person ("podszywa się pod: dziennikarkę"): a trait of the group, only for entries that have one
+    const personaCategories = [...personaHows.values()].filter((p) => p.category).map((p) => ({ name: p.name, category: p.category }));
+    if (personaCategories.length) itemData.personaCategories = personaCategories;
+    // The same set of people in one material (a fake conversation of two known persons) is rarer than one
+    // person: a pivot of the persona type (group level only, familyOnlyKinds) with a higher base weight
+    const personaIds = [...personaHows.keys()].sort();
+    for (let i = 0; i < personaIds.length; i++) {
+      for (let j = i + 1; j < personaIds.length; j++) {
+        const [p, q] = [personaHows.get(personaIds[i])!, personaHows.get(personaIds[j])!];
+        const id = g.node("persona", `pair:${personaIds[i]}+${personaIds[j]}`, `${p.name} + ${q.name}`, { pair: true, names: [p.name, q.name] });
+        g.edge(itemNode, id, "mentions", `para osób w jednym materiale (${p.name}, ${q.name})`);
+        add(id, "persona", [itemNode, id], 1, `ta sama para osób: ${p.name} i ${q.name}`);
+      }
+    }
+
+    // Narrative (topic, hook, IHC label): an attribute of the material and a trait of the group, never a pivot
+    const pageEx = landingPage?.extract;
+    const narrative = detectNarrative({
+      headline: [pageEx?.title, pageEx?.ogTitle, item.text?.split("\n")[0]].filter(Boolean).join("\n"),
+      body: [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n"),
+    });
+    // The scam's own brand (product, "investment platform"): a page-kit trait, campaignRules.notAloneKinds
+    const brandBody = [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, pageEx?.title, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n");
+    for (const b of scamBrands({ body: brandBody, landingName: typeof itemData.landingName === "string" ? itemData.landingName : null })) {
+      const id = g.node("campaign_param", `scam_brand=${b.key}`, `marka oszustwa: ${b.name}`, { canonicalName: "scam_brand", name: "marka oszustwa", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
+      g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
+      add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
+    }
+    if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
+    if (narrative) {
+      const label = celebBaitLabel(narrative, { persona: personaHows.size > 0, fakeMedia: !!(itemData.impersonatedBrand || itemData.advertiserImpersonates || enr?.creativeBrand) });
+      const stored: MaterialNarrative = { ...narrative, date: item.firstSeen, ...(label ? { label } : {}) };
+      itemData.narrative = stored;
     }
 
     // Addresses seen in the browser address bar of screenshots and recordings
@@ -789,6 +1005,15 @@ export function buildEvidenceGraph(
         const where = o.source === "address_bar_video" ? `nagraniu ekranu (${o.frameTime} s)` : "zrzucie ekranu";
         g.edge(itemNode, urlNode, "mentions", `adres w pasku przeglądarki na ${where}${o.inAppBrowser ? `, przeglądarka w aplikacji ${o.inAppBrowser}` : ""}`);
       }
+    }
+
+    // Targets of platform redirect wrappers (l.facebook.com/l.php?u=, google.com/url?q=, adurl=) in the link, the
+    // redirect chain, the address bar and the copy: the platform's own domain weighs nothing, its target does
+    const wrapped = [item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), ...observedUrls.map((o) => o.url), ...(enr?.text?.urls ?? [])];
+    for (const target of new Set(wrapped.map((u) => (u ? unwrapPlatformUrl(u) : null)).filter((u): u is string => !!u))) {
+      if (enr?.landing && normalizeUrl(target)?.host === normalizeUrl(landingPage?.fetch.finalUrl ?? "")?.host) continue;
+      const urlNode = addUrlInfra(target, [itemNode], 1);
+      if (urlNode) g.edge(itemNode, urlNode, "mentions", "adres docelowy z linku-opakowania platformy (przekierowanie serwisu)");
     }
 
     // URLs mentioned in the ad copy (other than the landing URL)
@@ -826,7 +1051,17 @@ export function buildEvidenceGraph(
         ? (config.creativeFileWeight ?? 0.95)
         : node.data.trackerCampaign
           ? (config.trackerCampaignWeight ?? config.typeWeights.campaign_param)
-          : undefined;
+          : node.data.pair
+            ? (config.personaPairWeight ?? config.typeWeights.persona)
+            : node.data.scamBrand
+              ? (config.scamBrandWeight ?? config.typeWeights.campaign_param)
+              : node.data.trackerHost
+                ? (config.trackerHostWeight ?? config.typeWeights.endpoint)
+              : node.type === "tracker" && node.data.kind === "adsense"
+              ? (config.adsensePublisherWeight ?? config.typeWeights.tracker)
+              : node.type === "tracker" && String(node.data.kind ?? "").endsWith("verification")
+              ? (config.verificationTokenWeight ?? config.typeWeights.tracker)
+              : undefined;
     const w = pivotWeight(node.type, node.discounts, node.df, n, config, base);
     node.weight = round(w.weight);
     // the same creative file joins by the campaign rules, not by union-find: a platform-account conflict wins over it
@@ -843,6 +1078,7 @@ export function buildEvidenceGraph(
     for (const f of facts) {
       if (!infraKinds.has(f.type)) continue;
       const node = g.nodes.get(f.pivot);
+      if (node?.data.scamBrand) continue; // a name in the copy, not infrastructure
       const parts = node?.data.weightParts as { base: number; listFactor: number } | undefined;
       if (parts && parts.base * parts.listFactor * f.relation >= infraMin) types.add(f.type);
     }
@@ -1088,12 +1324,18 @@ function simEvidence(edgeType: SimilarityEdgeType, weight: number, evidence: str
   };
 }
 
-/** Text used for similarity: ad copy, falling back to the landing page title/description. */
+/**
+ * Text used for similarity: ad copy, OCR of the creative without the platform's interface and the
+ * transcript without hallucinated credits, all without stock ad phrases; falling back to the landing
+ * page title and description.
+ */
 export function textOf(item: Item, dataset: EnrichedDataset): string {
   const enr = dataset.perItem[item.id];
   // OCR of a screenshot: without the platform's interface labels, which every ad shares
   const ocr = enr?.ocrText ? stripUiChrome(enr.ocrText).text : null;
-  const own = [item.text, ocr, enr?.asrText].filter((t): t is string => !!t && t.trim().length > 0).join("\n");
+  const asr = enr?.asrText ? stripHallucinations(enr.asrText) : null;
+  // stock phrases of ads ("dowiedz się więcej", "tylko dziś") say nothing about who wrote the copy
+  const own = stripGenericPhrases([item.text, ocr, asr].filter((t): t is string => !!t && t.trim().length > 0).join("\n"));
   if (own) return own;
   const ex = enr?.pageKey ? dataset.pages[enr.pageKey]?.extract : null;
   return [ex?.title, ex?.description].filter(Boolean).join(". ");

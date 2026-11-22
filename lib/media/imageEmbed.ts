@@ -76,6 +76,38 @@ export async function embedImage(bytes: Buffer, model?: string): Promise<number[
   return runLimit(() => embedder(bytes));
 }
 
+const textLoaded = new Map<string, Promise<(texts: string[]) => Promise<number[][]>>>();
+
+/** Loads the CLIP text tower and tokenizer of a model once (same offline rule as the vision tower). */
+function getTextEmbedder(model?: string): Promise<(texts: string[]) => Promise<number[][]>> {
+  const id = modelId(model);
+  let p = textLoaded.get(id);
+  if (!p) {
+    p = (async () => {
+      const { AutoTokenizer, CLIPTextModelWithProjection, env } = await import("@huggingface/transformers");
+      if (process.env.HF_HUB_OFFLINE === "1") env.allowRemoteModels = false;
+      const tokenizer = await AutoTokenizer.from_pretrained(id);
+      const textModel = await CLIPTextModelWithProjection.from_pretrained(id, { dtype: "fp32" });
+      return async (texts: string[]) => {
+        const inputs = tokenizer(texts, { padding: true, truncation: true });
+        const { text_embeds } = await textModel(inputs);
+        const dim = text_embeds.dims[1] as number;
+        const data = Array.from(text_embeds.data as Float32Array);
+        return texts.map((_, i) => normalize(data.slice(i * dim, (i + 1) * dim)));
+      };
+    })();
+    textLoaded.set(id, p);
+    p.catch(() => textLoaded.delete(id));
+  }
+  return p;
+}
+
+/** L2-normalised CLIP text embeddings (same space as `embedImage`), one per text, for zero-shot prompts. */
+export async function embedTexts(texts: string[], model?: string): Promise<number[][]> {
+  const embed = await getTextEmbedder(model);
+  return runLimit(() => embed(texts));
+}
+
 /** Cache key for an image's embedding: model + content hash. */
 export function embeddingKey(bytes: Buffer, model?: string): string {
   return `${modelId(model)}:${createHash("sha256").update(bytes).digest("hex")}`;

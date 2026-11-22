@@ -31,7 +31,7 @@ docker compose run --rm app bun run analyze-material -- --cases /dane/syntetyczn
 
 `demo` pokazuje werdykty `known_campaign`, `similar_campaigns`, `duplicate`, `insufficient` i `new_campaign`, m.in. martwą stronę (tylko zrzut z paskiem adresu; ma werdykt `new_campaign` z cechami z nagranych RDAP/DNS) i trzy strony jednej nowej kampanii ze zmienionymi domenami i twarzami. Bazę z `demo` obejrzysz w GUI: `VIEWER_DATA_DIR=/dane/demo/baza docker compose up -d`.
 
-Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
+Kontener działa bez sieci: pomija pobieranie stron, DNS i RDAP, a kroki wymagające modeli (transkrypcja mowy, głos, CLIP) są w wyniku oznaczone jako `skipped` z powodem. Modele twarzy (YuNet, SFace, ok. 40 MB) są w obrazie, więc `--faces` działa też w kontenerze. Komunikaty `[base] asr/clip/lookups: skipped …` podczas `base` są więc oczekiwane, to nie błąd (np. CLIP: brak lokalnego modelu). Profil `full` (`docker compose --profile full up -d app-full`) dodaje whisper.cpp i SpeechBrain na CPU; modele zostają na hoście i są montowane tylko do odczytu (zmienne `WHISPER_MODEL_DIR`, `SPEAKER_MODEL_HOST`, zob. `docker-compose.yml`).
 
 ### Wynik: kolumny CSV
 
@@ -90,7 +90,28 @@ bun run source-stats -- baza/graph.json                         # ile powiązań
 
 Kontrakt wejścia i wyjścia dla systemów instytucji (schematy JSON, wersja 1.0): [docs/INTEGRACJA.md](docs/INTEGRACJA.md).
 
-Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--ad-library`. Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
+Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--faces`, `--ad-library`, `--add-to-base` (z `--force`). Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
+
+**Baza rośnie.** Z `--add-to-base` po analizie materiały wchodzą do bazy z `--data` (rekordy i dane z porównania, graf i kampanie przebudowane offline, bez sieci), więc drugi materiał nowej kampanii znajduje pierwszy. Istniejące kampanie zachowują numery, nowe dostają kolejne. Duplikat nie jest dopisywany, „za mało danych” tylko z `--force`. Poprzednie pliki bazy: `<baza>/historia/<czas>/`, wpisy: `<baza>/dodane.jsonl`.
+
+```bash
+bun run analyze-material -- --case sprawa/ --data dane/baza --add-to-base
+```
+
+### Harmonogram skanów: nowe domeny i reklamy znanych kampanii
+
+`bun run watch` co jakiś czas pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Lista Ostrzeżeń CERT) o nowe adresy, każdy przepuszcza przez analizę względem bazy i dopisuje wiersz `{ts, source, url, verdict, campaign}` do `data/watch.jsonl` (widoczny w zakładce feedu CT). Źródło bez sieci albo klucza jest pomijane z powodem, reszta działa dalej.
+
+```bash
+# demo bez internetu: zapisane wiadomości CertStream i przykładowe (syntetyczne) przepisy
+bun run watch -- --data data --once --sources ct --replay data/sample/ct-stream.jsonl --recipes data/examples/watch-przepisy.example.json
+# w kontenerze, bez sieci
+docker compose run --rm app bun run watch -- --data /dane/baza --once --sources ct --replay /dane/ct-stream.jsonl
+# na żywo, co 30 minut (potrzebny lokalny strumień: docker compose --profile ct up -d certstream)
+bun run watch -- --data dane/baza --every 30m --recipes przepisy.json --add-to-base
+```
+
+Klucz urlscan (`URLSCAN_API_KEY`, darmowe konto, sekcja 6) jest opcjonalny. Przepisy wyszukiwania (zapytanie, źródło, filtr potwierdzający, częstotliwość) to plik JSON wskazany `--recipes` albo `WATCH_RECIPES`; format pokazuje `data/examples/watch-przepisy.example.json`, a przepisy z wartościami prawdziwych kampanii trzymaj poza repozytorium (`--seed-recipes plik.json` robi je z bazy). `--add-to-base` dopisuje do bazy tylko trafienia z werdyktem z `--add-verdicts` (domyślnie `known_campaign`).
 
 ### Jak zebrać materiał
 
@@ -161,11 +182,18 @@ bun run test && bun run lint && bun run typecheck
 | tesseract z polskim (OCR, `--ocr`) | `brew install tesseract tesseract-lang` | `sudo apt install tesseract-ocr tesseract-ocr-pol` | krok OCR `skipped`, tekst ze zrzutów niedostępny |
 | ffmpeg i ffprobe (audio, klatki wideo) | `brew install ffmpeg` | `sudo apt install ffmpeg` | `--asr`, `--audio`, `--speaker`, klatki wideo dla `--clip` `skipped` |
 | `fpcalc` (odcisk dźwięku, `--audio`) | `brew install chromaprint` | `sudo apt install libchromaprint-tools` | krok `--audio` `skipped` |
-| whisper-cli i model (transkrypcja, `--asr`) | `brew install whisper-cpp`; model `ggml-large-v3-turbo.bin` (ok. 1,5 GB) do `~/models/whisper/` | zbuduj [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`cmake`); ten sam model | krok `--asr` `skipped` |
-| SpeechBrain i model głosu (`--speaker`) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
-| MetaAdsCollector (biblioteka reklam, `--ad-library`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped` |
+| whisper-cli i model (transkrypcja, `--asr`) | `brew install whisper-cpp`; model `ggml-large-v3-turbo.bin` (ok. 1,5 GB) do `~/models/whisper/`; opcjonalnie model VAD `ggml-silero-v5.1.2.bin` (ok. 0,9 MB, [ggml-org/whisper-vad](https://huggingface.co/ggml-org/whisper-vad)) do tego samego katalogu albo `WHISPER_VAD_MODEL`: bez niego muzyka bywa transkrybowana jako „Dziękuję za oglądanie” | zbuduj [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`cmake`); ten sam model | krok `--asr` `skipped` |
+| SpeechBrain i modele głosu (`--speaker`: wektor mówcy, galeria osób, detekcja mowy) | `brew install uv`, potem `bash scripts/py/setup-speaker.sh` (venv `.venv-speaker`, modele ECAPA ok. 85 MB i VAD ok. 0,5 MB do `~/models/speechbrain`) | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-speaker.sh` | krok `--speaker` `skipped` |
+| OpenCV, YuNet i SFace (twarze, `--faces`) | `brew install uv`, potem `bash scripts/py/setup-face.sh` (venv `.venv-face`, modele ok. 40 MB do `~/models/opencv`; `FACE_VENV=.venv-speaker` dopisuje pakiety do istniejącego venv) | `curl -LsSf https://astral.sh/uv/install.sh \| sh`, potem `bash scripts/py/setup-face.sh` | krok `--faces` `skipped` z powodem „brak adaptera twarzy” |
+| MetaAdsCollector (biblioteka reklam, `--ad-library`, `adlib`) | `uv tool install meta-ads-collector` | to samo | krok `--ad-library` `skipped`, `adlib` wypisuje Metę jako niedostępną |
+| yt-dlp (kreacja reklamy z biblioteki Mety, `--ad-library`, `adlib get`) | `brew install yt-dlp` | `pipx install yt-dlp` | rekord bez kreacji, powód w wyniku |
+| `google-cloud-bigquery` i konto Google (Google Ads Transparency, `adlib`) | `pip install google-cloud-bigquery` (w obrazie Dockera jest) oraz `gcloud auth application-default login` | to samo | źródło Google niedostępne, instrukcja w wyniku |
 | model CLIP (`--clip`) | pobierany raz przy pierwszym użyciu (`Xenova/clip-vit-base-patch32`, ok. 350 MB) | to samo | krok `--clip` `skipped` (w Dockerze brak modelu) |
 | Ollama (streszczenia, NER, `--text embedding`) | `brew install ollama`, `ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M`, `ollama pull bge-m3` | [ollama.com/download](https://ollama.com/download) | `summarize` i `--ner` kończą się błędem połączenia; graf działa bez LLM |
+
+**Twarze (`--faces`).** Krok szuka twarzy w obrazie reklamy, zrzutach i klatkach wideo (tych samych, które bierze CLIP) i porównuje je z **zamkniętą listą osób publicznych** (127 wpisów w `data/osoby-publiczne.json`, z czego 31 ze zdjęciami twarzy; reszta tylko jako persona z tekstu; zdjęcia ze źródłem, autorem i licencją w `data/faces/ZRODLA.md`). Wynik to „podobna twarz do X (0,xx)” do przeglądu człowieka, a nie „to jest X”; trafia do pola `faces` materiału i do persony jako cecha **grupy** podobnych kampanii, nigdy jako dowód jednej kampanii. Wektory twarzy nie są zapisywane. Zmienne: `FACE_PYTHON` (interpreter venv, domyślnie `.venv-face/bin/python`), `FACE_MODEL_DIR` (domyślnie `~/models/opencv`). Własne osoby (np. instytucja, która chce rozpoznawać inne osoby ze swoich ostrzeżeń): dopisz wpis z `source` (publiczne ostrzeżenie) do `data/osoby-publiczne.json`, wrzuć 3–5 zdjęć z wolną licencją do `data/faces/<id>/` (id = nazwisko bez polskich znaków, małymi, z myślnikami), wpisz je do `data/faces/ZRODLA.md` i `LICENCJE.md`, po czym `python3 -I scripts/py/face_embed.py --build-index data/faces` (z `FACE_PYTHON`). Nie buduj bazy zdjęć z sieci hurtem (AI Act art. 5 ust. 1 lit. e).
+
+**Głos (`--speaker`).** Krok liczy wektor mówcy z wideo (łączenie materiałów z tym samym głosem) i dopasowuje okna dźwięku (4 s, krok 2 s) do **zamkniętej galerii 10 osób publicznych** (ta sama lista co dla twarzy, `data/osoby-publiczne.json`; w repozytorium tylko wektory `data/voices/index.json` i źródła nagrań `data/voices/ZRODLA.md`, nagrań nie ma). Wynik to **„głos podobny do X (0,57)”**, nigdy „to jest głos X”: pole `voices` materiału (przedziały `start`/`end` w sekundach, `persona`, `similarity`) i persona jako cecha **grupy** podobnych kampanii, nie dowód jednej kampanii. Reguła: kosinus ≥ 0,5, przewaga ≥ 0,15 nad drugą osobą, co najmniej 2 sąsiednie okna; ciche okna i z samą muzyką są odrzucane (docs/METODYKA.md). Bez venv albo modeli krok jest `skipped` z powodem (w Dockerze tylko profil `full`). Zmienne: `SPEAKER_PYTHON`, `SPEAKER_MODEL_DIR`, `SPEAKER_VAD_DIR`. Detektora klonu głosu nie ma. **Dodanie osoby:** wpis ze `source` w `data/osoby-publiczne.json`, 5–8 polskich nagrań tej osoby (wystąpienia, wywiady) w pliku źródeł (JSON: `set: "gallery"`, `person`, `url`, `start`, `seconds` 30–120), potem `.venv-speaker/bin/python -I scripts/py/build_voice_index.py --sources <plik> --work-dir <katalog poza repozytorium> --model-dir ~/models/speechbrain/spkrec-ecapa-voxceleb --vad-dir ~/models/speechbrain/vad-crdnn-libriparty --index data/voices/index.json --zrodla data/voices/ZRODLA.md --persons-file data/osoby-publiczne.json` (pobiera fragmenty yt-dlp, zapisuje wektory i listę źródeł; nagrania zostają w katalogu roboczym). Pomiar progu i fałszywych trafień: `bun run voice:eval -- --work-dir <katalog>`.
 
 `bun run media:smoke` sprawdza, które adaptery są dostępne. Zmienne środowiskowe (modele, ścieżki, limity): `.env.example` i [docs/TECHNICAL.md §10](docs/TECHNICAL.md#10-konfiguracja). Zależności bibliotek: `package.json`, licencje: [LICENCJE.md](LICENCJE.md).
 
@@ -184,10 +212,32 @@ Wszystkie opcjonalne. Domyślna konfiguracja nie wymaga żadnego klucza ani kont
 
 Klucze trzymaj w `.env` (jest w `.gitignore`). W repozytorium jest tylko `.env.example` bez wartości.
 
+### Biblioteki reklam: jak uzyskać dostęp
+
+Publiczne biblioteki reklam (repozytoria wymagane przez DSA) dają identyfikator reklamy, reklamodawcę, daty emisji i kreacje. Polecenie `adlib` szuka w nich i zapisuje wyniki jako sprawy dla `analyze-material`, więc reklamy z różnych platform łączą się w kampanie po infrastrukturze, a wyszukiwanie daje nowe materiały do sprawdzenia. **Żadna z bibliotek nie obiecuje trafień:** wyszukiwanie w Google Ads Transparency nie dało materiałów dla rodzin kampanii z próbki.
+
+```bash
+bun run adlib -- search --platform all --keyword "inwestycja" --country PL --out dane/adlib   # bez --keyword: domyślne frazy i nazwiska z listy osób
+bun run adlib -- search --platform google --advertiser AR0123456789012345678 --out dane/adlib   # wszystkie reklamy tego reklamodawcy w EOG
+bun run adlib -- get --platform meta --id <identyfikator biblioteki> --out dane/adlib          # jedna reklama (z kreacją, gdy jest yt-dlp)
+bun run analyze-material -- --cases dane/adlib --csv wynik.csv
+```
+
+Źródło bez dostępu jest wypisane z powodem i instrukcją, a polecenie kończy się kodem 0 (też bez sieci i bez kluczy).
+
+Rozszerzanie znanej kampanii: `bun run adlib -- expand --campaign K01 --data dane/baza --out dane/adlib` szuka po kontach reklamodawców z bibliotek reklam, a po domenach kampanii tylko przez nieoficjalne RPC Google (`ADLIB_GOOGLE_RPC=1`, domyślnie wyłączone, ryzyko warunków serwisu: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)).
+
+| Biblioteka | Jak uzyskać dostęp | Uwagi |
+|---|---|---|
+| **Meta Ad Library** | bez klucza: `uv tool install meta-ads-collector` (MetaAdsCollector, nieoficjalny publiczny endpoint, ryzyko opisane w [LICENCJE.md](LICENCJE.md)); albo token oficjalnego API (weryfikacja tożsamości na facebook.com/id; nieużywany w kodzie) | wyszukiwanie po frazie, stronie, kraju i dacie; `get` po identyfikatorze biblioteki |
+| **Google Ads Transparency Center** | konto Google i projekt z sandboxem BigQuery: `gcloud auth application-default login` i `gcloud config set project <projekt>`; bez ADC działa CLI `bq` (`gcloud auth login`) | publiczny zbiór BigQuery (EOG i Turcja), bez scrapingu; sandbox: 1 TiB miesięcznie; zapytanie jest liczone za przetworzone kolumny, więc każde ma limit `ADLIB_BQ_MAX_BYTES` (domyślnie 10 GiB; szczegóły i rozmiary kolumn: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)). Zbiór nie ma domeny docelowej ani tekstu reklamy |
+| **TikTok Commercial Content Library** | wniosek o dostęp do API (odpowiedź do 2 dni roboczych, możliwe tylko dla badaczy); potem `TIKTOK_CLIENT_KEY` i `TIKTOK_CLIENT_SECRET` w `.env` | adapter na syntetycznych odpowiedziach, nie sprawdzony na żywo ([docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)) |
+| **X (repozytorium reklam DSA)** | ręcznie pobierz eksport CSV z repozytorium reklam X (konto, kraj, zakres dat; opis: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)) i podaj plik: `--x-file eksport.csv` albo `X_ADS_FILE` | program niczego nie pobiera z X; kolumny eksportu nie sprawdzono na prawdziwym pliku |
+
 ## 7. Bezpieczeństwo i dane
 
 - **Przetwarzanie lokalne.** Materiały nie opuszczają komputera. Wyjątek: dostawca Anthropic (opt-in, klucz) wysyła teksty do zewnętrznego API.
-- **Zapytania wychodzące tylko na wyraźne żądanie:** `--live` (jedno pobranie strony, której nie ma w materiale, oraz DNS, RDAP, ASN), `--lookups` (DNS, RDAP, ASN przy imporcie spraw; `--ct` dodaje crt.sh), `--ad-library` (biblioteka reklam Mety), `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami; domyślnie wyłączone, nie jest metodą wykrywania, zob. metodyka). Obraz Dockera ma `ANALYZE_OFFLINE=1`, a żądania z przeglądarki nie mogą tego wyłączyć.
+- **Zapytania wychodzące tylko na wyraźne żądanie:** `--live` (jedno pobranie strony, której nie ma w materiale, oraz DNS, RDAP, ASN), `--lookups` (DNS, RDAP, ASN przy imporcie spraw; `--ct` dodaje crt.sh), `--ad-library` (biblioteka reklam Mety, kreacja przez yt-dlp), `adlib` (biblioteki reklam: Meta przez MetaAdsCollector, Google przez publiczny zbiór BigQuery), `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami; domyślnie wyłączone, nie jest metodą wykrywania, zob. metodyka). Obraz Dockera ma `ANALYZE_OFFLINE=1`, a żądania z przeglądarki nie mogą tego wyłączyć.
 - **Nie renderujemy stron i nie wykonujemy JavaScriptu.** Adresy przekierowań i backendy są czytane statycznie. Pobieranie stron ma ochronę SSRF (blokada adresów prywatnych, loopback, metadanych chmury).
 - **Rozbrojone adresy.** Adresy z materiałów są w interfejsie pokazywane w formie nieklikalnej (`hxxps://oferta[.]example`), żeby przypadkowe kliknięcie nie otworzyło strony.
 - **Gdzie leżą pliki:** `./dane` (wejście, baza, wyniki, `./dane/praca` z wgraniami z GUI), `.cache/` (odpowiedzi sieciowe i wektory głosu, TTL od 1 dnia do 28 dni), `data/work/` (archiwum stron). Usunięcie: `rm -rf dane/praca .cache data/work`; wektory głosu: `rm -rf .cache/speaker`.
@@ -199,7 +249,7 @@ Klucze trzymaj w `.env` (jest w `.gitignore`). W repozytorium jest tylko `.env.e
 - Przestrzega warunków korzystania ze źródeł (np. nieoficjalny endpoint biblioteki reklam jest opcją z opisanym ryzykiem).
 - Nie wydaje nakazów ani decyzji: proponuje powiązania, o zgłoszeniu decyduje człowiek.
 - Nie renderuje stron i nie wykonuje ich JavaScriptu.
-- Nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
+- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (31 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md](docs/METODYKA.md#10-czego-nie-robimy-i-dlaczego)).
 
 ## Pochodzenie danych
 
@@ -259,10 +309,10 @@ Nowe pliki (29):
 - `app/api/analyze-material/route.ts`;
 - `lib/pipeline/`: caseImport (z testem), analyzeMaterial;
 - `lib/osint/`: clickIds, landerConfig, adLibrary (z testami);
-- `lib/media/`: addressBar, imageEmbed, speaker (z testami);
+- `lib/media/`: addressBar, imageEmbed, speaker (galeria głosów), voiceEval, face (z testami);
 - `lib/text/`: addressBar, uiChrome (z testami);
 - `lib/graph/`: testy levels, screenshotLink, adLibraryVoice;
-- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, setup-speaker.sh;
+- `scripts/`: import-cases, analyze-material; `scripts/py/`: ad_library.py, speaker_embed.py, build_voice_index.py, setup-speaker.sh, face_embed.py, face_threshold.py, setup-face.sh;
 - `tests/analyzeMaterial.offline.test.ts`.
 
 Zmienione pliki (41; razem z nowymi śledzonymi `git diff --stat` daje 62 pliki, +4191/−147):
@@ -292,6 +342,8 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i14c | ślady zestawu stron nie sumują się w kampanię, biblioteka landerów „666”, konflikt kont wygrywa z silnym `path_id` |
 | i2 | nowy interfejs: zakładki „Analizuj materiał”, „Kampanie”, „Porównaj”, „Graf powiązań”, „Jak to działa”, API zadań (`/api/material`), moduły `lib/viewer`, dymki pomocy |
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
+| i15 | galeria głosów osób publicznych: `--speaker` z dopasowaniem okien (`voices`), `data/voices`, `scripts/py/build_voice_index.py`, `bun run voice:eval`, próg z pomiaru |
+| i5 | persona z twarzy: `--faces` (OpenCV YuNet + SFace), zamknięta lista osób publicznych (`data/osoby-publiczne.json`, 31 osób ze zdjęciami w `data/faces`), `scripts/py/face_embed.py`, `setup-face.sh`, próg z pomiaru |
 | i7 | `bun run base`, `bun run demo`, obraz Dockera z narzędziami do mediów, profile `full`/`llm`/`ct`, limity API (`ANALYZE_RATE_LIMIT`, `MATERIAL_MAX_MB`), `cache:freeze` |
 | i8 | dokumentacja: README, `docs/METODYKA.md`, `LICENCJE.md`, `LICENSE`, `bun run licenses` |
 | i9 | wiedza jako wynik: `docs/WZORCE-KAMPANII.md`, `docs/ZRODLA-METADANYCH.md` (+ `bun run source-stats`), `bun run export-dataset` (JSON, CSV, Neo4j), `bun run report`, `docs/INTEGRACJA.md` i schematy JSON, etykieta „znany backend leadów” |
@@ -303,7 +355,7 @@ Przeniesienie kodu do tego repozytorium nastąpiło bez historii (opis wyżej): 
 ```
 lib/osint/      urls, ip, fetchPage (SSRF), extract, pagekit (kit strony), pageTechniques, landerConfig, clickIds,
                 adLibrary, domainPattern, campaignParams, crypto, dns, rdap, ct, asn
-lib/media/      imageHash (dHash/aHash, favicon mmh3), imageEmbed (CLIP), ocr, asr, audioFp, speaker, addressBar, tools
+lib/media/      imageHash (dHash/aHash, favicon mmh3), imageEmbed (CLIP), ocr, asr, audioFp, speaker, face (YuNet + SFace), addressBar, tools
 lib/text/       normalizacja (homoglify, leet, diakrytyki), TF-IDF, cosinus, persona, uiChrome, addressBar
 lib/graph/      model, config (wagi, progi i listy), weights, link, cluster (reguły kampanii, union-find, Louvain,
                 warianty), explain, eval, prune
@@ -312,10 +364,11 @@ lib/pipeline/   ingest, caseImport, sources (live/fixtures), enrich, steps, anal
                 materialCsv, base, demoScenario, freeze, summary
 lib/viewer/     logika widoków (siła, kompletność, rozbrajanie adresów, widok kampanii i materiału, zadania, wgrywanie)
 lib/evidence/   paczka dowodów (JSON, Markdown, lista CERT, zgłoszenie DSA, manifest)
-lib/ct/         watcher CT: konfiguracja (leksykon), odciski, strumień, feed, wzbogacanie
+lib/ct/         watcher CT: konfiguracja (leksykon), odciski, strumień, feed, wzbogacanie, potwierdzenie infrastrukturą
+lib/watch/      harmonogram skanów: przepisy, źródła (CT, biblioteki reklam, urlscan, lista CERT), cykl i wiersze watch.jsonl
 lib/licenses.ts logika skryptu licencji pakietów
 scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-graph, evaluate, pipeline, analyze-material,
-                summarize, evidence, cache-freeze, ct-watch, ct-backfill, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
+                summarize, evidence, cache-freeze, ct-watch, ct-backfill, watch, backtest-ct, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
 app/, components/viewer/   przeglądarka i API (`/api/analyze-material`, `/api/material`, `/api/analyze`, `/api/image`, `/api/ct-feed`)
 docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl

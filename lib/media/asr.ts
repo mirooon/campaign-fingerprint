@@ -20,10 +20,19 @@ export interface AsrStatus {
   tool: "whisper-cli" | "mlx_whisper" | null;
   model: string | null;
   reason: string | null;
+  /** Silero VAD model for whisper-cli (`--vad`): music and silence are not transcribed, so whisper invents nothing there. */
+  vadModel?: string | null;
+  /** Why whisper-cli runs without VAD (no Silero model file). */
+  vadReason?: string | null;
 }
 
 export function defaultWhisperModel(env: EnvMap = process.env): string {
   return env.WHISPER_MODEL || path.join(os.homedir(), "models", "whisper", "ggml-large-v3-turbo.bin");
+}
+
+/** Silero VAD model of whisper.cpp (env WHISPER_VAD_MODEL, default next to the whisper model). */
+export function defaultWhisperVadModel(env: EnvMap = process.env): string {
+  return env.WHISPER_VAD_MODEL || path.join(os.homedir(), "models", "whisper", "ggml-silero-v5.1.2.bin");
 }
 
 export function defaultMlxModel(env: EnvMap = process.env): string {
@@ -54,7 +63,11 @@ export async function detectAsr(opts: { run?: ToolRunner; env?: EnvMap } = {}): 
   const whisper = await run("whisper-cli", ["--version"], { timeoutMs: 15_000 });
   if (whisper.code === 0) {
     const model = defaultWhisperModel(env);
-    if (await nonEmptyFile(model)) return { available: true, tool: "whisper-cli", model, reason: null };
+    if (await nonEmptyFile(model)) {
+      const vad = defaultWhisperVadModel(env);
+      const hasVad = await nonEmptyFile(vad);
+      return { available: true, tool: "whisper-cli", model, reason: null, vadModel: hasVad ? vad : null, vadReason: hasVad ? null : `bez VAD: brak modelu Silero ${vad} (ustaw WHISPER_VAD_MODEL)` };
+    }
     reasons.push(`whisper-cli: brak modelu ${model} (ustaw WHISPER_MODEL)`);
   } else {
     reasons.push("whisper-cli niedostępny");
@@ -127,7 +140,24 @@ export function cleanTranscript(raw: string): string | null {
     .join(" ")
     .replace(/\s+/g, " ")
     .trim();
-  return text && !isSilenceFiller(text) ? text : null;
+  return text ? stripHallucinations(text) : null;
+}
+
+/** Sentences whisper invents over music anywhere in a transcript (subtitle credits, end-of-video thanks): never what an ad says. */
+const HALLUCINATION = /^(?:napisy (?:stworzone|wykonane|przygotowane) przez .{0,60}|.{0,60}amara\.org.{0,20}|subtitles by .{0,60}|dziękuj[eę](?: bardzo)? za (?:obejrzenie|oglądanie)|thanks? (?:you )?for watching)$/iu;
+
+/**
+ * Transcript without the sentences whisper invents over music or silence (subtitle credits, "thanks for
+ * watching"), wherever they stand; null when nothing else remains or only silence fillers do. Without this,
+ * two music-only videos share a hallucinated sentence and get similar text (content evidence) for nothing.
+ */
+export function stripHallucinations(text: string): string | null {
+  const kept = text
+    .split(/(?<=[.!?…])\s+/)
+    .map((s) => s.trim())
+    .filter((s) => s && !HALLUCINATION.test(s.replace(/[.!?…]+$/u, "")));
+  const out = kept.join(" ").trim();
+  return out && !isSilenceFiller(out) ? out : null;
 }
 
 /** Phrases whisper writes over silence or music (learnt from subtitle credits), Polish and English. */
@@ -171,7 +201,8 @@ export async function transcribe(
         if (!(await extractAudioWav(file, wav, { run, timeoutMs }))) return null;
       }
       const outBase = path.join(tmp, "transcript");
-      const r = await run("whisper-cli", ["-m", status.model, "-f", wav, "-l", lang, "-nt", "-np", "-otxt", "-of", outBase], { timeoutMs });
+      const vad = status.vadModel ? ["--vad", "-vm", status.vadModel] : [];
+      const r = await run("whisper-cli", ["-m", status.model, "-f", wav, "-l", lang, "-nt", "-np", ...vad, "-otxt", "-of", outBase], { timeoutMs });
       if (r.code !== 0 || r.timedOut) return null;
       return cleanTranscript((await readIfExists(`${outBase}.txt`)) ?? r.stdout);
     }

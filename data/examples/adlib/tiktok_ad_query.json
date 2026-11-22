@@ -1,0 +1,17 @@
+{
+  "data": {
+    "ads": [
+      {
+        "ad": { "id": "1700000000000001", "first_shown_date": "20261101", "last_shown_date": "20261110", "image_urls": ["https://cdn.example/tt/1.jpg"], "videos": [{ "video_url": "https://cdn.example/tt/1.mp4", "cover_image_url": "https://cdn.example/tt/1c.jpg" }] },
+        "advertiser": { "business_id": "7000000000000001", "business_name": "Konto Testowe TikTok" }
+      },
+      {
+        "ad": { "id": "1700000000000002", "first_shown_date": "20261105", "image_urls": [], "videos": [] },
+        "advertiser": { "business_id": "7000000000000001", "business_name": "Inna Nazwa Wyswietlana" }
+      }
+    ],
+    "has_more": false,
+    "cursor": 2
+  },
+  "error": { "code": "ok", "message": "" }
+}

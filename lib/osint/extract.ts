@@ -23,7 +23,16 @@ export type TrackerKind =
   | "google_ads"
   | "meta_pixel"
   | "tiktok_pixel"
-  | "yandex_metrica";
+  | "yandex_metrica"
+  // domain verification tokens: one per Business Manager / Search Console / Webmaster account (B-155)
+  | "meta_domain_verification"
+  | "google_site_verification"
+  | "yandex_verification"
+  // more analytics (B-162) and the AdSense publisher (B-178)
+  | "clarity"
+  | "matomo"
+  | "posthog"
+  | "adsense";
 
 export interface TrackerId {
   kind: TrackerKind;
@@ -291,7 +300,32 @@ function isPlaceholderId(idPart: string): boolean {
   return /^X+$/i.test(idPart);
 }
 
-/** Finds analytics/ad tracker IDs. Deduped and sorted by kind, then id. */
+const VERIFICATION_NAMES: Record<string, TrackerKind> = {
+  "facebook-domain-verification": "meta_domain_verification",
+  "google-site-verification": "google_site_verification",
+  "yandex-verification": "yandex_verification",
+};
+
+/** A token value that names an account: 8–100 token characters, not a placeholder. */
+function isVerificationToken(v: string): boolean {
+  return /^[A-Za-z0-9_-]{8,100}$/.test(v) && !isPlaceholderId(v);
+}
+
+/**
+ * Domain verification tokens from TXT records ("facebook-domain-verification=<token>",
+ * "google-site-verification=<token>", "yandex-verification: <token>"); other records (SPF, DKIM) and empty
+ * or placeholder values are dropped. Deduped, in input order.
+ */
+export function verificationTokens(txt: string[]): TrackerId[] {
+  const out: TrackerId[] = [];
+  for (const rec of txt) {
+    const m = /^\s*"?(facebook-domain-verification|google-site-verification|yandex-verification)\s*[=:]\s*([^"\s]*)"?\s*$/i.exec(rec);
+    if (m && isVerificationToken(m[2])) out.push({ kind: VERIFICATION_NAMES[m[1].toLowerCase()], id: m[2] });
+  }
+  return uniqueInOrder(out, (t) => `${t.kind}|${t.id}`);
+}
+
+/** Finds analytics/ad tracker IDs and domain verification tokens of meta tags. Deduped and sorted by kind, then id. */
 export function findTrackers(source: string): TrackerId[] {
   if (!source) return [];
   const found: TrackerId[] = [];
@@ -338,6 +372,24 @@ export function findTrackers(source: string): TrackerId[] {
     add("yandex_metrica", m[1]);
   }
   for (const m of source.matchAll(/Ya\.Metrika2?\(\s*\{\s*id\s*:\s*['"]?(\d{5,10})(?!\d)/g)) add("yandex_metrica", m[1]);
+  // Microsoft Clarity project (snippet argument or tag URL)
+  for (const m of source.matchAll(/["']clarity["']\s*,\s*["']script["']\s*,\s*["']([a-z0-9]{6,14})["']/gi)) add("clarity", m[1].toLowerCase());
+  for (const m of source.matchAll(/clarity\.ms\/tag\/([a-z0-9]{6,14})(?![a-z0-9])/gi)) add("clarity", m[1].toLowerCase());
+  // Matomo: tracker host + site ID (one installation counts sites from 1, so the host is part of the ID)
+  const matomoUrl = /setTrackerUrl['"]\s*,\s*['"]((?:https?:)?\/\/[^'"\/]+)\//i.exec(source)?.[1];
+  const matomoSite = /setSiteId['"]\s*,\s*['"]?(\d{1,6})/i.exec(source)?.[1];
+  if (matomoUrl && matomoSite) add("matomo", `${matomoUrl.replace(/^(?:https?:)?\/\//i, "").toLowerCase()}/${matomoSite}`);
+  // PostHog project key
+  for (const m of source.matchAll(/(?<![A-Za-z0-9_])(phc_[A-Za-z0-9]{20,64})(?![A-Za-z0-9])/g)) add("posthog", m[1]);
+  // AdSense publisher (a page-kit trait: publisher IDs are pooled by unrelated sites)
+  for (const m of source.matchAll(/(?<![\w-])ca-pub-(\d{16})(?!\d)/g)) add("adsense", `ca-pub-${m[1]}`);
+  // Domain verification meta tags (attributes in any order)
+  for (const tag of source.matchAll(/<meta\b[^>]*>/gi)) {
+    const name = /\bname\s*=\s*["']?([\w-]+)/i.exec(tag[0])?.[1]?.toLowerCase();
+    const kind = name ? VERIFICATION_NAMES[name] : undefined;
+    const content = /\bcontent\s*=\s*["']([^"']*)["']/i.exec(tag[0])?.[1]?.trim() ?? "";
+    if (kind && isVerificationToken(content)) add(kind, content);
+  }
 
   const unique = uniqueInOrder(found, (t) => `${t.kind}|${t.id}`);
   return unique.sort((a, b) => (a.kind === b.kind ? (a.id < b.id ? -1 : a.id > b.id ? 1 : 0) : a.kind < b.kind ? -1 : 1));

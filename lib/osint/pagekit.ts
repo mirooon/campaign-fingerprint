@@ -16,7 +16,9 @@ import { detectPageTechniques, type CommentBlock, type PageTechnique } from "./p
 import { extractLanderConfig, landingCdnTenants, mergePlatformLinkIds, platformLinkIds, type LanderConfig, type PlatformLinkIds } from "./landerConfig";
 import { createHash } from "node:crypto";
 import { hammingDistance } from "../media/imageHash";
-import { toAsciiHost } from "./urls";
+import { clickIdsFromUrls } from "./clickIds";
+import { findTrackers, type TrackerId } from "./extract";
+import { registrableDomain, toAsciiHost } from "./urls";
 
 export type EndpointVia = "form" | "fetch" | "xhr" | "axios" | "jquery" | "literal";
 
@@ -85,6 +87,12 @@ export interface PageKit {
   platformTenants?: string[];
   /** Campaign, source and account of the landing-page platform in its links (cuuid, suuid, launcher) in the page code or requests. */
   platformLinks?: PlatformLinkIds;
+  /** Hosts outside the page's registrable domain that its requests (HAR, scan) contacted, sorted (B-158). */
+  requestHosts?: string[];
+  /** Tracker IDs in the request addresses: Meta pixel from facebook.com/tr?id= and signals/config/<id> (B-158). */
+  requestTrackers?: TrackerId[];
+  /** Request addresses that carry an xid click ID (tracker event calls, e.g. upd_clickid=), at most a few (B-158). */
+  requestClickUrls?: string[];
   /** Block of comments written into the page (no real comments plugin), when present. */
   commentBlock?: CommentBlock | null;
   /** Techniques of the page: fake_app_store, back_trap, fake_social_post, fake_comments. */
@@ -105,6 +113,11 @@ const MAX_COMMENTS = 50;
 const MAX_COMMENT_LEN = 300;
 const MAX_PATH_IDS = 10;
 const MIN_PATH_ID_RESOURCES = 2;
+/**
+ * Directories where a page platform keeps one lander or account per UUID (a tracker's /landers/<uuid>/, a
+ * page builder's landing-cdn/<uuid>/): there one resource, or the page's own address, names the lander (B-164).
+ */
+const LANDER_DIR_PREFIXES = ["/landers/", "/_cdn/production/landing-cdn/"];
 const MAX_RAW = 300;
 const MAX_URL_LEN = 2048;
 const MAX_LITERALS_PER_SCRIPT = 50_000;
@@ -800,8 +813,9 @@ function assetRef(u: URL, kind: AssetRef["kind"], pageHost: string | null): Asse
 
 /**
  * UUID path segments shared by at least `MIN_PATH_ID_RESOURCES` same-origin resources of a page (the
- * prefix is the path before the first such resource's UUID). Resources of other hosts do not count:
- * a UUID on a shared CDN names that CDN's object, not the operator's account. Sorted by id, max 10.
+ * prefix is the path before the first such resource's UUID); directly under a platform's lander directory
+ * (`LANDER_DIR_PREFIXES`) one resource is enough. Resources of other hosts do not count: a UUID on a shared
+ * CDN names that CDN's object, not the operator's account. Sorted by id, max 10.
  */
 function pathIdsOf(resources: URL[], pageHost: string | null): PathId[] {
   const byId = new Map<string, { paths: Set<string>; prefix: string }>();
@@ -816,10 +830,30 @@ function pathIdsOf(resources: URL[], pageHost: string | null): PathId[] {
     });
   }
   return [...byId]
-    .filter(([, e]) => e.paths.size >= MIN_PATH_ID_RESOURCES)
+    .filter(([, e]) => e.paths.size >= MIN_PATH_ID_RESOURCES || isLanderDir(e.prefix))
     .map(([id, e]) => ({ id, prefix: e.prefix }))
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
     .slice(0, MAX_PATH_IDS);
+}
+
+/** Whether a path prefix ends in a platform's lander directory (`LANDER_DIR_PREFIXES`). */
+function isLanderDir(prefix: string): boolean {
+  return LANDER_DIR_PREFIXES.some((d) => prefix.endsWith(d));
+}
+
+/**
+ * Path ids of a page under a lander directory only, from its own address and its requests (B-164): the
+ * platform traces that requests add to a page whose code is known.
+ */
+function landerDirIds(urls: URL[], pageHost: string | null): PathId[] {
+  return pathIdsOf(urls, pageHost).filter((p) => isLanderDir(p.prefix));
+}
+
+/** Path ids of both lists, unique by id (the first kept), sorted by id, max 10. */
+function mergePathIds(a: PathId[], b: PathId[]): PathId[] {
+  const byId = new Map<string, PathId>();
+  for (const p of [...a, ...b]) if (!byId.has(p.id)) byId.set(p.id, p);
+  return [...byId.values()].sort((x, y) => (x.id < y.id ? -1 : x.id > y.id ? 1 : 0)).slice(0, MAX_PATH_IDS);
 }
 
 function techniquesOf(html: string, pageUrl: string): Pick<PageKit, "commentBlock" | "techniques"> {
@@ -942,7 +976,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
       assets: [...assets.values()].sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
       comments,
       cyrillicComments: cyrillic,
-      pathIds: pathIdsOf(resources, pageHost),
+      pathIds: mergePathIds(pathIdsOf(resources, pageHost), page ? landerDirIds([page], pageHost) : []),
       lander: extractLanderConfig(html),
       ...tenantsOf(resourceUrls),
       ...linksOf(platformLinkIds([html])),
@@ -970,14 +1004,51 @@ function linksOf(ids: PlatformLinkIds | null): Pick<PageKit, "platformLinks"> {
  * requests also stand in for the page's resources: `.js`/`.css` addresses become assets and UUID path
  * segments of same-origin requests become path ids, as the `<script>`/`<link>` tags would have given
  * them. With page code the tags are the better source (a request list also holds files loaded by
- * third-party scripts), so assets and path ids stay as they are. `pageUrl` is the page address (needed
- * to tell same-origin files); without it no assets are added.
+ * third-party scripts), so assets and generic path ids stay as they are; only a UUID under a platform's
+ * lander directory (from the requests or the page's own address) is added. Requests also give the traces
+ * of `requestSignals` (third-party hosts, pixel IDs, xid click IDs). `pageUrl` is the page address (needed
+ * to tell same-origin files); without it no assets or hosts are added.
  */
 export function withRequestUrls(kit: PageKit | null, requests: string[], pageUrl?: string): PageKit {
   const k = kit ?? { ...emptyKit(), ...(pageUrl ? resourcesOfRequests(requests, pageUrl) : {}) };
   const tenants = landingCdnTenants([...(k.platformTenants ?? []).map((t) => `/landing-cdn/${t}/`), ...requests]);
   const links = mergePlatformLinkIds(k.platformLinks, platformLinkIds(requests));
-  return { ...k, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links) };
+  const page = pageUrl ? parseAbsolute(pageUrl) : null;
+  const requestUrls = [...requests.map((r) => resolveAgainst(r, null)).filter((u): u is URL => u !== null), ...(page ? [page] : [])];
+  const pathIds = mergePathIds(k.pathIds, landerDirIds(requestUrls, page ? hostOfUrl(page) : null));
+  return { ...k, pathIds, ...(tenants.length ? { platformTenants: tenants } : {}), ...linksOf(links), ...requestSignals(requests, pageUrl) };
+}
+
+/** Most request addresses kept per page for xid click IDs. */
+const MAX_CLICK_URLS = 20;
+/** Most third-party hosts kept per page. */
+const MAX_REQUEST_HOSTS = 100;
+
+/**
+ * Traces of the operator visible only in a page's requests (B-158): hosts outside the page's registrable
+ * domain, the Meta pixel ID in tracking calls (also signals/config/<id>, loaded by the platform SDK), and
+ * addresses carrying an xid click ID. Hosts need the page address; without it only the IDs are read.
+ */
+function requestSignals(requests: string[], pageUrl?: string): Pick<PageKit, "requestHosts" | "requestTrackers" | "requestClickUrls"> {
+  const pageDomain = pageUrl ? registrableDomain(pageUrl) : null;
+  const hosts = new Set<string>();
+  for (const r of requests) {
+    const u = resolveAgainst(r, null);
+    const host = u ? hostOfUrl(u) : null;
+    const domain = host ? registrableDomain(host) : null;
+    // a host without a registrable domain ("localhost", a placeholder name in a rebuilt HAR) names no service
+    if (!host || !domain || !pageDomain || domain === pageDomain) continue;
+    if (hosts.size < MAX_REQUEST_HOSTS) hosts.add(host);
+  }
+  const pixels = [...requests.flatMap((r) => [...r.matchAll(/connect\.facebook\.net\/signals\/config\/(\d{10,20})(?!\d)/gi)].map((m) => m[1]))];
+  const trackers = findTrackers(requests.join("\n")).concat(pixels.map((id) => ({ kind: "meta_pixel" as const, id })));
+  const uniq = [...new Map(trackers.map((t) => [`${t.kind}|${t.id}`, t])).values()];
+  const clickUrls = requests.filter((r) => clickIdsFromUrls([r]).xids.length > 0).slice(0, MAX_CLICK_URLS);
+  return {
+    ...(hosts.size ? { requestHosts: [...hosts].sort() } : {}),
+    ...(uniq.length ? { requestTrackers: uniq } : {}),
+    ...(clickUrls.length ? { requestClickUrls: clickUrls } : {}),
+  };
 }
 
 /** Script/stylesheet assets (by file extension, query dropped) and path ids of a page's request list. */

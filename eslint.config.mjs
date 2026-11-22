@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // local Python venvs (setup-speaker.sh, setup-face.sh) carry JavaScript of their packages
+    ".venv*/**",
   ]),
 ]);
 

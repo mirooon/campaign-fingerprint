@@ -16,6 +16,8 @@ import type { PageArchive } from "../osint/archive/types";
 import type { ObservedAddress } from "../media/addressBar";
 import type { CampaignParam } from "../osint/campaignParams";
 import type { PageKit } from "../osint/pagekit";
+import type { FaceHit } from "../media/face";
+import type { VoiceSpan } from "../media/speaker";
 import type { PersonaMatch } from "../text/persona";
 
 /** Normalised ad record (output of ingest). */
@@ -105,6 +107,8 @@ export interface CloakingVariant {
   status: number | null;
   domSimhash: string | null;
   bodySha256: string | null;
+  /** The response was an anti-bot challenge page (403/503 "Just a moment…", cf-chl): the fetch was blocked (B-117). */
+  botChallenge?: boolean;
   error: string | null;
 }
 
@@ -115,6 +119,8 @@ export interface CloakingCheck {
   domDistance: number | null;
   suspected: boolean;
   reasons: string[];
+  /** "bot_challenge": a variant was stopped by anti-bot protection, so nothing can be said about cloaking (B-117). */
+  state?: "checked" | "bot_challenge";
 }
 
 export interface ImageInfo extends ImageHashes {
@@ -143,18 +149,29 @@ export interface ItemEnrichment {
   landingSource?: "input" | "ad_text" | "address_bar" | null;
   /** Advertiser name read from the screenshot (the line above "Sponsored"), when the input gives none. */
   advertiserOcr?: string | null;
+  /**
+   * The advertiser's name (input, library or screenshot) holds a name or a pseudonym of a person from the
+   * list: a possible fake profile of that person. An attribute, not evidence of a campaign.
+   */
+  advertiserImpersonates?: { id: string; name: string };
   /** Transcript of the video/audio creative (opt-in ASR). */
   asrText: string | null;
   /** Chromaprint fingerprint of the video/audio creative (opt-in). */
   audioFp: AudioFingerprint | null;
   /** L2-normalised CLIP embedding of the creative image (opt-in). */
   imageEmbedding?: number[];
+  /** Brand of a portal, bank or institution recognised on the creative (CLIP zero-shot, opt-in with CLIP): an attribute, never a link. */
+  creativeBrand?: { id: string; name: string; kind: string; probability: number };
   /** CLIP embedding of the video creative: mean over interior frames (opt-in). */
   videoEmbedding?: number[];
   /** SHA-256 of the video creative file: the same file, not just a similar recording. */
   videoSha256?: string;
   /** L2-normalised SpeechBrain ECAPA speaker embedding of the video/audio creative (opt-in). */
   speakerEmbedding?: number[];
+  /** Faces in the creative image, the further screenshots and the video frames (opt-in): box, and for a face similar to someone on the closed list of public figures the persona id and similarity. No vectors. */
+  faces?: FaceHit[];
+  /** Stretches of speech in the video/audio creative (opt-in `speaker`, needs the gallery data/voices): seconds from the start, and for a voice similar to someone on the closed list the persona id and cosine. No vectors. */
+  voices?: VoiceSpan[];
   /** Meta Ad Library details for the ad-library IDs of this item (opt-in, live mode). */
   adLibrary?: AdLibraryInfo[];
   /** Outcome of the archive step for the landing page (opt-in); absent when the page was fetched live or the step is off. */

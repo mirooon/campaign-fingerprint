@@ -28,13 +28,15 @@ Cecha to ślad, który może się powtórzyć w innym materiale. Narzędzie nie 
 
 | Rodzina | Przykłady cech | Przykład (syntetyczny) |
 |---|---|---|
-| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście, kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
+| **Tekst i osoby** | podobny tekst (TF-IDF, opcjonalnie embeddingi), persona rozpoznana w tekście albo z twarzy (zamknięta lista osób publicznych, patrz „Twarze” w punkcie 9), kontakty, portfele | dwie reklamy obiecują „zarobek po 5 minutach” słowami z jednego szablonu; w obu pojawia się fikcyjna „Ewa Przykładowa” |
 | **Wygląd** | hash obrazu (dHash), ten sam plik kreacji (SHA-256), podobieństwo CLIP (opcjonalnie, także 8 klatek wideo), odcisk dźwięku (Chromaprint), głos mówcy (opcjonalnie) | dwa zrzuty różnią się naklejką: odległość dHash 3 z 64 bitów |
 | **Strona** | backend formularza, ukryte pola, własne pliki JS/CSS, komentarze w kodzie, struktura DOM, techniki (fałszywy sklep z aplikacjami, blokada przycisku „wstecz”, fałszywe komentarze) | oba formularze wysyłają dane na `https://zbieracz.example/lead/ab12` |
 | **Infrastruktura** | domena, host, IP, ASN, serwery NS, rejestrator i seria rejestracji (RDAP), certyfikat (CT), cel CNAME, tracker | dwie domeny `a-oferta.example` i `b-oferta.example` zarejestrowane w odstępie 20 minut u tego samego rejestratora |
 | **Platforma i identyfikatory** | konto i kampania platformy stron, serwer trackera (maszyna w identyfikatorze kliknięcia), identyfikator reklamy w `fbclid`, identyfikator biblioteki reklam, płatnik z biblioteki reklam, parametry kampanii (UTM, sub1–5), szablon linku | dwa linki mają ten sam trzybajtowy identyfikator maszyny w `xid` |
 
-**Które cechy działają dziś** (B-104): wszystkie wymienione, o ile materiał je zawiera. Cechy opcjonalne wymagają włączenia i narzędzi: OCR (`--ocr`, tesseract), transkrypcja (`--asr`), odcisk dźwięku (`--audio`), CLIP (`--clip`, wymaga modelu), głos (`--speaker`), biblioteka reklam (`--ad-library`), zapytania sieciowe DNS/RDAP/ASN (`--lookups` albo `--live`). Brakujący krok jest oznaczony w wyniku jako `skipped` z powodem. Domyślny obraz Dockera nie ma modeli ASR, CLIP ani głosu i nie wychodzi do sieci, więc te cechy są wtedy puste. Twarze i galeria głosów nie są jeszcze zaimplementowane i nie występują w tym dokumencie jako metoda.
+**Biblioteki reklam jako źródło.** Publiczne biblioteki reklam (Meta Ad Library, Google Ads Transparency Center; adaptery TikTok i X zob. [ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md)) dają identyfikator reklamy, reklamodawcę, płatnika, daty emisji i kreacje; `bun run adlib` zamienia rekord biblioteki na materiał, który idzie tą samą drogą co zrzut ze zgłoszenia. Identyfikator reklamy w bibliotece (z platformą w kluczu) jest dowodem silnym jak identyfikator reklamy w linku: ten sam identyfikator to ta sama reklama, czyli duplikat, a identyfikatory różnych bibliotek nigdy się nie mieszają. Reklamodawca jest śladem średnim, a nie silnym, bo konta reklamowe bywają wynajmowane i przejmowane: łączymy po stałym identyfikatorze konta (u Google `AR…`), nie po nazwie wyświetlanej, która się zmienia, a nazwa prawna, kraj i status weryfikacji są atrybutami konta, nie dowodem. Płatnik też nie łączy kampanii sam, bo bywa ofiarą kradzieży tożsamości (jak w tabeli wag). Wyszukiwanie w bibliotekach daje materiały do sprawdzenia; **nie obiecuje trafień** w znanych kampaniach (wyszukiwanie w Google Ads Transparency nie dało materiałów dla rodzin kampanii z próbki).
+
+**Które cechy działają dziś** (B-104): wszystkie wymienione, o ile materiał je zawiera. Cechy opcjonalne wymagają włączenia i narzędzi: OCR (`--ocr`, tesseract), transkrypcja (`--asr`), odcisk dźwięku (`--audio`), CLIP (`--clip`, wymaga modelu), głos (`--speaker`), twarze (`--faces`, OpenCV, wymaga venv z `scripts/py/setup-face.sh` i modeli ok. 40 MB), biblioteka reklam (`--ad-library`), zapytania sieciowe DNS/RDAP/ASN (`--lookups` albo `--live`). Brakujący krok jest oznaczony w wyniku jako `skipped` z powodem. Domyślny obraz Dockera ma modele twarzy (YuNet, SFace), ale nie ma modeli ASR, CLIP ani głosu, i nie wychodzi do sieci, więc te cechy są wtedy puste. Galeria głosów nie jest jeszcze zaimplementowana i nie występuje w tym dokumencie jako metoda.
 
 ## 3. Wagi
 
@@ -61,7 +63,7 @@ Przesłanki jednej pary materiałów łączy się **noisy-OR**: `wynik = 1 − �
 | | | persona | 0,1 |
 | | | registrar, asn | 0,05 |
 
-Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana ręcznie; przy rozbieżności wygrywa `config.ts`.
+Wagi własne części węzłów (od zadania I10, nadpisują wagę typu): token weryfikacji domeny 0,9 (`tracker`), para osób 0,35 (`persona`, tylko grupa), marka oszustwa 0,45 (`campaign_param`, ślad zestawu stron), wydawca AdSense 0,5 (`tracker`, ślad zestawu stron), host z żądań strony 0,25 (`endpoint`, ślad zestawu stron). Wagi podobieństwa (obraz 0,6, obraz CLIP 0,45, tekst 0,5, struktura strony 0,45, dźwięk 0,5, głos 0,4) i ich progi też są w `config.ts`. Tabela jest przepisana ręcznie; przy rozbieżności wygrywa `config.ts`.
 
 ## 4. Kampania a grupa podobnych kampanii
 
@@ -81,6 +83,40 @@ Wynik ma dwa poziomy:
 7. **Persona działa tylko na poziomie grupy.** Ta sama osoba publiczna występuje w reklamach wielu niezwiązanych operatorów, więc nie łączy kampanii i nie liczy się do ich wyniku.
 
 **Dlaczego jawne reguły, a nie HDBSCAN lub inne grupowanie bez nadzoru.** Każda krawędź musi dać się wyjaśnić osobie, która zdecyduje o zgłoszeniu: „te dwa materiały łączy tracker X (rzadki, waga 0,95) i serwer Y”. Metoda zbiorcza daje odległość w przestrzeni cech i parametr, którego nie da się obronić przed odbiorcą. Dlatego: reguły → union-find dla silnych dowodów; **Louvain** (grupowanie wspólnot na grafie ważonym) dla reszty; wszystko z jawną listą przesłanek.
+
+## 4a. Zmiany metody po walidacji (zadanie I10, 22.11.2026)
+
+Walidacja na materiałach spoza próbki pokazała prawie wyłącznie rozbicia (wysoka precyzja, niska czułość). Zmiany mają ogólne uzasadnienie, test syntetyczny i opis w `docs/TECHNICAL.md` §4.16; liczby przed i po: punkt 9.
+
+**Nowe i poprawione ślady łączące.**
+- **Plik z witryny konta darmowego hostingu = hosting tego konta.** Gdy strona ładuje swoje skrypty z subdomeny platformy, na której każda subdomena to jedna witryna jednego konta (`netlify.app`, `pages.dev`, `github.io` …), host tej witryny liczy się jak hosting operatora (waga 0,95 × 0,7, nie silny). Kupiec skopiowanego zestawu stron trzyma pliki na własnej domenie, a publiczne CDN mają zniżkę. Host spoza tej listy (sieć reklamowa, statystyki) takiego śladu nie daje.
+- **Skrypty dopisywane przez CDN** (`/cdn-cgi/…`, np. dekodowanie e-maili Cloudflare) mają zniżkę ×0,02: to cecha CDN, nie operatora.
+- **Ślady z żądań strony (HAR, skan):** identyfikator piksela Mety z adresów wywołań, identyfikator kliknięcia trackera z wywołań zdarzeń, katalog landera platformy (`/landers/<uuid>/`) już z jednego adresu, parametry kampanii i identyfikator kliknięcia z linków CTA strony (relacja 0,8). Hosty spoza domeny strony (`tracker_host`, 0,25) są śladem zestawu stron: tylko potwierdzają, bo lista usług publicznych nigdy nie jest pełna. Żądania wcześniejszej strony tej samej sesji przeglądarki i żądania rozszerzeń przeglądarki osoby zapisującej HAR są pomijane.
+- **Tokeny weryfikacji domeny** (Meta, Google, Yandex; z kodu strony i rekordów TXT) to ślad jednego konta Business Managera albo Search Console: silny (0,9).
+- **Identyfikatory reklam i kampanii z linku:** identyfikator reklamy Mety w `utm_content`/`ad_id` łączy się z identyfikatorem z `fbclid`; `gad_campaignid` (Google Ads) i konto kupującego ruch (`acc=`, `_buyer=`) to silne parametry kampanii; miejsce wyświetlenia (`utm_placement`) jest słabe.
+- **Marka oszustwa** (nazwa produktu albo „platformy”, np. „Fikcyjnol Forte”, „TradeSynthIQ 4.7”) przetrwa zmianę twarzy i domeny, ale jeden produkt sprzedaje wielu afiliantów: to ślad zestawu stron (0,45), sam daje najwyżej grupę; ogólne nazwy platform mają zniżkę. Wydawca AdSense (`ca-pub-…`) też jest śladem zestawu stron (identyfikatory wydawców bywają współdzielone).
+- **Linki-opakowania platform** (`l.facebook.com/l.php?u=`, `google.com/url?q=`, `adurl=`) są rozwijane do adresu docelowego, bo domeny platform mają wagę 0.
+- **Siatki bezpieczeństwa:** ślad wspólny dla więcej niż 20 materiałów nie jest silny niezależnie od wielkości zbioru (bez tego w dużej partii jeden powszechny ślad skleja łańcuchowo); społeczność Louvaina rozpadająca się na części bez powiązań jest dzielona na te części; stałe frazy reklam („dowiedz się więcej”, „tylko dziś”) i halucynacje transkrypcji („Napisy stworzone przez społeczność Amara.org”) nie liczą się do podobieństwa tekstu; transkrypcja może używać VAD (wykrywania mowy), żeby nie pisać tekstu do samej muzyki; strona wyzwania antybotowego to zablokowane pobranie, nie cloaking.
+
+**Atrybuty materiału, kampanii i grupy (nigdy dowód kampanii, bez wyniku ryzyka).**
+- **Narracja:** temat (inwestycja, dotacja, zdrowie z podkategoriami, hazard, wybory, „inwestycje dzięki AI”, złoto z NBP, wojna i surowce, „tajemnica”, „nastolatek zarobił”, odzyskanie środków, wydarzenia: mundial, zaprzysiężenie, „państwowa inwestycja”), forma przynęty (fałszywa sensacja, polecenie, fałszywy wywiad), kwoty, data materiału. Kampania i grupa mają podsumowanie narracji, a kampania na jednej infrastrukturze, która zmienia temat w ciągu tygodnia, dostaje opis „ten sam operator, dwie narracje”. Etykieta reguły IHC (`celeb_bait_investment`: osoba z listy oraz obietnica zysku, zaproszenie do grupy albo podrobione medium) jest atrybutem. Paczka dowodów bierze „usługę finansową” z narracji, z cytatem i dopiskiem „(wniosek)”.
+- **Podrabiana marka na kreacji** (CLIP zero-shot na liście ok. 20 portali, banków i instytucji) i **grupy osób** z listy osób publicznych („Dziennikarze”) są cechami grupy. **Para osób** w jednym materiale (fikcyjna rozmowa dwóch znanych osób) jest rzadsza niż jedna osoba, więc sama tworzy grupę podobnych kampanii, ale nigdy kampanię.
+- **Most i najsłabsze ogniwo:** kampania, którą trzyma razem jeden silny ślad między dwiema podgrupami, ma pole `bridge` („kampania sklejona jednym śladem: X”, kandydat do listy zniżek), a `minInternalScore` pokazuje członka, który wisi najbliżej progu.
+- **Wiek domeny i pierwszego certyfikatu** w dniu pierwszej obserwacji materiału, **platforma strony** (np. platforma stron, tracker; tylko atrybut, bez grupy, bo platforma ma tysiące niezwiązanych klientów), **liczba reklam zdjętych przez platformę**, **kolumny wejścia spoza mapowania** („dane z wejścia”).
+
+**Rozszerzalność bez zmiany kodu (`--config`).** Plik konfiguracji dopisuje listy zniżek (tablice w `lists` są dołączane do domyślnych) i może zrobić pivot z nieznanej kolumny wejścia:
+
+```json
+{
+  "extraPivots": { "page_id": "advertiser" },
+  "lists": {
+    "domains": [{ "match": "cdn-uslugi.example", "factor": 0, "reason": "usługa współdzielona przez wiele stron" }],
+    "genericScamBrands": [{ "match": "zyskomat*", "factor": 0.2, "reason": "ogólna nazwa platformy" }]
+  }
+}
+```
+
+Wartość kolumny `page_id` staje się wtedy węzłem typu `advertiser` (klucz `extra:page_id=<wartość>`) z wagą, zniżkami i regułami tego typu.
 
 ## 5. Duplikaty i „za mało danych”
 
@@ -103,11 +139,19 @@ Progi (wszystkie w `config.ts`, domyślny profil to `DEFAULT_LINK_CONFIG`; plik 
 | tekst, `tfidfThreshold` | 0,5 | przeredagowanie tych samych słów; pełne parafrazy wymagają embeddingów (0,86) |
 | struktura strony, `dom.hamming` | 6 bitów | |
 | obraz CLIP | cosinus ≥ 0,9; ten sam plik wideo ≥ 0,97 z tym samym dźwiękiem | próg nieskalibrowany na danych |
-| głos | cosinus ≥ 0,6 | ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych |
+| twarz (persona, `--faces`) | ważony cosinus ≥ próg z pomiaru (docs/TECHNICAL.md), tylko cecha grupy | próg z pomiaru na zdjęciach osób spoza listy |
+| głos (łączenie materiałów, `similar_voice`) | cosinus ≥ 0,6 | ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych |
+| głos (persona z galerii, `--speaker`) | cosinus okna ≥ 0,5, przewaga ≥ 0,15 nad drugą osobą, co najmniej 2 sąsiednie okna, tylko cecha grupy | próg z pomiaru na nagraniach 11 osób spoza listy (docs/TECHNICAL.md, „Persona z głosu”) |
 
 Dawna „furtka” `singleKindMinScore` (0,5, pojedynczy rodzaj dowodu o dużym wyniku tworzył kampanię) została usunięta w I14c: pozwalała dwóm klonom portalu stać się jedną kampanią.
 
 **`confidence` i `score` to siła przesłanek, nie prawdopodobieństwo.** `score` to wynik noisy-OR ze wzoru wyżej. `confidence` (`certain`, `likely`, `uncertain`) mówi: `certain`, gdy najlepsze powiązanie ma przesłankę silną (waga ≥ 0,7), `likely`, gdy wynik powiązania ≥ 0,5. Żaden z nich nie był skalibrowany na zbiorze z prawdziwymi etykietami, więc „0,8” nie znaczy „80% szans, że to ta sama kampania”.
+
+## 6a. Harmonogram skanów i „baza rośnie”
+
+**Harmonogram.** `bun run watch` co cykl pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Listę Ostrzeżeń CERT) o nowe adresy i każdy przepuszcza przez tę samą analizę, co ręcznie zgłoszony materiał (rozdział 6); wynik trafia do `data/watch.jsonl`. Przepisy wyszukiwania opierają się na silnych cechach znanych kampanii (najemca platformy stron, adres IP spoza CDN, identyfikator ścieżki, skrót zasobu, para serwerów nazw, rejestrator, pora rejestracji), a potwierdzenie kandydata idzie po infrastrukturze, nie po tytule strony ani samej nazwie domeny: kandydat z CT staje się `confirmed` dopiero przy co najmniej dwóch rodzajach wspólnej infrastruktury (ta sama para NS, godzina rejestracji w oknie kampanii, ten sam adres IP, ten sam skrót treści). Wartość widoczna w jednej kampanii i w innej (domyślne serwery nazw rejestratora, wspólny hosting) nie jest cechą żadnej z nich i nie potwierdza. Lista Ostrzeżeń CERT jest używana tylko z obowiązkowym filtrem RDAP/NS (rejestrator, pora rejestracji, para NS): sam wzorzec nazwy daje setki fałszywych trafień. Źródło, którego nie da się zapytać (brak sieci, klucza, strumienia), zostawia w raporcie cyklu powód pominięcia. Wiersz `campaign` przy werdykcie innym niż `known_campaign` to najbliższa kampania z odcisku nazw (podpowiedź źródła), nie wynik analizy.
+
+**Baza rośnie.** Analiza niczego nie dopisuje do bazy; robi to dopiero `--add-to-base` (CLI), `watch --add-to-base` (harmonogram, domyślnie tylko `known_campaign`) i przycisk w przeglądarce. Dopisujemy rekord i dane wzbogacone, których użyło porównanie, bez ponownego liczenia cech; graf i kampanie przebudowujemy offline. Duplikatu nie dopisujemy, „za mało danych” tylko wymuszone (`--force`), bo materiał, którego nie da się porównać, nie pomaga następnym. Kampanie zachowują numery: nowy klaster dostaje numer starej kampanii, z którą dzieli najwięcej rekordów, a klaster bez poprzednika nowy numer; dzięki temu sprawa, raport czy odnośnik „K07” nie zmieniają znaczenia po dopisaniu materiału. Przed zapisem poprzednie pliki bazy trafiają do `<baza>/historia/<czas>/`, każde dopisanie ma wpis w `<baza>/dodane.jsonl` (czas, źródło `cli`/`watch`/`gui`, identyfikator, werdykt w chwili dodania), a pliki są zastępowane przez zmianę nazwy pliku tymczasowego. Automatyczne dopisywanie z harmonogramu ma jedną wadę: błędnie przypisany materiał zostaje w bazie i wpływa na kolejne wyniki, więc `historia/` pozwala wrócić do stanu sprzed zmiany.
 
 ## 7. Niekompletne dane
 
@@ -128,7 +172,7 @@ Na dwóch materiałach z kopią w Wayback wynik z samej kopii miał te same rodz
 
 Metodą jest wyłącznie **wykrywanie pasywne po sygnaturach w zebranych danych**: analiza zapisanych stron i HAR pod kątem sygnatur skryptów cloakera w kodzie strony (cecha `cloakerInSource`) oraz tego samego adresu zapisanego z różną treścią (osobne zapisy `#capture`). Nie wysyłamy żadnych dodatkowych żądań.
 
-Opcja `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami: crawler platformy i przeglądarka mobilna) istnieje, ale jest **domyślnie wyłączona** i nie jest metodą. Test po User-Agencie nie dowodzi braku cloakingu po IP i geolokalizacji: różnica treści coś wskazuje, jej brak nic nie wyklucza.
+Opcja `--cloaking` (dwa dodatkowe pobrania z różnymi User-Agentami: crawler platformy i przeglądarka mobilna) istnieje, ale jest **domyślnie wyłączona** i nie jest metodą. Gdy jedno z tych pobrań trafi na stronę wyzwania antybotowego (np. „Just a moment…”), wynik to „pobranie zablokowane przez ochronę przed botami”, a nie podejrzenie cloakingu. Test po User-Agencie nie dowodzi braku cloakingu po IP i geolokalizacji: różnica treści coś wskazuje, jej brak nic nie wyklucza.
 
 ## 9. Walidacja i ograniczenia
 
@@ -143,6 +187,8 @@ Materiały: 212 stron oszustw zebranych z publicznych źródeł (głównie publi
 - (c) spójność nowych kampanii (rodziny innych operatorów, B-cubed): precyzja 0,971, czułość 0,331; 3 z 29 nowych kampanii łączą dwie rodziny (dwie podrodziny jednej strony na wspólnym hoście). Pary na całej partii: precyzja 0,993, czułość 0,126.
 - (d) duplikaty: 0. (e) czas partii 212 materiałów: 0,8 s, szczyt pamięci ok. 330 MB.
 - Pokrycie: w 5 z 12 prawdziwych kampanii z co najmniej dwoma materiałami narzędzie znalazło ≥ 50% członków w jednej kampanii, w 1 z 12 wszystkich.
+
+**Po poprawkach metody (zadanie I10, punkt 4a), ta sama partia i etykiety:** (a) 34/78 (43,6%) wariantów w właściwej znanej kampanii, 11/78 tylko „podobne”, 0 w złej; (b) nadal 134/134, a negatywów z „podobnymi kampaniami” 0; (c) bez zmian; pary na całej partii: precyzja 0,997, czułość 0,272 (F1 0,224 → 0,427); pokrycie 6 z 12 kampanii. Na 25 sprawach próbki partycja i grupy bez zmian.
 
 Wniosek: na tych danych metoda jest ostrożna (wysoka precyzja, niska czułość). Główne źródła rozbić to reguła „jeden rodzaj dowodu nie tworzy kampanii” przy stronach znanych tylko z listy żądań (bez kodu strony) i brak w publicznych skanach śladów z linku reklamy. **Zastrzeżenie:** etykiety rodzin nadano częściowo po tych samych śladach infrastruktury, których używa narzędzie, więc (a) jest optymistyczna; miarodajne są przede wszystkim (b) i (c). Policzysz to samo na własnych etykietach: `bun run evaluate -- --csv <partia.csv> --labels <etykiety.json>`.
 
@@ -181,7 +227,9 @@ Na próbce syntetycznej (43 reklamy, 10 kampanii, F1 par bazowo 1,0) żaden z 15
 - **Nieoficjalny endpoint biblioteki reklam Mety** (przez MetaAdsCollector) może przestać działać po zmianie strony i jego użycie może naruszać regulamin serwisu.
 - **Zależność od RDAP**: przy odpowiedzi tylko dla części domen seria rejestracji znika i część kampanii traci jeden z dowodów.
 - **Seria rejestracji** to łańcuch: domeny zarejestrowane u tego samego rejestratora w odstępach ≤ 48 h łączą się przechodnio, więc długi łańcuch może objąć domeny odległe w czasie.
-- **Dane biometryczne głosu**: wektory głosu (SpeechBrain, 192 liczby) liczone tylko z `--speaker`, zapisywane wyłącznie w lokalnym `enriched.json` i w lokalnej pamięci podręcznej (TTL 28 dni, `.cache/speaker`). Nie trafiają do `graph.json`, paczki dowodów ani eksportu CSV/JSON. Usunięcie: skasować `.cache/speaker` i pliki `enriched.json`.
+- **Twarze (`--faces`)**: zamknięta lista osób publicznych (`data/osoby-publiczne.json`; 127 osób na liście, z czego 31 ze zdjęciami (103 zdjęcia, po 1–5 na osobę, z Wikimedia Commons w `data/faces`); pozostałe są tylko personą z tekstu (pełne imię i nazwisko z odmianą, nigdy samo nazwisko). Dobór: osoby najczęściej podrabiane w polskich fałszywych reklamach według publicznych źródeł (zestawienie NASK z 12.07.2024 i artykuły fact-checkerów, CERT, prasy), tylko osoby ze źródłem, które wprost mówi o podszyciu się pod nią (jedyny wyjątek: wpis dodany decyzją właściciela, z adnotacją w polu `source`); lista jest zamknięta, każdy wpis ma `category` (grupa z zestawienia NASK, cecha grupy, nie dowód kampanii), wektory w `data/faces/index.json`). Wynik to „podobna twarz do X (0,xx)”, nigdy „to jest X”, i trafia do przeglądu człowieka. Dopasowanie tylko do osób z listy: twarz, która nikogo nie przypomina, zostaje ramką bez persony, a jej wektora nie zapisujemy (ani w `enriched.json`, ani w pamięci podręcznej, ani w paczce dowodów); wektory dopasowanych twarzy też nie trafiają do grafu ani eksportu (w wyniku jest ramka, identyfikator persony i podobieństwo). Persona z twarzy jest **cechą grupy podobnych kampanii** (ta sama osoba jako przynęta w wielu kampaniach różnych operatorów), nigdy dowodem, że dwa materiały są jedną kampanią. Waga dopasowania maleje z rozmiarem twarzy i wynikiem detektora (jakość twarzy, jak w MagFace). Próg 0,46 wybrano z pomiaru na zdjęciach 26 innych osób publicznych (0 fałszywych trafień na 54 twarzach, 96,7% trafień na parach tej samej osoby; zalecany dla SFace 0,363 dawał 9,3% fałszywych trafień): docs/TECHNICAL.md, „Persona z twarzy”. Nie budujemy bazy twarzy z sieci: zdjęcia referencyjne są wybrane ręcznie, ze źródłem, autorem i licencją ([data/faces/ZRODLA.md](../data/faces/ZRODLA.md)), a własne osoby dodaje instytucja (README, „Twarze”).
+- **Głos osoby z listy (`--speaker`)**: galeria zamknięta, ta sama lista osób publicznych co dla twarzy (10 osób, `data/voices/index.json`: tylko wektory, po 5–8 polskich nagrań na osobę; źródła w [data/voices/ZRODLA.md](../data/voices/ZRODLA.md), nagrań nie ma w repozytorium ani w obrazie). Ścieżka jest cięta na okna po 4 s (krok 2 s); okna ciche i z samą muzyką (detekcja mowy SpeechBrain VAD) są odrzucane. Okno wskazuje osobę, gdy kosinus do jej wzorca (średnia z nagrań) jest ≥ 0,5 **i** wyprzedza drugą osobę o ≥ 0,15, a persona liczy się dopiero z co najmniej 2 sąsiednich okien (6 s). Wynik to „głos podobny do X (0,57)”, nigdy „to jest głos X”, do przeglądu człowieka. Jak twarz, persona z głosu jest **cechą grupy podobnych kampanii** (ta sama osoba jako przynęta u różnych operatorów), nigdy dowodem jednej kampanii. Pomiar (docs/TECHNICAL.md, „Persona z głosu”): ta sama osoba rozpoznana w 70 z 70 nagrań (leave-one-out), fałszywe trafienie na obcych 1 z 25 nagrań (4,0%; to jedno prawdopodobnie jest głosem Stanowskiego, więc 0/24 bez niego; cel ≤ 3,5% nie jest potwierdzony statystycznie przy 25 nagraniach), 5 z 5 fałszywek z publicznej kompilacji NASK nazwanych właściwą osobą. Model nie był trenowany na polskiej mowie, a reklamy mają inną akustykę niż wystąpienia z galerii, więc na reklamach trafień będzie mniej. **Detektor klonu głosu i ocena „czy to prawdziwy głos” są poza zakresem.**
+- **Dane biometryczne głosu**: wektory głosu (SpeechBrain, 192 liczby) liczone tylko z `--speaker`, zapisywane wyłącznie w lokalnym `enriched.json` i w lokalnej pamięci podręcznej (TTL 28 dni, `.cache/speaker`); wektory okien używane do galerii nie są zapisywane nigdzie (w wyniku jest przedział, identyfikator persony i podobieństwo). Nie trafiają do `graph.json`, paczki dowodów ani eksportu CSV/JSON. Usunięcie: skasować `.cache/speaker` i pliki `enriched.json`.
 - **Paczka dowodów** zawiera HAR i zapisane strony tylko jako kopie zredagowane z danych analityka (IP, odcisk przeglądarki, ciasteczka, nagłówki, tokeny Mety), z sumą oryginału w manifeście, i nie zawiera wektorów biometrycznych; narzędzie niczego nie zgłasza, a „uniknięta strata” i skala po poprawce na zgłaszalność to tylko pomysł na pitch, nie wynik paczki.
 - **Skala**: porównania są liczone parami, O(n²); przy dziesiątkach tysięcy materiałów potrzebny byłby indeks.
 - **Strony renderowane w JavaScripcie**: nie wykonujemy JS, więc część treści i adresów jest niewidoczna.
@@ -192,6 +240,7 @@ Na próbce syntetycznej (43 reklamy, 10 kampanii, F1 par bazowo 1,0) żaden z 15
 - **Nie wykrywamy klonów głosu.** Wymagałoby to modeli typu XLS-R/wav2vec2 i dostrojenia. Błąd równych wskaźników (EER) detektorów audio na prawdziwych reklamach to 25–60%, więc wynik takiego detektora byłby wskazówką, a nie dowodem. Głos mówcy służy do łączenia materiałów (ten sam głos w dwóch reklamach), nie do orzekania o fałszerstwie.
 - **Nie wykrywamy tekstu pisanego przez LLM.**
 - **CLIP z klatek wideo** to u nas tylko cecha wyglądu (podobieństwo kreacji), nie ocena „deepfake”.
+- **Nie rozpoznajemy twarzy spoza listy i nie oceniamy, czy twarz jest prawdziwa.** Rozpoznanie dotyczy osób publicznych z ostrzeżeń (31 dla twarzy, 10 dla głosu); nie jest identyfikacją („podobna twarz do X” to wskazówka do przeglądu), a wykrywanie deepfake’ów twarzy jest poza zakresem.
 - **Czego nie używamy:** bazy odcisków technologii *webappanalyzer* (licencja GPL-3.0; atrybut platformy powstaje z własnych wzorców) oraz *httpx* (aktywne sondowanie hostów łamie zasadę pasywności).
 - Nie logujemy się na cudze konta, nie obchodzimy zabezpieczeń, nie renderujemy stron, nie wydajemy nakazów. Decyzję o zgłoszeniu podejmuje człowiek.
 

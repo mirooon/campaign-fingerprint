@@ -11,6 +11,8 @@ export interface ListRule {
   match: string;
   factor: number;
   reason: string;
+  /** Platform the matched trace belongs to (e.g. "aio", "binom"): the page attribute `pagePlatforms` (B-190). */
+  platform?: string;
 }
 
 export interface AsnRule {
@@ -34,6 +36,12 @@ export interface LinkConfig {
   strongThreshold: number;
   /** An entity shared by more than this fraction of all items is never strong. */
   maxStrongDfRatio: number;
+  /**
+   * An entity shared by more items than this is never strong, whatever the dataset size (B-128): with a
+   * ratio alone a pivot common to hundreds of materials of a large batch still chains them in union-find.
+   * It still links through Louvain and the campaign rules. null: only the ratio.
+   */
+  maxStrongDf?: number | null;
   /** Entities shared by more items than this are not expanded into item pairs. */
   maxPivotDf: number;
   /**
@@ -125,6 +133,46 @@ export interface LinkConfig {
    * tracker installation can serve several buyers.
    */
   trackerCampaignWeight?: number;
+  /**
+   * Base weight of a pair of persons in one material (a fake conversation of two known people), a persona
+   * pivot keyed "pair:<a>+<b>": rarer than one person, so above familyMinScore on its own, but like any
+   * persona only for groups of similar campaigns (campaignRules.familyOnlyKinds).
+   */
+  personaPairWeight?: number;
+  /**
+   * Base weight of a host outside the page's domain seen in its requests (endpoint keyed "tracker_host:<host>",
+   * rule kind "tracker_host", B-158): in campaignRules.notAloneKinds and below familyMinScore, because the list
+   * of public services (analytics, widgets, screenshot hosts, ad networks) is never complete: it corroborates
+   * operator evidence and other kit traces, and alone makes neither a campaign nor a group.
+   */
+  trackerHostWeight?: number;
+  /**
+   * Base weight of an AdSense publisher ID (tracker kind "adsense", rule kind "adsense_publisher", B-178): white
+   * pages and covers of an operator are sometimes monetised, but publisher IDs are pooled by unrelated sites,
+   * so it is a page-kit trait (campaignRules.notAloneKinds), below strongThreshold.
+   */
+  adsensePublisherWeight?: number;
+  /**
+   * Base weight of the scam's own brand (campaign_param keyed "scam_brand=<key>", B-139): the product or
+   * platform name survives a new face and domain, but affiliates sell one product, so it is a page-kit trait
+   * (campaignRules.notAloneKinds, rule kind "scam_brand"): with operator evidence it corroborates, alone it
+   * gives a group of similar campaigns.
+   */
+  scamBrandWeight?: number;
+  /**
+   * Base weight of a domain verification token (tracker kinds *_verification, from meta tags and TXT): one
+   * Business Manager, Search Console or Webmaster account verified both domains. Strong, a bit below a pixel
+   * ID because an agency may verify domains of several clients in one account.
+   */
+  verificationTokenWeight?: number;
+  /**
+   * Unmapped input columns (`Item.extra`) that link like a pivot of the given type, e.g. { "page_id":
+   * "advertiser" }: a column of an unknown dataset can join materials without a code change (B-214). The
+   * node key is "extra:<column>=<value>", weighted, discounted and ruled like any pivot of that type.
+   */
+  extraPivots?: Record<string, EntityType>;
+  /** A bridge (Campaign.bridge) splits the campaign into parts of at least this many members each. */
+  bridgeMinPartSize?: number;
   /** Minimum score (non-discounted evidence only) of a link that puts two campaigns in one family. */
   familyMinScore: number;
   similarity: {
@@ -177,6 +225,11 @@ export interface LinkConfig {
   };
   /** Multiplier for pivots reached through an outbound link rather than hosting. */
   outboundLinkFactor: number;
+  /**
+   * Relation of campaign parameters and xid click IDs found only in the page's outbound links (CTA of a
+   * prelander through a tracker, B-154): the operator's own link, but a link and not the visit itself.
+   */
+  outboundParamFactor?: number;
   registrationBurstHours: number;
   /** Base weight of a "registration burst" pivot (same registrar within the window). */
   registrationBurstWeight: number;
@@ -223,6 +276,23 @@ export interface LinkConfig {
      * is a trait of the service, not of one operator; with a client ID in the key it stays strong.
      */
     multiTenantBackends?: ListRule[];
+    /**
+     * Suffix match on the host of a cross-origin script or stylesheet: free hosting platforms where every
+     * subdomain is the site of one account. A page that loads its files from such a site uses that
+     * account's hosting (a `host` pivot, relation = factor), unlike a copied kit, whose files live on the
+     * buyer's own domain, or a public CDN (lists.domains).
+     */
+    accountSiteSuffixes?: ListRule[];
+    /**
+     * Suffix match on hosts the browser or its extensions contact on their own (updates, safe browsing,
+     * telemetry): never a host of the page's requests (B-116, B-158).
+     */
+    browserHosts?: ListRule[];
+    /**
+     * Normalised scam brand keys (campaign_param scam_brand, B-139) of generic "investment platform" names
+     * that many unrelated schemes reuse; a key ending in "*" is a prefix ("immediate*").
+     */
+    genericScamBrands?: ListRule[];
     /** Exact `name:shape` part of a link template (param_schema) that is the link format of a tracker product. */
     paramSchemaPlatformParts?: ListRule[];
     /** Hidden input names ignored when building the hidden-field set (CSRF, form-service keys ...). */
@@ -301,13 +371,14 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   },
   strongThreshold: 0.7,
   maxStrongDfRatio: 0.5,
+  maxStrongDf: 20,
   maxPivotDf: 400,
   idf: { enabled: true, floor: 0.2, ubiquityStart: 0.5, ubiquityMinItems: 10 },
   minLinkScore: 0.15,
   output: { topKPerItem: 12, maxEvidence: 6, campaignMaxEvidence: null },
   campaignRules: {
     minEvidenceKinds: 2,
-    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer"],
+    notAloneKinds: ["similar_dom", "comment", "asset", "hidden_fields", "page_template", "favicon", "endpoint", "param_schema", "comment_block", "ad_payer", "scam_brand", "tracker_host", "adsense_publisher"],
     // a persona (impersonated public figure) appears in campaigns of many unrelated operators
     familyOnlyKinds: ["technique", "persona"],
     accountConflict: true,
@@ -342,6 +413,12 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
   creativeFileWeight: 0.95,
   commentBlockNames: { minBlocks: 5, floor: 0.3 },
   trackerCampaignWeight: 0.6,
+  personaPairWeight: 0.35,
+  trackerHostWeight: 0.25,
+  adsensePublisherWeight: 0.5,
+  scamBrandWeight: 0.45,
+  verificationTokenWeight: 0.9,
+  bridgeMinPartSize: 2,
   familyMinScore: 0.3,
   similarity: {
     imageHamming: 10,
@@ -366,6 +443,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
     machineScopedParams: ["campaign_id", "offer_id"],
   },
   outboundLinkFactor: 0.4,
+  outboundParamFactor: 0.8,
   registrationBurstHours: 48,
   registrationBurstWeight: 0.3,
   maxCertDomains: 25,
@@ -563,6 +641,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "akamaihd.net",
         "tiktokcdn.com",
       ].map((match) => ({ match, factor: 0, reason: "CDN/biblioteka/usługa współdzielona" })),
+      ...["unsplash.com", "pexels.com", "pixabay.com", "shutterstock.com", "istockphoto.com", "gettyimages.com", "freepik.com", "depositphotos.com"].map((match) => ({
+        match,
+        factor: 0,
+        reason: "bank zdjęć (te same zdjęcia na niezwiązanych stronach)",
+      })),
       ...["onet.pl", "wp.pl", "interia.pl", "gazeta.pl", "o2.pl", "money.pl", "bankier.pl", "tvn24.pl", "polsatnews.pl", "rmf24.pl"].map(
         (match) => ({ match, factor: 0, reason: "popularny portal (linki dla uwiarygodnienia)" }),
       ),
@@ -642,10 +725,13 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         match,
         factor: 0.01,
         reason: "plik lub ścieżka SDK platformy stron (window.aio), wspólne dla wszystkich jej kont",
+        platform: "aio",
       })),
       // public scans: the same script on landers of many unrelated operators in many countries
-      { match: "/include/events-stat.js", factor: 0.1, reason: "skrypt zdarzeń platformy trackera (Binom), wspólny dla wszystkich jej instalacji" },
-      { match: "/click", factor: 0.1, reason: "ścieżka linku kampanii platformy trackera (/click?key=…), wspólna dla wszystkich jej instalacji" },
+      { match: "/include/events-stat.js", factor: 0.1, reason: "skrypt zdarzeń platformy trackera (Binom), wspólny dla wszystkich jej instalacji", platform: "binom" },
+      { match: "/click", factor: 0.1, reason: "ścieżka linku kampanii platformy trackera (/click?key=…), wspólna dla wszystkich jej instalacji", platform: "binom" },
+      // public scans: the email-decode script of the proxy on pages of many unrelated operators
+      { match: "/cdn-cgi/", factor: 0.02, reason: "ścieżka dodawana przez CDN (Cloudflare) każdej stronie za jego proxy (np. email-decode.min.js): cecha CDN, nie operatora" },
     ],
     multiTenantBackends: [
       ...[
@@ -688,9 +774,39 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       // public scans (urlscan, 44 scans of unrelated sites in many sectors): one script for many clients
       { match: "afrdtech.com", factor: 0.1, reason: "publiczna usługa wielu klientów (skrypt na stronach wielu niezwiązanych branż w publicznych skanach)" },
     ],
+    browserHosts: ["gvt1.com", "gvt2.com", "mozilla.net", "mozilla.com", "mozilla.org", "firefox.com", "msedge.net", "bing.com", "brave.com", "opera.com", "operacdn.com", "grammarly.com", "grammarly.io", "lastpass.com", "1password.com", "adblockplus.org", "getadblock.com"].map((match) => ({
+      match,
+      factor: 0,
+      reason: "ruch przeglądarki albo rozszerzenia analityka (aktualizacje, telemetria), nie strony",
+    })),
+    // public scans: several landers of one campaign load their libraries from one site on a free hosting platform
+    accountSiteSuffixes: [
+      "netlify.app",
+      "vercel.app",
+      "pages.dev",
+      "workers.dev",
+      "github.io",
+      "gitlab.io",
+      "web.app",
+      "firebaseapp.com",
+      "herokuapp.com",
+      "onrender.com",
+      "glitch.me",
+      "surge.sh",
+      "fly.dev",
+      "replit.app",
+      "lovable.app",
+      "azurestaticapps.net",
+      "azurewebsites.net",
+    ].map((match) => ({ match, factor: 0.7, reason: `witryna jednego konta darmowego hostingu (${match})` })),
+    genericScamBrands: ["quantumai", "immediate*", "bitcoinera", "bitcoincode", "bitcoinprofit", "bitcoinsupreme", "bitcoinrevolution", "cryptogenius", "cryptosoft", "teslax", "bitindex*", "trustpair", "oilprofit", "bitqt", "yuanpay*"].map((match) => ({
+      match,
+      factor: 0.2,
+      reason: "ogólna nazwa „platformy inwestycyjnej” używana przez wiele niezwiązanych oszustw",
+    })),
     paramSchemaPlatformParts: [
-      { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora" },
-      { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora" },
+      { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora", platform: "binom" },
+      { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora", platform: "aio" },
     ],
     endpointGenericPaths: [
       "/",
@@ -930,10 +1046,14 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "{{ad.id}}",
       "{{site_source_name}}",
       "{{placement}}",
+      "others",
+      "other",
+      "automatic",
     ],
     campaignParamWeakNames: [
       { match: "utm_source", factor: 0.2, reason: "utm_source zwykle wskazuje tylko platformę" },
       { match: "utm_medium", factor: 0.2, reason: "utm_medium zwykle wskazuje tylko typ ruchu" },
+      { match: "placement", factor: 0.1, reason: "miejsce wyświetlenia reklamy (wartość platformy, np. Facebook_Mobile_Feed)" },
     ],
   },
 };

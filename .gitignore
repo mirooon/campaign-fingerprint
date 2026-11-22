@@ -18,6 +18,7 @@ data/work/
 data/evidence/
 data/ct-watch.jsonl
 data/watch.jsonl
+data/watch-certlist.json
 /dane/
 
 # system

@@ -58,6 +58,38 @@ const CALLS_TO_ACTION = [
   /sign\s+up/giu,
 ];
 
+/**
+ * Stock phrases of Polish ads (B-137): every scam and many honest ads use them, so two texts sharing only
+ * these are not similar. Longer phrases first, so "kliknij i dowiedz się więcej" goes before "dowiedz się więcej".
+ */
+const GENERIC_AD_PHRASES = [
+  "kliknij i dowiedz się więcej",
+  "liczba miejsc ograniczona",
+  "zarejestruj się teraz",
+  "zarejestruj się dziś",
+  "ograniczona oferta",
+  "oferta ograniczona",
+  "dowiedz się więcej",
+  "nie przegap okazji",
+  "sprawdź szczegóły",
+  "wejdź na stronę",
+  "kliknij w link",
+  "link w opisie",
+  "kliknij tutaj",
+  "zamów teraz",
+  "sprawdź teraz",
+  "tylko dziś",
+  "tylko teraz",
+  "nie przegap",
+].map((p) => new RegExp(`(?<![\\p{L}\\p{N}])${p.replace(/ /g, "\\s+")}(?![\\p{L}\\p{N}])`, "giu"));
+
+/** Text without the stock phrases of ads (`GENERIC_AD_PHRASES`), whitespace collapsed; for text similarity only. */
+export function stripGenericPhrases(text: string): string {
+  let out = text;
+  for (const re of GENERIC_AD_PHRASES) out = out.replace(re, " ");
+  return out.replace(/\s+/g, " ").trim();
+}
+
 const matches = (re: RegExp, s: string): boolean => {
   re.lastIndex = 0;
   const hit = re.test(s);

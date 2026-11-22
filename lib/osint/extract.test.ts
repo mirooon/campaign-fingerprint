@@ -1,15 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  decodeHtmlEntities,
-  extractFromHtml,
-  extractFromText,
-  findEmails,
-  findPolishPhones,
-  findTelegram,
-  findTrackers,
-  findWhatsapp,
-  normalizePhone,
-} from "./extract";
+import { decodeHtmlEntities, extractFromHtml, extractFromText, findEmails, findPolishPhones, findTelegram, findTrackers, findWhatsapp, normalizePhone, verificationTokens } from "./extract";
 
 // Synthetic landing page: fictional person, reserved domains only.
 const LANDING_HTML = `<!DOCTYPE html>
@@ -422,5 +412,44 @@ describe("extractFromText (ad copy)", () => {
 
   it("returns empty lists for empty text", () => {
     expect(extractFromText("")).toEqual({ urls: [], emails: [], phones: [], telegram: [], whatsapp: [], wallets: [] });
+  });
+});
+
+describe("domain verification tokens (B-155)", () => {
+  it("reads the Meta, Google and Yandex verification meta tags of a page", () => {
+    const html = `<html><head>
+      <meta name="facebook-domain-verification" content="k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6" />
+      <meta content="AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde" name="google-site-verification">
+      <meta name="yandex-verification" content="1a2b3c4d5e6f7a8b" />
+      <meta name="google-site-verification" content="" />
+    </head></html>`;
+    expect(findTrackers(html).filter((t) => t.kind.endsWith("verification"))).toEqual([
+      { kind: "google_site_verification", id: "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde" },
+      { kind: "meta_domain_verification", id: "k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6" },
+      { kind: "yandex_verification", id: "1a2b3c4d5e6f7a8b" },
+    ]);
+  });
+
+  it("reads tokens from TXT records and rejects generic records", () => {
+    expect(verificationTokens(["facebook-domain-verification=k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6", "v=spf1 include:_spf.example ~all", "google-site-verification="])).toEqual([
+      { kind: "meta_domain_verification", id: "k2j3h4g5f6d7s8a9q0w1e2r3t4y5u6" },
+    ]);
+  });
+});
+
+describe("more trackers (B-162, B-178)", () => {
+  it("reads Clarity, Matomo, PostHog and the AdSense publisher ID", () => {
+    const html = `<script>(function(c,l,a,r,i,t,y){})(window, document, "clarity", "script", "k3x9q2w7ab");</script>
+      <script src="https://www.clarity.ms/tag/k3x9q2w7ab"></script>
+      <script>_paq.push(['setTrackerUrl', 'https://stat.przyklad.test/matomo.php']); _paq.push(['setSiteId', '17']);</script>
+      <script>posthog.init('phc_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0', {api_host: 'https://eu.posthog.com'})</script>
+      <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1234567890123456"></script>`;
+    const got = findTrackers(html).filter((t) => ["clarity", "matomo", "posthog", "adsense"].includes(t.kind));
+    expect(got).toEqual([
+      { kind: "adsense", id: "ca-pub-1234567890123456" },
+      { kind: "clarity", id: "k3x9q2w7ab" },
+      { kind: "matomo", id: "stat.przyklad.test/17" },
+      { kind: "posthog", id: "phc_A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t0" },
+    ]);
   });
 });

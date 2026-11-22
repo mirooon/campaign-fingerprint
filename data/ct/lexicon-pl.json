@@ -1,0 +1,20 @@
+{
+  "_comment": "Leksykon startowy watchera CT dla polskich kampanii (bun run ct:watch --lexicon data/ct/lexicon-pl.json). Marki to cele podszywania się z raportów publicznych; media i domeny oficjalne to nazwy i domeny prawdziwych serwisów, które kampanie podrabiają (ich oficjalne domeny są wykluczone z kandydatów). Listy rozszerzają domyślne z lib/ct/config.ts. Marka liczy się tylko wtedy, gdy używa jej kampania z bazy (nazwa w jej domenach albo reklamach), więc sama obecność na liście nie tworzy kandydata.",
+  "_sources": {
+    "motywy": "ostrzeżenia publiczne KNF o podmiotach i schematach inwestycyjnych: https://www.knf.gov.pl/ (strona główna; konkretne wpisy do uzupełnienia po przejrzeniu listy ostrzeżeń)",
+    "marki": "raport CERT Polska o krajobrazie zagrożeń 2025 (podszywanie się pod OLX, Allegro, InPost, Orlen, PGE, mObywatel): https://cert.pl/ (strona główna; adres raportu do uzupełnienia)",
+    "media": "polskie media, pod które podszywają się fałszywe artykuły; domeny oficjalne z ich własnych stron",
+    "uwaga": "adresy wskazują strony główne instytucji; nie sprawdzano ich bez sieci"
+  },
+  "minBrandLength": 3,
+  "lexicon": {
+    "brands": ["OLX", "Allegro", "InPost", "Orlen", "PGE", "mObywatel"],
+    "media": ["tvn24", "onet", "interia", "polsatnews", "rmf24", "wyborcza", "fakt", "tvp", "businessinsider", "superexpress", "money"],
+    "institutions": ["mobywatel", "epuap", "krus", "cert"],
+    "lures": ["pozyczk", "kredyt", "paczk", "przesylk", "doplata", "odszkodowan", "emerytur", "swiadczeni"]
+  },
+  "ignoreDomains": [
+    "olx.pl", "allegro.pl", "inpost.pl", "orlen.pl", "pge.pl", "mobywatel.gov.pl", "gov.pl",
+    "tvn24.pl", "onet.pl", "wp.pl", "interia.pl", "polsatnews.pl", "rmf24.pl", "wyborcza.pl", "fakt.pl", "tvp.info", "tvp.pl", "businessinsider.com.pl", "se.pl", "money.pl"
+  ]
+}

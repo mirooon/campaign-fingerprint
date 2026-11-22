@@ -35,7 +35,11 @@
     "export-dataset": "bun scripts/export-dataset.ts",
     "source-stats": "bun scripts/source-stats.ts",
     "contract-schema": "bun scripts/contract-schema.ts",
-    "report": "bun scripts/report.ts"
+    "report": "bun scripts/report.ts",
+    "adlib": "bun scripts/adlib.ts",
+    "watch": "bun scripts/watch.ts",
+    "backtest:ct": "bun scripts/backtest-ct.ts",
+    "voice:eval": "bun scripts/voice-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.10.0",

@@ -1,0 +1,992 @@
+[
+  {
+    "id": "rafal-brzoska",
+    "name": "Rafał Brzóska",
+    "aliases": [
+      "Rafał Brzoska",
+      "@RBrzoska",
+      "Rafałowi Brzosce",
+      "Rafała Brzoskę",
+      "Rafale Brzosce"
+    ],
+    "role": "przedsiębiorca, współzałożyciel InPost",
+    "category": "Przedsiębiorcy",
+    "voiceFake": true,
+    "source": "CERT Polska, „Ad fraud on large online platforms” (2024-12): fałszywa recenzja platformy z wizerunkiem Rafała Brzoski, https://cert.pl/en/posts/2024/12/Ad-fraud-on-large-online-platforms/ ; Demagog.org.pl, „Deepfake z Rafałem Brzoską wykorzystany w oszustwie inwestycyjnym”, https://demagog.org.pl/fake_news/deepfake-z-rafalem-brzoska-wykorzystany-w-oszustwie-inwestycyjnym/"
+  },
+  {
+    "id": "monika-olejnik",
+    "name": "Monika Olejnik",
+    "aliases": [
+      "Monice Olejnik"
+    ],
+    "role": "dziennikarka",
+    "category": "Dziennikarze",
+    "source": "NASK, lista osób, których wizerunek wykorzystano w deepfake'ach oszustw (stan 07.2024), kategoria dziennikarze: https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (21.11.2026 adres zwracał stronę „nie znaleziono”; wpis znany z wyników wyszukiwarki, do potwierdzenia)"
+  },
+  {
+    "id": "adam-glapinski",
+    "name": "Adam Glapiński",
+    "aliases": [],
+    "role": "prezes Narodowego Banku Polskiego",
+    "category": "Politycy",
+    "source": "Demagog.org.pl, „Wizerunek Adama Glapińskiego wykorzystany w oszustwie na inwestycje”, https://demagog.org.pl/fake_news/wizerunek-adama-glapinskiego-wykorzystany-w-oszustwie-na-inwestycje/"
+  },
+  {
+    "id": "donald-tusk",
+    "name": "Donald Tusk",
+    "aliases": [
+      "@donaldtusk",
+      "Donaldzie Tusku"
+    ],
+    "role": "premier RP",
+    "category": "Politycy",
+    "source": "Demagog.org.pl, „Tusk reklamuje platformę inwestycyjną? Przerobione nagranie z polskim premierem”, https://demagog.org.pl/fake_news/tusk-reklamuje-platforme-inwestycyjna-przerobione-nagranie-polskiego-premiera/"
+  },
+  {
+    "id": "mateusz-morawiecki",
+    "name": "Mateusz Morawiecki",
+    "aliases": [
+      "@MorawieckiM"
+    ],
+    "role": "poseł, były premier RP",
+    "category": "Politycy",
+    "source": "Demagog.org.pl, „Nowy program inwestycyjny dla Polaków? Rząd takiego nie ogłosił” (wizerunek premiera Morawieckiego w fałszywej reklamie), https://demagog.org.pl/fake_news/nowy-program-inwestycyjny-dla-polakow-rzad-takiego-nie-oglosil/"
+  },
+  {
+    "id": "krzysztof-stanowski",
+    "name": "Krzysztof Stanowski",
+    "aliases": [],
+    "role": "dziennikarz, twórca Kanału Zero",
+    "category": "Dziennikarze",
+    "source": "Bezprawnik, „Ta reklama na X nie obiecuje milionów” (reklama na X z jego wizerunkiem, wygląda na wygenerowaną; autor nie potwierdza oszustwa), https://bezprawnik.pl/ta-reklama-na-x-nie-obiecuje-milionow/ (źródło słabsze od pozostałych, do potwierdzenia ostrzeżeniem banku lub CERT)"
+  },
+  {
+    "id": "robert-lewandowski",
+    "name": "Robert Lewandowski",
+    "aliases": [
+      "Robercie Lewandowskim"
+    ],
+    "role": "piłkarz",
+    "category": "Sportowcy",
+    "voiceFake": true,
+    "source": "Demagog.org.pl, „Lewandowski zachęca do inwestowania? Kolejny scam z użyciem AI”, https://demagog.org.pl/fake_news/lewandowski-zacheca-do-inwestowania-kolejny-scam-z-uzyciem-ai/"
+  },
+  {
+    "id": "andrzej-duda",
+    "name": "Andrzej Duda",
+    "aliases": [
+      "@AndrzejDuda",
+      "Andrzejowi Dudzie",
+      "Andrzeju Dudzie"
+    ],
+    "role": "były prezydent RP",
+    "category": "Politycy",
+    "voiceFake": true,
+    "source": "Benchmark.pl, „Andrzej Duda »namawia« do inwestowania. Eksperci radzą uważać – to przekręt”, https://www.benchmark.pl/andrzej-duda-zacheca-do-inwestowania-sprytne-oszustwo-krazy-w-7265363399689281a ; Demagog.org.pl (fałszywe reklamy z jego wizerunkiem), https://demagog.org.pl/fake_news/prezydent-zacheca-do-inwestycji-nic-takiego-sie-nie-wydarzylo/"
+  },
+  {
+    "id": "izabela-leszczyna",
+    "name": "Izabela Leszczyna",
+    "aliases": [],
+    "role": "polityk, była ministra zdrowia",
+    "category": "Politycy",
+    "voiceFake": true,
+    "source": "NASK PIB, „Uwaga DEEPFAKE! Nie daj się nabrać na fałszywe inwestycje! | Przykłady materiałów” (film, 2024; opis wymienia wizerunek: ministra zdrowia Izabela Leszczyna), https://www.youtube.com/watch?v=QKYthjXNn08"
+  },
+  {
+    "id": "budda",
+    "name": "Budda",
+    "aliases": [
+      "Kamil Labudda",
+      "Kamila Labuddy",
+      "Kamilowi Labuddzie",
+      "Kamila Labuddę",
+      "Kamilem Labuddą",
+      "Kamilu Labuddzie"
+    ],
+    "role": "influencer (twórca internetowy)",
+    "category": "Influencerzy",
+    "voiceFake": true,
+    "source": "NASK PIB, „Uwaga DEEPFAKE! Nie daj się nabrać na fałszywe inwestycje! | Przykłady materiałów” (film, 2024; opis wymienia wizerunek: influencer Budda), https://www.youtube.com/watch?v=QKYthjXNn08"
+  },
+  {
+    "id": "karol-nawrocki",
+    "name": "Karol Nawrocki",
+    "aliases": [],
+    "role": "prezydent RP od 2025",
+    "category": "Politycy",
+    "source": "Demagog, „Oszuści po raz kolejny wykorzystują wizerunek Nawrockiego. To scam” (2026-01-20), https://demagog.org.pl/fake_news/oszusci-po-raz-kolejny-wykorzystuja-wizerunek-nawrockiego-to-scam/ ; Radio Kraków, „Prezydent w reklamie „Bitcoin Trader AI”? Klasyczny deepfake” (2025-12-09), https://www.radiokrakow.pl/audycje/prezydent-w-reklamie-bitcoin-trader-ai-klasyczny-deepfake"
+  },
+  {
+    "id": "slawomir-mentzen",
+    "name": "Sławomir Mentzen",
+    "aliases": [
+      "Sławomirze Mentzenie"
+    ],
+    "role": "poseł, współprzewodniczący Konfederacji, przedsiębiorca",
+    "category": "Politycy",
+    "source": "Bezprawnik, „Nie ufaj, gdy Sławomir Mentzen namawia cię na inwestowanie w kryptowaluty” (2024-02-24), https://bezprawnik.pl/nie-ufaj-gdy-slawomir-mentzen-namawia-cie-na-inwestowanie-w-kryptowaluty/ ; Infor.pl, „Przekręt „na Sławomira Mentzena”” (2024-02-27), https://www.infor.pl/twoje-pieniadze/kryptowaluty/6495672,przekret-na-slawomira-mentzena-jak-cyberoszusci-bezprawnie-wykorzys.html ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "elon-musk",
+    "name": "Elon Musk",
+    "aliases": [],
+    "role": "przedsiębiorca (Tesla, X)",
+    "category": "Przedsiębiorcy",
+    "voiceFake": true,
+    "source": "Demagog, „Musk zachęca do „nowej, tajnej inwestycji”? Uwaga – to deepfake” (2024-07-23), https://demagog.org.pl/fake_news/elon-musk-zacheca-do-nowej-tajnej-inwestycji-uwaga-to-jest-deepfake/ ; Telepolis, „Elon Musk okradł widzów YouTube'a. Tylko to nawet nie był on” (2024-06-24), https://www.telepolis.pl/tech/bezpieczenstwo/elon-musk-oszustwo-kryptowaluty-sztuczna-inteligencja ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "iga-swiatek",
+    "name": "Iga Świątek",
+    "aliases": [
+      "Idze Świątek"
+    ],
+    "role": "tenisistka",
+    "category": "Sportowcy",
+    "voiceFake": true,
+    "source": "GSMOnline (ostrzeżenie CERT Orange Polska), „Fałszywe reklamy ze znanymi osobami – oszuści wykorzystują mundial” (2026), https://gsmonline.pl/artykuly/falszywe-reklamy-ze-znanymi-osobami-oszusci-wykorzystuja-mundial ; Demagog, „Kolejne scamy i deepfake. Wykorzystano wizerunek Agaty Kornhauser-Dudy i Igi Świątek”, https://demagog.org.pl/fake_news/kolejne-scamy-i-deepfake-wykorzystano-wizerunek-agaty-kornhauser-dudy-i-igi-swiatek/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Sportowcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "agata-kornhauser-duda",
+    "name": "Agata Kornhauser-Duda",
+    "aliases": [
+      "Agacie Kornhauser-Dudzie"
+    ],
+    "role": "była pierwsza dama",
+    "category": "Politycy",
+    "source": "Demagog, „Kolejne scamy i deepfake. Wykorzystano wizerunek Agaty Kornhauser-Dudy i Igi Świątek”, https://demagog.org.pl/fake_news/kolejne-scamy-i-deepfake-wykorzystano-wizerunek-agaty-kornhauser-dudy-i-igi-swiatek/"
+  },
+  {
+    "id": "dorota-wellman",
+    "name": "Dorota Wellman",
+    "aliases": [
+      "Dorocie Wellman"
+    ],
+    "role": "dziennikarka, prezenterka",
+    "category": "Dziennikarze",
+    "source": "Demagog, „Próby oszustwa: wykorzystano wygenerowane obrazy AI znanych osób” (2025-12-15), https://demagog.org.pl/fake_news/proby-oszustwa-wykorzystano-wygenerowane-obrazy-ai-znanych-osob/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "magda-gessler",
+    "name": "Magda Gessler",
+    "aliases": [
+      "Gessler Magda",
+      "Magdzie Gessler"
+    ],
+    "role": "restauratorka, prezenterka",
+    "category": "Przedsiębiorcy",
+    "voiceFake": true,
+    "source": "Demagog, „Magda Gessler poleca środek odchudzający? To deepfake” (2025-01-09), https://demagog.org.pl/fake_news/magda-gessler-poleca-srodek-odchudzajacy-to-deepfake/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marek-belka",
+    "name": "Marek Belka",
+    "aliases": [
+      "Markowi Belce",
+      "Marku Belce"
+    ],
+    "role": "ekonomista, europoseł, były premier",
+    "category": "Politycy",
+    "source": "Demagog, „Belka i Glapiński. Znane twarze znów wykorzystane w scamach” (2026-09-22), https://demagog.org.pl/fake_news/belka-glapinski-i-platforma-inwestycyjna-znane-twarze-znow-wykorzystane-w-scamach/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "malgorzata-rozenek-majdan",
+    "name": "Małgorzata Rozenek-Majdan",
+    "aliases": [
+      "Małgorzacie Rozenek-Majdan"
+    ],
+    "role": "prezenterka, celebrytka",
+    "category": "Influencerzy",
+    "source": "Bezprawnik, „Anna Mucha i Małgorzata Rozenek-Majdan ofiarami oszustów. Wykorzystano 380 znanych twarzy” (2026-05-19), https://bezprawnik.pl/anna-mucha-i-malgorzata-rozenek-majdan-ofiarami-oszustow/"
+  },
+  {
+    "id": "michal-solowow",
+    "name": "Michał Sołowow",
+    "aliases": [
+      "Michale Sołowowie"
+    ],
+    "role": "przedsiębiorca",
+    "category": "Przedsiębiorcy",
+    "source": "Demagog, „Próby oszustwa: wykorzystano wygenerowane obrazy AI znanych osób” (2025-12-15), https://demagog.org.pl/fake_news/proby-oszustwa-wykorzystano-wygenerowane-obrazy-ai-znanych-osob/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "rafal-trzaskowski",
+    "name": "Rafał Trzaskowski",
+    "aliases": [
+      "Rafale Trzaskowskim"
+    ],
+    "role": "prezydent Warszawy, kandydat na prezydenta 2025",
+    "category": "Politycy",
+    "source": "Demagog, „Trzaskowski pomoże Ci zarobić pieniądze? Uważaj, to deepfake” (2025-06-11), https://demagog.org.pl/fake_news/trzaskowski-pomoze-ci-zarobic-pieniadze-uwazaj-to-deepfake/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "sebastian-kulczyk",
+    "name": "Sebastian Kulczyk",
+    "aliases": [],
+    "role": "przedsiębiorca, inwestor",
+    "category": "Przedsiębiorcy",
+    "source": "XYZ, „Uwaga na scam! Sebastian Kulczyk zachęcający do platformy inwestycyjnej to manipulacja” (2026-01-22), https://xyz.pl/uwaga-na-scam-oszusci-wykorzystuja-nasz-wywiad-z-sebastianem-kulczykiem/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "ewa-drzyzga",
+    "name": "Ewa Drzyzga",
+    "aliases": [
+      "Ewie Drzyzdze"
+    ],
+    "role": "dziennikarka, prowadząca",
+    "category": "Dziennikarze",
+    "source": "TVN24, „Ewa Drzyzga padła ofiarą oszustów” (2024-02-22), https://tvn24.pl/kultura-i-styl/ewa-drzyzga-padla-ofiara-oszustow-st7786282 ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "karol-friz-wisniewski",
+    "name": "Karol Wiśniewski",
+    "aliases": [
+      "@friz"
+    ],
+    "role": "influencer, freak-fighter",
+    "category": "Influencerzy",
+    "source": "Demagog, „To nie jest prawdziwy fanpage Friza na Facebooku”, https://demagog.org.pl/fake_news/to-nie-jest-prawdziwy-fanpage-friza-na-facebooku/ ; NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Influencerzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "andrzej-domanski",
+    "name": "Andrzej Domański",
+    "aliases": [],
+    "role": "minister finansów",
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marek-kondrat",
+    "name": "Marek Kondrat",
+    "aliases": [
+      "Marku Kondracie"
+    ],
+    "role": "aktor",
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jerzy-szaflik",
+    "name": "Jerzy Szaflik",
+    "aliases": [],
+    "role": "prof., okulista",
+    "category": "Lekarze",
+    "source": "Bankier.pl (za PAP i „Rzeczpospolitą”), „Plaga deepfake’ów z lekarzami. Wizerunek często kradziony” (2025-04-22), https://www.bankier.pl/wiadomosc/Plaga-deepfake-ow-z-lekarzami-Wizerunek-czesto-kradziony-8928302.html"
+  },
+  {
+    "id": "michal-sutkowski",
+    "name": "Michał Sutkowski",
+    "aliases": [],
+    "role": "dr, lekarz rodzinny",
+    "category": "Lekarze",
+    "source": "Telepolis, „Wyłudzają pieniądze, ale też mogą zrujnować zdrowie. Nowa plaga” (2024-10-28; wizerunek dr. Michała Sutkowskiego w reklamie leku wygenerowanej przez AI), https://www.telepolis.pl/tech/bezpieczenstwo/znany-lekarz-w-reklamie-leku-to-oszustwo-film-stworzono-z-pomoca-ai"
+  },
+  {
+    "id": "adam-torbicki",
+    "name": "Adam Torbicki",
+    "aliases": [],
+    "role": "prof., kardiolog",
+    "category": "Lekarze",
+    "source": "Demagog, „Prof. Torbicki wynalazł cudowny lek? To oszustwo z wykorzystaniem wizerunku lekarza” (2025-01-14), https://demagog.org.pl/fake_news/prof-torbicki-wynalazl-cudowny-lek-to-oszustwo-z-wykorzystaniem-wizerunku-lekarza/"
+  },
+  {
+    "id": "omenaa-mensah",
+    "name": "Omenaa Mensah",
+    "aliases": [],
+    "role": "przedsiębiorczyni, żona Rafała Brzoski",
+    "category": "Przedsiębiorcy",
+    "source": "Bankier.pl, „Oszuści na Facebooku podszywają się pod znane osoby. Meta kasuje zyski” (2025-10-08), https://www.bankier.pl/wiadomosc/Oszusci-na-Facebooku-podszywaja-sie-pod-znane-osoby-Meta-kasuje-zyski-9020376.html"
+  },
+  {
+    "id": "julia-wieniawa",
+    "name": "Julia Wieniawa",
+    "aliases": [],
+    "role": "aktorka i piosenkarka",
+    "category": "Aktorzy",
+    "source": "GSMOnline (ostrzeżenie CERT Orange Polska), „Fałszywe reklamy ze znanymi osobami – oszuści wykorzystują mundial” (2026), https://gsmonline.pl/artykuly/falszywe-reklamy-ze-znanymi-osobami-oszusci-wykorzystuja-mundial"
+  },
+  {
+    "id": "marcin-prokop",
+    "name": "Marcin Prokop",
+    "aliases": [],
+    "role": "dziennikarz, prezenter",
+    "category": "Dziennikarze",
+    "source": "Spider's Web, „Fałszywe filmiki z polskimi celebrytami to już plaga” (2024-01-12), https://spidersweb.pl/2024/01/jan-englert-falszywa-reklama-oszustwo.html"
+  },
+  {
+    "id": "tomasz-sekielski",
+    "name": "Tomasz Sekielski",
+    "aliases": [],
+    "role": "dziennikarz",
+    "category": "Dziennikarze",
+    "source": "dodany do zamkniętej listy decyzją właściciela (22.11.2026); publicznego źródła podszycia nie znaleziono"
+  },
+  {
+    "id": "robert-kubica",
+    "name": "Robert Kubica",
+    "aliases": [
+      "Robercie Kubicy"
+    ],
+    "role": "kierowca wyścigowy",
+    "category": "Sportowcy",
+    "source": "Demagog, „Kubica, Zmarzlik i cudowny lek na stawy. Uważaj na scam” (2026-09-22), https://demagog.org.pl/fake_news/kubica-zmarzlik-i-cudowny-lek-na-stawy-uwazaj-na-scam/"
+  },
+  {
+    "id": "bartosz-zmarzlik",
+    "name": "Bartosz Zmarzlik",
+    "aliases": [],
+    "role": "żużlowiec",
+    "category": "Sportowcy",
+    "source": "Demagog, „Kubica, Zmarzlik i cudowny lek na stawy. Uważaj na scam” (2026-09-22), https://demagog.org.pl/fake_news/kubica-zmarzlik-i-cudowny-lek-na-stawy-uwazaj-na-scam/"
+  },
+  {
+    "id": "michal-adamczyk",
+    "name": "Michał Adamczyk",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "tomasz-adamek",
+    "name": "Tomasz Adamek",
+    "aliases": [],
+    "category": "Sportowcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Sportowcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "anna-anders",
+    "name": "Anna Anders",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "magdalena-balkowiec",
+    "name": "Magdalena Bałkowiec",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "anna-bogusiewicz",
+    "name": "Anna Bogusiewicz",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jerzy-brzeczek",
+    "name": "Jerzy Brzęczek",
+    "aliases": [],
+    "category": "Sportowcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Sportowcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "wojciech-cejrowski",
+    "name": "Wojciech Cejrowski",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "wlodek-ciejka",
+    "name": "Włodek Ciejka",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "katarzyna-ciepielewska",
+    "name": "Katarzyna Ciepielewska",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "krzysztof-cugowski",
+    "name": "Krzysztof Cugowski",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marek-czyz",
+    "name": "Marek Czyż",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "piotr-cwik",
+    "name": "Piotr Ćwik",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "wojciech-dabrowski",
+    "name": "Wojciech Dąbrowski",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jan-i-sylwia-dabrowscy",
+    "name": "Jan i Sylwia Dąbrowscy",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "justyna-dobrosz-oracz",
+    "name": "Justyna Dobrosz-Oracz",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "katarzyna-dowbor",
+    "name": "Katarzyna Dowbor",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "norbert-dudziuk",
+    "name": "Norbert Dudziuk",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "stanislaw-dziwisz",
+    "name": "Stanisław Dziwisz",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "maciej-filipkowski",
+    "name": "Maciej Filipkowski",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "aleksandra-florczak",
+    "name": "Aleksandra Florczak",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "faustyna-fuginska",
+    "name": "Faustyna Fugińska",
+    "aliases": [],
+    "category": "Influencerzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Influencerzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "janusz-gajos",
+    "name": "Janusz Gajos",
+    "aliases": [],
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "dorota-gawryluk",
+    "name": "Dorota Gawryluk",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "karol-gazwa",
+    "name": "Karol Gazwa",
+    "aliases": [],
+    "category": "Influencerzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Influencerzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "stanislaw-gadecki",
+    "name": "Stanisław Gądecki",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "robert-gorski",
+    "name": "Robert Górski",
+    "aliases": [],
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jacek-grzybowski",
+    "name": "Jacek Grzybowski",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "paulina-hennig-kloska",
+    "name": "Paulina Hennig-Kloska",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "danuta-holecka",
+    "name": "Danuta Holecka",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "szymon-holownia",
+    "name": "Szymon Hołownia",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "aleksandra-janiec",
+    "name": "Aleksandra Janiec",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "grzegorz-jankowski",
+    "name": "Grzegorz Jankowski",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jaroslaw-kaczynski",
+    "name": "Jarosław Kaczyński",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jerzy-kalibabka",
+    "name": "Jerzy Kalibabka",
+    "aliases": [],
+    "category": "Inni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Inni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "fryderyk-karzelek",
+    "name": "Fryderyk Karzełek",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "leon-knabit",
+    "name": "Leon Knabit",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "phil-konieczny",
+    "name": "Phil Konieczny",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "katarzyna-kowalska",
+    "name": "Katarzyna Kowalska",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "filip-kowarski",
+    "name": "Filip Kowarski",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "piotr-krasko",
+    "name": "Piotr Kraśko",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jacek-krzynowek",
+    "name": "Jacek Krzynówek",
+    "aliases": [],
+    "category": "Sportowcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Sportowcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "iwona-kutyna",
+    "name": "Iwona Kutyna",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "aleksander-kwasniewski",
+    "name": "Aleksander Kwaśniewski",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jerzy-kwiecinski",
+    "name": "Jerzy Kwieciński",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "ursula-von-der-layen",
+    "name": "Ursula von der Layen",
+    "aliases": [
+      "Ursula von der Leyen"
+    ],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "simon-leviev",
+    "name": "Simon Leviev",
+    "aliases": [],
+    "category": "Inni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Inni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "pawel-lisicki",
+    "name": "Paweł Lisicki",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jakub-maciejewski",
+    "name": "Jakub Maciejewski",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "antoni-macierewicz",
+    "name": "Antoni Macierewicz",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "monika-majewska",
+    "name": "Monika Majewska",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "robert-mazurek",
+    "name": "Robert Mazurek",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "stanislaw-michalkiewicz",
+    "name": "Stanislaw Michałkiewicz",
+    "aliases": [
+      "Stanisław Michałkiewicz"
+    ],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "kate-middleton",
+    "name": "Kate Middleton",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "mieczyslaw-mokrzycki",
+    "name": "Mieczysław Mokrzycki",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "piotr-natanek",
+    "name": "Piotr Natanek",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "piotr-nisztor",
+    "name": "Piotr Nisztor",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "kazimierz-nycz",
+    "name": "Kazimierz Nycz",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "agnieszka-oszczyk",
+    "name": "Agnieszka Oszczyk",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "rafal-patyra",
+    "name": "Rafał Patyra",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "krzysztof-pawlina",
+    "name": "Krzysztof Pawlina",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "cezary-pazura",
+    "name": "Cezary Pazura",
+    "aliases": [],
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "dawid-podsiadlo",
+    "name": "Dawid Podsiadło",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "michal-rachon",
+    "name": "Michał Rachoń",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "maryla-rodowicz",
+    "name": "Maryla Rodowicz",
+    "aliases": [],
+    "category": "Piosenkarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Piosenkarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "diana-rudnik",
+    "name": "Diana Rudnik",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "bogdan-rymanowski",
+    "name": "Bogdan Rymanowski",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "magdalena-rzeczkowska",
+    "name": "Magdalena Rzeczkowska",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "natalia-rzezniczak",
+    "name": "Natalia Rzeźniczak",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "piotr-salak",
+    "name": "Piotr Salak",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "andrzej-seweryn",
+    "name": "Andrzej Seweryn",
+    "aliases": [],
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "czeslaw-siekierski",
+    "name": "Czesław Siekierski",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "slawomir-siezieniewski",
+    "name": "Sławomir Siezieniewski",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marek-skoczylas",
+    "name": "Marek Skoczylas",
+    "aliases": [],
+    "category": "Inni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Inni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "robert-skrzypczak",
+    "name": "Robert Skrzypczak",
+    "aliases": [],
+    "category": "Duchowni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Duchowni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "paulina-smaszcz",
+    "name": "Paulina Smaszcz",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marlena-sojka",
+    "name": "Marlena Sojka",
+    "aliases": [],
+    "category": "Influencerzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Influencerzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "weronika-sowa",
+    "name": "Weronika Sowa",
+    "aliases": [],
+    "category": "Influencerzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Influencerzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "jerzy-stuhr",
+    "name": "Jerzy Stuhr",
+    "aliases": [],
+    "category": "Aktorzy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Aktorzy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "alex-sumlinska",
+    "name": "Alex Sumlińska",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "wojciech-szczesny",
+    "name": "Wojciech Szczęsny",
+    "aliases": [],
+    "category": "Sportowcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Sportowcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "lukasz-shreiber",
+    "name": "Łukasz Shreiber",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "zygmunt-szweykowski",
+    "name": "Zygmunt Szweykowski",
+    "aliases": [],
+    "category": "Inni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Inni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "beata-szydlo",
+    "name": "Beata Szydło",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "marek-tejchman",
+    "name": "Marek Tejchman",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "lech-walesa",
+    "name": "Lech Wałęsa",
+    "aliases": [],
+    "category": "Politycy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Politycy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "anita-werner",
+    "name": "Anita Werner",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "wojciech-wieclawek",
+    "name": "Wojciech Wiecławek",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "emilia-wierzbicki",
+    "name": "Emilia Wierzbicki",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "tomasz-wrzeszczynski",
+    "name": "Tomasz Wrzeszczyński",
+    "aliases": [],
+    "category": "Inni",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Inni, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "rafal-zaorski",
+    "name": "Rafał Zaorski",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "emilia-ziemnicka",
+    "name": "Emilia Ziemnicka",
+    "aliases": [],
+    "category": "Dziennikarze",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Dziennikarze, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  },
+  {
+    "id": "mark-zuckerberg",
+    "name": "Mark Zuckerberg",
+    "aliases": [],
+    "category": "Przedsiębiorcy",
+    "source": "NASK (z CSIRT NASK i CSIRT KNF), „Lista osób, których wizerunek przestępcy wykorzystali w oszustwach deepfake” (stan 12.07.2024), grupa: Przedsiębiorcy, https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf (kopia w Wayback: https://web.archive.org/web/2024/https://nask.pl/download/30/4987/listaosobwykorzystanychdodeepfake01-072024.pdf)"
+  }
+]

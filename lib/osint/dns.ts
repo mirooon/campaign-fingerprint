@@ -7,7 +7,7 @@
  * Env: DNS_SERVERS="1.1.1.1,9.9.9.9" overrides the system resolvers.
  */
 import { Resolver } from "node:dns/promises";
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import { toAsciiHost } from "./urls";
 
 export type DnsRecordType = "A" | "AAAA" | "CNAME" | "NS" | "MX" | "TXT";
@@ -54,7 +54,7 @@ const NO_DATA_CODES = new Set(["ENODATA", "ENOTFOUND", "NXDOMAIN", "ENONAME", "N
 
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
-  if (!defaultCache) defaultCache = createCache({ namespace: "dns", defaultTtlMs: TTL.day });
+  if (!defaultCache) defaultCache = createCache({ namespace: "dns", defaultTtlMs: CACHE_TTL.dns });
   return defaultCache;
 }
 

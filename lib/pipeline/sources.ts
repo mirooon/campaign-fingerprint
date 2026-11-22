@@ -9,13 +9,14 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { createCache, TTL } from "../cache";
+import { CACHE_TTL, createCache } from "../cache";
 import { lookupAsn, type AsnInfo } from "../osint/asn";
 import { lookupCt, parseCrtSh, type CtResult } from "../osint/ct";
 import { resolveDns, type DnsRecords, type DnsRecordType } from "../osint/dns";
 import { fetchBinary, fetchPage, type FetchPageResult, type HopFn } from "../osint/fetchPage";
 import { lookupRdap, parseRdap, type RdapInfo } from "../osint/rdap";
 import { frozenSources, type FrozenData } from "./freeze";
+import type { TlsDetails } from "../osint/tlsSignals";
 
 export interface FetchOptions {
   /** Override the browser User-Agent (used by the opt-in cloaking check). */
@@ -32,6 +33,8 @@ export interface EnrichmentSources {
   asn(ip: string): Promise<AsnInfo | null>;
   /** Request URLs recorded with a page (HAR of a case, request list of a scan); offline fixtures only. */
   requestsFor?(url: string): string[] | null;
+  /** Certificate a page was served with (HAR of a case); offline fixtures only. */
+  tlsFor?(url: string): TlsDetails | null;
 }
 
 export interface LiveSourceOptions {
@@ -60,8 +63,8 @@ export function binaryCacheKey(url: string): string {
  * `cache:freeze` turns that cache into replayable fixtures.
  */
 export function liveSources(opts: LiveSourceOptions = {}): EnrichmentSources {
-  const pageCache = createCache({ namespace: "page", defaultTtlMs: TTL.day });
-  const binaryCache = createCache({ namespace: "binary", defaultTtlMs: TTL.day });
+  const pageCache = createCache({ namespace: "page", defaultTtlMs: CACHE_TTL.page });
+  const binaryCache = createCache({ namespace: "binary", defaultTtlMs: CACHE_TTL.binary });
   const skipCt = opts.skipCt ?? /^(off|0|false|no)$/i.test(process.env.CT ?? "");
   return {
     mode: "live",
@@ -104,6 +107,8 @@ interface FixtureHttpEntry extends FixtureResponse {
   variants?: Array<FixtureResponse & { uaContains: string }>;
   /** URLs the page requested while it loaded (from the HAR), for traces visible only in the requests. */
   requests?: string[];
+  /** Certificate the page was served with (from the HAR). */
+  tls?: TlsDetails;
 }
 
 type FixtureDns = Record<string, Partial<Record<DnsRecordType, string[]>>>;
@@ -159,5 +164,6 @@ export function fixtureSources(dir: string): EnrichmentSources {
     },
     asn: (ip) => lookupAsn(ip, { txt: async (name) => cymru[name] ?? [], cache: false }),
     requestsFor: (url) => http[url]?.requests ?? null,
+    tlsFor: (url) => http[url]?.tls ?? null,
   };
 }

@@ -8,11 +8,15 @@ import { materialCsv } from "@/lib/pipeline/materialCsv";
 import type { CaseProvenance } from "@/lib/viewer/completeness";
 import { defaultSplit, detectCases, FILE_KIND_INFO, SPLIT_LABEL, stripCommonTop, type FileKind, type InputFile, type SplitMode } from "@/lib/viewer/caseDetect";
 import { CASE, count, fmtElapsed, FILE, MATERIAL } from "@/lib/viewer/format";
+import { addToBaseRefusal } from "@/lib/viewer/addToBaseView";
+import { familyThresholdFromRules } from "@/lib/viewer/scale";
 import { batchSummary, filterItems, resultConfidence, resultRows, type ResultFilter } from "@/lib/viewer/materialView";
 import { bestCampaignLink } from "@/lib/pipeline/materialCsv";
 import { premiseSentence } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, kitOnlyFromRules, sortByStrength } from "@/lib/viewer/strength";
 import type { PublicJob } from "@/lib/viewer/jobs";
+import EvidenceButton from "./EvidenceButton";
+import AddToBaseButton from "./AddToBaseButton";
 import ResultCard, { itemCompleteness, provenanceOf, type ResultContext } from "./ResultCard";
 import { Empty, Help, SyntheticBadge } from "./ui";
 
@@ -114,6 +118,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
   const cases = useMemo(() => detectCases(inputFiles, mode), [inputFiles, mode]);
   const campaignMap = useMemo(() => new Map(campaigns.map((c) => [c.id, c])), [campaigns]);
   const kitOnly = useMemo(() => kitOnlyFromRules(rules), [rules]);
+  const familyMinScore = useMemo(() => familyThresholdFromRules(rules), [rules]);
 
   // Poll the job about once a second until it ends; `?job=` brings the same job back after a refresh.
   useEffect(() => {
@@ -325,12 +330,15 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
           job={job}
           campaigns={campaignMap}
           minLinkScore={minLinkScore}
+          familyMinScore={familyMinScore}
           kitOnly={kitOnly}
           filter={filter}
           setFilter={setFilter}
           open={open}
           setOpen={setOpen}
           synthetic={syntheticBase || example}
+          syntheticBase={syntheticBase}
+          example={example}
           onShowCampaign={onShowCampaign}
           onCompare={onCompare}
         />
@@ -378,18 +386,24 @@ interface BatchResultProps {
   job: PublicJob;
   campaigns: Map<string, Campaign>;
   minLinkScore: number;
+  /** Threshold of a group of similar campaigns. */
+  familyMinScore: number;
   kitOnly: Set<string>;
   filter: ResultFilter;
   setFilter: (f: ResultFilter) => void;
   open: string | null;
   setOpen: (id: string | null) => void;
   synthetic: boolean;
+  /** The base is the bundled sample (read-only). */
+  syntheticBase: boolean;
+  /** The result comes from "Wczytaj przykład". */
+  example: boolean;
   onShowCampaign: (id: string) => void;
   onCompare: (a: string, b: string) => void;
 }
 
 /** Result of a batch: funnel, summary bar, table with expandable cards, new campaigns of the batch, export. */
-function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter, open, setOpen, synthetic, onShowCampaign, onCompare }: BatchResultProps) {
+function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, filter, setFilter, open, setOpen, synthetic, syntheticBase, example, onShowCampaign, onCompare }: BatchResultProps) {
   const result = job.result!;
   const sum = batchSummary(result, job.fileCount);
   const [sort, setSort] = useState<"verdict" | "confidence">("verdict");
@@ -403,8 +417,10 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
       skipped: result.skipped,
       failedLookups: result.failedLookups ?? [],
       lookups: result.lookups,
+      addToBaseDisabled: addToBaseRefusal(syntheticBase, example),
+      familyMinScore,
     }),
-    [minLinkScore, kitOnly, campaigns, job.id, result],
+    [minLinkScore, familyMinScore, kitOnly, campaigns, job.id, result, syntheticBase, example],
   );
   const single = result.items.length === 1;
   const rows = useMemo(() => {
@@ -437,6 +453,7 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
       <div className="flex flex-wrap items-center gap-2">
         <h3 className="text-lg font-semibold">Wynik: {count(sum.materials, MATERIAL)}</h3>
         {synthetic && <SyntheticBadge />}
+        <span className="ml-auto"><AddToBaseButton jobId={job.id} ids={result.items.filter((i) => i.verdict !== "duplicate" && i.verdict !== "insufficient").map((i) => i.id)} label="Dodaj materiały do bazy" disabledReason={ctx.addToBaseDisabled} /></span>
       </div>
 
       {!job.together && sum.materials > 1 && (
@@ -444,6 +461,7 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
       )}
 
       <ol className="flex flex-wrap items-stretch gap-1.5" aria-label="Lejek liczb">
+        <li className="self-center text-xs text-slate-600">Lejek<Help term="lejek" /></li>
         {funnel.map((s, i) => (
           <li key={s.label} className="flex items-center gap-1.5">
             {i > 0 && <span aria-hidden className="text-slate-400">→</span>}
@@ -474,6 +492,7 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
         <span className="text-slate-600">Sortuj:</span>
         <button type="button" className={`rounded border px-2 py-0.5 ${sort === "verdict" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("verdict")}>po werdykcie</button>
         <button type="button" className={`rounded border px-2 py-0.5 ${sort === "confidence" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("confidence")}>po pewności</button>
+        <button type="button" aria-pressed={filter === "uncertain"} className={`rounded border px-2 py-0.5 ${filter === "uncertain" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setFilter(filter === "uncertain" ? "all" : "uncertain")}>niepewne: do sprawdzenia ({filterItems(result.items, "uncertain").length})</button>
         {filter !== "all" && <button type="button" className="underline" onClick={() => setFilter("all")}>pokaż wszystkie</button>}
         <span className="ml-auto flex gap-2">
           <button type="button" className="inline-flex items-center gap-1 rounded border border-slate-400 px-2 py-0.5" onClick={() => download("wynik.csv", "text/csv", materialCsv(result))}><Download size={14} aria-hidden />CSV</button>
@@ -532,6 +551,7 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
               <li key={n.id} className="rounded border border-violet-300 bg-violet-50 px-3 py-1.5">
                 <b>{n.id}</b>: {n.members.join(", ")}
                 {n.evidence[0] && <span className="block text-xs text-slate-700">Łączy je: {n.evidence[0]}</span>}
+                <span className="mt-1 block"><EvidenceButton campaignId={n.id} jobId={job.id} /></span>
               </li>
             ))}
           </ul>

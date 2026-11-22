@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "properties": {
+      "id": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Identifier of the material in the institution's system."
+      },
+      "platform": {
+        "description": "Platform of the ad (e.g. facebook).",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "advertiser": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "text": {
+        "description": "Text of the ad.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "imageUrl": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "imagePath": {
+        "description": "Screenshot or creative, relative to the file.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "landingUrl": {
+        "description": "Link the ad leads to.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "firstSeen": {
+        "description": "ISO 8601.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "lastSeen": {
+        "description": "ISO 8601.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "persona": {
+        "description": "Impersonated person from the institution's system (several separated by ; or |).",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "deepfakeScore": {
+        "description": "Deepfake score of an external detector, 0..1: a model output, not a fact.",
+        "anyOf": [
+          {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
+      "videoPath": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "id"
+    ],
+    "additionalProperties": false
+  },
+  "$id": "https://odcisk-kampanii.example/schema/v1.0/input-file.schema.json",
+  "x-contract-version": "1.0"
+}

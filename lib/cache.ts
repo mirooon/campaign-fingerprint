@@ -16,6 +16,23 @@ export const TTL = {
   week: 7 * 86_400_000,
 } as const;
 
+/** Time to live of each network and model cache, by namespace: one place for the values that the evidence pack quotes as retention. */
+export const CACHE_TTL = {
+  page: TTL.day,
+  binary: TTL.day,
+  embed: TTL.week * 4,
+  imagehash: TTL.week,
+  ner: TTL.week * 4,
+  clip: TTL.week * 4,
+  speaker: TTL.week * 4,
+  adlibrary: TTL.day,
+  asn: TTL.week,
+  ct: TTL.day,
+  rdap: TTL.week,
+  dns: TTL.day,
+  archive: TTL.day,
+} as const;
+
 export interface CacheOptions {
   namespace: string;
   dir?: string;

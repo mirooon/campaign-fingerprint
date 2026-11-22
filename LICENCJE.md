@@ -154,6 +154,7 @@ Domyślnie (bez flag i kluczy) nie jest używany żaden model. Wszystkie modele 
 | PyTorch / torchaudio (CPU) | 2.15.0 / 2.11.1 | BSD-3-Clause (PyTorch; pakiet zawiera też składniki na licencjach liberalnych: Apache-2.0, BSD-2, MIT) | środowisko wykonawcze SpeechBrain | osobny proces Pythona | [pytorch.org](https://pytorch.org) |
 | soundfile, NumPy | 0.14.0 / 2.5.5 | BSD-3-Clause | odczyt WAV, wektory | osobny proces Pythona | pypi.org |
 | MetaAdsCollector (`meta-ads-collector`) | 1.7.2 | MIT | dane przejrzystości DSA z biblioteki reklam Mety (`--ad-library`): płatnik, beneficjent, usunięcie, zasięg w UE; wyszukiwanie reklam po frazie, stronie, kraju i dacie (`adlib search`). **Ryzyko:** korzysta z nieoficjalnego, publicznego endpointu strony (bez klucza API), więc może przestać działać po zmianie strony; automatyczne odpytywanie może naruszać regulamin serwisu; projekt ma jednego autora | osobny proces (instalacja `uv tool install meta-ads-collector`), skrypt `scripts/py/ad_library.py` | [pypi.org/project/meta-ads-collector](https://pypi.org/project/meta-ads-collector/) |
+| OpenSSL (`openssl ts`) | 3.0 (Debian 12, obraz Dockera) | Apache-2.0 | zapytanie o znacznik czasu RFC 3161 (`bun run evidence -- --tsa`), opcjonalne | osobny proces | [openssl.org](https://www.openssl.org) |
 | uv | 0.12.15 | MIT OR Apache-2.0 | instalacja środowisk Pythona | osobny proces, tylko przy instalacji | [github.com/astral-sh/uv](https://github.com/astral-sh/uv) |
 | Bun | 1.4.4 | MIT | środowisko uruchomieniowe, instalator pakietów | osobny proces | [bun.sh](https://bun.sh) |
 | Node.js | 22 | MIT | serwer Next.js w obrazie | osobny proces | [nodejs.org](https://nodejs.org) |
@@ -305,6 +306,9 @@ Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Do
 
 | Składnik | Licencja | Powód |
 |---|---|---|
+| warcio | Apache-2.0 | licencja nie jest problemem; WARC (ISO 28500) z HAR zapisuje własny kod (`lib/evidence/warc.ts`), żeby nie dokładać Pythona do paczki; czytelność WARC sprawdza test własnym czytnikiem |
+| browsertrix-crawler | AGPL-3.0 | AGPL; archiwizacja stron przez crawler to osobne narzędzie poza repozytorium, bez potwierdzonego arm64 |
+| PyMISP, stix2, misp-stix | BSD-2-Clause / MIT | nie są potrzebne; STIX 2.1 zapisuje własny kod (`lib/evidence/stix.ts`) wprost jako JSON zgodnie ze specyfikacją OASIS |
 | Baza odcisków technologii `webappanalyzer` (następca Wappalyzera) | GPL-3.0 | wymusiłaby GPL na kodzie, który ją dołącza; atrybut platformy powstaje z własnych wzorców (`lib/osint`, `lib/graph/config.ts`) |
 | httpx (ProjectDiscovery) | MIT | licencja nie jest problemem; odrzucony, bo aktywne sondowanie hostów łamie zasadę pasywności narzędzia |
 | DeepFace z domyślnym modelem, InsightFace | modele na licencjach niekomercyjnych | nie używane; ewentualny adapter twarzy musi mieć model o licencji pozwalającej na użycie |

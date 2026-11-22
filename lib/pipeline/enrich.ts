@@ -13,7 +13,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import pLimit from "p-limit";
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
@@ -290,8 +290,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   const imageCache =
     opts.imageCache === false || sources.mode === "offline"
       ? null
-      : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: TTL.week }));
-  const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: TTL.week * 4 })) : null;
+      : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: CACHE_TTL.imagehash }));
+  const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: CACHE_TTL.ner })) : null;
   const cloakThreshold = opts.cloakingDomThreshold ?? 12;
   if (opts.archiveDir) mkdirSync(opts.archiveDir, { recursive: true });
 
@@ -310,7 +310,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})${st.vadModel ? `, VAD ${st.vadModel}` : st.vadReason ? `, ${st.vadReason}` : ""}` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
   }
   let clipOn = false;
-  const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: TTL.week * 4 }) : null;
+  const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: CACHE_TTL.clip }) : null;
   if (opts.clip) {
     const st = await detectClip();
     clipOn = st.available;
@@ -507,7 +507,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         }
       }
       const cloaking = opts.cloaking ? await checkCloaking(url) : null;
-      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking, ...(bodySource ? { bodySource } : {}), ...(archive ? { archive } : {}) };
+      const tls = sources.tlsFor?.(url) ?? (res.finalUrl !== url ? sources.tlsFor?.(res.finalUrl) : null) ?? null;
+      const info: PageInfo = { requestedUrl: url, fetch: fetchMeta, extract, favicon, kit, archiveFile, cloaking, ...(tls ? { tls } : {}), ...(bodySource ? { bodySource } : {}), ...(archive ? { archive } : {}) };
       pages[url] = info;
       return info;
     })();
@@ -744,7 +745,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     const st = await detectSpeaker();
     if (!st.available) log(`głos mówcy pominięty: ${st.reason ?? "brak SpeechBrain"}`);
     else {
-      const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: TTL.week * 4 });
+      const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: CACHE_TTL.speaker });
       const fileOf = (it: Item) => (path.isAbsolute(it.videoPath!) ? it.videoPath! : path.join(opts.baseDir, it.videoPath!));
       const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
       const keyOf = new Map<string, string>();
@@ -800,7 +801,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       const st = await detectAdLibrary();
       if (!st.available) log(`biblioteka reklam pominięta: ${st.reason ?? "brak MetaAdsCollector"}`);
       else {
-        const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: TTL.day });
+        const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: CACHE_TTL.adlibrary });
         const info: Record<string, AdLibraryInfo> = {};
         const todo: string[] = [];
         for (const id of allIds) {
@@ -878,6 +879,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
 
   // 3. Registrable domains: NS/MX/TXT, RDAP, CT
   const domainSet = new Set(Object.values(hosts).map((h) => h.registrableDomain).filter((d): d is string => !!d));
+  // domains of contact addresses other than the shop's own: enriched like any domain of the page (MX, RDAP, age)
+  const contactDomains = new Set<string>();
+  for (const p of Object.values(pages)) for (const d of p.extract?.contact?.otherEmailDomains ?? []) contactDomains.add(d);
+  for (const d of contactDomains) domainSet.add(d);
   const domains: Record<string, DomainInfo> = {};
   done = 0;
   await Promise.all(
@@ -917,6 +922,11 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         );
       }
       await Promise.all(tasks);
+      // a contact domain with mail records that serves no website: only a live run asks (one GET of its home page)
+      if (contactDomains.has(domain) && info.mx.length && sources.mode === "live") {
+        const home = await sources.fetchPage(`https://${domain}/`).catch(() => null);
+        if (!home || home.status === null) info.contactDomainDead = true;
+      }
       domains[domain] = info;
       progress("domains", ++done, domainSet.size);
     }),

@@ -3,7 +3,8 @@
  * example, and the sentence a premise of that type becomes. Also the glossary (§9) used by the "?"
  * bubbles and the Słowniczek page, and the help notes moved here from the expert DetailsPanel.
  */
-import type { EntityType, NearMissRule, SimilarityEdgeType } from "@/lib/graph/model";
+import { CREATIVE_FILE_PREFIX, type EntityType, type NearMissRule, type SimilarityEdgeType } from "@/lib/graph/model";
+import type { ShopFlag } from "@/lib/osint/shopSignals";
 import { familyOf, type FeatureFamily } from "./families";
 
 export interface TypeInfo {
@@ -57,6 +58,9 @@ export const TYPE_INFO: Record<AnyType, TypeInfo> = {
   click_server: { name: "Serwer kliknięć", what: "Serwer, który przekierował kliknięcie w reklamę (zapisany w identyfikatorze kliknięcia).", why: "Ten sam serwer kieruje ruch do obu stron: wspólna infrastruktura, ślad średni.", example: "serwer 0a1b w identyfikatorze kliknięcia", sentence: "Kliknięcia przeszły przez ten sam serwer przekierowań" },
   meta_ad: { name: "Identyfikator reklamy", what: "Numer klikniętej reklamy zapisany w linku.", why: "Ten sam numer to ta sama reklama.", example: "reklama 120200000000000", sentence: "To ta sama reklama (ten sam identyfikator w linku)" },
   ad_payer: { name: "Płatnik reklamy", what: "Płatnik zadeklarowany platformie reklamowej (biblioteka reklam).", why: "Ten sam płatnik to jedno konto płacące; ogólne nazwy łączą słabiej.", example: "„Firma Przykład”", sentence: "Za reklamy płaci ten sam płatnik" },
+  company_id: { name: "Identyfikator firmy na stronie", what: "Numer firmy podany w stopce, regulaminie albo danych sprzedawcy: NIP, REGON, KRS, unijny numer VAT, numer spółki w Wielkiej Brytanii.", why: "Ten sam numer na dwóch stronach to wspólny szablon albo wspólna ręka, ale dane firmy da się skopiować z cudzej strony, więc ślad sam nie łączy w kampanię. Numer z błędną sumą kontrolną jest zmyślony.", example: "NIP 123-456-32-18 w stopce", sentence: "Obie strony podają ten sam identyfikator firmy" },
+  bank_account: { name: "Rachunek bankowy na stronie", what: "Numer rachunku (IBAN albo polski NRB) podany jako konto do wpłat.", why: "Ten sam rachunek to wspólny odbiorca pieniędzy: silniejszy ślad niż numer firmy, ale rachunki podstawionych osób („słupów”) bywają wspólne dla różnych grup, więc sam nie łączy w kampanię.", example: "PL61 1090 1014 0000 0712 1981 2874", sentence: "Obie strony każą wpłacać na ten sam rachunek bankowy" },
+  postal_address: { name: "Adres siedziby sklepu", what: "Pełny adres podany na stronie: ulica, numer, kod pocztowy i miasto (zapis ujednolicony: „ul.” i „ulica”, kod z myślnikiem i bez to ten sam adres).", why: "Ten sam adres na dwóch sklepach to wspólny szablon albo ta sama ręka, ale adres łatwo skopiować ze stopki cudzego sklepu, a biura wirtualne wynajmują ten sam adres niezwiązanym firmom, więc ślad sam nie łączy w kampanię.", example: "ul. Przykładowa 1, 00-001 Miasto", sentence: "Obie strony podają ten sam adres siedziby" },
   comment_block: { name: "Blok fałszywych komentarzy", what: "Zestaw zmyślonych komentarzy wpisany na stałe w stronę.", why: "Ten sam zestaw autorów wskazuje ten sam szablon strony; sam nie wystarcza.", example: "te same 8 komentarzy pod artykułem", sentence: "Strony mają ten sam blok fałszywych komentarzy" },
   crm_key: { name: "Klucz API CRM", what: "Tajny klucz konta w CRM albo sieci afiliacyjnej, z którym formularz wysyła zgłoszenie. Pokazujemy tylko skrót (początek, koniec i sha256), nigdy cały klucz.", why: "Jeden klucz należy do jednego konta odbiorcy leadów: dwie strony z tym samym kluczem wysyłają dane do tego samego kupca. Silny ślad, jak wspólny backend formularza.", example: "klucz Zx81…yB9n", sentence: "Formularze obu stron wysyłają zgłoszenia z tym samym kluczem API CRM" },
   template_phrase: { name: "Zdanie szablonu", what: "Rzadkie zdanie z tekstu strony albo z podziękowania po wysłaniu formularza, takie samo na stronach w różnych domenach. Zdanie z wpadką (powtórzone słowa, mieszane alfabety) waży więcej.", why: "Wskazuje ten sam szablon strony; ten sam szablon kupuje wielu operatorów, więc do kampanii potrzebny drugi rodzaj dowodu.", example: "„nasz opiekun zadzwoni do ciebie i przedstawi platformę”", sentence: "Strony mają to samo rzadkie zdanie szablonu" },
@@ -77,6 +81,8 @@ export function typeInfo(type: string | null | undefined): TypeInfo | null {
 
 export interface EvidenceText {
   evidence: string;
+  /** Id of the shared node (kind = pivot): tells the creative-file node from an ordinary image hash. */
+  pivot?: string | null;
   pivotType?: string | null;
   edgeType?: string | null;
 }
@@ -91,6 +97,7 @@ export function cleanEvidence(text: string): string {
 
 /** Plain sentence of a premise: the type sentence, or the cleaned description for an unknown type. */
 export function premiseSentence(ev: EvidenceText): string {
+  if (ev.pivotType === "imagehash" && ev.pivot?.startsWith(`imagehash:${CREATIVE_FILE_PREFIX}`)) return "Reklamy mają ten sam plik reklamy (identyczny co do bajtu)";
   const info = typeInfo(ev.pivotType ?? ev.edgeType ?? null);
   if (info) return info.sentence;
   const t = cleanEvidence(ev.evidence);
@@ -118,7 +125,7 @@ export const TYPE_NOTES: Partial<Record<EntityType, string>> = {
   platform_campaign: "Kampania w panelu platformy stron (uuid i nazwa nadana przez kupującego ruch). Silny dowód: te same strony puszcza ta sama kampania.",
   page_template: "Szablon strony na platformie (lander_template_uuid). Ten sam szablon u różnych kont to ten sam zestaw, czyli kampanie podobne, a nie jedna kampania.",
   click_server: "Identyfikator kliknięcia w formacie xid zawiera identyfikator maszyny i procesu trackera. Ten sam serwer kieruje ruch do obu stron: wspólna infrastruktura, dowód średni.",
-  ad_payer: "Płatnik i beneficjent zadeklarowani Mecie (przejrzystość DSA), odczytani z biblioteki reklam po identyfikatorze biblioteki. Ten sam płatnik na różnych reklamach = jedno konto płacące; nazwa jest wpisywana przez reklamodawcę, więc ogólne nazwy (np. „ABC”) łączą słabiej.",
+  ad_payer: "Płatnik i beneficjent zadeklarowani Mecie (przejrzystość DSA), odczytani z biblioteki reklam po identyfikatorze biblioteki. Ten sam płatnik na różnych reklamach = jedno konto płacące; nazwa jest wpisywana przez reklamodawcę i nikt jej nie weryfikuje. Zaślepki (np. „Test”, „xyz”) nie łączą wcale, bo wpisują je niezwiązani reklamodawcy; osoba prywatna jako płatnik może być ofiarą kradzieży tożsamości.",
   meta_ad: "Nowy format fbclid zawiera identyfikator klikniętej reklamy (ad ID z Marketing API, nie identyfikator Biblioteki Reklam). Ten sam = ta sama reklama.",
   comment_block: "Zestaw autorów zmyślonych komentarzy wpisanych w stronę. Ślad szablonu jak szablon strony: do kampanii potrzebny drugi rodzaj dowodu.",
   crm_key: "Klucz albo token API, z którym formularz wysyła zgłoszenie do CRM lub sieci afiliacyjnej (pole w skrypcie, nagłówek żądania, ukryte pole). W grafie tylko skrót: 4 pierwsze i 4 ostatnie znaki oraz sha256. Klucze publicznych usług (mapy, reCAPTCHA, analityka) są pomijane.",
@@ -128,6 +135,9 @@ export const TYPE_NOTES: Partial<Record<EntityType, string>> = {
   onion: "Adres .onion wersji 3 (56 znaków). Adresy wersji 2 (16 znaków) wygasły w 2021 r. i są tylko atrybutem materiału. Waga jak Telegram.",
   messenger_invite: "Klucz `usługa:identyfikator` zaproszenia lub konta: discord, signal, signal_group, viber, line (numer wa.me trafia do telefonów). Serwery społeczności samych platform są pomijane. Waga jak Telegram.",
   profit_claim: "Para kwota i okres z obietnicy zysku (np. 3000 zł w ciągu dnia). Standardowe kwoty wpłaty (np. 250 USD) nie łączą. Liczy się tylko dla grup podobnych kampanii.",
+  company_id: "NIP, REGON, KRS, unijny numer VAT albo numer spółki w UK odczytany z widocznego tekstu, kodu, JSON-LD i zrzutów (OCR). Sprawdzamy sumę kontrolną tam, gdzie numer ją ma (NIP, REGON): błędna suma wskazuje zmyślony numer, ale taki numer też łączy strony, które go współdzielą. Numery pośredników (operatorzy płatności, kurierzy) pomijamy. Sam nie łączy w kampanię: dane firmy można skopiować.",
+  bank_account: "IBAN dowolnego kraju albo polski numer rachunku (NRB), sprawdzony sumą kontrolną (mod 97). Wspólny rachunek to wspólny odbiorca pieniędzy, ale rachunki „słupów” bywają wspólne dla różnych grup: nie łączy w kampanię sam.",
+  postal_address: "Adres z ulicą, numerem, kodem pocztowym i miastem, odczytany z tekstu strony albo z JSON-LD (PostalAddress). Numer lokalu pomijamy: jeden budynek to jeden adres. Do kampanii potrzebny drugi rodzaj dowodu; adresy biur wirtualnych można wykluczyć listą w konfiguracji.",
   technique: "Technika strony (fałszywy sklep z aplikacjami, pułapka „wstecz”, udawany post, fałszywe komentarze). Liczy się tylko dla grup podobnych kampanii.",
 };
 
@@ -140,6 +150,155 @@ export const TECHNIQUE_LABEL: Record<string, string> = {
   fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
   remote_access_tool: "program do zdalnego pulpitu do pobrania",
   clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
+  recent_purchase_popup: "wyskakujące „ktoś właśnie kupił”",
+  low_stock_claim: "„ostatnie sztuki” i „ogląda N osób”",
+  countdown_timer: "licznik czasu przy ofercie",
+  closing_down_story: "historia o likwidacji sklepu",
+  crypto_discount: "dodatkowy rabat za płatność kryptowalutą",
+  waitlist_upsell: "rabat jako zapis na listę oczekujących z dopłatą",
+  trial_subscription: "okres próbny z automatycznym odnowieniem subskrypcji",
+  blik_via_messenger: "kod BLIK przez komunikator",
+  fake_courier_payment: "strona udająca kuriera z polem karty i wyborem paczkomatu",
+};
+
+/** Techniques that only describe a shop page: they explain and never link (unlike the techniques of the second level). */
+export const SHOP_TECHNIQUES: ReadonlySet<string> = new Set(["recent_purchase_popup", "low_stock_claim", "countdown_timer", "closing_down_story", "crypto_discount", "waitlist_upsell", "trial_subscription", "blik_via_messenger", "fake_courier_payment"]);
+
+export interface ShopFlagInfo {
+  name: string;
+  what: string;
+  why: string;
+  example: string;
+  /** Sentence shown next to the flag in the card. */
+  sentence: string;
+}
+
+/**
+ * Flags of a fake-shop page (MaterialItemResult.shop). Every one is an explanation for the analyst: honest
+ * shops show them too (a small shop without the 30-day price, with one payment method, with five-star reviews),
+ * so none links anything and none is a verdict.
+ */
+export const SHOP_FLAG_INFO: Record<ShopFlag, ShopFlagInfo> = {
+  legalPagesMissing: {
+    name: "Brak regulaminu, zwrotów lub polityki prywatności",
+    what: "W menu i stopce nie ma linku do regulaminu, zwrotów i odstąpienia, polityki prywatności albo kontaktu.",
+    why: "Sklep internetowy musi je mieć, a fałszywy często ich nie ma albo linki prowadzą donikąd. Mały uczciwy sklep może je mieć pod inną nazwą, więc to wskazówka, nie dowód.",
+    example: "w stopce są tylko „O nas” i „Koszyk”",
+    sentence: "Strona nie linkuje do regulaminu lub zwrotów: to częsta cecha fałszywych sklepów, choć nie przesądza.",
+  },
+  sitewideDeepDiscount: {
+    name: "Rabat na cały sklep",
+    what: "Co najmniej 70% produktów ma przekreśloną cenę i obniżkę o 50% lub więcej.",
+    why: "Prawdziwe przeceny dotyczą wybranych kategorii. „-80% na wszystko” to typowy wabik fałszywych wyprzedaży, ale i likwidacje prawdziwych sklepów tak wyglądają.",
+    example: "10 produktów z ceną 500 zł przekreśloną i 100 zł obok",
+    sentence: "Rabat sięga 80% na cały sklep: typowe dla fałszywych wyprzedaży, choć nie przesądza.",
+  },
+  omnibusMissing: {
+    name: "Brak najniższej ceny z 30 dni",
+    what: "Strona pokazuje obniżki, a nigdzie nie podaje najniższej ceny z ostatnich 30 dni.",
+    why: "Dyrektywa Omnibus (w Polsce od 2023 r.) wymaga tej informacji przy obniżce. Brak to słaba wskazówka, bo uczciwe sklepy też o niej zapominają.",
+    example: "„-50%” bez wzmianki o cenie sprzed promocji",
+    sentence: "Rabaty bez najniższej ceny z 30 dni: słaba wskazówka, nie dowód.",
+  },
+  transferOnly: {
+    name: "Tylko przelew bankowy",
+    what: "Jedyna znaleziona metoda płatności to przelew.",
+    why: "Normalny sklep daje kilka form albo bramkę płatności. Przelew na konto sprzedawcy trudno cofnąć. Mały lokalny sklep może mieć tylko przelew.",
+    example: "„Płatność: przelew tradycyjny”, bez Przelewy24 i karty",
+    sentence: "Jedyna metoda płatności to przelew: trudniej odzyskać pieniądze, choć mały sklep też tak działa.",
+  },
+  irreversibleOnly: {
+    name: "Tylko płatności trudne do cofnięcia",
+    what: "Wszystkie znalezione metody to kryptowaluty, BLIK albo karty podarunkowe.",
+    why: "Tych płatności prawie nie da się cofnąć, dlatego oszuści je wybierają.",
+    example: "BLIK i Bitcoin, bez karty i bramki płatności",
+    sentence: "Płacić można tylko w sposób trudny do cofnięcia (krypto, BLIK, karty podarunkowe).",
+  },
+  paymentRecipientPerson: {
+    name: "Wpłata na osobę prywatną",
+    what: "Instrukcja płatności wskazuje jako odbiorcę osobę fizyczną albo tytuł przelewu „prezent” lub „darowizna”.",
+    why: "Sklep powinien przyjmować pieniądze na firmę. Tytuł „prezent” ma ukryć zakup przed bankiem. Małe firmy jednoosobowe też prowadzą konto na imię i nazwisko.",
+    example: "„Odbiorca: Jan Kowalski, tytuł: prezent”",
+    sentence: "Wpłata ma iść na osobę prywatną albo z tytułem „prezent”: tak ukrywa się zakup przed bankiem.",
+  },
+  deliveryWide: {
+    name: "Rozstrzał terminu dostawy",
+    what: "Deklarowany czas realizacji jest długi (od 21 dni) albo bardzo szeroki (górna granica co najmniej 5 razy większa od dolnej).",
+    why: "Fałszywe sklepy podają „3–45 dni”, bo towar i tak nie przyjdzie. Zagraniczna wysyłka na zamówienie też bywa długa.",
+    example: "„Czas realizacji: 3–45 dni roboczych”",
+    sentence: "Czas dostawy 3–45 dni: szeroki rozstrzał, który zdarza się też przy zamówieniach z zagranicy.",
+  },
+  reviewsAllPerfect: {
+    name: "Same opinie 5/5",
+    what: "Co najmniej 10 opinii, 95% z nich ma 5 gwiazdek, nie ma ocen 1–2.",
+    why: "Zdrowy rozkład ma kształt „odwróconego J”: dużo piątek, trochę środkowych i trochę jedynek. Same piątki sugerują kupione albo napisane opinie, ale młody uczciwy sklep też ma same piątki.",
+    example: "30 opinii, wszystkie 5/5",
+    sentence: "30 opinii i wszystkie 5/5: rozkład niepodobny do prawdziwego, choć nie przesądza.",
+  },
+  reviewsNarrowWindow: {
+    name: "Opinie z kilku dni",
+    what: "Co najmniej 10 opinii dodano w oknie nie dłuższym niż 21 dni.",
+    why: "Prawdziwe opinie przybywają stopniowo. Paczka opinii z jednego tygodnia wskazuje hurtowe dodanie, ale nowy sklep po otwarciu też zbiera opinie szybko.",
+    example: "30 opinii z 10 dni",
+    sentence: "Wszystkie opinie z kilkunastu dni: wygląda na hurtowe dodanie, choć nowy sklep też tak zaczyna.",
+  },
+  reviewsNone: {
+    name: "Brak opinii",
+    what: "Sklep ma produkty z cenami, a na stronie nie ma żadnych opinii ani słowa o nich.",
+    why: "Opinie często są na stronach produktów, więc to słaba wskazówka. Nowy sklep też ich jeszcze nie ma.",
+    example: "lista produktów bez ocen i bez sekcji opinii",
+    sentence: "Sklep bez żadnej opinii: może być nowy, może być fałszywy.",
+  },
+  footerBrandMismatch: {
+    name: "Inna nazwa w stopce niż na stronie",
+    what: "Nazwa w wierszu praw autorskich nie pasuje do nazwy strony ani do nazwy domeny.",
+    why: "Fałszywe sklepy kopiują cudzy sklep razem ze stopką i nie poprawiają nazwy. Bywa, że prawdziwy sklep zmienił nazwę i nie poprawił stopki.",
+    example: "„© 2019 Inny Sklep” na stronie domeny nowymarket.test",
+    sentence: "Stopka podaje nazwę innego sklepu niż strona: ślad skopiowanego sklepu, choć bywa też zwykłym niedopatrzeniem.",
+  },
+  footerYearStale: {
+    name: "Stary rok w stopce",
+    what: "Rok w wierszu praw autorskich jest o co najmniej 2 lata wcześniejszy niż pierwszy zapis strony.",
+    why: "Strona skopiowana ze starego sklepu zachowuje jego rok. Zaniedbana prawdziwa strona też go nie aktualizuje.",
+    example: "„© 2019” na stronie zapisanej w 2026",
+    sentence: "Rok w stopce sprzed co najmniej 2 lat: typowe dla skopiowanych sklepów, ale i dla zaniedbanych.",
+  },
+  claimedSinceContradicted: {
+    name: "Deklarowany staż sprzeczny z archiwum",
+    what: "Strona pisze „od 1998” albo „20 lat na rynku”, a pierwsza migawka w archiwum internetu jest o co najmniej 3 lata późniejsza.",
+    why: "Młody sklep przypisuje sobie długi staż. Archiwum bywa niepełne, więc brak starych migawek to wskazówka.",
+    example: "„od 1998 roku” i pierwsza migawka z 2026 r.",
+    sentence: "Strona deklaruje staż, którego archiwum nie potwierdza.",
+  },
+  reviewsNoSellerReply: {
+    name: "Opinie bez odpowiedzi sprzedawcy",
+    what: "Widżet opinii ma co najmniej 20 opinii i ani jednej odpowiedzi sprzedawcy.",
+    why: "Prawdziwe sklepy coraz częściej odpowiadają na opinie, także krytyczne. Brak odpowiedzi to słaba wskazówka, bo wielu uczciwych sprzedawców nie odpowiada.",
+    example: "25 opinii bez żadnej odpowiedzi „Odpowiedź sklepu”",
+    sentence: "Sklep nie odpowiada na żadną z opinii: słaba wskazówka.",
+  },
+  catalogIncoherent: {
+    name: "Asortyment bez związku z profilem sklepu",
+    what: "W małym katalogu są produkty z trzech lub więcej niezwiązanych kategorii (elektronika, zabawki, odzież…) albo z innej kategorii, niż wskazuje nazwa sklepu.",
+    why: "Fałszywe sklepy sprzedają to, co modne: drony, iPady, klocki, bez związku z profilem. Duże sklepy wielobranżowe też mają różne działy.",
+    example: "sklep z włóczkami z najnowszymi smartfonami",
+    sentence: "Asortyment nie pasuje do nazwy sklepu: sklep z jednej branży oferuje towary z innej.",
+  },
+};
+
+/** Words for the completeness of a postal address (`addressCompleteness`). */
+export const ADDRESS_COMPLETENESS_LABEL: Record<string, string> = {
+  full: "pełny (ulica, numer, kod, miasto)",
+  city_only: "samo miasto, bez ulicy i numeru",
+  po_box: "skrytka pocztowa",
+  none: "brak adresu",
+};
+
+/** Words for the kind of an e-mail domain (`emailDomainKinds`). */
+export const EMAIL_DOMAIN_KIND_LABEL: Record<string, string> = {
+  free_mail: "darmowa skrzynka",
+  site: "domena sklepu",
+  other_domain: "inna domena niż sklep",
 };
 
 /** Polish names of the topics and hooks of the narrative (lib/text/narrative.ts). */
@@ -385,6 +544,25 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   adRegions: { name: "Regiony emisji", source: "z rekordu biblioteki", role: "describes" },
   adFirstShown: { name: "Początek emisji reklamy", source: "z biblioteki reklam", role: "describes" },
   adLastShown: { name: "Koniec emisji reklamy", source: "z biblioteki reklam", role: "describes" },
+  payerKinds: { name: "Rodzaj płatnika z biblioteki reklam", source: "z nazwy płatnika i beneficjenta (samodeklaracja z DSA, platforma jej nie weryfikuje)", role: "describes" },
+  payerSuspicious: { name: "Podejrzany płatnik reklamy", source: "z nazwy płatnika (zaślepka, bełkot z klawiatury albo imię i nazwisko w obcym alfabecie)", role: "describes" },
+  payerEqualsBeneficiary: { name: "Płatnik równy beneficjentowi", source: "z biblioteki reklam", role: "describes" },
+  companyIds: { name: "Identyfikatory firm i rachunki na stronie", source: "z tekstu strony, kodu, JSON-LD albo zrzutu (OCR)", role: "links" },
+  legalEntities: { name: "Nazwy podmiotów z formą prawną", source: "z tekstu strony, kodu, JSON-LD albo zrzutu (OCR)", role: "describes" },
+  emailDomainKinds: { name: "Rodzaj domeny adresów e-mail", source: "z adresów e-mail na stronie (darmowa skrzynka, domena sklepu albo inna domena)", role: "describes" },
+  addressCompleteness: { name: "Kompletność adresu na stronie", source: "z tekstu strony i JSON-LD (pełny, samo miasto, skrytka albo brak)", role: "describes" },
+  certIssuer: { name: "Wystawca certyfikatu TLS", source: "z HAR (securityDetails); darmowy certyfikat to tylko kontekst, kłódka nic nie mówi o sprzedawcy", role: "describes" },
+  certMismatch: { name: "Certyfikat wystawiony na inną domenę", source: "z HAR (securityDetails): żadna nazwa certyfikatu nie obejmuje hosta", role: "describes" },
+  certExpired: { name: "Certyfikat wygasły", source: "z HAR (securityDetails): koniec ważności przed datą zapisu strony", role: "describes" },
+  brandInPath: { name: "Znana marka w ścieżce adresu", source: "z adresu strony: marka w ścieżce, a nie w nazwie domeny (typowe dla klonów kurierów i serwisów ogłoszeń)", role: "describes" },
+  hostingOutsideEu: { name: "Hosting poza UE i EOG", source: "z kraju adresu IP (wzbogacenie ASN); strony spoza UE trudniej zdjąć", role: "describes" },
+  tldRare: { name: "Rzadka końcówka domeny", source: "z nazwy domeny (końcówka spoza listy typowych dla sklepów, np. .sbs, .top); słaba wskazówka", role: "describes" },
+  domainLangMismatch: { name: "Nazwa domeny w innym języku niż strona", source: "z nazwy domeny i języka strony; słaba wskazówka", role: "describes" },
+  privacyControllerMismatch: { name: "Administrator danych inny niż sklep", source: "z polityki prywatności: adres administratora na innej domenie niż adresy kontaktowe strony", role: "describes" },
+  registrantHidden: { name: "Dane rejestranta domeny zasłonięte", source: "z RDAP (REDACTED albo usługa prywatności); większość rejestratorów tak robi, więc słaba wskazówka", role: "describes" },
+  contactDomainDead: { name: "Domena e-maila kontaktowego nie odpowiada", source: "z wzbogacenia (tryb z siecią): domena ma rekord MX, a nie odpowiada po HTTP(S)", role: "describes" },
+  phoneAreaMismatch: { name: "Numer stacjonarny niezgodny z miastem adresu", source: "z numeru telefonu i adresu na stronie", role: "describes" },
+  companyIdInvalid: { name: "Identyfikator firmy z błędną sumą kontrolną", source: "z tekstu strony, kodu, JSON-LD albo zrzutu (OCR)", role: "describes" },
   personas: { name: "Persona", source: "z tekstu, transkrypcji albo OCR", role: "describes", term: "persona" },
   impersonatedBrand: { name: "Podrabiana marka", source: "z tytułu strony", role: "describes" },
   platformCampaignName: { name: "Kampania na platformie stron", source: "z kodu strony", role: "links" },
@@ -399,10 +577,10 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   cyrillic: { name: "Cyrylica w kodzie strony", source: "z kodu strony", role: "describes" },
   cloakingSuspected: { name: "Podejrzenie cloakingu", source: "z dwóch pobrań strony", role: "describes", term: "cloaking" },
   ocrText: { name: "Tekst ze zrzutu", source: "z OCR zrzutu", role: "helps", term: "ocr" },
-  asrText: { name: "Transkrypcja nagrania", source: "z nagrania (ASR)", role: "helps" },
+  asrText: { name: "Transkrypcja nagrania", source: "z nagrania (ASR)", role: "helps", term: "transkrypcja" },
   text: { name: "Tekst reklamy", source: "z materiału", role: "helps" },
-  dhash: { name: "Odcisk obrazu", source: "ze zrzutu", role: "links" },
-  domSimhash: { name: "Odcisk budowy strony", source: "z HAR albo zapisu strony", role: "helps" },
+  dhash: { name: "Odcisk obrazu", source: "ze zrzutu", role: "links", term: "odcisk_obrazu" },
+  domSimhash: { name: "Odcisk budowy strony", source: "z HAR albo zapisu strony", role: "helps", term: "odcisk_budowy" },
 };
 
 export function featureInfo(key: string): FeatureInfo {
@@ -440,7 +618,18 @@ export type TermId =
   | "za_malo_danych"
   | "baza"
   | "kompletnosc"
-  | "sila_w_kampanii";
+  | "sila_w_kampanii"
+  | "trasa_klikniecia"
+  | "sprawa"
+  | "strona_przyneta"
+  | "lejek"
+  | "transkrypcja"
+  | "biblioteka_reklam"
+  | "baza_osob"
+  | "rozbrojony_adres"
+  | "znizka"
+  | "odcisk_obrazu"
+  | "odcisk_budowy";
 
 export interface Term {
   term: string;
@@ -472,6 +661,17 @@ export const GLOSSARY: Record<TermId, Term> = {
   clickid: { term: "Identyfikator kliknięcia (clickid)", text: "Znacznik dopisywany do linku po kliknięciu reklamy. Niektóre formaty zdradzają serwer, który przekierował ruch." },
   szablon_strony: { term: "Szablon strony", text: "Wspólny układ i kod strony. Ten sam szablon u różnych kont oznacza podobne kampanie, a nie jedną." },
   konto_platformy: { term: "Konto na platformie stron", text: "Identyfikator właściciela w narzędziu do budowy stron. To samo konto to ten sam operator." },
+  trasa_klikniecia: { term: "Trasa kliknięcia", text: "Droga od reklamy do strony oszusta: link śledzący, przekierowania, strona-przynęta, formularz albo sklep. Pokazuje, przez jakie adresy przechodzi ofiara. Domena zarejestrowana tuż przed emisją reklamy zwykle powstała na potrzeby kampanii, np. „zarejestrowana 2 dni przed emisją”." },
+  sprawa: { term: "Sprawa", text: "Folder z plikami jednego zgłoszenia: zrzut reklamy, zapisana strona, HAR, wideo. Z jednej sprawy powstaje jeden materiał albo więcej, jeśli zawiera kilka reklam.", why: "Podział na sprawy decyduje, które pliki liczą się razem.", example: "folder „zgloszenie-12” z zrzutem i zapisem strony" },
+  strona_przyneta: { term: "Strona-przynęta", text: "Strona, na którą trafia osoba po kliknięciu w reklamę: fałszywy artykuł, wywiad albo oferta. Jej zadaniem jest namówić do podania danych lub wpłaty.", why: "Zwykle to na niej zostają ślady operatora: tracker, formularz, szablon.", example: "artykuł „znana osoba ujawnia sposób na zarobek”" },
+  lejek: { term: "Lejek", text: "Rząd liczb pokazujący, ile z wgranych plików stało się materiałami, ile z nich to duplikaty, a ile trafiło do znanych kampanii, nowych albo oznaczono „za mało danych”. Liczby się sumują.", example: "9 plików → 6 materiałów → 1 duplikat" },
+  transkrypcja: { term: "Transkrypcja", text: "Tekst wypowiedzi z nagrania, odczytany automatycznie. Może zawierać błędy, więc służy do porównania treści, nie jest cytatem.", why: "Pozwala porównać treść nagrań, także gdy obrazy się różnią." },
+  biblioteka_reklam: { term: "Biblioteka reklam", text: "Publiczny rejestr reklam, który prowadzą platformy (Meta, Google, TikTok) zgodnie z prawem o usługach cyfrowych. Podaje reklamodawcę, daty emisji i często płatnika.", why: "Daje stałe identyfikatory konta reklamowego, których nie da się podmienić w zrzucie.", example: "numer reklamy i nazwa płatnika" },
+  baza_osob: { term: "Baza referencyjna osób", text: "Zamknięta lista osób publicznych, z którymi porównujemy twarze i głosy z materiałów. Dla każdej mamy kilka zdjęć lub fragmentów nagrań i źródło, które wskazało ją jako podszywaną.", why: "Wynik to „podobna twarz do X”, wskazówka do sprawdzenia, nigdy ustalenie tożsamości." },
+  rozbrojony_adres: { term: "Rozbrojony adres", text: "Adres strony zapisany tak, żeby nie dało się go kliknąć przez pomyłkę: hxxps zamiast https i [.] w miejscu kropki. Kopiowanie kopiuje właśnie taką wersję.", example: "hxxps://przyklad[.]test/start" },
+  znizka: { term: "Zniżka", text: "Obniżenie wagi śladu, który wygląda na wspólny, ale należy do wielu niezależnych stron (duża sieć, darmowy certyfikat, usługa wielu klientów). Ślad ze zniżką słabiej łączy albo wcale.", why: "Chroni przed łączeniem kampanii po infrastrukturze, z której korzystają wszyscy.", example: "wspólny serwer popularnego hostingu" },
+  odcisk_obrazu: { term: "Odcisk obrazu", text: "Krótki skrót wyliczony z obrazu reklamy. Dwa podobne obrazy mają podobne odciski, więc wykrywamy tę samą grafikę z drobną zmianą (napis, kadr).", why: "Pozwala łączyć warianty tej samej kreacji bez porównywania obrazów piksel po pikselu." },
+  odcisk_budowy: { term: "Odcisk budowy strony", text: "Skrót wyliczony z układu znaczników strony (bez treści). Strony zbudowane z tego samego zestawu mają podobny odcisk.", why: "Wskazuje ten sam zestaw stron, który bywa sprzedawany wielu operatorom, więc sam nie łączy w kampanię." },
   cloaking: { term: "Cloaking", text: "Strona pokazuje co innego robotowi platformy reklamowej, a co innego użytkownikowi, żeby przejść moderację." },
   sila_przeslanki: { term: "Siła przesłanki", text: "Jak mocno jedna przesłanka łączy dwa materiały. Wysoka łączy sama, średnia liczy się razem z innymi, „wymaga potwierdzenia” potrzebuje drugiego rodzaju śladu, pominięta się nie liczy.", why: "Od siły zależy, czy przesłanka wystarczy do połączenia.", example: "to samo konto na platformie stron: wysoka" },
   pewnosc: { term: "Pewność", text: "Jak bardzo ufamy werdyktowi: pewne, prawdopodobne albo niepewne. Niepewny werdykt warto sprawdzić ręcznie.", why: "Mówi, który wynik warto zweryfikować samodzielnie.", example: "pewne: najlepsze powiązanie ma przesłankę o wysokiej sile" },

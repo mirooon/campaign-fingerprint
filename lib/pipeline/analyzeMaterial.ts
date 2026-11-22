@@ -11,7 +11,7 @@
  * as a variant (campaignRules.contentVariant, `campaignBasis: "content_variant"`), with lower confidence.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
@@ -27,7 +27,9 @@ import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./cas
 import { enrichItems } from "./enrich";
 import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
+import { resolveCasePath } from "./casePath";
 import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
+import type { ShopSignals } from "../osint/shopSignals";
 import type { EnrichedDataset, Item } from "./types";
 import { contentWords } from "../text/uiChrome";
 
@@ -68,6 +70,8 @@ export interface MaterialContext {
   workDir: string;
   /** Recorded fixtures for a link without a captured page (offline demo on the sample dataset). */
   fixtures?: string;
+  /** CASES_DIR: the evaluator's copy of the cases; resolves the relative image paths of a run from the non-public data pack. */
+  casesDir?: string;
   /** Live passive lookups (DNS, RDAP, ASN) and one GET for a page the material does not hold; null = offline. */
   live?: EnrichmentSources | null;
   config?: LinkConfig;
@@ -189,8 +193,10 @@ export interface MaterialItemResult {
   missing?: string[];
   /** Block of comments written into the landing page: its size and how many other records (run and batch) carry the same block. */
   fakeComments?: { count: number; repeatedInOtherItems: number };
-  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments, fake_security_alert, remote_access_tool, clickfix_paste. */
+  /** Techniques of the landing page: fake_app_store, back_trap, fake_social_post, fake_comments, fake_security_alert, remote_access_tool, clickfix_paste, and the shop tricks (recent_purchase_popup ...). */
   techniques?: string[];
+  /** Signals of a fake shop on the landing page (attributes that explain, never link); absent when the page is not a shop. */
+  shop?: ShopSignals;
   /** Traits of the record (graph pivots) with their weight and how many records of the existing run share them. */
   pivots?: MaterialPivot[];
   /** The page features come from an archived copy, not from a live fetch: which archive. Absent for a page fetched live or without a page. */
@@ -220,6 +226,11 @@ export interface MaterialResult {
 
 function readJson<T>(file: string): T {
   return JSON.parse(readFileSync(file, "utf8")) as T;
+}
+
+/** Folder of the job work dir that holds the inputs of the evidence pack (enriched, graph, campaigns and provenance of the batch, and the map N1... → campaign id). */
+export function evidenceInputsDir(workDir: string): string {
+  return path.join(workDir, "pakiet");
 }
 
 /** enriched.json of an existing run: next to graph.json, or in work/. */
@@ -290,7 +301,7 @@ const FEATURE_KEYS = [
   "advertiserImpersonatesName", "advertiserMismatch", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
-  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "clickfix", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "narrative", "profitClaims", "localizedUi", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
+  "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "clickfix", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "emailDomainKinds", "addressCompleteness", "phoneAreaMismatch", "certIssuer", "certMismatch", "certExpired", "brandInPath", "hostingOutsideEu", "tldRare", "domainLangMismatch", "privacyControllerMismatch", "registrantHidden", "contactDomainDead", "narrative", "profitClaims", "localizedUi", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",
 ];
 
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */
@@ -478,7 +489,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   }
   // the near-miss list is read per record here, so it must not be cut at nearMiss.maxPairs
   const allNearMisses = { ...config, nearMiss: { ...(config.nearMiss ?? DEFAULT_LINK_CONFIG.nearMiss!), maxPairs: Number.MAX_SAFE_INTEGER } };
-  const { campaigns, nearMisses } = phase("compare", () => clusterCampaigns(raw, { config: allNearMisses }));
+  const { graph: clustered, campaigns, nearMisses } = phase("compare", () => clusterCampaigns(raw, { config: allNearMisses }));
   for (const c of caseIds) progress(c, "group", "start");
   const { accountOf, infraItems } = verdictContext(raw.nodes);
   const nodeData = new Map<string, Record<string, unknown>>();
@@ -594,6 +605,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       newCampaign: null,
       ...(block ? { fakeComments: { count: Number(data.fakeCommentCount ?? 0), repeatedInOtherItems: Math.max(0, block.df - 1) } } : {}),
       ...(Array.isArray(data.techniques) && data.techniques.length ? { techniques: data.techniques as string[] } : {}),
+      ...(data.shopSignals ? { shop: data.shopSignals as ShopSignals } : {}),
       ...(archivedPage?.bodySource ? { bodySource: archivedPage.bodySource } : {}),
       ...(archiveStatus ? { archive: { ...archiveStatus, ...(archivedPage?.archive ? { copy: archivedPage.archive } : {}) } } : {}),
       pivots: pivotsOf(id),
@@ -619,20 +631,33 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     }
     r.newCampaign = nid;
   }
+  // inputs of the evidence pack of the new campaigns (GUI export): only the new records are enriched here, and every member of N1... is new
+  const packDir = evidenceInputsDir(ctx.workDir);
+  mkdirSync(packDir, { recursive: true });
+  writeFileSync(path.join(packDir, "enriched.json"), JSON.stringify(extra));
+  writeFileSync(path.join(packDir, "graph.json"), JSON.stringify(clustered));
+  writeFileSync(path.join(packDir, "campaigns.json"), JSON.stringify(campaigns));
+  if (existsSync(path.join(importDir, "provenance.json"))) copyFileSync(path.join(importDir, "provenance.json"), path.join(packDir, "provenance.json"));
+  writeFileSync(path.join(packDir, "nowe-kampanie.json"), JSON.stringify(Object.fromEntries([...nOf].map(([campaignId, nid]) => [nid, campaignId]))));
 
   // 5. Duplicates: the same ad collected again (against the run and the earlier records of the batch)
   const baseDir = resolveBaseDir(base.baseDir, ctx.dataDir);
   const itemById = new Map(merged.items.map((it) => [it.id, it]));
+  const unresolvedImages = new Map<string, string>();
+  /** Features the duplicate finder compares for one record; an image that cannot be found (CASES_DIR not set) is left out and reported once in the notes. */
   const traitsOf = (id: string) => {
     const it = itemById.get(id);
     const dir = newIds.has(id) ? importDir : baseDir;
-    const img = it?.imagePath ? (path.isAbsolute(it.imagePath) ? it.imagePath : path.join(dir, it.imagePath)) : null;
+    const found = it?.imagePath ? resolveCasePath(it.imagePath, { baseDir: dir, casesDir: ctx.casesDir, exists: existsSync }) : null;
+    if (found?.reason) unresolvedImages.set(id, found.reason);
+    const img = found?.file ?? null;
     return duplicateTraits(id, nodeData.get(id) ?? {}, it?.landingUrl ?? merged.perItem[id]?.landing?.url ?? null, img, duplicateMedia(merged, id));
   };
   const dups = await new DuplicateFinder().find(
     [...newIds].map(traitsOf),
     base.items.map((it) => traitsOf(it.id)),
   );
+  if (unresolvedImages.size) notes.push(`porównanie obrazów pominięte dla ${unresolvedImages.size} rekordów (${[...unresolvedImages.values()][0]})`);
   const byId = new Map(results.map((r) => [r.id, r]));
   // a case whose every file is in an earlier case of the batch (the order the records are compared in)
   const filesOf = caseIds.filter((c) => caseDirOf.has(c)).map((c) => readCaseFiles(c, caseDirOf.get(c)!, notes));

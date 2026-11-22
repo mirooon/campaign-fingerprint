@@ -44,6 +44,9 @@ import {
   type RecordedLookups,
   type ScanMeta,
 } from "./collectedCase";
+import { redactHar, redactPageHtml } from "../osint/redact";
+import { hashCaseFiles, type CaseFileRecord, type CaseFileRole } from "./caseFiles";
+import type { TlsDetails } from "../osint/tlsSignals";
 
 export interface CaseLookups {
   /** Passive DNS answers for the requested record types (missing types = no records). */
@@ -99,6 +102,10 @@ export interface ImportedCase {
   sources: CollectedSource[];
   /** Page metadata from a scan service's search record. */
   scan: ScanMeta | null;
+  /** Every input file of the case this record rests on, with SHA-256 taken at import (provenance.json, evidence pack). */
+  files: CaseFileRecord[];
+  /** Time of the import (UTC ISO), the same for the whole run. */
+  importedAt: string;
 }
 
 export interface CaseImportResult {
@@ -116,6 +123,8 @@ interface HarEntry {
   _initiator?: HarInitiator;
   _resourceType?: string;
   serverIPAddress?: string;
+  /** Certificate of the connection (Chrome): issuer, names, validity as epoch seconds. */
+  _securityDetails?: { issuer?: string; subjectName?: string; sanList?: string[]; validFrom?: number | string; validTo?: number | string };
   startedDateTime?: string;
   request: { method: string; url: string };
   response: { status: number; headers?: Array<{ name: string; value: string }>; content?: { mimeType?: string; text?: string; encoding?: string } };
@@ -126,9 +135,18 @@ interface HttpFixture {
   bodyFile: string;
   /** URLs the page requested while loading (from the HAR): traces visible only in the requests. */
   requests?: string[];
+  /** Certificate the page was served with (HAR `_securityDetails`). */
+  tls?: TlsDetails;
 }
 
 const MAX_REQUESTS = 1000;
+
+/** Certificate details of a HAR entry as the fixture field `tls`; empty when the entry carries none (a HAR of plain HTTP or from a tool that does not record them). */
+function tlsOfEntry(e: HarEntry): { tls?: TlsDetails } {
+  const d = e._securityDetails;
+  if (!d || (!d.issuer && !d.sanList?.length && !d.subjectName)) return {};
+  return { tls: { issuer: d.issuer ?? null, validFrom: d.validFrom ?? null, validTo: d.validTo ?? null, sanList: d.sanList ?? [], subjectName: d.subjectName ?? null } };
+}
 
 /** Unique http(s) request URLs of a HAR, in recorded order. */
 function requestUrls(entries: HarEntry[]): string[] {
@@ -426,6 +444,8 @@ interface CaseScan {
   video: string | null;
   advertiser: string | null;
   adLibraryId: string | null;
+  /** The yt-dlp description of the video (absolute path), when there is one. */
+  infoFile: string | null;
   adPageId: string | null;
   adRecord: AdRecord | null;
   infoTime: string | null;
@@ -473,7 +493,8 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   const hars: Array<Har & { dir: string }> = [];
   for (const f of files.filter((x) => /\.har$/i.test(x.name))) {
     try {
-      const j = JSON.parse(readFileSync(abs(f), "utf8")) as { log?: { entries?: HarEntry[]; pages?: Array<{ title?: string }> } };
+      // redacted on reading: the analyst's cookies, headers and visit data never enter the record (the original's hash is in `files`)
+      const j = JSON.parse(redactHar(readFileSync(abs(f), "utf8")).text) as { log?: { entries?: HarEntry[]; pages?: Array<{ title?: string }> } };
       hars.push({ file: abs(f), caseId: id, dir: f.dir, entries: j.log?.entries ?? [], pageUrl: j.log?.pages?.[0]?.title ?? null });
     } catch (e) {
       log(`[${id}] nie udało się wczytać HAR ${f.rel}: ${(e as Error).message}`);
@@ -501,11 +522,11 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     for (const f of htmls) {
       const archivedAt = collected ? waybackTime(f.name) : null;
       if (archivedAt) {
-        const saved = unwrapWayback(readFileSync(abs(f), "utf8"));
+        const saved = redactPageHtml(unwrapWayback(readFileSync(abs(f), "utf8"))).text;
         captures.push({ name, dir: d, htmlName: f.rel, saved, savedFrom: bundleUrl, har: null, main: null, landingUrl: bundleUrl, archivedAt, inferred: false });
         continue;
       }
-      const saved = readFileSync(abs(f), "utf8");
+      const saved = redactPageHtml(readFileSync(abs(f), "utf8")).text;
       const savedFrom = httpUrl(savedFromUrl(saved)) ?? bundleUrl;
       let har: Har | null = null;
       if (savedFrom) har = dirHars.find((h) => mainDocument(h.entries, savedFrom)) ?? hars.find((h) => mainDocument(h.entries, savedFrom)) ?? null;
@@ -583,6 +604,7 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     video: videos[0] ? abs(videos[0]) : null,
     advertiser,
     adLibraryId,
+    infoFile: info ? abs(info) : null,
     adPageId,
     adRecord,
     infoTime,
@@ -593,7 +615,16 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
 
 export async function importCases(o: CaseImportOptions): Promise<CaseImportResult> {
   const log = o.log ?? (() => {});
+  const importedAt = new Date().toISOString();
   const fix = path.join(o.outDir, "fixtures");
+  /** Checksums by role and path: a screenshot shared by several pages of a case is read once. */
+  const hashed = new Map<string, CaseFileRecord>();
+  const filesOf = (entries: Array<{ role: CaseFileRole; file: string }>): CaseFileRecord[] =>
+    entries.map((e) => {
+      const key = `${e.role}|${e.file}`;
+      if (!hashed.has(key)) hashed.set(key, hashCaseFiles([e])[0]);
+      return hashed.get(key)!;
+    });
   const http: Record<string, HttpFixture> = {};
   const dns: Record<string, Partial<Record<DnsRecordType, string[]>>> = {};
   const cymru: Record<string, string[]> = {};
@@ -642,6 +673,20 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       sources: s.collected?.sources ?? [],
       scan: s.collected?.scan ?? null,
     };
+    const mediaFiles: Array<{ role: CaseFileRole; file: string }> = [
+      ...(media.screenshot ? [{ role: "screenshot" as const, file: media.screenshot }] : []),
+      ...media.moreScreenshots.map((file) => ({ role: "more_screenshot" as const, file })),
+      ...media.pageScreenshots.map((file) => ({ role: "page_screenshot" as const, file })),
+      ...(media.video ? [{ role: "video" as const, file: media.video }] : []),
+      ...(s.infoFile ? [{ role: "info_json" as const, file: s.infoFile }] : []),
+    ];
+    /** Files behind one page record: its HAR and saved page, and the media of the case. */
+    const filesOfCapture = (c: Capture | null) =>
+      filesOf([
+        ...(c?.har ? [{ role: "har" as const, file: c.har.file }] : []),
+        ...(c?.htmlName ? [{ role: "saved_html" as const, file: path.join(s.dir, ...c.htmlName.split("/")) }] : []),
+        ...mediaFiles,
+      ]);
     const hasMedia = !!(media.screenshot || media.video || media.adLibraryId || media.adRecord);
     if (!s.captures.length && !hasMedia) continue; // not a case folder
 
@@ -696,7 +741,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       const target = s.collected?.target ?? s.adRecord?.landingUrl ?? null;
       const targetHost = target ? normalizeUrl(target)?.host : null;
       if (targetHost) landingHosts.add(targetHost);
-      push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, firstSeen: mediaTime ?? s.infoTime });
+      push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, files: filesOfCapture(null), importedAt, firstSeen: mediaTime ?? s.infoTime });
       log(`[${id}] bez strony docelowej | zrzuty: ${s.screenshots.length} | wideo: ${media.video ? "tak" : "nie"}${media.adLibraryId ? ` | biblioteka reklam: ${media.adLibraryId}` : ""}`);
       continue;
     }
@@ -735,6 +780,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         headers: { "content-type": "text/html; charset=utf-8", ...(c.main ? harHeaders(c.main) : {}) },
         bodyFile,
         ...(requests.length ? { requests } : {}),
+        ...(c.main ? tlsOfEntry(c.main) : {}),
       };
       if (!c.main && c.htmlName) {
         // Images of the saved page (favicon), under the addresses its rewritten links resolve to.
@@ -819,6 +865,8 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         harFromCase,
         savedHtml: c.htmlName,
         ...media,
+        files: filesOfCapture(c),
+        importedAt,
         firstSeen: c.archivedAt ?? earliestHar(c) ?? mediaTime ?? s.infoTime,
       });
       log(
@@ -931,7 +979,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     ...(has("last_seen") ? { lastSeen: "last_seen" } : {}),
   };
   write(path.join(o.outDir, "mapping.json"), JSON.stringify(mapping, null, 1));
-  write(path.join(o.outDir, "provenance.json"), JSON.stringify({ generatedAt: new Date().toISOString(), lookups: !!o.lookups, cases, skipped, failedLookups }, null, 1));
+  write(path.join(o.outDir, "provenance.json"), JSON.stringify({ generatedAt: importedAt, lookups: !!o.lookups, cases, skipped, failedLookups }, null, 1));
   failedLookups.sort();
   return { cases, skipped, httpEntries: Object.keys(http).length, failedLookups };
 }

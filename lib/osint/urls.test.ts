@@ -108,6 +108,15 @@ describe("normalizeUrl fragment", () => {
   });
 });
 
+describe("normalizeUrl secrets of the analyst's visit", () => {
+  it("drops a Meta token and the analyst's IP from the key, so they never link two ads, and keeps other parameters", () => {
+    const n = normalizeUrl("https://lp.example/p?offer=7&token=EAABsbCS1iHgBO7Zx9&ip=192.0.2.10&access_token=EABCdefgh1")!;
+    expect(n.url).toBe("https://lp.example/p?offer=7");
+    expect(n.removedParams.sort()).toEqual(["access_token", "ip", "token"]);
+    expect(normalizeUrl("https://lp.example/p?ip=abc&name=EagleEye")!.url).toBe("https://lp.example/p?ip=abc&name=EagleEye");
+  });
+});
+
 describe("unwrapPlatformUrl (B-215)", () => {
   it("returns the target of Facebook, Instagram, Google and ad-click wrappers", () => {
     expect(unwrapPlatformUrl("https://l.facebook.com/l.php?u=https%3A%2F%2Fx.example%2Foferta%3Fa%3D1&h=AT0abc")).toBe("https://x.example/oferta?a=1");

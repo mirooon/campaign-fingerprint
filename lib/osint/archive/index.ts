@@ -7,7 +7,7 @@
  * The rules (`judgeCopy`, `earliestAcceptable`) are pure; the network sits in the adapters.
  */
 import { existsSync } from "node:fs";
-import { createCache, TTL, type FileCache } from "../../cache";
+import { CACHE_TTL, createCache, TTL, type FileCache } from "../../cache";
 import { ARCHIVE_SOURCE_NAMES, DEFAULT_ARCHIVE_CONFIG, type ArchiveConfig } from "./config";
 import { ArchiveLookupError } from "./http";
 import type { ArchivedCopy, ArchiveOutcome, ArchiveSource } from "./types";
@@ -193,7 +193,7 @@ export interface ArchiveSourceOptions {
 /** The named sources, cached; urlscan reads its key from URLSCAN_API_KEY. */
 export function createArchiveSources(names: Array<ArchiveSource["name"]>, opts: ArchiveSourceOptions = {}): ArchiveSource[] {
   const config = opts.config ?? DEFAULT_ARCHIVE_CONFIG;
-  const cache = opts.cache === false ? null : (opts.cache ?? createCache({ namespace: "archive", defaultTtlMs: TTL.day }));
+  const cache = opts.cache === false ? null : (opts.cache ?? createCache({ namespace: "archive", defaultTtlMs: CACHE_TTL.archive }));
   const wrap = (source: ArchiveSource, tag: string) => (cache ? withCache(source, cache, tag, config) : source);
   return names.map((name) =>
     name === "urlscan"

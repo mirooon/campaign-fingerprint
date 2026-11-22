@@ -20,8 +20,11 @@ services:
       # A ready base from the non-public data pack (read-only) instead of the one built into ./dane/baza,
       # described in docs/DANE-NIEPUBLICZNE.md:
       # - /ścieżka/do/paczki/baza:/dane/baza:ro
+      # Your own copy of the cases, for the relative paths in that base (with CASES_DIR=/sprawy below):
+      # - /ścieżka/do/spraw:/sprawy:ro
     environment:
       VIEWER_DATA_DIR: ${VIEWER_DATA_DIR:-/dane/baza}
+      CASES_DIR: ${CASES_DIR:-}
       ANALYZE_OFFLINE: ${ANALYZE_OFFLINE:-1}
       TZ: ${TZ:-Europe/Warsaw}
       LLM_PROVIDER: ${LLM_PROVIDER:-ollama}

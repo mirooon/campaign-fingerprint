@@ -4,7 +4,7 @@
  * `parseRdap` is pure and tolerant of registry differences; `lookupRdap`
  * performs one passive HTTPS GET (cached for a week, 404 cached as null).
  */
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import { toAsciiHost } from "./urls";
 
 export interface RdapInfo {
@@ -18,6 +18,8 @@ export interface RdapInfo {
   nameservers: string[];
   abuseEmail: string | null;
   source: string | null;
+  /** The registrant entity carries a redaction or privacy-service marker (REDACTED, "privacy", "proxy"); absent when it does not or when the response has no registrant. Most registrars do this, so it is a weak hint. */
+  registrantHidden?: boolean;
 }
 
 export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
@@ -171,6 +173,9 @@ export function parseRdap(json: unknown, domain: string): RdapInfo {
     ),
   ].sort();
 
+  const registrant = findEntity(root, "registrant");
+  if (registrant && /redact|privacy|proxy|withheld|not disclosed|data protected|gdpr/i.test(JSON.stringify(registrant))) info.registrantHidden = true;
+
   const abuse = findEntity(root, "abuse");
   const abuseEmail = abuse ? vcardValue(abuse, "email") : null;
   info.abuseEmail = abuseEmail ? abuseEmail.replace(/^mailto:/i, "").toLowerCase() : null;
@@ -199,7 +204,7 @@ export function rdapSuspended(status: string[] | null | undefined, holds: string
 
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
-  if (!defaultCache) defaultCache = createCache({ namespace: "rdap", defaultTtlMs: TTL.week });
+  if (!defaultCache) defaultCache = createCache({ namespace: "rdap", defaultTtlMs: CACHE_TTL.rdap });
   return defaultCache;
 }
 

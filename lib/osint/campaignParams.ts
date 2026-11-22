@@ -11,6 +11,7 @@
  * graph layer's job. Pure functions, no network access.
  */
 import { scanTags, splitHtml } from "./extract";
+import { isSecretParam, maskUrl } from "./redact";
 
 export type CampaignParamName =
   | "utm_source"
@@ -225,13 +226,15 @@ function isMacro(value: string): boolean {
 }
 
 /**
- * Builds a campaign parameter from a raw name and value, or returns null when the value is empty or
- * outside the format of its parameter (VALUE_FORMAT by canonical name, NAME_VALUE_FORMAT by raw name).
- * The value is whitespace-collapsed and cut to MAX_VALUE characters.
+ * Builds a campaign parameter from a raw name and value, or returns null when the value is empty,
+ * a secret of the visit (isSecretParam) or outside the format of its parameter (VALUE_FORMAT by canonical
+ * name, NAME_VALUE_FORMAT by raw name). The value is whitespace-collapsed and cut to MAX_VALUE characters.
  */
 function makeParam(name: string, canonicalName: CampaignParamName, rawValue: string, sourceUrl: string, origin?: ParamOrigin): CampaignParam | null {
   const value = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_VALUE);
   if (!value) return null;
+  // a token or the analyst's IP under a campaign-like name is a secret of the visit, never a link between ads
+  if (isSecretParam(name, value)) return null;
   if (VALUE_FORMAT[canonicalName] && !VALUE_FORMAT[canonicalName].test(value)) return null;
   const nameFormat = NAME_VALUE_FORMAT[name.trim().toLowerCase()];
   if (nameFormat && !nameFormat.test(value)) return null;
@@ -273,7 +276,7 @@ export function extractCampaignParams(urls: Array<string | null | undefined>): C
       for (const [name, rawValue] of params) {
         const canonicalName = canonicalParamName(name);
         if (!canonicalName) continue;
-        const param = makeParam(name, canonicalName, rawValue, raw.trim());
+        const param = makeParam(name, canonicalName, rawValue, maskUrl(raw.trim()));
         if (!param) continue;
         const key = `${canonicalName}\u0000${param.value.toLowerCase()}`;
         if (seen.has(key)) continue;

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { ToolRunner } from "../media/tools";
 import { adLibraryUrl, lookupAdLibrary, parseAdLibraryOutput } from "./adLibrary";
@@ -18,6 +19,15 @@ describe("Meta Ad Library adapter", () => {
     expect(out["1000000000000101"]).toMatchObject({ payers: ["Testowa Spolka"], takenDown: true, euReach: 123456, ageMin: 35, locations: ["Poland"], error: null });
     expect(out["1000000000000303"].error).toBe("rate limited");
     expect(out["1111111111111"].error).toBe("brak odpowiedzi");
+  });
+
+  it("records the SHA-256 of the raw record and the time of the fetch", async () => {
+    const parsed = parseAdLibraryOutput(SAMPLE, ["1000000000000101"])["1000000000000101"];
+    const raw = (JSON.parse(SAMPLE) as { ads: Record<string, unknown> }).ads["1000000000000101"];
+    expect(parsed.rawSha256).toBe(createHash("sha256").update(JSON.stringify(raw)).digest("hex"));
+    const run: ToolRunner = async () => ({ code: 0, stdout: SAMPLE, stderr: "", timedOut: false });
+    const out = await lookupAdLibrary(["1000000000000101"], { python: "/x/python", run, now: () => new Date("2026-11-18T10:00:00Z") });
+    expect(out["1000000000000101"]).toMatchObject({ fetchedAt: "2026-11-18T10:00:00.000Z", rawSha256: parsed.rawSha256 });
   });
 
   it("passes only valid IDs to the helper and maps a failed run to errors", async () => {

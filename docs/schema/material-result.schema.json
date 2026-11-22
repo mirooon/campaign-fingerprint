@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "mode": {
+      "type": "string",
+      "enum": [
+        "offline",
+        "hybrid"
+      ]
+    },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "caseId": {
+            "type": "string"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "known_campaign",
+              "similar_campaigns",
+              "new_campaign",
+              "duplicate",
+              "insufficient"
+            ]
+          },
+          "verdictText": {
+            "type": "string"
+          },
+          "campaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "similarCampaigns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "apart": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "withNew": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "newCampaign": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "duplicateOf": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "reason": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "reason"
+            ],
+            "additionalProperties": {}
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "other": {
+                  "type": "string"
+                },
+                "otherCampaign": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "score": {
+                  "type": "number"
+                },
+                "strong": {
+                  "type": "boolean"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "evidence": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "evidence": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number"
+                      },
+                      "strong": {
+                        "type": "boolean"
+                      },
+                      "discounted": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "evidence",
+                      "weight",
+                      "strong",
+                      "discounted"
+                    ],
+                    "additionalProperties": {}
+                  }
+                }
+              },
+              "required": [
+                "other",
+                "otherCampaign",
+                "score",
+                "strong",
+                "rule",
+                "evidence"
+              ],
+              "additionalProperties": {}
+            }
+          },
+          "features": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {}
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "verdict",
+          "verdictText",
+          "campaign",
+          "similarCampaigns",
+          "apart",
+          "withNew",
+          "links",
+          "features",
+          "errors"
+        ],
+        "additionalProperties": {}
+      }
+    },
+    "newCampaigns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "members",
+          "evidence"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "skipped": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "reason"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "caseId": {
+            "type": "string"
+          },
+          "step": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "caseId",
+          "step",
+          "status"
+        ],
+        "additionalProperties": {}
+      }
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "required": [
+    "mode",
+    "items",
+    "skipped",
+    "steps",
+    "notes"
+  ],
+  "additionalProperties": {},
+  "$id": "https://odcisk-kampanii.example/schema/v1.0/material-result.schema.json",
+  "x-contract-version": "1.0"
+}

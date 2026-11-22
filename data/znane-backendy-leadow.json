@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "note": "Znane backendy leadów i walidatory obsługujące wiele oszustw, z publicznych raportów. Etykieta wiedzy przy przesłance: nie zmienia wagi ani reguł łączenia.",
+  "entries": [
+    {
+      "domain": "getyourapi.site",
+      "source": "Infoblox 2024, Savvy Seahorse",
+      "url": "https://www.infoblox.com/blog/threat-intelligence/beware-the-shallow-waters-savvy-seahorse-lures-victims-to-fake-investment-platforms-through-facebook-ads/",
+      "accessed": "2026-11-21",
+      "note": "backend zbierania leadów z formularzy stron presell (adres z raportu badania w sieci, sygnał 1)"
+    },
+    {
+      "domain": "mcraftdb.tech",
+      "source": "Infoblox 2024, Savvy Seahorse",
+      "url": "https://www.infoblox.com/blog/threat-intelligence/beware-the-shallow-waters-savvy-seahorse-lures-victims-to-fake-investment-platforms-through-facebook-ads/",
+      "accessed": "2026-11-21",
+      "note": "API przyjmujące formularze (ścieżka /api/v1/submit/<uuid>/); adres z raportu badania w sieci, sygnał 1"
+    }
+  ],
+  "todo": "Cztery backendy obsługujące wiele oszustw z phishdestroy.io: lista do uzupełnienia po lekturze strony (nie było jej w materiałach lokalnych, a zadanie nie łączy się z siecią)."
+}

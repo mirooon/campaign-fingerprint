@@ -3,6 +3,9 @@
 import { useMemo, useState } from "react";
 import { DEFAULT_LINK_CONFIG } from "@/lib/graph/config";
 import { explain } from "@/lib/graph/explain";
+import { familyShares, markShared } from "@/lib/viewer/compareView";
+import { nodeTypeLabel } from "@/lib/viewer/fields";
+import { FAMILY_LABEL } from "@/lib/viewer/families";
 import { ENTITY_LABELS_PL, type EvidenceGraph, type GraphNode, type PairEvidence } from "@/lib/graph/model";
 import { itemOptions, pairLink, sharedEntities, similarityLabel, weightFormula, weightPartsOf, type ItemOption } from "./compare";
 import { pathLabel, type GraphIndex } from "./graphView";
@@ -174,6 +177,40 @@ export default function ComparePanel({ graph, idx, minLinkScore, a, b, onChange,
             <p className="mt-0.5 text-xs">{result.ex.summary}</p>
           </div>
 
+          {result.link && familyShares(result.link.evidence).length > 0 && (
+            <section aria-label="Z czego składa się wynik">
+              <h3 className="text-sm font-semibold text-slate-900">Z czego składa się wynik</h3>
+              <div className="mt-1 flex h-4 w-full overflow-hidden rounded bg-slate-100" role="img" aria-label={familyShares(result.link.evidence).map((f) => `${FAMILY_LABEL[f.family]} ${f.percent}%`).join(", ")}>
+                {familyShares(result.link.evidence).map((f, i) => (
+                  <span key={f.family} className={["bg-slate-900", "bg-slate-600", "bg-slate-400", "bg-slate-300"][Math.min(i, 3)]} style={{ width: `${f.percent}%` }} title={`${FAMILY_LABEL[f.family]}: ${f.percent}%`} />
+                ))}
+              </div>
+              <p className="mt-1 text-xs text-slate-700">{familyShares(result.link.evidence).map((f) => `${FAMILY_LABEL[f.family]} ${f.percent}%`).join(" · ")}</p>
+            </section>
+          )}
+
+          {(() => {
+            const ta = idx.nodeById.get(`item:${a}`)?.data.text;
+            const tb = idx.nodeById.get(`item:${b}`)?.data.text;
+            if (typeof ta !== "string" || typeof tb !== "string") return null;
+            const marked = markShared(ta, tb);
+            if (![...marked.a, ...marked.b].some((seg) => seg.shared)) return null;
+            return (
+              <section aria-label="Wspólny tekst">
+                <h3 className="text-sm font-semibold text-slate-900">Wspólny tekst</h3>
+                <p className="mt-0.5 text-[11px] text-slate-500">Zaznaczone są fragmenty co najmniej czterech słów, które mają obie reklamy.</p>
+                <div className="mt-1 grid gap-2 sm:grid-cols-2">
+                  {[{ key: a, segs: marked.a }, { key: b, segs: marked.b }].map(({ key, segs }) => (
+                    <p key={key} className="rounded border border-slate-200 bg-white p-2 text-xs leading-relaxed">
+                      <span className="mb-0.5 block font-mono text-[10px] text-slate-500">{key}</span>
+                      {segs.map((seg, i) => (seg.shared ? <mark key={i} className="rounded bg-amber-200 px-0.5 text-slate-900">{seg.text}</mark> : <span key={i}>{seg.text}</span>))}
+                    </p>
+                  ))}
+                </div>
+              </section>
+            );
+          })()}
+
           <section>
             <h3 className="text-sm font-semibold text-slate-900">
               Bezpośrednie powiązanie {itemButton(a)} ⟷ {itemButton(b)}
@@ -239,7 +276,7 @@ export default function ComparePanel({ graph, idx, minLinkScore, a, b, onChange,
                 {result.shared.slice(0, 15).map(({ node, inDirect }) => (
                   <li key={node.id} className="rounded border border-slate-100 px-2 py-1 text-xs">
                     <div className="flex items-baseline gap-2">
-                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-slate-500">{ENTITY_LABELS_PL[node.type]}</span>
+                      <span className="shrink-0 text-[10px] uppercase tracking-wide text-slate-500">{nodeTypeLabel(node)}</span>
                       <button type="button" onClick={() => onSelect(node.id)} className={`min-w-0 truncate text-left hover:underline ${node.discounts.length ? "text-slate-500" : "text-slate-900"}`} title={node.key}>
                         {node.label}
                       </button>

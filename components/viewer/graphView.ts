@@ -5,6 +5,7 @@
  */
 import type { ElementDefinition } from "cytoscape";
 import { isSimilarityEdge, type CampaignsFile, type EvidenceGraph, type GraphEdge, type GraphNode, type ItemLink } from "@/lib/graph/model";
+import type { ReducedGraph } from "@/lib/viewer/reducedGraph";
 import { campaignHasPersona } from "./compare";
 import { campaignColor, TYPE_COLORS } from "./palette";
 
@@ -152,6 +153,35 @@ export function toElements(
       classes: classes.join(" "),
     });
   }
+  return els;
+}
+
+/**
+ * Cytoscape elements of the reduced graph (campaigns, shared traces, unfolded materials). `campaignIndex` gives the
+ * colour of a campaign; campaigns are drawn larger than traces, and the nodes a click unfolds carry the class `expandable`.
+ */
+export function reducedToElements(r: ReducedGraph, campaignIndex: Map<string, { index: number; size: number }>): ElementDefinition[] {
+  const color = (campaignId: string | undefined) => {
+    const c = campaignId ? campaignIndex.get(campaignId) : undefined;
+    return campaignColor(c?.index ?? 0, c?.size ?? 1);
+  };
+  const els: ElementDefinition[] = r.nodes.map((n) => {
+    const classes: string[] = [n.kind === "item" ? "item" : "entity", n.kind];
+    if (n.strong) classes.push("strong");
+    if (n.expandable) classes.push("expandable");
+    return {
+      group: "nodes",
+      data: {
+        id: n.id,
+        label: n.kind === "trace" ? truncate(n.label, 34) : n.label,
+        color: n.kind === "trace" ? (n.type ? TYPE_COLORS[n.type] : "#cbd5e1") : color(n.campaignId),
+        type: n.type ?? n.kind,
+        size: n.kind === "campaign" ? Math.min(60, 22 + Math.sqrt(n.size) * 8) : n.kind === "trace" ? Math.min(30, 12 + Math.sqrt(Math.max(1, n.size)) * 3) : 22,
+      },
+      classes: classes.join(" "),
+    };
+  });
+  for (const e of r.edges) els.push({ group: "edges", data: { id: e.id, source: e.source, target: e.target, weight: e.weight }, classes: "reduced" });
   return els;
 }
 

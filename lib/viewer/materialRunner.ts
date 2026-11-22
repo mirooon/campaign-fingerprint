@@ -12,6 +12,7 @@ import { archiveStepOptions } from "../pipeline/archiveContext";
 import { resolveLinkConfigFile } from "../pipeline/linkConfigFile";
 import { liveSources } from "../pipeline/sources";
 import { loadLinkConfig } from "../pipeline/steps";
+import { saveCaptured } from "./addToBaseJob";
 import { compileWatchlist, loadWatchlist } from "../text/persona";
 
 export interface RunnerSpec {
@@ -61,12 +62,14 @@ async function main(): Promise<void> {
       dataDir,
       workDir: spec.workDir,
       fixtures: spec.fixtures,
+      casesDir: process.env.CASES_DIR || undefined,
       live: spec.live ? liveSources({ skipCt: true }) : null,
       archive: archiveStepOptions({ enabled: !!spec.archive, screenshotDir: path.join(spec.workDir, "archiwum") }),
       config: loadLinkConfig(configFile ?? undefined),
       personas: personasFile ? compileWatchlist(loadWatchlist(personasFile)) : null,
       media: { ocr: true, asr: !!spec.asr, audio: !!spec.asr, clip: false, speaker: false, adLibrary: false },
       log: (m) => emit({ t: "log", m }),
+      onAnalyzed: (a) => saveCaptured(spec.workDir, a),
       onProgress: (e) => emit({ t: "progress", ...e }),
     },
   );

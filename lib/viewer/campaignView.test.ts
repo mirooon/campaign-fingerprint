@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Campaign } from "@/lib/graph/model";
-import { basisNote, campaignTitle, cohesionLabel, groupCampaigns } from "./campaignView";
+import { basisNote, campaignMatchesFilter, campaignTitle, cohesionLabel, groupCampaigns, narrativeOptions, platformOptions } from "./campaignView";
 
 function camp(id: string, over: Partial<Campaign> = {}): Campaign {
   return {
@@ -42,5 +42,36 @@ describe("groupCampaigns", () => {
     expect(g.families[0].campaigns.map((c) => c.id)).toEqual(["K1", "K2"]);
     expect(g.alone.map((c) => c.id)).toEqual(["K3"]);
     expect(g.singletons.map((c) => c.id)).toEqual(["K4"]);
+  });
+});
+
+const withNarrative = (id: string, topic: string, platform: string, first: string, last: string) =>
+  camp(id, {
+    firstSeen: first,
+    lastSeen: last,
+    attributes: {
+      personas: [], cyrillic: 0, cloakingSuspected: 0, deepfakeScoreMax: null,
+      narrative: { topics: [{ id: topic, count: 2, firstSeen: first, lastSeen: last }], hooks: [], labels: [], switches: [] },
+      platforms: [{ id: platform, count: 2 }],
+    },
+  });
+
+describe("nazwa i filtry kampanii z narracją (B-033)", () => {
+  it("nazwa kampanii zawiera główny temat narracji między osobą a domeną", () => {
+    expect(campaignTitle(withNarrative("K05", "investment", "aio", "2026-09-01T00:00:00Z", "2026-09-02T00:00:00Z"))).toBe("inwestycje · a.example · K05");
+    expect(campaignTitle(camp("K03", { attributes: { personas: [{ id: "a", name: "Adam Testowy", count: 1 }], cyrillic: 0, cloakingSuspected: 0, deepfakeScoreMax: null, narrative: { topics: [{ id: "health", count: 1, firstSeen: null, lastSeen: null, subtopics: ["joints"] }], hooks: [], labels: [], switches: [] } } }))).toBe("Adam Testowy · zdrowie (stawy) · a.example · K03");
+  });
+  const list = [withNarrative("K1", "investment", "aio", "2026-09-01T00:00:00Z", "2026-09-05T00:00:00Z"), withNarrative("K2", "subsidy", "builder-x", "2026-10-01T00:00:00Z", "2026-10-09T00:00:00Z"), camp("K3")];
+  it("opcje filtra to narracje i platformy obecne w kampaniach, z liczbą kampanii", () => {
+    expect(narrativeOptions(list)).toEqual([{ id: "subsidy", label: "dotacje i świadczenia", campaigns: 1 }, { id: "investment", label: "inwestycje", campaigns: 1 }]);
+    expect(platformOptions(list)).toEqual([{ id: "aio", campaigns: 1 }, { id: "builder-x", campaigns: 1 }]);
+  });
+  it("filtr narracji, platformy i okresu zawęża listę; pusty filtr nie zawęża", () => {
+    const ids = (f: Parameters<typeof campaignMatchesFilter>[1]) => list.filter((c) => campaignMatchesFilter(c, f)).map((c) => c.id);
+    expect(ids({})).toEqual(["K1", "K2", "K3"]);
+    expect(ids({ topic: "subsidy" })).toEqual(["K2"]);
+    expect(ids({ platform: "aio" })).toEqual(["K1"]);
+    expect(ids({ from: "2026-09-20" })).toEqual(["K2"]);
+    expect(ids({ to: "2026-09-10" })).toEqual(["K1"]);
   });
 });

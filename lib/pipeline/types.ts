@@ -8,6 +8,7 @@ import type { DnsRecords } from "../osint/dns";
 import type { PageExtract, TextExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
 import type { RdapInfo } from "../osint/rdap";
+import type { TlsDetails } from "../osint/tlsSignals";
 import type { NormalizedUrl } from "../osint/urls";
 import type { FaviconHashes, ImageHashes } from "../media/imageHash";
 import type { AudioFingerprint } from "../media/audioFp";
@@ -76,6 +77,8 @@ export interface DomainInfo {
   ct: CtResult | null;
   /** An archived copy of a page of this domain predates its registration in RDAP: the domain was registered again (the old content is not the current operator's). */
   reRegistered?: boolean;
+  /** Live runs only: the domain of a contact address (not the shop's own) has an MX record and does not answer HTTP(S) (a mail-only domain or a dead one). */
+  contactDomainDead?: boolean;
 }
 
 export interface FaviconInfo {
@@ -91,6 +94,8 @@ export interface PageInfo {
   favicon: FaviconInfo | null;
   /** Page-kit fingerprint (form backends, DOM simhash, hidden fields, assets, comments). */
   kit: PageKit | null;
+  /** Certificate the page was served with (HAR of the case); absent without it. */
+  tls?: TlsDetails;
   /** Archived decoded HTML (path relative to the project root), named by the raw-body SHA-256. */
   archiveFile: string | null;
   /** Optional cloaking check (two extra GETs with a crawler and a mobile User-Agent). */

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -78,6 +79,19 @@ describe("importCases (saved page + HAR + screenshot per case -> offline fixture
       { id: "sprawa-2", landing_url: "https://lp-two.test/offer", screenshot: null, first_seen: null },
     ]);
     expect(JSON.parse(readFileSync(path.join(out, "mapping.json"), "utf8"))).toEqual({ id: "id", landingUrl: "landing_url", imagePath: "screenshot", firstSeen: "first_seen" });
+  });
+
+  it("records the SHA-256, size and import time of every input file of a case in provenance.json", async () => {
+    await importCases({ casesDir: cases, outDir: out });
+    const prov = JSON.parse(readFileSync(path.join(out, "provenance.json"), "utf8")) as {
+      generatedAt: string;
+      cases: Array<{ id: string; importedAt: string; files: Array<{ role: string; path: string; sha256: string | null; size: number; modifiedUtc: string | null }> }>;
+    };
+    const c1 = prov.cases.find((c) => c.id === "sprawa-1")!;
+    expect(c1.files.map((f) => f.role).sort()).toEqual(["har", "saved_html", "screenshot"]);
+    for (const f of c1.files) expect(f.sha256, f.role).toBe(createHash("sha256").update(readFileSync(f.path)).digest("hex"));
+    expect(c1.files.find((f) => f.role === "screenshot")!.size).toBe(ICON.length);
+    expect(c1.importedAt).toBe(prov.generatedAt);
   });
 
   it("serves the raw HAR document (not an embedded frame) at the normalised landing URL, with its headers and IPs", async () => {
@@ -507,5 +521,25 @@ describe("importCases: requests of the analyst's browser extensions (B-116)", ()
     const reqs = fixtureSources(path.join(dir, "out", "fixtures")).requestsFor?.(PAGE) ?? [];
     expect(reqs.some((u) => u.includes("rozszerzenie-analityka"))).toBe(false);
     expect(reqs).toContain("https://trk.przyklad.test/event");
+  });
+});
+
+describe("importCases: certificate of the page from the HAR", () => {
+  let dir: string;
+  const PAGE = "https://lander-certyfikat.example/";
+
+  beforeAll(async () => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "case-import-tls-"));
+    const c = path.join(dir, "cases", "tls-1");
+    mkdirSync(c, { recursive: true });
+    const main = { ...entry(PAGE, "document", "<html><body>STRONA</body></html>", "text/html", "192.0.2.80", "2026-02-01T10:00:01.000Z"), _securityDetails: { issuer: "Test CA", subjectName: "inny.test", sanList: ["inny.test"], validFrom: 1769904000, validTo: 1772496000 } };
+    writeFileSync(path.join(c, "tls.har"), JSON.stringify({ log: { pages: [{ title: PAGE }], entries: [main] } }));
+    await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("keeps the issuer, names and validity of the document's certificate as a fixture of the page", () => {
+    const tls = fixtureSources(path.join(dir, "out", "fixtures")).tlsFor?.(PAGE);
+    expect(tls).toEqual({ issuer: "Test CA", validFrom: 1769904000, validTo: 1772496000, sanList: ["inny.test"], subjectName: "inny.test" });
   });
 });

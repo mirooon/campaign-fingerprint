@@ -9,3 +9,39 @@ html,
 body {
   font-family: var(--font-sans);
 }
+
+/* Wydruk karty kampanii (PrintButton): tylko karta, A4, tabele i wiersze nie są przecinane. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  body * {
+    visibility: hidden;
+  }
+  [data-print-target],
+  [data-print-target] * {
+    visibility: visible;
+  }
+  [data-print-target] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    overflow: visible;
+    border: 0;
+  }
+  [data-print-target] [data-no-print] {
+    display: none;
+  }
+  [data-print-target] table {
+    width: 100%;
+    table-layout: fixed;
+    overflow-wrap: anywhere;
+  }
+  [data-print-target] tr,
+  [data-print-target] li,
+  [data-print-target] img {
+    break-inside: avoid;
+  }
+}

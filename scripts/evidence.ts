@@ -5,7 +5,11 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { loadCertList } from "../lib/evidence/certListFile";
 import { exportEvidencePack } from "../lib/evidence/pack";
+import type { PackProvenance } from "../lib/evidence/sourceFiles";
+import { parseReports } from "../lib/evidence/reports";
+import { stampManifest } from "../lib/evidence/tsa";
 import type { CampaignsFile, EvidenceGraph } from "../lib/graph/model";
 import { DEFAULTS, loadLinkConfig, readJson } from "../lib/pipeline/steps";
 import type { CampaignSummary } from "../lib/pipeline/summary";
@@ -21,6 +25,10 @@ const args = cli(
     enriched: { type: "string" },
     config: { type: "string" },
     tlp: { type: "string" },
+    "cert-list": { type: "string" },
+    tsa: { type: "string" },
+    prior: { type: "string" },
+    provenance: { type: "string" },
     "submitter-name": { type: "string" },
     "submitter-email": { type: "string" },
     "submitter-address": { type: "string" },
@@ -28,10 +36,14 @@ const args = cli(
   } as const,
   `Użycie: bun run evidence -- --campaign K01 [--out data/evidence/K01] [--enriched data/work/enriched.json] [--config linking.json]
   [--submitter-name "…"] [--submitter-email "…"] [--submitter-address "…"] [--submitter-role "…"] [--tlp TLP:AMBER]
+  [--provenance data/provenance.json] (sumy plików wejściowych sprawy z importu; domyślnie data/provenance.json, jeśli istnieje)
+  [--tsa https://…] (znacznik czasu RFC 3161 na manifest przez openssl i sieć; bez tego lub bez sieci timestamp_token = null z powodem)
+  [--prior zgloszenia.jsonl] (dziennik wcześniejszych zgłoszeń: JSON lines lub tablica; odbiorca, reported_utc, category, status)
+  [--cert-list domains.json] (lokalna kopia Listy Ostrzeżeń CERT; domyślnie CERT_LIST_FILE; bez zapytań online)
 Paczka wg sekcji 5 raportu prawnego: evidence.json, evidence.md, cert-domains.txt, dsa-art16-notice.md, files/, manifest.sha256.`,
 );
 
-void main(() => {
+void main(async () => {
   if (!args.campaign) throw new Error("podaj --campaign (np. K01)");
   const enrichedFile = args.enriched ?? DEFAULTS.enriched;
   if (!existsSync(enrichedFile)) throw new Error(`brak ${enrichedFile} — najpierw uruchom enrich (np. bun run pipeline --offline)`);
@@ -43,6 +55,10 @@ void main(() => {
   }
   const pkg = JSON.parse(readFileSync("package.json", "utf8")) as { name: string; version: string };
   const summariesFile = "data/summaries.json";
+  const cert = loadCertList(args["cert-list"]);
+  const provenanceFile = args.provenance ?? path.join(path.dirname(args.graph ?? DEFAULTS.graph), "provenance.json");
+  const prior = args.prior ? parseReports(readFileSync(args.prior, "utf8")) : null;
+  for (const e of prior?.errors ?? []) console.warn(`[evidence] ${args.prior} wiersz ${e.line}: ${e.reason}`);
   const res = exportEvidencePack({
     campaignId: args.campaign,
     graph: readJson<EvidenceGraph>(args.graph ?? DEFAULTS.graph),
@@ -52,6 +68,10 @@ void main(() => {
     config: loadLinkConfig(args.config ?? DEFAULTS.config),
     outDir: args.out ?? path.join(DEFAULTS.evidence, args.campaign),
     tlp: args.tlp,
+    provenance: existsSync(provenanceFile) ? readJson<PackProvenance>(provenanceFile) : null,
+    priorReports: prior?.entries,
+    certList: cert.snapshot,
+    certListNote: cert.reason ?? undefined,
     submitter: {
       name: args["submitter-name"],
       email: args["submitter-email"],
@@ -60,6 +80,10 @@ void main(() => {
     },
     toolVersion: { name: pkg.name, version: pkg.version, gitCommit },
   });
+  if (args.tsa) {
+    const stamp = await stampManifest(res.outDir, args.tsa);
+    console.log(stamp.ok ? `[evidence] znacznik czasu: ${stamp.file}` : `[evidence] brak znacznika czasu: ${stamp.reason}`);
+  }
   console.log(`[evidence] paczka kampanii ${args.campaign} -> ${res.outDir}`);
   console.log(`[evidence] pliki: ${res.files.length}; domeny dla CERT: ${res.certDomains.length} (${res.certDomains.slice(0, 6).join(", ")}${res.certDomains.length > 6 ? ", …" : ""})`);
   console.log(`[evidence] weryfikacja: (cd ${res.outDir} && shasum -a 256 -c manifest.sha256)`);

@@ -53,6 +53,7 @@ const args = cli(
 --data: katalog z graph.json, campaigns.json i enriched.json (domyślnie VIEWER_DATA_DIR albo data/).
 --live: pasywne DNS, RDAP i ASN oraz jeden GET strony, której nie ma w materiale. Bez tego tylko materiał.
 --archive: dla strony, która nie odpowiada (albo pokazuje planszę blokady), szuka publicznej kopii w urlscan.io i Internet Archive (Wayback); kopia wchodzi do materiału z podanym źródłem, adresem i datą, a kopia sprzed rejestracji domeny jest odrzucana. Pasywnie: nic nie zleca ani nie zapisuje. Źródła: ARCHIVE_SOURCES (domyślnie urlscan,wayback); opcjonalny klucz urlscan: URLSCAN_API_KEY. Przy ANALYZE_OFFLINE=1 albo bez sieci krok jest pomijany z powodem w kroku "archive".
+--data z paczki niepublicznej ma ścieżki względne do spraw: wskaż własną kopię spraw w CASES_DIR (bez niej porównanie obrazów z bazą jest pomijane, z powodem w notatkach).
 --add-to-base: po analizie dopisuje materiały do bazy w --data (rekordy i dane z porównania, graf i kampanie przebudowane offline; kampanie zachowują numery), a potem wypisuje, co dodano, a czego nie i dlaczego. Duplikat nie jest dopisywany, "za mało danych" tylko z --force. Poprzednie pliki bazy: <baza>/historia/<czas>/, wpisy: <baza>/dodane.jsonl.
 --config / --personas: konfiguracja wag i lista osób (domyślnie <data>/linking.json i <data>/personas.json albo katalog wyżej, a dla osób na końcu data/osoby-publiczne.json).`,
 );
@@ -75,6 +76,7 @@ void main(async () => {
       dataDir,
       workDir,
       fixtures: args.fixtures,
+      casesDir: process.env.CASES_DIR || undefined,
       live: args.live ? liveSources({ skipCt: true }) : null,
       archive: archiveStepOptions({ enabled: !!args.archive, screenshotDir: path.join(workDir, "archiwum") }),
       config: loadLinkConfig(configFile),

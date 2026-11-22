@@ -6,7 +6,7 @@ Projekt powstaje na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fe
 
 **Dane:** repozytorium nie zawiera materiałów udostępnionych przez organizatora. Dane przykładowe i testowe są syntetyczne. Skąd pochodzą dane i z jakich źródeł narzędzie korzysta: [Pochodzenie danych](#pochodzenie-danych).
 
-**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA).
+**Dokumenty:** [docs/METODYKA.md](docs/METODYKA.md) (jak łączymy materiały, dla osoby oceniającej) · [LICENCJE.md](LICENCJE.md) (licencje bibliotek, modeli, narzędzi i usług) · [docs/TECHNICAL.md](docs/TECHNICAL.md) (formaty, wagi, CLI, konfiguracja) · [docs/GUI.md](docs/GUI.md) (jak przeprowadzić analizę w przeglądarce) · [docs/ZGODNOSC.md](docs/ZGODNOSC.md) (AI Act, RODO, DSA) · [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) (jak zbudowane są kampanie) · [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) (które źródła dają powiązania) · [docs/INTEGRACJA.md](docs/INTEGRACJA.md) (kontrakt wejścia i wyjścia).
 
 ## 1. Szybki start w Dockerze
 
@@ -54,7 +54,7 @@ Jeden wiersz na materiał (kolejność kolumn jest stała; to samo zwraca ekspor
 
 ## 2. Jak przeanalizować własne materiały
 
-**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Zakładka „Kampanie” pokazuje bazę, „Celowo nie połączone” pary podobne, ale celowo nie połączone w kampanię (z regułą i powodem; plik `near-misses.json` obok `campaigns.json`), „Porównaj” dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
+**Przeglądarka** (`http://localhost:3000`, zakładka „Analizuj materiał”): upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy; sprawdź podział na sprawy; „Analizuj”. Wynik to lejek werdyktów, tabela z sortowaniem i karta wyniku z przesłankami; eksport CSV i JSON. Karta wyniku pokazuje też trasę kliknięcia (reklama → link śledzący → przekierowania → strona-przynęta) i „Dodaj do bazy” (działa na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu). Zakładka „Kampanie” pokazuje bazę, a w karcie kampanii macierz wspólnych śladów, ewolucję (co się zmieniło, a co zostało) i oś czasu; „Celowo nie połączone” pokazuje pary podobne, ale celowo nie połączone w kampanię (z regułą i powodem; plik `near-misses.json` obok `campaigns.json`); „Porównaj” zestawia dwa materiały obok siebie, „Graf powiązań” i „Tryb eksperta” to pełny graf. Opis kroków: [docs/GUI.md](docs/GUI.md).
 
 **Wiersz poleceń** (`analyze-material`; w Dockerze poprzedź `docker compose run --rm app`):
 
@@ -76,7 +76,20 @@ Ocena partii na własnych etykietach (plik `{"kampania": ["sprawa", …]}` albo 
 bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wynik jako JSON
 ```
 
+Czy wynik zależy od dokładnych wag, sprawdzisz poleceniem `bun run sensitivity -- --enriched data/work/enriched.json --runs 5 --out data/work/sensitivity` (losowe zaburzenie wszystkich wag, jedna waga naraz, progi osobno; [docs/TECHNICAL.md](docs/TECHNICAL.md#61-wrażliwość-wag-bun-run-sensitivity-od-22112026-zadanie-i27)).
+
 Minimum plików (pomiar na 111 wariantach 25 spraw, [docs/METODYKA.md](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)): zapisana strona (HTML albo HAR) wystarcza do przypisania do znanej kampanii; sam zrzut albo samo wideo bez strony zwykle nie, i wtedy narzędzie zgłasza brak danych (`insufficient`, „podobne kampanie” albo „nowa kampania”) z listą braków w `missing_data` (link do strony, plik HAR, zrzut reklamy) zamiast zgadywać; żaden wariant nie trafił do cudzej kampanii. Obrazy w formacie HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
+
+**Wiedza z wyniku.** Wzbogacony zbiór (wiersz na materiał, bez wektorów głosu i twarzy), graf dla Neo4j, raport okresowy i statystyki źródeł:
+
+```bash
+bun run export-dataset -- --data baza/ --out eksport/ --csv     # eksport/dataset.json i dataset.csv: material_id, campaign_id, family_id, features, top_premises, ad_library_url, basis, persona, deepfake_score
+bun run export-dataset -- --data baza/ --neo4j graf/            # nodes.csv i edges.csv do neo4j-admin database import
+bun run report -- --since 7d --data baza/ --out raport.md       # nowe kampanie, osoby, domeny z CT, zdjęte reklamy, zgłoszenia bez reakcji (--reports plik.json)
+bun run source-stats -- baza/graph.json                         # ile powiązań dał każdy typ metadanych
+```
+
+Kontrakt wejścia i wyjścia dla systemów instytucji (schematy JSON, wersja 1.0): [docs/INTEGRACJA.md](docs/INTEGRACJA.md).
 
 Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--faces`, `--ad-library`, `--add-to-base` (z `--force`). Pełna lista: `bun run analyze-material -- --help`. Bazę buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Nowy materiał trafia do jednego grafu ze znanymi i dostaje werdykt; reguły i progi: [docs/METODYKA.md](docs/METODYKA.md).
 
@@ -113,6 +126,19 @@ Klucz urlscan (`URLSCAN_API_KEY`, darmowe konto, sekcja 6) jest opcjonalny. Prze
 
 Podpowiedzi „Co dorzucić” w wyniku (`missing_data`) odpowiadają tym krokom: „link do reklamy albo strony docelowej” i „zrzut z widocznym paskiem adresu” (brak adresu), „plik HAR z wizyty na stronie” (brak zapisanej strony), „zrzut ekranu reklamy” (brak obrazu), „pełna treść reklamy” (mniej niż 5 słów).
 
+### Paczka dowodów
+
+Z karty kampanii w przeglądarce przycisk „Pobierz paczkę” daje ZIP kampanii (także kampanii z wyniku analizy materiału, `N1…`); to samo z wiersza poleceń: `bun run evidence -- --campaign K01` zapisuje katalog `data/evidence/K01/`. Narzędzie niczego nie wysyła: przygotowuje dokumenty, a człowiek decyduje o zgłoszeniu.
+
+- `evidence.json` i `evidence.md`: fakty (reklamy, domeny, wspólne ślady, rekordy z biblioteki reklam) osobno od wyników modeli; w `evidence.md` adresy są rozbrojone (`hxxps://…[.]example`).
+- `cert-domains.txt` (domeny jeszcze nieobecne na Liście Ostrzeżeń CERT; status z lokalnej kopii `CERT_LIST_FILE` albo `--cert-list`) i `cert-domains-uzasadnienie.md`.
+- `dsa-art16-<platforma>.md`: osobne zgłoszenie art. 16 DSA dla każdej platformy, z uzasadnieniem złożonym z faktów; `dsa-art16-notice.md` to spis.
+- `preservation-request.md` (zabezpieczenie danych u dostawców), `knf-notification.md` (tylko przy ofercie finansowej), `prosecutor-notification.md`, `odbiorcy.md` i `wskazniki/*.csv` (domeny i kontakt abuse rejestratora, hosting, platformy, płatności, numery).
+- `stix-bundle.json`: kampania i wskaźniki jako STIX 2.1 (import do MISP), TLP z paczki.
+- `files/`: kreacje, zrzuty, nagrania, archiwum HTML oraz HAR i zapisane strony wyłącznie jako kopie **zredagowane** z danych analityka (IP, odcisk przeglądarki, ciasteczka, tokeny); `files/warc/` to WARC z tego HAR. Manifest podaje SHA-256 oryginału obok kopii.
+- `manifest.sha256`: sumy kontrolne (`shasum -a 256 -c manifest.sha256`). `--tsa <url>` dodaje znacznik czasu RFC 3161 (`manifest.tsr`, wymaga `openssl` i sieci); bez niego pole `timestamp_token` ma wartość `null` z powodem.
+- `--prior zgloszenia.jsonl`: dziennik wcześniejszych zgłoszeń (odbiorca, data, kategoria, status); paczka pokazuje, które czekają na reakcję. `bun run recheck -- --pack data/evidence/K01` pasywnie sprawdza stan domen i reklam po zgłoszeniu i dopisuje wynik do `custody_log`.
+
 ## 3. Metodyka w 10 zdaniach
 
 1. Z każdego materiału wyciągamy ślady w pięciu rodzinach: tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory.
@@ -137,7 +163,7 @@ Pełny opis: [docs/METODYKA.md](docs/METODYKA.md).
 | Demonstrator end-to-end | baza → analiza nowego materiału → CSV i GUI | `docker compose run --rm app bun run demo`; GUI: „Analizuj materiał” |
 | Czytelność powiązań | przesłanki prostym językiem, siła, pewność, powód rozdzielenia | GUI: karta wyniku, „Porównaj”, „Jak to działa”; kolumna `top_premise` |
 | Wdrożenie i przenośność | Docker bez sieci i kluczy, tryb lokalny, konfiguracja plikiem | sekcje 1 i 5; `docker-compose.yml`; `.env.example` |
-| Wiedza | metodyka, licencje, dokumentacja techniczna, pochodzenie kodu | `docs/METODYKA.md`, `LICENCJE.md`, `docs/TECHNICAL.md` |
+| Wiedza | metodyka, wzorce kampanii (platformy, trackery, cloakery, lejek, komentarze), ocena źródeł metadanych z liczbami, wzbogacony zbiór danych, licencje, dokumentacja techniczna | [docs/METODYKA.md](docs/METODYKA.md), [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md), [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md), `bun run export-dataset`, `LICENCJE.md`, [docs/TECHNICAL.md](docs/TECHNICAL.md) |
 
 ## 5. Tryb lokalny bez Dockera
 
@@ -256,7 +282,7 @@ Kod trafił do tego repozytorium bez historii git. Lokalne commity z 21.11 miał
 Stan z ostatniego commitu przed wydarzeniem (19.11.2026), 260 plików:
 
 - katalog główny: `package.json`, `bun.lock`, `tsconfig.json`, `eslint.config.mjs`, `vitest.config.mts`, `next.config.ts`, `Dockerfile`, `docker-compose.yml`, `.dockerignore`, `.env.example`, `.gitignore`, `AGENTS.md`, README;
-- `app/`: layout, strona, style, API `analyze`, `ct-feed`, `image`;
+- `app/`: layout, strona, style, API `material`, `analyze-material`, `click-route`, `add-to-base`, `evidence`, `ct-feed`, `image`;
 - `components/viewer/`: AnalyzeForm, CampaignList, ComparePanel, CtFeedPanel, DetailsPanel, GraphCanvas, Viewer, compare (z testem), graphView, palette;
 - `lib/`: cache (z testem);
 - `lib/osint/`: urls, ip, fetchPage, extract, pagekit, domainPattern, campaignParams, crypto, dns, rdap, ct, asn (każdy z testem);
@@ -316,11 +342,13 @@ Przy przenoszeniu zmieniłem tylko wartości w testach, komentarzach i dokumenta
 | i14b | wariant kreacji: dołączanie, nigdy scalanie (`attachContentVariants`) |
 | i14c | ślady zestawu stron nie sumują się w kampanię, biblioteka landerów „666”, konflikt kont wygrywa z silnym `path_id` |
 | i2 | nowy interfejs: zakładki „Analizuj materiał”, „Kampanie”, „Porównaj”, „Graf powiązań”, „Jak to działa”, API zadań (`/api/material`), moduły `lib/viewer`, dymki pomocy |
+| i2fix | GUI po zmianach backendu: pola `basis`, wariantu, narracji, mostu, twarzy i głosów (`lib/viewer/fields.ts`), ewolucja kampanii z macierzą śladów i osią czasu (`lib/viewer/evolution.ts`), trasa kliknięcia (`/api/click-route`), „Dodaj do bazy” (`/api/add-to-base`), stara analiza tylko w Trybie eksperta |
 | i16 | rozszerzenie skanera wycieków danych poufnych (narzędzie poza repozytorium) |
 | i15 | galeria głosów osób publicznych: `--speaker` z dopasowaniem okien (`voices`), `data/voices`, `scripts/py/build_voice_index.py`, `bun run voice:eval`, próg z pomiaru |
 | i5 | persona z twarzy: `--faces` (OpenCV YuNet + SFace), zamknięta lista osób publicznych (`data/osoby-publiczne.json`, 31 osób ze zdjęciami w `data/faces`), `scripts/py/face_embed.py`, `setup-face.sh`, próg z pomiaru |
 | i7 | `bun run base`, `bun run demo`, obraz Dockera z narzędziami do mediów, profile `full`/`llm`/`ct`, limity API (`ANALYZE_RATE_LIMIT`, `MATERIAL_MAX_MB`), `cache:freeze` |
 | i8 | dokumentacja: README, `docs/METODYKA.md`, `LICENCJE.md`, `LICENSE`, `bun run licenses` |
+| i9 | wiedza jako wynik: `docs/WZORCE-KAMPANII.md`, `docs/ZRODLA-METADANYCH.md` (+ `bun run source-stats`), `bun run export-dataset` (JSON, CSV, Neo4j), `bun run report`, `docs/INTEGRACJA.md` i schematy JSON, etykieta „znany backend leadów” |
 
 Przeniesienie kodu do tego repozytorium nastąpiło bez historii (opis wyżej): commity sprzed 21.11.2026 11:00 są w prywatnym repozytorium.
 
@@ -343,7 +371,7 @@ lib/watch/      harmonogram skanów: przepisy, źródła (CT, biblioteki reklam,
 lib/licenses.ts logika skryptu licencji pakietów
 scripts/        base, demo, demo-batch, import-cases, ingest, enrich, build-graph, evaluate, pipeline, analyze-material,
                 summarize, evidence, cache-freeze, ct-watch, ct-backfill, watch, backtest-ct, llm-smoke, media-smoke, gen-sample, licenses; py/ (adaptery Pythona)
-app/, components/viewer/   przeglądarka i API (`/api/analyze-material`, `/api/material`, `/api/analyze`, `/api/image`, `/api/ct-feed`)
+app/, components/viewer/   przeglądarka i API (analiza z GUI: `/api/material` z zadaniami, postępem i CSV; ta sama analiza jednym żądaniem, używana przez panel „Nowa reklama” w Trybie eksperta: `/api/analyze-material`; karty: `/api/click-route`, `/api/add-to-base`, `/api/evidence`; `/api/image`, `/api/ct-feed`)
 docker/         konfiguracja serwera CT i pakiety profilu `full`
 data/sample/    syntetyczne reklamy, obrazy, dżingle, fixtures, linking.json, personas.json, ct-lexicon.json, ct-stream.jsonl
 docs/           METODYKA.md, TECHNICAL.md, GUI.md

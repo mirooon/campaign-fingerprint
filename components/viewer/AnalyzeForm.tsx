@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import type { MaterialItemResult, MaterialResult } from "@/lib/pipeline/analyzeMaterial";
+import { linkRuleLabel } from "@/lib/viewer/fields";
 
 export interface AnalyzeFormProps {
   onSelectCampaign: (id: string) => void;
@@ -26,13 +27,6 @@ const VERDICT_LABEL: Record<MaterialItemResult["verdict"], string> = {
   new_campaign: "nowa kampania",
   duplicate: "duplikat",
   insufficient: "za mało danych",
-};
-
-const RULE_LABEL: Record<string, string> = {
-  campaign: "łączy w kampanię",
-  single_kind: "jeden rodzaj dowodu: najwyżej podobne",
-  account_conflict: "różne konta platformy: najwyżej podobne",
-  below: "za słabe",
 };
 
 const FEATURE_LABEL: Record<string, string> = {
@@ -123,7 +117,7 @@ function ItemResult({ it, onSelectCampaign }: { it: MaterialItemResult; onSelect
                   <span className="font-mono">{l.other}</span>
                   {l.otherCampaign && <span className="text-slate-500">({l.otherCampaign})</span>}
                   <span className="text-slate-500">wynik {l.score.toFixed(2)}{l.strong ? " · silny" : ""}</span>
-                  <span className="ml-auto rounded bg-slate-100 px-1 text-[10px] text-slate-600">{RULE_LABEL[l.rule] ?? l.rule}</span>
+                  <span className="ml-auto rounded bg-slate-100 px-1 text-[10px] text-slate-600">{linkRuleLabel(l)}</span>
                 </div>
                 <ul className="mt-0.5 space-y-0.5">
                   {l.evidence.map((e, i) => (

@@ -17,6 +17,12 @@ import { extractCampaignParams, paramSchema, type CampaignParam } from "../osint
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+import { companyIdsOfMaterial } from "../text/companyIds";
+import { applyShopContext } from "../osint/shopSignals";
+import { brandInPath, hostingOutsideEu } from "../osint/infraSignals";
+import { tlsSignals } from "../osint/tlsSignals";
+import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerContext } from "../osint/payerKind";
+import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
 import { adStart } from "../text/adStart";
@@ -38,6 +44,7 @@ import { cosineDense, cosineSparse, fitTfidf, type SparseVector } from "../text/
 import { adLibraryIdKey, adPayerKey, advertiserIdKey, readAdRecordTraces } from "./adLibraryTraces";
 import { commentNameFactors } from "./commentNames";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "./config";
+import { knownBackendLabel } from "./knownBackends";
 import {
   CREATIVE_FILE_PREFIX,
   ENTITY_TYPES,
@@ -119,6 +126,12 @@ function shortUrl(url: string, max = 64): string {
 
 function normAdvertiser(name: string): string {
   return name.normalize("NFKC").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+/** Data of a payer node from its kind: the kind, why, and a note when the kind needs a caution (a person may be a victim of identity theft). */
+function payerKindData(c: ReturnType<typeof classifyPayer>): Record<string, unknown> {
+  const note = PAYER_KIND_NOTES_PL[c.kind];
+  return { payerKind: c.kind, payerKindReasons: c.reasons, ...(note ? { payerNote: note } : {}) };
 }
 
 function shortAddr(a: string): string {
@@ -234,7 +247,7 @@ export function buildEvidenceGraph(
       platform: item.platform,
       advertiser,
       text: item.text ? item.text.slice(0, 600) : null,
-      landingUrl: item.landingUrl,
+      landingUrl: item.landingUrl ? maskUrl(item.landingUrl) : item.landingUrl,
       imageUrl: item.imageUrl,
       imagePath: item.imagePath,
       firstSeen: item.firstSeen,
@@ -284,6 +297,8 @@ export function buildEvidenceGraph(
     // Record of a public ad library (lib/adlib): the library ID of platforms other than Meta (Meta's is read above)
     // and the payer named by the library
     const libRecord = readAdRecordTraces(item.extra);
+    // what the ad says about its advertiser, to tell the kinds of the declared payer apart (lib/osint/payerKind.ts)
+    const payerCtx = (regions: string[]): PayerContext => ({ pageName: advertiser ?? enr?.adLibrary?.find((r) => r.pageName)?.pageName ?? null, polishAd: isPolishAd(item.text, regions) });
     if (libRecord) {
       // flat, readable values: they are the features of the material in the GUI and the evidence pack
       itemData.adPlatform = libRecord.platform;
@@ -310,9 +325,12 @@ export function buildEvidenceGraph(
       for (const name of libRecord.payers) {
         const key = normAdvertiser(name);
         if (!key) continue;
+        const payerClass = classifyPayer(name, payerCtx(libRecord.regions));
+        // a stub ("Test", "xyz") is typed in by unrelated advertisers: it ties no ads, the kind stays on the item
+        if (payerClass.kind === "placeholder") continue;
         const payerKey = adPayerKey(libRecord.platform, key);
         const prev = (g.nodes.get(nodeId("ad_payer", payerKey))?.data.adLibraryIds as string[] | undefined) ?? [];
-        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev });
+        const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev, ...payerKindData(payerClass) });
         g.edge(itemNode, payerNode, "paid_by", `płatnik reklamy według biblioteki reklam (${libRecord.platform})`);
         add(payerNode, "ad_payer", [itemNode, payerNode], 1, `ten sam płatnik reklamy w bibliotece reklam („${name}”)`);
       }
@@ -337,26 +355,36 @@ export function buildEvidenceGraph(
       if (lib.some((r) => r.takenDown)) itemData.adTakenDown = true;
       const started = lib.map((r) => r.creative?.startedAt).filter((t): t is string => !!t).sort()[0];
       if (started && !itemData.adFirstShown) itemData.adFirstShown = started;
-      const names = new Map<string, { label: string; roles: Set<string> }>();
+      const names = new Map<string, { label: string; roles: Set<string>; payerClass: ReturnType<typeof classifyPayer> }>();
       for (const r of lib) {
         for (const [role, list] of [["płatnik", r.payers], ["beneficjent", r.beneficiaries]] as const) {
           for (const n of list) {
             const key = normAdvertiser(n);
             if (!key) continue;
-            const e = names.get(key) ?? { label: n, roles: new Set<string>() };
+            const payerClass = classifyPayer(n, payerCtx(r.locations));
+            if (payerClass.kind === "placeholder") continue; // a stub ties no ads (see the library record above)
+            const e = names.get(key) ?? { label: n, roles: new Set<string>(), payerClass };
             e.roles.add(role);
             names.set(key, e);
           }
         }
       }
-      for (const [key, { label, roles }] of names) {
+      for (const [key, { label, roles, payerClass }] of names) {
         const prev = (g.nodes.get(nodeId("ad_payer", key))?.data.adLibraryIds as string[] | undefined) ?? [];
-        const id = g.node("ad_payer", key, label, { name: label, adLibraryIds: [...new Set([...prev, ...lib.map((r) => r.id)])] });
+        const id = g.node("ad_payer", key, label, { name: label, adLibraryIds: [...new Set([...prev, ...lib.map((r) => r.id)])], ...payerKindData(payerClass) });
         const roleTxt = [...roles].join(" i ");
         g.edge(itemNode, id, "paid_by", `${roleTxt} reklamy według biblioteki reklam Mety (przejrzystość DSA)`);
         add(id, "ad_payer", [itemNode, id], 1, `ten sam ${roleTxt} reklamy w bibliotece reklam („${label}”)`);
       }
     }
+
+    // kinds of the declared payers and beneficiaries as features of the ad (the payer is a self-declaration, not a fact about who paid)
+    const declared = {
+      payers: [...(libRecord?.payers ?? []), ...lib.flatMap((r) => r.payers)],
+      beneficiaries: lib.flatMap((r) => r.beneficiaries),
+    };
+    const payerSummary = summarizePayers(declared, payerCtx([...(libRecord?.regions ?? []), ...lib.flatMap((r) => r.locations)]));
+    if (payerSummary) Object.assign(itemData, payerSummary);
 
     // library account of the advertiser: from a library record, or the Meta page read by `--ad-library`
     const metaPage = lib.find((r) => r.pageId);
@@ -658,6 +686,7 @@ export function buildEvidenceGraph(
       const finalDomain = finalUrlNode ? (g.nodes.get(finalUrlNode)?.data.registrableDomain as string | null | undefined) : null;
       const fdi = finalDomain ? dataset.domains[finalDomain] : undefined;
       if (finalDomain && fdi) {
+        if (fdi.rdap?.registrantHidden) itemData.registrantHidden = true;
         const age = domainAgeAt(fdi.rdap?.created, (fdi.ct?.certs ?? []).map((c) => c.notBefore), item.firstSeen);
         if (age.domainAgeDays !== null) itemData.domainAgeDays = age.domainAgeDays;
         if (age.certAgeDays !== null) itemData.certAgeDays = age.certAgeDays;
@@ -738,7 +767,8 @@ export function buildEvidenceGraph(
             : ep.clientId
               ? `ten sam backend formularza z tym samym identyfikatorem klienta (${ep.host}${ep.pathTemplate}, ${ep.clientIdSource ?? "identyfikator"} ${ep.clientId})`
               : `ten sam backend formularza ${ep.host}${ep.pathTemplate}`;
-          add(id, "endpoint", [...finalPath, id], rel, how);
+          const known = ep.sameOrigin ? null : knownBackendLabel(ep.host);
+          add(id, "endpoint", [...finalPath, id], rel, known ? `${how} [${known}]` : how);
         }
         const hidden = discounter.specificHiddenFields(kit.hiddenFields);
         if (hidden.length >= config.kit.minHiddenFields) {
@@ -920,11 +950,32 @@ export function buildEvidenceGraph(
         }
         if (kit.clickfix) itemData.clickfix = kit.clickfix;
       }
+      // Infrastructure attributes of the landing page (they explain, they never link): the certificate, a brand in the
+      // path of a domain without it, the shop platform, hosting outside the EU and the EEA
+      if (page) {
+        const finalHost = normalizeUrl(page.fetch.finalUrl)?.host;
+        if (page.tls && finalHost) {
+          const tls = tlsSignals(page.tls, finalHost, item.firstSeen);
+          if (tls.issuer) itemData.certIssuer = tls.issuer;
+          if (tls.certMismatch) itemData.certMismatch = true;
+          if (tls.certExpired) itemData.certExpired = true;
+        }
+        const brand = brandInPath(page.fetch.finalUrl) ?? brandInPath(enr.landing.url);
+        if (brand) itemData.brandInPath = brand;
+        if (page.extract?.cms?.length) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...page.extract.cms])].sort();
+        const site = page.extract?.siteAttributes;
+        if (site?.tldRare) itemData.tldRare = site.tldRare;
+        if (site?.domainLangMismatch) itemData.domainLangMismatch = `domena: ${site.domainLangMismatch.domainLang}, strona: ${site.domainLangMismatch.pageLang}`;
+        if (site?.privacyControllerMismatch) itemData.privacyControllerMismatch = site.privacyControllerMismatch.controllerDomains;
+        if (site?.fakeCourierPayment) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "fake_courier_payment"])];
+        const outside = hostingOutsideEu((finalHost ? (dataset.hosts[finalHost]?.ips ?? []) : []).map((ip) => dataset.ips[ip]?.country));
+        if (outside) itemData.hostingOutsideEu = outside;
+      }
       if (page?.cloaking) {
         itemData.cloakingSuspected = page.cloaking.suspected;
         if (page.cloaking.suspected) itemData.cloakingReasons = page.cloaking.reasons;
       }
-      if (page) itemData.finalUrl = page.fetch.finalUrl;
+      if (page) itemData.finalUrl = maskUrl(page.fetch.finalUrl);
     }
 
     // Click IDs that carry more than a token: the tracker server (xid) and the clicked Meta ad (fbclid)
@@ -1108,6 +1159,51 @@ export function buildEvidenceGraph(
       const id = g.node("campaign_param", `scam_brand=${b.key}`, `marka oszustwa: ${b.name}`, { canonicalName: "scam_brand", name: "marka oszustwa", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
       g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
       add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
+    }
+    // Company identifiers and bank accounts of the page and of the screenshots: a trace that only supports a link
+    // (campaignRules.notAloneKinds), since a firm's data can be copied; a made-up number still ties the pages that share it
+    const { companyIds, legalEntities, companyIdInvalid, notes: companyNotes } = companyIdsOfMaterial(pageEx, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n"));
+    if (companyIds.length) itemData.companyIds = companyIds;
+    if (legalEntities.length) itemData.legalEntities = legalEntities;
+    if (companyIdInvalid) itemData.companyIdInvalid = true;
+    if (companyNotes.length) itemData.companyIdNotes = companyNotes;
+    for (const c of companyIds) {
+      const isAccount = c.kind === "iban" || c.kind === "nrb";
+      const type = isAccount ? "bank_account" : "company_id";
+      const key = isAccount ? c.value : `${c.kind}:${c.value}`;
+      const label = isAccount ? `rachunek ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;
+      const id = g.node(type, key, label, { kind: c.kind, value: c.value, valid: c.valid, check: c.check });
+      g.edge(itemNode, id, "mentions", `${isAccount ? "rachunek bankowy" : "identyfikator firmy"} na ${c.source === "ocr" ? "zrzucie ekranu (OCR)" : "stronie"}${c.valid ? "" : " (nie przechodzi sprawdzenia)"}`);
+      add(id, type, [itemNode, id], 1, isAccount ? `ten sam rachunek bankowy ${c.value}` : `ten sam identyfikator firmy ${c.kind.toUpperCase()} ${c.value}`);
+    }
+    // Shop signals (legal pages, discounts, payments, reviews ...) and contact data of the landing page: attributes
+    // of the material that explain why it looks like a fake shop, never a trace. The one exception is a full postal
+    // address (postal_address, campaignRules.notAloneKinds): an address copied from another shop's footer links.
+    if (pageEx?.shopSignals) {
+      const shop = applyShopContext(pageEx.shopSignals, { firstSeen: item.firstSeen });
+      itemData.shopSignals = shop;
+      if (shop.techniques.length) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), ...shop.techniques])];
+    }
+    const contact = pageEx?.contact;
+    if (contact) {
+      if (contact.emailDomains.length) itemData.emailDomainKinds = Object.fromEntries(contact.emailDomains.map((e) => [e.email, e.kind]));
+      if (contact.address.completeness !== "none") itemData.addressCompleteness = contact.address.completeness;
+      if (contact.phoneAreaMismatch) itemData.phoneAreaMismatch = contact.phoneAreaMismatch;
+      for (const a of contact.address.addresses) {
+        const id = g.node("postal_address", a.key, `${a.street} ${a.number}, ${a.postalCode} ${a.city}`, { street: a.street, number: a.number, flat: a.flat, postalCode: a.postalCode, city: a.city });
+        g.edge(itemNode, id, "mentions", "adres siedziby na stronie sklepu");
+        add(id, "postal_address", [itemNode, id], 1, `ten sam adres: ${a.street} ${a.number}, ${a.postalCode} ${a.city}`);
+      }
+      // the domain of a contact address other than the shop's is linked like any domain the page points to
+      const deadContactDomains = contact.otherEmailDomains.filter((d) => dataset.domains[d]?.contactDomainDead);
+      if (deadContactDomains.length) itemData.contactDomainDead = deadContactDomains;
+      for (const d of contact.otherEmailDomains) {
+        const disc = discounter.domainDiscount(d);
+        if (disc && disc.factor === 0) continue;
+        const id = g.node("domain", d, d, { registrableDomain: d });
+        g.edge(itemNode, id, "links_to", "domena adresu e-mail kontaktowego (inna niż domena sklepu)");
+        add(id, "domain", [itemNode, id], config.outboundLinkFactor, `adres e-mail na domenie ${d}`);
+      }
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
     // Profit claims (amount + period) of the copy, OCR, transcript and page: an attribute, and a trace of the

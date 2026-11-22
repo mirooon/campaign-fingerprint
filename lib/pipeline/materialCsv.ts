@@ -54,7 +54,8 @@ function rawConfidence(item: MaterialItemResult): MaterialConfidence {
   return best.score >= LIKELY_LINK_SCORE ? "likely" : "uncertain";
 }
 
-function cell(v: string | number | null | undefined): string {
+/** One CSV cell: quoted when it holds a comma, quote or line break; null and undefined are an empty cell. */
+export function cell(v: string | number | null | undefined): string {
   const s = v === null || v === undefined ? "" : String(v);
   return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }

@@ -71,3 +71,11 @@ describe("resultRows", () => {
     expect(rows[3].duplicate_of).toBe("a");
   });
 });
+
+describe("filterItems: niepewne do sprawdzenia", () => {
+  it("filtr „uncertain” zostawia tylko materiały z pewnością niepewną, bez „za mało danych”", () => {
+    const rows = filterItems(result.items, "uncertain");
+    expect(rows.map((i) => i.id)).toEqual(["b", "c", "f"]);
+    expect(rows.every((i) => resultConfidence(i) === "uncertain")).toBe(true);
+  });
+});

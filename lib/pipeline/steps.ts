@@ -5,7 +5,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { createCache, TTL } from "../cache";
+import { CACHE_TTL, createCache } from "../cache";
 import { clusterCampaigns } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, mergeConfig, type LinkConfig, type LinkConfigOverride } from "../graph/config";
 import { evaluateClustering, type EvalResult } from "../graph/eval";
@@ -182,7 +182,7 @@ export interface BuildGraphStepOptions {
 }
 
 async function computeEmbeddings(ds: EnrichedDataset): Promise<Record<string, number[]> | null> {
-  const cache = createCache({ namespace: "embed", defaultTtlMs: TTL.week * 4 });
+  const cache = createCache({ namespace: "embed", defaultTtlMs: CACHE_TTL.embed });
   const model = process.env.OLLAMA_EMBED_MODEL || "bge-m3";
   const out: Record<string, number[]> = {};
   const todo: Array<{ id: string; text: string; key: string }> = [];

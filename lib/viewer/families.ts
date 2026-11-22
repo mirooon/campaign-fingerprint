@@ -85,6 +85,7 @@ export const FEATURE_FAMILY: Record<string, FeatureFamily> = {
   text: "content",
   ocrText: "content",
   asrText: "content",
+  videoOcrText: "content",
   advertiser: "content",
   personas: "content",
   adLibraryIds: "content",

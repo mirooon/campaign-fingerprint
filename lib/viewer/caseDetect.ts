@@ -6,6 +6,8 @@
  * A page-save package (a folder with manifest.json and dom.html) and a `<name>_files` folder always
  * stay with their page. Like the importer (`walkCase` in caseImport.ts), everything inside a
  * `resources` or `<name>_files` folder is a part of a page, never material of its own.
+ * A ZIP is a packed case folder: the preview does not look inside, the server unpacks it into the
+ * case it belongs to when the analysis starts (app/api/material, lib/viewer/uploadSession.ts).
  */
 
 export type FileKind = "screenshot" | "har" | "page" | "page_part" | "video" | "video_info" | "dataset" | "zip" | "stream" | "system" | "unsupported";
@@ -32,7 +34,7 @@ export const FILE_KIND_INFO: Record<FileKind, FileKindInfo> = {
   video: { label: "wideo", hint: "Nagranie reklamy: odczytamy tekst z klatek i adres z paska.", analyzable: true },
   video_info: { label: "opis wideo", hint: "Opis nagrania (np. z yt-dlp): tytuł, kanał, data publikacji.", analyzable: false },
   dataset: { label: "plik zbioru", hint: "Plik zbioru: każdy wiersz stanie się materiałem.", analyzable: false },
-  zip: { label: "ZIP", hint: "Archiwum: rozpakujemy je przed analizą.", analyzable: false },
+  zip: { label: "ZIP", hint: "Archiwum: rozpakujemy je na serwerze przy analizie, a całą jego zawartość dołączymy do tej sprawy. Podgląd nie zagląda do środka. Archiwum z wieloma sprawami w podfolderach rozpakuj i wgraj jako folder.", analyzable: true },
   stream: { label: "wideo HLS", hint: "Fragmenty strumienia wideo (playlista .m3u8 i segmenty .ts): skleimy je w jedno nagranie i przeanalizujemy jak wideo (mowa, twarze, głos).", analyzable: true },
   system: { label: "plik systemowy", hint: "Plik dodany przez system (np. .DS_Store): pomijamy go.", analyzable: false },
   unsupported: { label: "nieobsługiwany", hint: "Tego typu pliku nie analizujemy.", analyzable: false },
@@ -106,7 +108,7 @@ export interface DetectedCase {
   files: InputFile[];
   counts: Partial<Record<FileKind, number>>;
   notes: string[];
-  /** Has at least one file the analysis reads (screenshot, HAR, page, video). */
+  /** Has at least one file the analysis reads (screenshot, HAR, page, video, HLS stream, ZIP unpacked by the server). */
   analyzable: boolean;
 }
 
@@ -120,6 +122,7 @@ function filesFolderOwner(folder: string): string {
   return folder.replace(/_files$/i, "");
 }
 
+/** Preview of one case: counts per file kind, notes for the table and whether the analysis has something to read (a ZIP counts: the server unpacks it). */
 function describe(name: string, files: InputFile[]): DetectedCase {
   const packageDirs = packageDirsOf(files);
   const counts: Partial<Record<FileKind, number>> = {};
@@ -134,7 +137,7 @@ function describe(name: string, files: InputFile[]): DetectedCase {
   if (counts.har && !counts.page && !pkg) notes.push("HAR bez zapisanej strony: treść strony weźmiemy z HAR");
   if (counts.screenshot && !counts.har && !counts.page && !pkg && !counts.video) notes.push("same zrzuty: adres strony odczytamy z paska przeglądarki, jeśli jest widoczny");
   if (counts.dataset) notes.push("plik zbioru: na razie wczytaj go poleceniem bun run analyze-material -- --dataset <plik>");
-  if (counts.zip) notes.push("archiwum ZIP zostanie rozpakowane na serwerze");
+  if (counts.zip) notes.push("ZIP: rozpakowany na serwerze przy analizie, cała zawartość należy do tej sprawy");
   if (counts.stream || files.some((f) => /\/resources\/media\/[^/]+\.(ts|m2ts|mts)$/i.test(`/${f.path}`))) notes.push("wideo ze strony (HLS): fragmenty skleimy w jedno nagranie i przeanalizujemy jak wideo");
   const unsupported = files.filter((f) => fileKind(f.path, packageDirs) === "unsupported").map((f) => base(f.path));
   if (unsupported.length) notes.push(`nieobsługiwany plik: ${unsupported.slice(0, 3).join(", ")}${unsupported.length > 3 ? ` i ${unsupported.length - 3} innych` : ""}`);
@@ -168,15 +171,23 @@ function layout(files: InputFile[]) {
   return { loose, folders, attached };
 }
 
-/** Default split and the question shown above the preview. */
+/**
+ * Default split and the question shown above the preview. Two or more loose ZIPs and no other loose
+ * file (next to no folders, or next to case folders) default to "files": every ZIP is a packed case
+ * folder, and "single" or "folders" would merge them into one case.
+ */
 export function defaultSplit(input: InputFile[]): { mode: SplitMode; question: string | null } {
   const { files } = stripCommonTop(withoutSystemFiles(input));
   const packageDirs = packageDirsOf(files);
   const { loose, folders } = layout(files);
   const realFolders = [...folders.keys()].filter((t) => !packageDirs.has(t));
+  const kinds = loose.map((f) => fileKind(f.path, packageDirs));
+  const zips = kinds.filter((k) => k === "zip").length;
+  if (zips >= 2 && zips === kinds.length && (!folders.size || realFolders.length >= 2)) {
+    return { mode: "files", question: folders.size ? null : "Każdy ZIP to osobna sprawa czy części jednej? Jeśli jednej, wybierz „jedna sprawa”." };
+  }
   if (!loose.length && folders.size > 0) return { mode: "folders", question: null };
   if (loose.length && realFolders.length >= 2) return { mode: "folders", question: null };
-  const kinds = loose.map((f) => fileKind(f.path, packageDirs));
   const media = kinds.filter((k) => k === "screenshot" || k === "video").length;
   if (!folders.size && media >= 3 && media === kinds.length) {
     return { mode: "single", question: "To zrzuty jednej reklamy czy kilku różnych? Jeśli różnych, wybierz „każdy plik to osobny materiał”." };
@@ -197,7 +208,11 @@ export function withoutSystemFiles(files: InputFile[]): InputFile[] {
   return files.filter((f) => fileKind(f.path) !== "system");
 }
 
-/** Cases of an upload for the chosen split. File paths stay as uploaded (unstripped); system files are left out. */
+/**
+ * Cases of an upload for the chosen split. File paths stay as uploaded (unstripped); system files are
+ * left out. "single" names the case after the picked folder; an upload of one ZIP alone is a packed
+ * folder, so the case takes the archive's name.
+ */
 export function detectCases(all: InputFile[], mode: SplitMode, fallbackName = "sprawa"): DetectedCase[] {
   const input = withoutSystemFiles(all);
   if (!input.length) return [];
@@ -206,7 +221,8 @@ export function detectCases(all: InputFile[], mode: SplitMode, fallbackName = "s
   const orig = (list: InputFile[]) => list.map((f) => original.get(f) ?? f);
   const packageDirs = packageDirsOf(files);
   const used = new Set<string>();
-  const rootName = top ?? fallbackName;
+  const loneZip = !top && files.length === 1 && fileKind(files[0].path) === "zip" ? base(files[0].path).replace(/\.zip$/i, "") : null;
+  const rootName = top ?? loneZip ?? fallbackName;
   if (mode === "single") return [describe(uniqueName(rootName, used), orig(files))];
 
   const { loose, folders, attached } = layout(files);

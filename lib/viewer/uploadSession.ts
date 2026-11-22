@@ -83,10 +83,12 @@ export async function addUploadFile(s: UploadSession, caseName: string, rel: str
 /**
  * Unpacks a ZIP already on disk next to itself (folder named like the archive without .zip), keeping
  * entries inside `caseDir`, then removes the archive. Large archives go through a streaming extractor
- * (Python zipfile, which drops absolute and `..` parts) so they never sit in memory.
+ * (Python zipfile, which drops absolute and `..` parts) so they never sit in memory. The target folder
+ * always exists afterwards, also for an archive with no usable entries (the caller flattens it).
  */
 export async function unpackZipOnDisk(zipPath: string, caseDir: string, budget: number): Promise<number> {
   const target = path.join(path.dirname(zipPath), path.basename(zipPath).replace(/\.zip$/i, ""));
+  await mkdir(target, { recursive: true });
   const size = (await stat(zipPath)).size;
   let written = 0;
   if (size <= IN_MEMORY_ZIP_BYTES) {

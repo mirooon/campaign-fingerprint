@@ -9,7 +9,7 @@ Zakładki u góry: Analizuj materiał (domyślna) · Kampanie · Graf powiązań
 
 1. W zakładce „Analizuj materiał” upuść pliki, folder albo ZIP w ramkę, albo użyj „Wybierz folder” / „Wybierz pliki”. Możesz też wpisać **Link** albo **Tekst reklamy albo nazwę produktu** (osobno lub razem z plikami).
 2. Zobacz podgląd wgrania. Tabela „Sprawa · Pliki · Uwagi” pokazuje, co narzędzie rozpoznało; przy każdej sprawie ikony rodzajów plików (tabela niżej) i uwagi, np. „HAR bez zapisanej strony”, „same zrzuty: adres odczytamy z paska przeglądarki”, „wideo ze strony (HLS): fragmenty skleimy w jedno nagranie”. Rodzaje, których analiza nie czyta samodzielnie, są zaznaczone na żółto. Odznacz sprawy, których nie chcesz analizować (sprawa bez plików do analizy jest wyłączona).
-3. Sprawdź „Podział na sprawy”. Domyślny podział to podpowiedź (czasem z pytaniem w żółtej ramce). Zmienisz go: **jedna sprawa**, **każdy podfolder to sprawa**, **każdy plik to osobny materiał**. Pliki zapisanej strony (folder `*_files`, `resources/`, skrypty, style, obrazy, wideo ze strony) dołączają do swojej strony i nie są osobnymi sprawami.
+3. Sprawdź „Podział na sprawy”. Domyślny podział to podpowiedź (czasem z pytaniem w żółtej ramce). Zmienisz go: **jedna sprawa**, **każdy podfolder to sprawa**, **każdy plik to osobny materiał**. Pliki zapisanej strony (folder `*_files`, `resources/`, skrypty, style, obrazy, wideo ze strony) dołączają do swojej strony i nie są osobnymi sprawami. Kilka luźnych ZIP-ów bez innych luźnych plików domyślnie daje osobną sprawę z każdego archiwum.
 4. Pole „Dociągnij publiczne dane o domenach (DNS, rejestr domen)” jest domyślnie włączone: pytamy publiczne rejestry o domeny z materiału, a stron oszustów nie otwieramy w przeglądarce. Wyłącz je, gdy pracujesz bez internetu.
 5. „Analizuj (liczba spraw)”. Pod spodem pojawia się przebieg: licznik spraw i czas, stan każdej sprawy (czeka, w toku, gotowe, błąd) i zwinięty „Dziennik techniczny”. Adres z `?job=` wraca do tego samego zadania po odświeżeniu strony. „Nowa analiza” czyści widok.
 6. Bez własnych plików możesz kliknąć „Wczytaj przykład”: wymyślona reklama, sprawdzana bez internetu.
@@ -22,7 +22,7 @@ Zakładki u góry: Analizuj materiał (domyślna) · Kampanie · Graf powiązań
 | część strony | obrazy, skrypty, style, wideo i manifest zapisu: dołączane do strony |
 | wideo, opis wideo | tekst z klatek i z paska; opis (np. z yt-dlp) daje tytuł, kanał, datę |
 | wideo HLS | playlista `.m3u8` i segmenty `.ts` sklejamy w jedno nagranie i analizujemy jak wideo (klatki; mowa, twarze i głos tylko z wiersza poleceń, patrz niżej) |
-| ZIP | rozpakowywany na serwerze |
+| ZIP | sprawa z samym ZIP-em też jest do analizy: serwer rozpakowuje archiwum przy analizie (także przy wgrywaniu plik po pliku), a cała jego zawartość należy do sprawy, w której leży ZIP; podgląd nie zagląda do środka. Archiwum z wieloma sprawami w podfolderach rozpakuj i wgraj jako folder |
 | plik zbioru (CSV, JSON) | w interfejsie jeszcze nie analizowany; użyj `bun run analyze-material -- --dataset <plik>` |
 | plik systemowy, nieobsługiwany | pomijane |
 

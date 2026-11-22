@@ -62,6 +62,16 @@ describe("defaultSplit", () => {
     expect(d.mode).toBe("single");
     expect(d.question).toMatch(/jednej reklamy czy kilku różnych/);
   });
+  it("one ZIP alone or a ZIP next to other material -> one case", () => {
+    expect(defaultSplit(f("sprawa_03.zip"))).toEqual({ mode: "single", question: null });
+    expect(defaultSplit(f("sprawa-7/zrzut.png", "sprawa-7/strona.zip"))).toEqual({ mode: "single", question: null });
+  });
+  it("2+ loose ZIPs and nothing else loose -> every ZIP is a case (asked), also next to case folders", () => {
+    const d = defaultSplit(f("partia/a.zip", "partia/b.zip"));
+    expect(d.mode).toBe("files");
+    expect(d.question).toMatch(/Każdy ZIP to osobna sprawa/);
+    expect(defaultSplit(f("partia/s1/x.png", "partia/s2/y.har", "partia/a.zip", "partia/b.zip"))).toEqual({ mode: "files", question: null });
+  });
 });
 
 describe("detectCases", () => {
@@ -108,6 +118,23 @@ describe("detectCases", () => {
     const [s] = detectCases(f("v/output.m3u8", "v/output_000.ts"), "single");
     expect(s.notes.some((n) => n.startsWith("wideo ze strony (HLS)"))).toBe(true);
     expect(s.analyzable).toBe(true);
+  });
+  it("a case made of a ZIP only is analyzable, named after the archive, with a note that the server unpacks it", () => {
+    const [c] = detectCases(f("sprawa_03.zip"), "single");
+    expect(c.name).toBe("sprawa_03");
+    expect(c.analyzable).toBe(true);
+    expect(c.counts).toEqual({ zip: 1 });
+    expect(c.notes).toContain("ZIP: rozpakowany na serwerze przy analizie, cała zawartość należy do tej sprawy");
+    expect(c.notes).not.toContain("brak plików do analizy");
+  });
+  it("a ZIP inside a case folder makes that case analyzable; loose ZIPs split into cases of their own", () => {
+    const folders = detectCases(f("partia/s1/material.zip", "partia/s2/notatka.txt"), "folders");
+    expect(folders.map((c) => [c.name, c.analyzable])).toEqual([["s1", true], ["s2", false]]);
+    const files = detectCases(f("partia/a.zip", "partia/b.zip"), "files");
+    expect(files.map((c) => [c.name, c.files.map((x) => x.path), c.analyzable])).toEqual([
+      ["a", ["partia/a.zip"], true],
+      ["b", ["partia/b.zip"], true],
+    ]);
   });
   it("unique names", () => {
     const cases = detectCases(f("a/x.png", "b/x.png", "x.png", "x.jpg"), "files");

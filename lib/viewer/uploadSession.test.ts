@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { zipSync, strToU8 } from "fflate";
@@ -63,5 +63,21 @@ describe("upload session (file-by-file, streamed to disk)", () => {
     expect(n).toBe(7);
     expect(readFileSync(path.join(out, "folder", "strona.html"), "utf8")).toBe("<html>");
     expect(existsSync(path.join(work, "uciekam.txt"))).toBe(false);
+  });
+
+  it("a case made of a ZIP only: its content lands in the case folder; an empty archive leaves an empty folder", async () => {
+    const s = await createUploadSession();
+    const zip = zipSync({ "sprawa_03/zrzut.png": strToU8("png"), "sprawa_03/wizyta.har": strToU8("{}") });
+    await addUploadFile(s, "sprawa_03", "sprawa_03.zip", new Response(zip).body, zip.length);
+    expect(s.zips).toEqual([path.join(s.casesDir, "sprawa_03", "sprawa_03.zip")]);
+    const caseDir = path.join(s.casesDir, "sprawa_03");
+    await unpackZipOnDisk(s.zips[0], caseDir, Number.POSITIVE_INFINITY);
+    expect(readdirSync(caseDir)).toEqual(["sprawa_03"]);
+    expect(readdirSync(path.join(caseDir, "sprawa_03", "sprawa_03")).sort()).toEqual(["wizyta.har", "zrzut.png"]);
+
+    const empty = zipSync({});
+    await addUploadFile(s, "pusta", "pusta.zip", new Response(empty).body, empty.length);
+    await unpackZipOnDisk(s.zips[1], path.join(s.casesDir, "pusta"), Number.POSITIVE_INFINITY);
+    expect(readdirSync(path.join(s.casesDir, "pusta", "pusta"))).toEqual([]);
   });
 });

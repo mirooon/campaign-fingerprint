@@ -16,6 +16,7 @@
     "enrich": "bun scripts/enrich.ts",
     "build-graph": "bun scripts/build-graph.ts",
     "evaluate": "bun scripts/evaluate.ts",
+    "sensitivity": "bun scripts/sensitivity.ts",
     "pipeline": "bun scripts/pipeline.ts",
     "summarize": "bun scripts/summarize.ts",
     "evidence": "bun scripts/evidence.ts",

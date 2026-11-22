@@ -75,6 +75,8 @@ Ocena partii na własnych etykietach (plik `{"kampania": ["sprawa", …]}` albo 
 bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wynik jako JSON
 ```
 
+Czy wynik zależy od dokładnych wag, sprawdzisz poleceniem `bun run sensitivity -- --enriched data/work/enriched.json --runs 5 --out data/work/sensitivity` (losowe zaburzenie wszystkich wag, jedna waga naraz, progi osobno; [docs/TECHNICAL.md](docs/TECHNICAL.md#61-wrażliwość-wag-bun-run-sensitivity-od-22112026-zadanie-i27)).
+
 Minimum plików (pomiar na 111 wariantach 25 spraw, [docs/METODYKA.md](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)): zapisana strona (HTML albo HAR) wystarcza do przypisania do znanej kampanii; sam zrzut albo samo wideo bez strony zwykle nie, i wtedy narzędzie zgłasza brak danych (`insufficient`, „podobne kampanie” albo „nowa kampania”) z listą braków w `missing_data` (link do strony, plik HAR, zrzut reklamy) zamiast zgadywać; żaden wariant nie trafił do cudzej kampanii. Obrazy w formacie HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
 
 **Wiedza z wyniku.** Wzbogacony zbiór (wiersz na materiał, bez wektorów głosu i twarzy), graf dla Neo4j, raport okresowy i statystyki źródeł:

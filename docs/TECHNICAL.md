@@ -645,6 +645,34 @@ Wartości są sprawdzone na przykładzie liczonym ręcznie (`eval.test.ts`). ARI
 
 **Partia z własnymi etykietami** (`lib/pipeline/materialEval.ts`, test `materialEval.test.ts`): `bun run evaluate -- --csv <partia.csv> --labels <etykiety.json>` ocenia CSV z `analyze-material`. Rekord trafia do `campaign_id`, a bez niej do `new_campaign_id`, duplikat do grupy rekordu z `duplicate_of`, reszta zostaje sama; „podobne kampanie” nie przypisują. Etykietę dopasowuje kolumna `case`, a potem `material_id`; rekordy bez etykiety są wypisane i pominięte. Wynik: pary, B-cubed, ARI i rozkład prawdziwa kampania → przewidziane.
 
+
+### 6.1 Wrażliwość wag (`bun run sensitivity`, od 22.11.2026, zadanie i27)
+
+Narzędzie **mierzy i raportuje, nie stroi**: pokazuje, czy wynik zależy od dokładnych liczb. Wagi nie są uczone na etykietach (powód w [METODYKA.md, „Odporność wag”](METODYKA.md#odporność-wag)). Kod: reguły i obliczenia w `lib/graph/sensitivity.ts` (czyste funkcje, test `sensitivity.test.ts`), tabele w `lib/pipeline/sensitivityReport.ts`, przebieg w `lib/pipeline/sensitivity.ts` (graf budowany w procesie tą samą funkcją co `build-graph`, `runBuildGraph`), CLI `scripts/sensitivity.ts`, test end-to-end `tests/sensitivity.offline.test.ts`.
+
+**Które liczby są zaburzane (reguła po nazwach pól, bez listy).** Narzędzie przechodzi po konfiguracji (`LinkConfig`, po scaleniu z `--config`) i zbiera liczby:
+- *wagi* (`weightPaths`): każdy wpis `typeWeights.<typ>` większy od 0 i każde pole liczbowe o nazwie `weight` albo kończącej się na `Weight` (np. `similarity.dom.weight`, `creativeFileWeight`, `registrationBurstWeight`), z wyjątkiem pól z `Min` w nazwie (`discountedMinWeight`, `infrastructureMinWeight`: to progi na wadze). Waga dodana do konfiguracji później jest więc objęta bez zmian w narzędziu;
+- *progi* (`thresholdPaths`): `strongThreshold`, `minLinkScore` i pola `minCosine`, `clipMinCosine`, `minSimilarity`, `tfidfThreshold`, `embeddingThreshold`, `hamming`, `imageHamming` w dowolnym miejscu konfiguracji. Progi nie są zaburzane losowo, tylko osobno (C).
+Listy infrastruktury (`lists.*`) i czynniki list nie są zaburzane.
+
+**Eksperymenty.** Przebieg bazowy, potem:
+- (A) dla każdego rozrzutu `s` z `--spread` po `--runs` przebiegów z ziarnami `seed … seed + runs − 1`: każda waga razy czynnik z rozkładu jednostajnego na [1 − s, 1 + s], obcięcie do [0, 1] (`perturbWeights`, generator z ziarnem: te same ziarno i rozrzut dają tę samą konfigurację). Tabela: min / mediana / maks precyzji, czułości i F1 par, B-cubed F1 i ARI; liczba przebiegów z podziałem identycznym z bazowym; maks. liczba par, które zmieniły stan „razem / osobno” (`partitionDistance`); liczba przebiegów z nowym sklejeniem dwóch etykiet prawdy (`newLabelMerges`);
+- (B) jedna waga naraz razy każdy czynnik z `--one-at-a-time` (`scalePath`, obcięcie do [0, 1]). Tabela: waga, wartość, ΔF1 par względem bazy, zmienione pary; posortowana po wpływie, wagi bez wpływu w jednym wierszu. Czynnik, który nie zmienia wartości (np. 1,0 × 1,3 po obcięciu), nie jest uruchamiany;
+- (C) ta sama tabela dla progów i czynników z `--thresholds` (odległości Hamminga zaokrąglane do całych bitów).
+
+Etykiety prawdy: pole `label` reklam z `enriched.json`, uzupełnione i nadpisane plikiem `--labels` (format jak w `evaluate`). Konfiguracja bazowa jak w `build-graph` (`--config`, inaczej wbudowane wagi). Tabele i `sensitivity.json` powstają w `--out`.
+
+**`sensitivity.json`:** `meta` (`commit`, `date`, `items`, `labeled`, `seconds`, `seed`, `runs`, `spreads`, `factors`, `thresholdFactors`), `base` (metryki bazowe), `random[]` (`spread`, `seed`, `metrics`, `distance`, `newMerges`, `identical`), `oneAtATime[]` i `thresholds[]` (`path`, `factor`, `from`, `to`, `metrics`, `deltaF1`, `distance`, `newMerges`). `metrics`: `precision`, `recall`, `f1` (pary), `bcubedF1`, `ari`, `clusters`. Każdy przebieg ma ziarno, więc można go odtworzyć: `bun run sensitivity -- --dump-config zab.json --spread 0.2 --seed 7` zapisuje pełną zaburzoną konfigurację (do użycia jako `--config` w `build-graph` i `analyze-material`).
+
+**Próbka syntetyczna:**
+
+```bash
+bun run pipeline --offline        # data/work/enriched.json
+bun run sensitivity -- --enriched data/work/enriched.json --runs 5 --out data/work/sensitivity
+```
+
+Pomiar na danych referencyjnych robi skrypt poza repozytorium (`data/wrazliwosc/run.sh`, także partia spoza próbki z zaburzoną konfiguracją); liczby: sekcja „Końcowy pomiar”.
+
 ---
 
 ## 7. LLM
@@ -761,6 +789,7 @@ Uruchomienie: `bun run <skrypt> [--flagi]` lub `bun run <skrypt> -- --flagi`; ob
 | `demo` | `--out` (`DEMO_OUT`, potem `dane/demo`), `--sample` (`data/sample`) | `bun run demo` |
 | `demo-batch` | `--out` (`dane`), `--cases-name` (`syntetyczne`), `--new-name` (`syntetyczne-nowe`), `--sample` | `bun run demo-batch -- --out dane --cases-name probka --new-name nowe` |
 | `evaluate` | `--graph`, `--campaigns`, `--json`; albo `--csv` (partia `analyze-material`) z `--labels` (`{"kampania": ["sprawa", …]}` lub `{"sprawa": "kampania"}`) | `bun run evaluate -- --json > metryki.json`; `bun run evaluate -- --csv partia.csv --labels etykiety.json` |
+| `sensitivity` | `--enriched`, `--labels` (etykiety prawdy, opcjonalne), `--config`, `--runs` (50), `--spread` (`0.1,0.2,0.3`), `--seed` (1), `--one-at-a-time` (`0.7,1.3`), `--thresholds` (`0.8,0.9,1.1,1.2`), `--out` (wymagane), `--text`; albo `--dump-config <plik>` z `--spread` i `--seed` (zapis jednej zaburzonej konfiguracji) | `bun run sensitivity -- --enriched data/work/enriched.json --runs 5 --out data/work/sensitivity` |
 | `pipeline` | `--input`, `--mapping`, `--offline`, `--fixtures`, `--config` (z próbką: `data/sample/linking.json`; z `--input`: domyślne), `--text`, `--concurrency`, `--skip`, `--personas` (z próbką: `data/sample/personas.json`), `--ner`, `--cloaking`, `--ocr`, `--asr`, `--audio`; archiwum HTML zawsze w `data/work/archive` | `bun run pipeline --offline` · `bun run pipeline -- --input nask.csv --mapping m.json --skip ct` |
 | `summarize` | `--graph`, `--campaigns`, `--out` (`data/summaries.json`), `--campaign K01`, `--limit N`, `--all` (też kampanie 1-elementowe) | `LLM_PROVIDER=ollama bun run summarize -- --limit 10` |
 | `evidence` | `--campaign` (wymagane), `--out` (`data/evidence/<kampania>`), `--graph`, `--campaigns`, `--enriched` (`data/work/enriched.json`), `--config`, `--tlp` (`TLP:AMBER`), `--submitter-name`, `--submitter-email`, `--submitter-address`, `--submitter-role` | `bun run evidence -- --campaign K01 --submitter-name "…" --submitter-email "…"` |

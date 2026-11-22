@@ -106,7 +106,8 @@ describe("detectCases", () => {
     const cases = detectCases(f("strona.html", "app.js", "z.png"), "files");
     expect(cases.map((c) => [c.name, c.files.length])).toEqual([["strona", 2], ["z", 1]]);
     const [s] = detectCases(f("v/output.m3u8", "v/output_000.ts"), "single");
-    expect(s.notes.some((n) => n.startsWith("wideo HLS"))).toBe(true);
+    expect(s.notes.some((n) => n.startsWith("wideo ze strony (HLS)"))).toBe(true);
+    expect(s.analyzable).toBe(true);
   });
   it("unique names", () => {
     const cases = detectCases(f("a/x.png", "b/x.png", "x.png", "x.jpg"), "files");

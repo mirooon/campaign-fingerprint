@@ -33,7 +33,7 @@ export const FILE_KIND_INFO: Record<FileKind, FileKindInfo> = {
   video_info: { label: "opis wideo", hint: "Opis nagrania (np. z yt-dlp): tytuł, kanał, data publikacji.", analyzable: false },
   dataset: { label: "plik zbioru", hint: "Plik zbioru: każdy wiersz stanie się materiałem.", analyzable: false },
   zip: { label: "ZIP", hint: "Archiwum: rozpakujemy je przed analizą.", analyzable: false },
-  stream: { label: "wideo HLS", hint: "Fragmenty strumienia wideo (playlista .m3u8 i segmenty .ts): zachowamy je z materiałem, ale tekstu z nich nie odczytujemy. Do analizy nagrania zapisz je jako MP4.", analyzable: false },
+  stream: { label: "wideo HLS", hint: "Fragmenty strumienia wideo (playlista .m3u8 i segmenty .ts): skleimy je w jedno nagranie i przeanalizujemy jak wideo (mowa, twarze, głos).", analyzable: true },
   system: { label: "plik systemowy", hint: "Plik dodany przez system (np. .DS_Store): pomijamy go.", analyzable: false },
   unsupported: { label: "nieobsługiwany", hint: "Tego typu pliku nie analizujemy.", analyzable: false },
 };
@@ -135,7 +135,7 @@ function describe(name: string, files: InputFile[]): DetectedCase {
   if (counts.screenshot && !counts.har && !counts.page && !pkg && !counts.video) notes.push("same zrzuty: adres strony odczytamy z paska przeglądarki, jeśli jest widoczny");
   if (counts.dataset) notes.push("plik zbioru: na razie wczytaj go poleceniem bun run analyze-material -- --dataset <plik>");
   if (counts.zip) notes.push("archiwum ZIP zostanie rozpakowane na serwerze");
-  if (counts.stream) notes.push("wideo HLS (.m3u8/.ts): zachowamy je, ale nie analizujemy; nagranie zapisz jako MP4");
+  if (counts.stream || files.some((f) => /\/resources\/media\/[^/]+\.(ts|m2ts|mts)$/i.test(`/${f.path}`))) notes.push("wideo ze strony (HLS): fragmenty skleimy w jedno nagranie i przeanalizujemy jak wideo");
   const unsupported = files.filter((f) => fileKind(f.path, packageDirs) === "unsupported").map((f) => base(f.path));
   if (unsupported.length) notes.push(`nieobsługiwany plik: ${unsupported.slice(0, 3).join(", ")}${unsupported.length > 3 ? ` i ${unsupported.length - 3} innych` : ""}`);
   return { name, files, counts, notes, analyzable };

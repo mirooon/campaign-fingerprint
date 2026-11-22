@@ -44,6 +44,8 @@ export interface Item {
   videoPath: string | null;
   /** Further screenshots of the same case (ad details in the ad library, the page on a phone): read by OCR only. */
   extraImagePaths?: string[];
+  /** Further videos of the same case (the landing page's own video, e.g. a VSL): read by ASR, faces and the voice step. */
+  extraVideoPaths?: string[];
   /** Unmapped source columns, kept for display. */
   extra: Record<string, string>;
 }

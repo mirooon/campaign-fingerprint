@@ -19,6 +19,7 @@ export const SOURCE_FILE_LABEL: Record<CaseFileRole, string> = {
   more_screenshot: "dalszy zrzut reklamy",
   page_screenshot: "zrzut strony docelowej",
   video: "nagranie reklamy",
+  page_video: "wideo ze strony docelowej (sklejone z HLS)",
   info_json: "opis nagrania (.info.json)",
 };
 
@@ -30,6 +31,7 @@ export const SOURCE_FILE_DIR: Record<CaseFileRole, string | null> = {
   more_screenshot: "files/screenshots",
   page_screenshot: "files/screenshots",
   video: "files/media",
+  page_video: "files/media",
   info_json: "files/info",
 };
 

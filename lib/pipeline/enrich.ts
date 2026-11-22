@@ -192,9 +192,9 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
           const bytes = await opts.sources.fetchBinary(it.imageUrl);
           if (bytes) await addBytes(it.id, it.imageUrl, bytes);
         }
-        if (it.videoPath) {
-          const frames = await extractFrames(abs(it.videoPath));
-          for (const [i, frame] of frames.entries()) await addBytes(it.id, `${it.videoPath}#kadr${i + 1}`, frame);
+        for (const v of videosOf(it)) {
+          const frames = await extractFrames(abs(v));
+          for (const [i, frame] of frames.entries()) await addBytes(it.id, `${v}#kadr${i + 1}`, frame);
         }
       } catch (e) {
         enr.errors.push(`faces: ${errMsg(e)}`);
@@ -227,6 +227,11 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
   }
 }
 
+/** Videos of a record: its own, then the further ones (the landing page's video). */
+function videosOf(it: Item): string[] {
+  return [it.videoPath, ...(it.extraVideoPaths ?? [])].filter((v): v is string => !!v);
+}
+
 /**
  * Voice step of the enrichment: cuts the audio of each video creative into windows and matches them
  * with the gallery of voices (data/voices/index.json, the closed list of public figures). Sets
@@ -252,18 +257,18 @@ async function enrichVoices(items: Item[], perItem: Record<string, ItemEnrichmen
   const index = opts.voiceIndex === undefined ? loadVoiceIndex() : opts.voiceIndex;
   if (!index) return log("głos mówcy pominięty: brak galerii głosów (data/voices/index.json)");
   const abs = (p: string) => (path.isAbsolute(p) ? p : path.join(opts.baseDir, p));
-  const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
+  const withVideo = items.filter((it) => videosOf(it).length && perItem[it.id]);
   if (!withVideo.length) return;
-  const windows = await adapter([...new Set(withVideo.map((it) => abs(it.videoPath!)))], { python, modelDir });
+  const windows = await adapter([...new Set(withVideo.flatMap((it) => videosOf(it).map(abs)))], { python, modelDir });
   const people = loadPublicPeople("głosu", log);
   let similar = 0;
   for (const it of withVideo) {
-    const w = windows[abs(it.videoPath!)];
-    if (!w) {
+    const found = videosOf(it).map((v) => windows[abs(v)]).filter((w) => !!w);
+    if (!found.length) {
       perItem[it.id].errors.push("speaker: nie odczytano ścieżki dźwiękowej albo jest krótsza niż jedno okno");
       continue;
     }
-    const spans = matchVoiceWindows(w, index);
+    const spans = found.flatMap((w) => matchVoiceWindows(w, index));
     perItem[it.id].voices = spans;
     const best = new Map<string, number>();
     for (const sp of spans) if (sp.persona && sp.similarity !== undefined) best.set(sp.persona, Math.max(best.get(sp.persona) ?? 0, sp.similarity));
@@ -654,6 +659,16 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
             }
           }
         }
+        // further videos of the case (the landing page's own video): their speech joins the transcript
+        if (asrOn && item.extraVideoPaths?.length) {
+          const parts = [asrText];
+          for (const rel of item.extraVideoPaths) {
+            const file = path.isAbsolute(rel) ? rel : path.join(opts.baseDir, rel);
+            parts.push(await mediaLimit(() => transcribe(file)));
+          }
+          const joined = parts.filter((t): t is string => !!t && t.trim().length > 0).join("\n");
+          asrText = joined || null;
+        }
         if (ocrOn && item.videoPath) {
           // a screen recording shows the address bar change from the ad to the landing page and back
           const file = path.isAbsolute(item.videoPath) ? item.videoPath : path.join(opts.baseDir, item.videoPath);
@@ -746,8 +761,12 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     if (!st.available) log(`głos mówcy pominięty: ${st.reason ?? "brak SpeechBrain"}`);
     else {
       const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: CACHE_TTL.speaker });
-      const fileOf = (it: Item) => (path.isAbsolute(it.videoPath!) ? it.videoPath! : path.join(opts.baseDir, it.videoPath!));
-      const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
+      // one embedding per record: of its own video, else of the landing page's video
+      const fileOf = (it: Item) => {
+        const v = videosOf(it)[0];
+        return path.isAbsolute(v) ? v : path.join(opts.baseDir, v);
+      };
+      const withVideo = items.filter((it) => videosOf(it).length && perItem[it.id]);
       const keyOf = new Map<string, string>();
       const todo: string[] = [];
       for (const it of withVideo) {

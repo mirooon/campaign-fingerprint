@@ -397,6 +397,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       if (it.imagePath && it.imageUrl && !/^https?:\/\//i.test(it.imageUrl)) it.imageUrl = null;
       it.videoPath = local(it.videoPath);
       if (it.extraImagePaths) it.extraImagePaths = it.extraImagePaths.map((p) => local(p) ?? p);
+      if (it.extraVideoPaths) it.extraVideoPaths = it.extraVideoPaths.map((p) => local(p) ?? p);
       caseOf.set(it.id, it.extra.case || it.id);
     }
     notes.push(`plik zbioru: ${rows.length} rekordów z ${path.basename(file)}`);
@@ -429,11 +430,11 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const planned: Array<[MaterialStep, boolean, (it: Item) => boolean]> = [
     ["ocr", media.ocr, hasImage],
     ["address_bar", media.ocr, (it) => hasImage(it) || !!it.videoPath],
-    ["asr", media.asr, (it) => !!it.videoPath],
+    ["asr", media.asr, (it) => !!(it.videoPath || it.extraVideoPaths?.length)],
     ["audio", media.audio, (it) => !!it.videoPath],
     ["clip", media.clip, (it) => hasImage(it) || !!it.videoPath],
-    ["voice", media.voice, (it) => !!it.videoPath],
-    ["faces", media.faces, (it) => hasImage(it) || !!it.videoPath],
+    ["voice", media.voice, (it) => !!(it.videoPath || it.extraVideoPaths?.length)],
+    ["faces", media.faces, (it) => hasImage(it) || !!(it.videoPath || it.extraVideoPaths?.length)],
     ["lookups", !!ctx.live, () => true],
     ["archive", !!ctx.archive, () => true],
   ];
@@ -763,7 +764,7 @@ function reportMediaSteps(
     const its = itemsOf(c);
     const enr = its.map((it) => extra.perItem[it.id]).filter(Boolean);
     const img = its.some((it) => !!(it.imagePath || it.imageUrl || it.extraImagePaths?.length));
-    const vid = its.some((it) => !!it.videoPath);
+    const vid = its.some((it) => !!(it.videoPath || it.extraVideoPaths?.length));
     const errs = enr.flatMap((e) => e.errors);
     const errOf = (re: RegExp) => errs.find((e) => re.test(e));
     const report = (step: MaterialStep, on: boolean, offWhy: string, applies: boolean, missingWhy: string, tool: string | null, done: boolean, doneWhy: string, errRe: RegExp) => {

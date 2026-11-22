@@ -27,6 +27,14 @@ const entry = (url: string, type: string, body: Buffer | string, mime: string, i
   },
 });
 
+/** A fake MPEG-TS segment: two 188-byte packets starting with the sync byte, the payload filled with `fill`. */
+const tsSegment = (fill: number) => {
+  const b = Buffer.alloc(376, fill);
+  b[0] = 0x47;
+  b[188] = 0x47;
+  return b;
+};
+
 let root: string;
 let cases: string;
 let out: string;
@@ -217,6 +225,11 @@ describe("importCases (untidy case folders)", () => {
     const bundle = mk("11", "pill_test", "pill_test");
     mkdirSync(path.join(bundle, "resources", "document"), { recursive: true });
     writeFileSync(path.join(bundle, "resources", "document", "index_1.html"), doc("Lek", "RESOURCE-COPY"));
+    // the page's video player saved as HLS: segment names carry a hash, the playlist names them without it
+    mkdirSync(path.join(bundle, "resources", "media"), { recursive: true });
+    writeFileSync(path.join(bundle, "resources", "media", "output_001_bbbbbbbb.ts"), tsSegment(2));
+    writeFileSync(path.join(bundle, "resources", "media", "output_000_aaaaaaaa.ts"), tsSegment(1));
+    writeFileSync(path.join(bundle, "resources", "media", "output_cccccccc.m3u8"), "#EXTM3U\n#EXTINF:10.0,\noutput_000.ts\n#EXTINF:10.0,\noutput_001.ts\n");
     writeFileSync(path.join(bundle, "dom.html"), doc("Lek", "DOM"));
     writeFileSync(path.join(bundle, "screenshot.png"), LOGO);
     writeFileSync(path.join(bundle, "manifest.json"), JSON.stringify({ tool: "page-capture 0.1.0", page_url: "https://pill.test/?land_id=2&key=[REDACTED]" }));
@@ -267,6 +280,11 @@ describe("importCases (untidy case folders)", () => {
     expect(String(r[0].screenshot)).toMatch(/IMG_0101\.PNG$/);
     expect((r[0].more_screenshots as string[]).map((p) => path.basename(p))).toEqual(["IMG_0102.PNG", "IMG_0103.PNG"]);
     expect(String(r[0].video)).toMatch(/ScreenRecording\.MP4$/);
+    // the page's own video, stitched from its HLS segments in playlist order, is a further video of the case
+    const more = r[0].more_videos as string[];
+    expect(more.map((p) => path.basename(p))).toEqual(["11-wideo-strony.ts"]);
+    expect(readFileSync(more[0])).toEqual(Buffer.concat([tsSegment(1), tsSegment(2)]));
+    expect(JSON.parse(readFileSync(path.join(outDir, "mapping.json"), "utf8"))).toMatchObject({ extraVideoPaths: "more_videos" });
     const src = fixtureSources(path.join(outDir, "fixtures"));
     expect((await src.fetchPage("https://pill.test/?key=k1&land_id=1")).body).toContain("RAW-PILL");
     expect((await src.dns("pill.test", ["A"])).a).toEqual(["203.0.113.14"]);
@@ -541,5 +559,28 @@ describe("importCases: certificate of the page from the HAR", () => {
   it("keeps the issuer, names and validity of the document's certificate as a fixture of the page", () => {
     const tls = fixtureSources(path.join(dir, "out", "fixtures")).tlsFor?.(PAGE);
     expect(tls).toEqual({ issuer: "Test CA", validFrom: 1769904000, validTo: 1772496000, sanList: ["inny.test"], subjectName: "inny.test" });
+  });
+});
+
+describe("importCases: a page video saved as HLS", () => {
+  it("is the video of a case that has no other recording", async () => {
+    const dir = mkdtempSync(path.join(os.tmpdir(), "case-hls-"));
+    try {
+      const media = path.join(dir, "cases", "vsl", "resources", "media");
+      mkdirSync(media, { recursive: true });
+      writeFileSync(path.join(media, "output_000.ts"), tsSegment(3));
+      writeFileSync(path.join(media, "output_001.ts"), tsSegment(4));
+      // a TypeScript source with the same extension is not a video segment
+      writeFileSync(path.join(dir, "cases", "vsl", "notatka.ts"), "export const x = 1;\n");
+      await importCases({ casesDir: path.join(dir, "cases"), outDir: path.join(dir, "out") });
+      const [rec] = JSON.parse(readFileSync(path.join(dir, "out", "input.json"), "utf8")) as Array<Record<string, unknown>>;
+      expect(rec).toMatchObject({ id: "vsl" });
+      expect(readFileSync(String(rec.video))).toEqual(Buffer.concat([tsSegment(3), tsSegment(4)]));
+      expect(rec.more_videos).toBeUndefined();
+      const prov = JSON.parse(readFileSync(path.join(dir, "out", "provenance.json"), "utf8")) as { cases: Array<{ files: Array<{ role: string }> }> };
+      expect(prov.cases[0].files.map((f) => f.role)).toContain("page_video");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

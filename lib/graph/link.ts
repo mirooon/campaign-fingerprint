@@ -15,6 +15,7 @@ import { hammingDistance } from "../media/imageHash";
 import { paramSchema } from "../osint/campaignParams";
 import { clickIdsFromUrls } from "../osint/clickIds";
 import { mergePlatformLinkIds, platformLinkIds } from "../osint/landerConfig";
+import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { stripUiChrome } from "../text/uiChrome";
 import { domainTemplate, type DomainTemplate } from "../osint/domainPattern";
@@ -172,7 +173,7 @@ export function buildEvidenceGraph(
       platform: item.platform,
       advertiser,
       text: item.text ? item.text.slice(0, 600) : null,
-      landingUrl: item.landingUrl,
+      landingUrl: item.landingUrl ? maskUrl(item.landingUrl) : item.landingUrl,
       imageUrl: item.imageUrl,
       imagePath: item.imagePath,
       firstSeen: item.firstSeen,
@@ -659,7 +660,7 @@ export function buildEvidenceGraph(
         itemData.cloakingSuspected = page.cloaking.suspected;
         if (page.cloaking.suspected) itemData.cloakingReasons = page.cloaking.reasons;
       }
-      if (page) itemData.finalUrl = page.fetch.finalUrl;
+      if (page) itemData.finalUrl = maskUrl(page.fetch.finalUrl);
     }
 
     // Click IDs that carry more than a token: the tracker server (xid) and the clicked Meta ad (fbclid)

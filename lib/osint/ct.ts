@@ -6,7 +6,7 @@
  * `parseCrtSh` is pure: it merges precertificate/leaf duplicates by serial and
  * normalises SAN names (lower-case, "*." stripped).
  */
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import { toAsciiHost } from "./urls";
 
 export interface CertInfo {
@@ -176,7 +176,7 @@ export function parseCrtSh(json: unknown, domain: string, maxCerts = 200): CtRes
 
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
-  if (!defaultCache) defaultCache = createCache({ namespace: "ct", defaultTtlMs: TTL.day });
+  if (!defaultCache) defaultCache = createCache({ namespace: "ct", defaultTtlMs: CACHE_TTL.ct });
   return defaultCache;
 }
 

@@ -7,6 +7,8 @@ import { basisNote, campaignTitle, cohesionLabel, groupCampaigns } from "@/lib/v
 import { fmtRange, count, MATERIAL } from "@/lib/viewer/format";
 import { typeInfo } from "@/lib/viewer/plain";
 import { campaignAttributes, campaignHasPersona, personaOptions } from "./compare";
+import EvidenceButton from "./EvidenceButton";
+import PrintButton from "./PrintButton";
 import { Empty, Help, StrengthLegend } from "./ui";
 
 export interface CampaignsViewProps {
@@ -63,13 +65,17 @@ function Card({ c, open, onToggle, onCompare }: { c: Campaign; open: boolean; on
                 return (
                   <li key={m} className="rounded border border-slate-200 px-1.5 py-0.5 font-mono text-xs">
                     {m}{v && <span className="font-sans text-slate-600"> (wariant po kreacji, podobny do {v.like})</span>}
-                    {c.members[0] !== m && <button type="button" className="ml-1 font-sans underline" onClick={() => onCompare(c.members[0], m)}>porównaj z {c.members[0]}</button>}
+                    {c.members[0] !== m && <button type="button" data-no-print className="ml-1 font-sans underline" onClick={() => onCompare(c.members[0], m)}>porównaj z {c.members[0]}</button>}
                   </li>
                 );
               })}
             </ul>
           </div>
           {c.domains.length > 0 && <p className="text-xs text-slate-700">Domeny: {c.domains.join(", ")}</p>}
+          <span data-no-print className="flex flex-wrap items-center gap-2">
+            <EvidenceButton campaignId={c.id} />
+            <PrintButton />
+          </span>
         </div>
       )}
     </article>

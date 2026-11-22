@@ -10,7 +10,7 @@ FROM oven/bun:${BUN_VERSION} AS bun
 FROM node:22-slim AS system
 COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-pol ffmpeg libchromaprint-tools unzip python3 python3-venv ca-certificates \
+    && apt-get install -y --no-install-recommends tesseract-ocr tesseract-ocr-pol ffmpeg libchromaprint-tools unzip python3 python3-venv ca-certificates openssl \
     && rm -rf /var/lib/apt/lists/*
 RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"

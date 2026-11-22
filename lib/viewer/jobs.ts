@@ -106,6 +106,13 @@ export function applyProgress(job: Job, e: MaterialProgress): void {
   if (e.step === "group" && e.status === "done" && c.status !== "error") c.status = "done";
 }
 
+/** Case record for the browser: without the file checksums, which carry server paths and belong to the evidence pack. */
+function withoutFiles(c: CaseProvenance & { files?: unknown }): CaseProvenance {
+  const copy = { ...c };
+  delete copy.files;
+  return copy;
+}
+
 /** Starts the runner for a job whose case folders are ready. */
 export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir">): Promise<void> {
   const specFile = path.join(job.dir, "zadanie.json");
@@ -153,7 +160,7 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
         const res = JSON.parse(readFileSync(out, "utf8")) as MaterialResult;
         const provFile = path.join(job.dir, "praca", "import", "provenance.json");
         const prov = existsSync(provFile) ? (JSON.parse(readFileSync(provFile, "utf8")) as { cases?: CaseProvenance[]; failedLookups?: string[] }) : null;
-        finish(job, { ...res, provenance: prov?.cases ?? [], failedLookups: prov?.failedLookups ?? [], lookups: job.live, fileCount: job.fileCount }, null);
+        finish(job, { ...res, provenance: (prov?.cases ?? []).map(withoutFiles), failedLookups: prov?.failedLookups ?? [], lookups: job.live, fileCount: job.fileCount }, null);
         return;
       } catch (e) {
         finish(job, null, `Nie udało się odczytać wyniku: ${(e as Error).message}`);

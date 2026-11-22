@@ -9,7 +9,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { createCache, TTL } from "../cache";
+import { CACHE_TTL, createCache } from "../cache";
 import { lookupAsn, type AsnInfo } from "../osint/asn";
 import { lookupCt, parseCrtSh, type CtResult } from "../osint/ct";
 import { resolveDns, type DnsRecords, type DnsRecordType } from "../osint/dns";
@@ -60,8 +60,8 @@ export function binaryCacheKey(url: string): string {
  * `cache:freeze` turns that cache into replayable fixtures.
  */
 export function liveSources(opts: LiveSourceOptions = {}): EnrichmentSources {
-  const pageCache = createCache({ namespace: "page", defaultTtlMs: TTL.day });
-  const binaryCache = createCache({ namespace: "binary", defaultTtlMs: TTL.day });
+  const pageCache = createCache({ namespace: "page", defaultTtlMs: CACHE_TTL.page });
+  const binaryCache = createCache({ namespace: "binary", defaultTtlMs: CACHE_TTL.binary });
   const skipCt = opts.skipCt ?? /^(off|0|false|no)$/i.test(process.env.CT ?? "");
   return {
     mode: "live",

@@ -13,7 +13,7 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import pLimit from "p-limit";
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
@@ -140,8 +140,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   const imageCache =
     opts.imageCache === false || sources.mode === "offline"
       ? null
-      : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: TTL.week }));
-  const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: TTL.week * 4 })) : null;
+      : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: CACHE_TTL.imagehash }));
+  const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: CACHE_TTL.ner })) : null;
   const cloakThreshold = opts.cloakingDomThreshold ?? 12;
   if (opts.archiveDir) mkdirSync(opts.archiveDir, { recursive: true });
 
@@ -160,7 +160,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
   }
   let clipOn = false;
-  const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: TTL.week * 4 }) : null;
+  const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: CACHE_TTL.clip }) : null;
   if (opts.clip) {
     const st = await detectClip();
     clipOn = st.available;
@@ -560,7 +560,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     const st = await detectSpeaker();
     if (!st.available) log(`głos mówcy pominięty: ${st.reason ?? "brak SpeechBrain"}`);
     else {
-      const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: TTL.week * 4 });
+      const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: CACHE_TTL.speaker });
       const fileOf = (it: Item) => (path.isAbsolute(it.videoPath!) ? it.videoPath! : path.join(opts.baseDir, it.videoPath!));
       const withVideo = items.filter((it) => it.videoPath && perItem[it.id]);
       const keyOf = new Map<string, string>();
@@ -610,7 +610,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       const st = await detectAdLibrary();
       if (!st.available) log(`biblioteka reklam pominięta: ${st.reason ?? "brak MetaAdsCollector"}`);
       else {
-        const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: TTL.day });
+        const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: CACHE_TTL.adlibrary });
         const info: Record<string, AdLibraryInfo> = {};
         const todo: string[] = [];
         for (const id of allIds) {

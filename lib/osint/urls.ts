@@ -12,6 +12,7 @@
 import { parse as parseDomain } from "tldts";
 import { domainToASCII, domainToUnicode } from "node:url";
 import { canonicalIp, isIpAddress } from "./ip";
+import { isSecretParam } from "./redact";
 
 export interface NormalizedUrl {
   /** Original input (trimmed). */
@@ -193,7 +194,8 @@ export function normalizeUrl(input: string, opts: NormalizeOptions = {}): Normal
   const removedParams: string[] = [];
   const kept: Array<[string, string]> = [];
   for (const [k, v] of u.searchParams) {
-    if (stripTracking && isTrackingParam(k)) removedParams.push(k);
+    // a Meta token or the analyst's IP in a query is per visit and a secret: dropped like a click id, so it never keys a URL node
+    if (stripTracking && (isTrackingParam(k) || isSecretParam(k, v))) removedParams.push(k);
     else kept.push([k, v]);
   }
   kept.sort(([a, av], [b, bv]) => (a === b ? av.localeCompare(bv) : a.localeCompare(b)));

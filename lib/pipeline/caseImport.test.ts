@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -76,6 +77,19 @@ describe("importCases (saved page + HAR + screenshot per case -> offline fixture
       { id: "sprawa-2", landing_url: "https://lp-two.test/offer", screenshot: null, first_seen: null },
     ]);
     expect(JSON.parse(readFileSync(path.join(out, "mapping.json"), "utf8"))).toEqual({ id: "id", landingUrl: "landing_url", imagePath: "screenshot", firstSeen: "first_seen" });
+  });
+
+  it("records the SHA-256, size and import time of every input file of a case in provenance.json", async () => {
+    await importCases({ casesDir: cases, outDir: out });
+    const prov = JSON.parse(readFileSync(path.join(out, "provenance.json"), "utf8")) as {
+      generatedAt: string;
+      cases: Array<{ id: string; importedAt: string; files: Array<{ role: string; path: string; sha256: string | null; size: number; modifiedUtc: string | null }> }>;
+    };
+    const c1 = prov.cases.find((c) => c.id === "sprawa-1")!;
+    expect(c1.files.map((f) => f.role).sort()).toEqual(["har", "saved_html", "screenshot"]);
+    for (const f of c1.files) expect(f.sha256, f.role).toBe(createHash("sha256").update(readFileSync(f.path)).digest("hex"));
+    expect(c1.files.find((f) => f.role === "screenshot")!.size).toBe(ICON.length);
+    expect(c1.importedAt).toBe(prov.generatedAt);
   });
 
   it("serves the raw HAR document (not an embedded frame) at the normalised landing URL, with its headers and IPs", async () => {

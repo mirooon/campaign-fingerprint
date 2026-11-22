@@ -10,11 +10,28 @@ import { createHash, randomUUID } from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
-import { isSimilarityEdge, type Campaign, type CampaignsFile, type EvidenceGraph, type ItemLink } from "../graph/model";
+import type { Campaign, CampaignsFile, EvidenceGraph, ItemLink } from "../graph/model";
 import { Discounter } from "../graph/weights";
+import { defangHost, defangText } from "../osint/redact";
+import { formatUtc } from "./format";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import type { CampaignSummary } from "../pipeline/summary";
 import type { EnrichedDataset, Item, PageInfo } from "../pipeline/types";
+import { buildCustodyLog, timestampFields } from "./custody";
+import { adLibraryFacts, pageUrl } from "./adRecords";
+import type { CampaignFacts } from "./facts";
+import { recipientFiles } from "./recipients";
+import { retentionPolicy } from "./retention";
+import { methodsWithPremises, sharedInfrastructureNote, traceTypeName, whyInCampaign } from "./readable";
+import { harToWarc } from "./warc";
+import { buildStixBundle } from "./stix";
+import { continuationAfterNotice, pendingReports, REPORT_WAIT_DAYS, type ReportEntry } from "./reports";
+import { renderKnfNotice, renderPreservationRequest, renderProsecutorNotice } from "./views";
+import { renderDsaIndex, renderDsaNotices, type DsaInput } from "./dsa";
+import { caseFilesOf, REDACTORS, SOURCE_FILE_DIR, SOURCE_FILE_LABEL, type PackProvenance } from "./sourceFiles";
+import { sharedTraces } from "./traces";
+import { planCertDomains, renderCertReasons } from "./certDomains";
+import { certStatus, type CertListSnapshot } from "./certList";
 
 export const GOOD_FAITH_STATEMENT =
   "Oświadczam, że w dobrej wierze uważam, iż informacje i zarzuty zawarte w zgłoszeniu są prawidłowe i kompletne.";
@@ -44,6 +61,14 @@ export interface EvidenceOptions {
   now?: () => Date;
   /** Project root against which relative archive paths and dataset baseDir are resolved. */
   root?: string;
+  /** Local copy of the CERT Warning List (status without online queries); null/absent = not checked. */
+  certList?: CertListSnapshot | null;
+  /** Why there is no copy of the list (shown in the pack instead of a status). */
+  certListNote?: string;
+  /** provenance.json of the import: SHA-256 of the input files of each case, copied into the pack where it is safe to. */
+  provenance?: PackProvenance | null;
+  /** Register of earlier reports (`--prior`): the ones of this campaign (or with no campaign named) go into the pack. */
+  priorReports?: ReportEntry[];
 }
 
 export interface ManifestEntry {
@@ -53,6 +78,10 @@ export interface ManifestEntry {
   mime: string;
   acquired_utc: string | null;
   source: string;
+  /** Set for a redacted copy: SHA-256 of the original the copy was made from. */
+  derived_from_sha256?: string;
+  /** What was removed from the copy (set together with derived_from_sha256). */
+  redaction?: string;
 }
 
 export interface EvidenceResult {
@@ -124,6 +153,7 @@ function requestedActions(hasFinancialOffer: boolean): Array<{ recipient: keyof 
 export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const root = opts.root ?? process.cwd();
   const now = opts.now?.() ?? new Date();
+  const toolVersion = opts.toolVersion ?? { name: "hacknation-osint-starter", version: "0.1.0", gitCommit: null };
   const config = opts.config ?? DEFAULT_LINK_CONFIG;
   const discounter = new Discounter(config);
   const campaign = opts.campaigns.campaigns.find((c) => c.id === opts.campaignId);
@@ -137,22 +167,80 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const missing = campaign.members.filter((id) => !itemsById.has(id));
   if (missing.length) throw new Error(`enriched.json nie zawiera reklam: ${missing.join(", ")} (uruchom enrich na tym samym zbiorze)`);
 
+  const certList = opts.certList ?? null;
+  const certListNote = opts.certListNote ?? null;
+  /** Status of one domain on the CERT list from the local copy, as written to the pack (a plain "not checked" without a copy). */
+  const certStatusRecord = (domain: string) => {
+    if (!certList) return { checked: false, status: "unchecked", note: `niesprawdzone: ${certListNote ?? "brak lokalnej kopii listy"}; sprawdź https://hole.cert.pl/domains/v2/domains.json i zapisz RegisterPositionId oraz InsertDate` };
+    const st = certStatus(certList, domain, now);
+    return {
+      checked: true,
+      status: st.status,
+      register_position_id: st.registerPositionId,
+      insert_date: st.insertDate,
+      delete_date: st.deleteDate,
+      matched_entry: st.matched,
+      list_copy_utc: st.copyUtc,
+      source: "lokalna kopia listy, bez zapytań online",
+    };
+  };
+
   const manifest: ManifestEntry[] = [];
   const copied = new Map<string, string>();
-  const addFile = (source: string, dest: string, acquired: string | null, sourceLabel: string): string | null => {
+  const usedDest = new Set<string>();
+  /** Copies a file into the pack (optionally through a redactor), records it in the manifest and returns its path in the pack; null when the file does not exist. The same source is copied once; equal names get a number. */
+  const addFile = (source: string, dest: string, acquired: string | null, sourceLabel: string, redact?: (text: string) => string): string | null => {
     const abs = path.isAbsolute(source) ? source : path.join(root, source);
     if (!existsSync(abs)) return null;
     if (copied.has(abs)) return copied.get(abs)!;
+    // two different files of one name (screenshots of two cases) must not overwrite each other
+    let target = dest;
+    for (let n = 2; usedDest.has(target); n++) target = dest.replace(/(\.[^./]*)?$/, `-${n}$1`);
+    usedDest.add(target);
+    const destAbs = path.join(outDir, target);
+    mkdirSync(path.dirname(destAbs), { recursive: true });
+    const derived: Pick<ManifestEntry, "derived_from_sha256" | "redaction"> = {};
+    if (redact) {
+      // the redacted text is the pack's file; the original stays with the analyst and is identified by its hash
+      writeFileSync(destAbs, redact(readFileSync(abs, "utf8")));
+      derived.derived_from_sha256 = sha256File(abs);
+      derived.redaction = "zredagowana kopia: bez ciasteczek, nagłówków i danych odwiedzającego analityka oraz z zamaskowanymi tokenami";
+    } else copyFileSync(abs, destAbs);
+    manifest.push({ file: target, sha256: sha256File(destAbs), size: statSync(destAbs).size, mime: mimeOf(destAbs), acquired_utc: acquired, source: sourceLabel, ...derived });
+    copied.set(abs, target);
+    return target;
+  };
+  /** WARC files made of the redacted HARs, by the pack path of the HAR; and the WARC of each target host. */
+  const warcOfHar = new Map<string, string>();
+  const warcOfHost = new Map<string, string>();
+  const addWarc = (harInPack: string, originalSha: string | null): void => {
+    if (warcOfHar.has(harInPack)) return;
+    const harAbs = path.join(outDir, harInPack);
+    const warc = harToWarc(readFileSync(harAbs, "utf8"), { now, tool: `${toolVersion.name} ${toolVersion.version}` });
+    const dest = `files/warc/${path.basename(harInPack).replace(/\.har$/i, "")}.warc.gz`;
     const destAbs = path.join(outDir, dest);
     mkdirSync(path.dirname(destAbs), { recursive: true });
-    copyFileSync(abs, destAbs);
-    manifest.push({ file: dest, sha256: sha256File(destAbs), size: statSync(destAbs).size, mime: mimeOf(destAbs), acquired_utc: acquired, source: sourceLabel });
-    copied.set(abs, dest);
-    return dest;
+    writeFileSync(destAbs, warc.data);
+    manifest.push({
+      file: dest,
+      sha256: sha256File(destAbs),
+      size: statSync(destAbs).size,
+      mime: "application/warc",
+      acquired_utc: now.toISOString(),
+      source: `WARC (ISO 28500) z zredagowanego HAR ${harInPack}: ${warc.records} rekordów`,
+      ...(originalSha ? { derived_from_sha256: originalSha, redaction: "zredagowana kopia HAR przeniesiona do WARC" } : {}),
+    });
+    warcOfHar.set(harInPack, dest);
+    for (const t of warc.targets) {
+      const host = normalizeUrl(t)?.registrableDomain;
+      if (host && !warcOfHost.has(host)) warcOfHost.set(host, dest);
+    }
   };
-  const datasetDir = path.isAbsolute(opts.enriched.baseDir) ? opts.enriched.baseDir : path.join(root, opts.enriched.baseDir);
+  // path.resolve: import ze spraw zapisuje ścieżki bezwzględne, których path.join skleiłby z katalogiem zbioru
+  const datasetDir = path.resolve(root, opts.enriched.baseDir);
 
   // ---------------------------------------------------------------- ads (facts)
+  /** Page record the ad leads to, or null. */
   const pagesOf = (item: Item): PageInfo | null => {
     const enr = opts.enriched.perItem[item.id];
     return enr?.pageKey ? (opts.enriched.pages[enr.pageKey] ?? null) : null;
@@ -162,25 +250,70 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     const page = pagesOf(item);
     const creatives: Array<{ file: string; sha256: string | null; source: string }> = [];
     if (item.imagePath) {
-      const dest = addFile(path.join(datasetDir, item.imagePath), `files/creatives/${path.basename(item.imagePath)}`, null, "plik kreacji z danych wejściowych");
+      const dest = addFile(path.resolve(datasetDir, item.imagePath), `files/creatives/${path.basename(item.imagePath)}`, null, `plik kreacji reklamy ${item.id}`);
       if (dest) creatives.push({ file: dest, sha256: manifest.find((m) => m.file === dest)?.sha256 ?? null, source: item.imagePath });
     } else if (item.imageUrl) {
       creatives.push({ file: item.imageUrl, sha256: null, source: "URL obrazu (plik nie został zachowany przez starter)" });
     }
     if (item.videoPath) {
-      const dest = addFile(path.join(datasetDir, item.videoPath), `files/media/${path.basename(item.videoPath)}`, null, "plik audio/wideo z danych wejściowych");
+      const dest = addFile(path.resolve(datasetDir, item.videoPath), `files/media/${path.basename(item.videoPath)}`, null, `nagranie reklamy ${item.id}`);
       if (dest) creatives.push({ file: dest, sha256: manifest.find((m) => m.file === dest)?.sha256 ?? null, source: item.videoPath });
     }
     const adUrlColumns = Object.entries(item.extra).filter(([k]) => /url|link|permalink|snapshot/i.test(k));
+    const library = adLibraryFacts(item, enr);
+    const inputs = caseFilesOf(opts.provenance, item.id);
+    // input files of the case with the checksums taken at import; the copy in the pack is checked against them
+    const sourceFiles = inputs.files.map((f) => {
+      const dir = SOURCE_FILE_DIR[f.role];
+      let inPack: string | null = null;
+      let copyError: string | null = null;
+      try {
+        inPack = dir && f.sha256 ? addFile(f.path, `${dir}/${path.basename(f.path)}`, f.modifiedUtc, `plik wejściowy sprawy: ${SOURCE_FILE_LABEL[f.role]}`, REDACTORS[f.role]) : null;
+      } catch (e) {
+        // a file that cannot be redacted (e.g. a HAR that is not JSON) must not be copied as it is
+        copyError = (e as Error).message;
+      }
+      if (inPack && f.role === "har" && !copyError) {
+        try {
+          addWarc(inPack, f.sha256);
+        } catch (e) {
+          copyError = `HAR skopiowany zredagowany, ale bez WARC: ${(e as Error).message}`;
+        }
+      }
+      const entry = inPack ? manifest.find((m) => m.file === inPack) : undefined;
+      const packSha = entry ? (entry.derived_from_sha256 ?? entry.sha256) : null;
+      return {
+        role: f.role,
+        role_label: SOURCE_FILE_LABEL[f.role],
+        file_name: path.basename(f.path),
+        sha256: f.sha256,
+        size: f.size,
+        acquired_utc: f.modifiedUtc,
+        imported_utc: inputs.importedAt,
+        in_pack: inPack,
+        note: f.error
+          ? `plik nieczytelny przy imporcie: ${f.error}`
+          : copyError
+            ? `plik nie został skopiowany, bo nie dało się go zredagować: ${copyError}`
+            : !inPack
+              ? "plik nie został znaleziony przy eksporcie paczki"
+              : packSha !== f.sha256
+                ? "suma pliku w paczce różni się od sumy z importu: plik zmieniono po imporcie"
+                : entry?.derived_from_sha256
+                  ? "w paczce zredagowana kopia (bez danych analityka); sha256 dotyczy oryginału"
+                  : null,
+      };
+    });
     return {
       item_id: item.id,
       platform: item.platform,
       service: item.platform ? `reklama w serwisie ${item.platform}` : null,
-      ad_urls: adUrlColumns.map(([, v]) => v),
-      ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))) },
+      ad_urls: [...new Set([...adUrlColumns.map(([, v]) => v), ...library.urls])],
+      ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))), ...(library.ids.length ? { ad_library_id: library.ids[0] } : {}) },
       advertiser_displayed: item.advertiser,
-      payer_displayed: null,
-      repository_record: null,
+      payer_displayed: library.payer,
+      beneficiary_displayed: library.beneficiary,
+      repository_record: library.records,
       first_seen_utc: utc(item.firstSeen),
       last_seen_utc: utc(item.lastSeen ?? item.firstSeen),
       ad_text: item.text,
@@ -192,6 +325,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       landing_user_agent: page?.fetch.userAgent ?? null,
       campaign_params: (enr?.campaignParams ?? []).map((p) => ({ name: p.name, value: p.value, source_url: p.sourceUrl, cyrillic: p.cyrillic })),
       creative_files: creatives,
+      source_files: sourceFiles,
     };
   });
 
@@ -229,13 +363,16 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         return { ip, asn: a?.asn ?? null, as_name: a?.asName ?? null, prefix: a?.prefix ?? null };
       });
       const pages = (domainPages.get(domain) ?? []).map((p) => {
-        const archived = p.archiveFile ? addFile(p.archiveFile, `files/html/${path.basename(p.archiveFile)}`, utc(p.fetch.fetchedAt), "zdekodowany HTML strony (archiwum startera)") : null;
+        const archived = p.archiveFile ? addFile(p.archiveFile, `files/html/${path.basename(p.archiveFile)}`, utc(p.fetch.fetchedAt), `zdekodowany HTML strony ${p.fetch.finalUrl} (pobrano ${formatUtc(utc(p.fetch.fetchedAt))})`) : null;
         return {
           url: p.fetch.finalUrl,
           requested_url: p.requestedUrl,
           fetched_utc: utc(p.fetch.fetchedAt),
           status: p.fetch.status,
           user_agent: p.fetch.userAgent,
+          content_source: p.cloaking?.suspected
+            ? `pobranie narzędzia z User-Agent „${p.fetch.userAgent}”; podejrzenie cloakingu (${p.cloaking.reasons.join("; ")}): treść widziana przez ofiarę może się różnić`
+            : `pobranie narzędzia z User-Agent „${p.fetch.userAgent}”`,
           body_sha256_raw: p.fetch.bodySha256,
           archive_file: archived,
           title: p.extract?.title ?? null,
@@ -257,10 +394,14 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           trackers: [...new Set(kitPages.flatMap((p) => p.extract?.trackers.map((t) => `${t.kind}:${t.id}`) ?? []))],
         },
         pages,
-        warc_file: null,
-        screenshots: [],
+        warc_file: warcOfHost.get(domain) ?? null,
+        screenshots: [] as string[],
         registration_data: {
           registrar: di?.rdap?.registrar ?? null,
+          registrar_iana_id: di?.rdap?.registrarIanaId ?? null,
+          abuse_email: di?.rdap?.abuseEmail ?? null,
+          rdap_source: di?.rdap?.source ?? null,
+          rdap_query_note: di?.rdap ? "czas zapytania RDAP nie jest zapisywany przez enrich; odpowiedź pochodzi z cache do tygodnia (CACHE_TTL.rdap)" : "brak odpowiedzi RDAP",
           created_utc: utc(di?.rdap?.created),
           expires_utc: utc(di?.rdap?.expires),
           status: di?.rdap?.status ?? [],
@@ -270,12 +411,29 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           cname_chains: Object.fromEntries(hostInfos.filter((h) => h.cnameChain.length).map((h) => [h.host, h.cnameChain])),
           certificates: (di?.ct?.certs ?? []).slice(0, 10).map((c) => ({ issuer: c.issuer, not_before: c.notBefore, not_after: c.notAfter, san_count: c.sanDomains.length, crtsh_id: c.id })),
         },
-        cert_warning_list_status: "niesprawdzone — sprawdź https://hole.cert.pl/domains/v2/domains.json i zapisz RegisterPositionId oraz InsertDate",
+        cert_warning_list_status: certStatusRecord(domain),
         financial_service_offered: null,
         payment_identifiers: [...new Set(kitPages.flatMap((p) => p.extract?.wallets.map((w) => `${w.kind}:${w.address}`) ?? []))],
       };
     });
-  const certDomains = domains.filter((d) => !d.excluded_from_cert_list).flatMap((d) => [d.domain_fqdn, ...d.hosts.filter((h) => h !== d.domain_fqdn)]);
+  const adHostsOf = (a: (typeof ads)[number]): Set<string> => new Set([a.landing_url, ...a.landing_chain.map((h) => h.url)].map((u) => (u ? registrableDomain(u) : null)).filter((d): d is string => !!d));
+  // screenshots of the landing page that the case supplied, attached to the domains the ads lead to
+  for (const d of domains) {
+    d.screenshots = [...new Set(ads.filter((a) => adHostsOf(a).has(d.domain_fqdn)).flatMap((a) => a.source_files.filter((f) => f.role === "page_screenshot" && f.in_pack).map((f) => f.in_pack!)))];
+  }
+  const certPlan = planCertDomains(
+    domains.map((d) => ({
+      domain: d.domain_fqdn,
+      hosts: d.hosts,
+      excludedReason: d.excluded_from_cert_list,
+      ads: ads.filter((a) => adHostsOf(a).has(d.domain_fqdn)).length,
+      landing: d.pages.length > 0,
+    })),
+    certList,
+    now,
+    certListNote,
+  );
+  const certDomains = certPlan.report.map((l) => l.name);
 
   // ---------------------------------------------------------------- persona (no biometric templates)
   const personaMap = new Map<string, { name: string; role: string | null; bases: Set<string>; items: Set<string> }>();
@@ -310,30 +468,38 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   }));
 
   // ---------------------------------------------------------------- accounts (facts)
-  const accounts = [...new Set(members.map((m) => m.advertiser).filter((a): a is string => !!a))].sort().map((name) => ({
-    advertiser_displayed: name,
-    platforms: [...new Set(members.filter((m) => m.advertiser === name).map((m) => m.platform).filter(Boolean))],
-    ads: members.filter((m) => m.advertiser === name).map((m) => m.id),
-  }));
+  const libraryPages = (m: Item) => (opts.enriched.perItem[m.id]?.adLibrary ?? []).filter((r) => !r.error && r.pageId);
+  const accountName = (m: Item): string | null => m.advertiser ?? opts.enriched.perItem[m.id]?.advertiserOcr ?? libraryPages(m)[0]?.pageName ?? null;
+  const accounts = [...new Set(members.map(accountName).filter((a): a is string => !!a))].sort().map((name) => {
+    const own = members.filter((m) => accountName(m) === name);
+    const pageIds = [...new Set(own.flatMap((m) => libraryPages(m).map((r) => r.pageId!)))].sort();
+    return {
+      advertiser_displayed: name,
+      platforms: [...new Set(own.map((m) => m.platform).filter(Boolean))],
+      ads: own.map((m) => m.id),
+      page_ids: pageIds,
+      page_urls: pageIds.map(pageUrl),
+    };
+  });
 
   // ---------------------------------------------------------------- observations vs analysis
   const memberSet = new Set(campaign.members);
   const internal: ItemLink[] = opts.graph.links.filter((l) => memberSet.has(l.a) && memberSet.has(l.b));
-  const sharedIdentifiers = campaign.topEvidence
-    .filter((e) => !isSimilarityEdge(e.type))
-    .map((e) => ({ type: e.type, value: nodeById.get(e.key)?.key ?? e.label, ads_with_identifier: e.count }));
+  const { identifiers: sharedIdentifiers, context: sharedContext } = sharedTraces(internal, nodeById);
+  const whyByAd = new Map(ads.map((a) => [a.item_id, whyInCampaign(a.item_id, sharedIdentifiers)]));
+  const edgeTypes = [...new Set(internal.flatMap((l) => l.evidence.filter((e) => e.kind === "similarity" && e.edgeType).map((e) => e.edgeType as string)))];
   const firstSeen = campaign.firstSeen ? campaign.firstSeen.slice(0, 10) : "?";
   const lastSeen = campaign.lastSeen ? campaign.lastSeen.slice(0, 10) : "?";
   const platforms = [...new Set(members.map((m) => m.platform).filter(Boolean))].join(", ") || "brak danych";
   const personaNames = impersonated.map((p) => p.impersonated_person).join(", ") || "brak wskazań";
+  const priorReports = (opts.priorReports ?? []).filter((r) => !r.campaign_id || r.campaign_id === campaign.id);
   const summaryFacts =
     `W okresie ${firstSeen} – ${lastSeen} zarejestrowano ${members.length} reklam (platformy: ${platforms}) ` +
     `kierujących do ${domains.length} domen (${domains.map((d) => d.domain_fqdn).join(", ") || "brak"}). ` +
     `W treści reklam lub danych wejściowych wskazano osoby: ${personaNames}. ` +
-    `Reklamy łączą wspólne identyfikatory: ${sharedIdentifiers.slice(0, 5).map((s) => `${s.type} ${s.value}`).join("; ") || "brak"}.`;
+    `Reklamy łączą wspólne identyfikatory: ${sharedIdentifiers.slice(0, 5).map((s) => `${traceTypeName(s.type).toLowerCase()} ${s.value}`).join("; ") || "brak"}.`;
   const hasFinancialOffer = members.some((m) => /inwest|zysk|dywidend|krypto|bitcoin|platform|zarab/i.test(m.text ?? ""));
 
-  const toolVersion = opts.toolVersion ?? { name: "hacknation-osint-starter", version: "0.1.0", gitCommit: null };
   const summary = opts.summaries?.[campaign.id];
   const analysis = {
     note: "wyniki modeli i heurystyk — wskazówki do oceny przez człowieka, nie dowód tożsamości ani rozstrzygnięcie",
@@ -344,12 +510,15 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       strong_components: campaign.strongComponents,
     },
     link_scores: internal.slice(0, 200).map((l) => ({ a: l.a, b: l.b, score: l.score, strong: l.strong, evidence: l.evidence.slice(0, 4).map((e) => e.evidence) })),
-    similarity_methods: {
-      image: `dHash 64 bit, próg Hamminga ${config.similarity.imageHamming}`,
-      text: `${opts.graph.textMethod}, próg ${opts.graph.textMethod === "embedding" ? config.similarity.text.embeddingThreshold : config.similarity.text.tfidfThreshold}`,
-      dom: `simhash struktury DOM, próg ${config.similarity.dom.hamming}`,
-      audio: `Chromaprint, próg ${config.similarity.audio.minSimilarity}`,
-    },
+    similarity_methods: methodsWithPremises(
+      {
+        image: `dHash 64 bit, próg Hamminga ${config.similarity.imageHamming}`,
+        text: `${opts.graph.textMethod}, próg ${opts.graph.textMethod === "embedding" ? config.similarity.text.embeddingThreshold : config.similarity.text.tfidfThreshold}`,
+        dom: `simhash struktury DOM, próg ${config.similarity.dom.hamming}`,
+        audio: `Chromaprint, próg ${config.similarity.audio.minSimilarity}`,
+      },
+      edgeTypes,
+    ),
     persona_ner: [...personaMap.values()].some((p) => [...p.bases].some((b) => b.startsWith("NER"))) ? "użyto NER modelu językowego (patrz match_basis)" : "nie użyto",
     deepfake_scores: deepfakeScores,
     llm_summary: summary ? { model: summary.model, generated_utc: summary.generatedAt, persona: summary.persona, narrative: summary.narrative, infrastructure: summary.infrastructure } : null,
@@ -383,12 +552,25 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       ],
     },
     requested_action: requestedActions(hasFinancialOffer),
-    prior_reports: [],
+    prior_reports: priorReports,
+    reports_register: {
+      note: "dziennik zgłoszeń (--prior): odbiorca, data, kategoria, wynik; lista „czeka na reakcję” dla ponowienia zgłoszenia",
+      wait_days: REPORT_WAIT_DAYS,
+      waiting: pendingReports(priorReports, now).map((p) => ({ recipient: p.entry.recipient, reported_utc: p.entry.reported_utc, days_waiting: p.days })),
+    },
+    harm_and_victims: {
+      note: "szkoda i pokrzywdzeni: dane od osób i instytucji, nie z narzędzia",
+      victims_reported: TODO("liczba zgłoszeń od pokrzywdzonych i ich źródło"),
+      harm_to_impersonated: TODO("szkoda osoby, której wizerunek użyto"),
+      continuation_after_notice: continuationAfterNotice(priorReports, ads),
+    },
     impersonated_person: impersonated,
     observations: {
       note: "fakty: co zarejestrowano, gdzie i kiedy (UTC)",
       shared_identifiers: sharedIdentifiers,
-      ads,
+      shared_context_not_linking: { note: "ślady wspólne dla wielu niezależnych stron (np. serwery nazw i adresy IP Cloudflare, duży rejestrator): wagi je obniżyły, nie łączą reklam w kampanię", traces: sharedContext },
+      ads_to_listed_domains: certPlan.adsToListed,
+      ads: ads.map((a) => ({ ...a, why_in_campaign: whyByAd.get(a.item_id) ?? null })),
       domains,
       accounts,
     },
@@ -397,8 +579,12 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   };
 
   // ---------------------------------------------------------------- outputs
+  const retention = retentionPolicy();
+  const fetchTimes = members.map((m) => utc(pagesOf(m)?.fetch.fetchedAt)).filter((t): t is string => !!t).sort();
   const files: string[] = [];
+  /** Writes a generated text file of the pack (creating its folder) and remembers it for the manifest. */
   const write = (rel: string, content: string) => {
+    mkdirSync(path.dirname(path.join(outDir, rel)), { recursive: true });
     writeFileSync(path.join(outDir, rel), content, "utf8");
     files.push(rel);
   };
@@ -406,7 +592,63 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   for (let i = 0; i < certDomains.length; i += 50) certChunks.push(certDomains.slice(i, i + 50));
   write("cert-domains.txt", `${certDomains.join("\n")}${certDomains.length ? "\n" : ""}`);
   if (certChunks.length > 1) certChunks.forEach((chunk, i) => write(`cert-domains-${i + 1}.txt`, `${chunk.join("\n")}\n`));
-  write("dsa-art16-notice.md", renderDsaNotice(record, campaign, ads, domains));
+  write("cert-domains-uzasadnienie.md", renderCertReasons(certPlan, campaign.id));
+  const dsaInput: DsaInput = {
+    campaignId: campaign.id,
+    packageId: String(record.package_id),
+    createdUtc: String(record.created_utc),
+    ads,
+    submitter: record.submitter as Submitter,
+    legalCandidates: (record.legal_assessment as { candidates: string[] }).candidates,
+    personas: impersonated.map((p) => p.impersonated_person),
+    financialOffer: hasFinancialOffer,
+    deepfake: deepfakeScores.length > 0,
+    domains: domains.map((d) => ({ domain: d.domain_fqdn, created_utc: d.registration_data.created_utc, cert_status: d.cert_warning_list_status.status as "active" | "removed" | "absent" | "unchecked", cert_insert_date: d.cert_warning_list_status.insert_date ?? null })),
+    goodFaith: GOOD_FAITH_STATEMENT,
+  };
+  const dsaNotices = renderDsaNotices(dsaInput);
+  for (const n of dsaNotices) write(n.file, n.content);
+  write("dsa-art16-notice.md", renderDsaIndex(dsaInput, dsaNotices));
+  const facts: CampaignFacts = {
+    campaignId: campaign.id,
+    packageId: String(record.package_id),
+    createdUtc: String(record.created_utc),
+    firstSeenUtc: utc(campaign.firstSeen),
+    lastSeenUtc: utc(campaign.lastSeen),
+    ads: ads.map((a) => ({ item_id: a.item_id, platform: a.platform, ad_ids: a.ad_ids, ad_urls: a.ad_urls, first_seen_utc: a.first_seen_utc, last_seen_utc: a.last_seen_utc })),
+    domains: domains.map((d) => ({
+      domain: d.domain_fqdn,
+      created_utc: d.registration_data.created_utc,
+      registrar: d.registration_data.registrar,
+      registrar_iana_id: d.registration_data.registrar_iana_id,
+      abuse_email: d.registration_data.abuse_email,
+      nameservers: d.registration_data.nameservers,
+      ips: d.registration_data.ips.map((i) => ({ ip: i.ip, asn: i.asn, as_name: i.as_name })),
+      cert_status: d.cert_warning_list_status.status as "active" | "removed" | "absent" | "unchecked",
+      cert_insert_date: d.cert_warning_list_status.insert_date ?? null,
+      ads: ads.filter((a) => adHostsOf(a).has(d.domain_fqdn)).length,
+      payment_identifiers: d.payment_identifiers,
+      contact_points: d.primary_purpose_evidence.contact_points,
+      shared_infrastructure: d.excluded_from_cert_list !== null,
+    })),
+    personas: dsaInput.personas,
+    financialOffer: hasFinancialOffer,
+    deepfake: deepfakeScores.length > 0,
+    priorReports: (record.prior_reports as unknown[]).length,
+  };
+  write("preservation-request.md", renderPreservationRequest(facts));
+  const knf = renderKnfNotice(facts);
+  if (knf) write("knf-notification.md", knf);
+  write("prosecutor-notification.md", renderProsecutorNotice(facts));
+  for (const r of recipientFiles(facts)) write(r.file, r.content);
+  const stix = buildStixBundle(facts, {
+    tlp: String(record.tlp),
+    urls: ads.flatMap((a) => [a.landing_url, ...a.landing_chain.filter((h) => h.kind === "final").map((h) => h.url)]).filter((u): u is string => !!u),
+    imageHashes: members.map((m) => opts.enriched.perItem[m.id]?.image?.dhash).filter((h): h is string => !!h),
+    modelNotes: deepfakeScores.map((s) => `reklama ${s.item_id}: wynik deepfake ${s.score} (wynik modelu, wskazówka)`),
+    certRegisterIds: Object.fromEntries(domains.filter((d) => d.cert_warning_list_status.status === "active" && d.cert_warning_list_status.register_position_id != null).map((d) => [d.domain_fqdn, String(d.cert_warning_list_status.register_position_id)])),
+  });
+  write("stix-bundle.json", `${JSON.stringify(stix, null, 2)}\n`);
   for (const f of [...files]) {
     const abs = path.join(outDir, f);
     manifest.push({ file: f, sha256: sha256File(abs), size: statSync(abs).size, mime: mimeOf(abs), acquired_utc: now.toISOString(), source: "wygenerowane przez starter" });
@@ -420,23 +662,41 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     manifest_file: "manifest.sha256",
     manifest_sha256: manifestSha,
     verify_command: "shasum -a 256 -c manifest.sha256",
-    timestamp_token: null,
-    timestamp_note: "brak znacznika czasu RFC 3161 — dodaj u kwalifikowanego dostawcy dla kluczowych paczek (art. 41 eIDAS)",
+    ...timestampFields(null, null),
     seal: null,
-    custody_log: [
-      { utc: now.toISOString(), actor: "starter (eksport paczki)", action: `eksport paczki dla kampanii ${campaign.id}`, tool_version: `${toolVersion.name} ${toolVersion.version}${toolVersion.gitCommit ? ` (${toolVersion.gitCommit})` : ""}`, sha256_after: manifestSha },
-    ],
+    custody_log: buildCustodyLog({
+      campaignId: campaign.id,
+      exportUtc: now.toISOString(),
+      tool: `${toolVersion.name} ${toolVersion.version}${toolVersion.gitCommit ? ` (${toolVersion.gitCommit})` : ""}`,
+      manifestSha256: manifestSha,
+      imports: members.flatMap((m) => {
+        const c = opts.provenance?.cases.find((x) => x.id === m.id);
+        return c ? [{ id: c.id, importedUtc: c.importedAt ?? null, files: (c.files ?? []).map((f) => ({ role: f.role, name: path.basename(f.path), sha256: f.sha256 })) }] : [];
+      }),
+      enrich: {
+        generatedUtc: opts.enriched.generatedAt,
+        mode: opts.enriched.mode,
+        fetchedFirstUtc: fetchTimes[0] ?? null,
+        fetchedLastUtc: fetchTimes.at(-1) ?? null,
+        userAgents: [...new Set(members.map((m) => pagesOf(m)?.fetch.userAgent).filter((u): u is string => !!u))],
+      },
+    }),
     personal_data_inventory: [
-      { category: "imię i nazwisko osoby publicznej, której wizerunek użyto", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: TODO("okres retencji") },
-      { category: "nazwy kont reklamodawców", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: TODO("okres retencji") },
-      { category: "dane kontaktowe i portfele widoczne w reklamach i na stronach", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: TODO("okres retencji") },
-      { category: "dane rejestracyjne domen (publiczny RDAP)", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: TODO("okres retencji") },
+      { category: "imię i nazwisko osoby publicznej, której wizerunek użyto", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
+      { category: "nazwy kont reklamodawców", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
+      { category: "dane kontaktowe i portfele widoczne w reklamach i na stronach", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
+      { category: "dane rejestracyjne domen (publiczny RDAP)", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: `${retention.caseMaterial}; ${retention.network}` },
+      { category: "osoby z komentarzy pod reklamą, transkrypcje i tekst z OCR, jeśli są w materiale", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
+      { category: "zapis ruchu przeglądarki (HAR) i zapisane strony: tylko zredagowane kopie, bez ciasteczek i danych odwiedzającego", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
+      { category: "wektory głosu i obrazu (nie trafiają do paczki)", basis: "poza paczką", retention: retention.models },
     ],
     excluded_from_cert_list: excluded,
     limitations: [
-      "archiwum stron to zdekodowany HTML (UTF-8) i SHA-256 surowej odpowiedzi; brak WARC (ISO 28500) i zrzutów ekranu",
-      "rekordy z repozytorium reklam (art. 39 DSA) nie są pobierane — pobierz przed zgłoszeniem",
-      "status na Liście Ostrzeżeń CERT nie jest sprawdzany automatycznie",
+      "archiwum stron to zdekodowany HTML (UTF-8) i SHA-256 surowej odpowiedzi; WARC (ISO 28500) powstaje tylko z HAR dostarczonego przez sprawę (files/warc, po redakcji danych analityka), bez własnej archiwizacji stron; zrzuty ekranu tylko te, które dostarczyła sprawa (files/screenshots)",
+      ads.some((a) => a.repository_record)
+        ? "rekordy z biblioteki reklam (art. 39 DSA) są tylko dla reklam z identyfikatorem biblioteki i pobraniem --ad-library; dla pozostałych pobierz je przed zgłoszeniem"
+        : "rekordy z biblioteki reklam (art. 39 DSA) nie zostały pobrane: uruchom enrich z --ad-library (potrzebny identyfikator biblioteki ze zrzutu) przed zgłoszeniem",
+      certList ? `status na Liście Ostrzeżeń CERT z lokalnej kopii z ${certList.copyUtc ?? "nieznanej daty"} (bez zapytań online): może być nieaktualny` : `status na Liście Ostrzeżeń CERT niesprawdzony: ${certListNote ?? "brak lokalnej kopii listy"}`,
     ],
   };
   writeFileSync(path.join(outDir, "evidence.json"), `${JSON.stringify(record, null, 2)}\n`, "utf8");
@@ -444,69 +704,34 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   return { outDir, record, files: ["evidence.json", "evidence.md", "manifest.sha256", ...files, ...manifest.filter((m) => m.file.startsWith("files/")).map((m) => m.file)], certDomains };
 }
 
-type Ads = Array<{ item_id: string; ad_urls: string[]; landing_url: string | null; landing_chain: Array<{ url: string }>; advertiser_displayed: string | null; first_seen_utc: string | null }>;
-type Domains = Array<{ domain_fqdn: string }>;
-
-function renderDsaNotice(record: Record<string, unknown>, campaign: Campaign, ads: Ads, domains: Domains): string {
-  const submitter = record.submitter as Submitter;
-  const legal = record.legal_assessment as { candidates: string[] };
-  const urls = new Set<string>();
-  for (const a of ads) {
-    for (const u of a.ad_urls) urls.add(u);
-    if (a.landing_url) urls.add(a.landing_url);
-    for (const h of a.landing_chain) urls.add(h.url);
-  }
-  return `# Zgłoszenie nielegalnych treści (art. 16 ust. 2 DSA) — SZABLON
-
-> Wygenerowano z paczki dowodów \`${String(record.package_id)}\` (kampania ${campaign.id}, ${String(record.created_utc)}).
-> Przed wysłaniem człowiek weryfikuje treść i decyduje o zgłoszeniu. Wysyłaj precyzyjne zgłoszenia — masowe, nieprecyzyjne zgłoszenia mogą skutkować zawieszeniem ich rozpatrywania (art. 23 ust. 2 DSA).
-
-## (a) Wyjaśnienie, dlaczego treść jest nielegalna
-
-${String(record.summary_facts)}
-
-Proponowane podstawy prawne (do weryfikacji): ${legal.candidates.join("; ")}.
-
-${TODO("uzasadnienie zrozumiałe dla moderatora bez szczegółowej analizy prawnej, np. wizerunek użyty bez zgody w reklamie fałszywej platformy inwestycyjnej; domena na Liście Ostrzeżeń CERT od dnia …")}
-
-## (b) Dokładna lokalizacja elektroniczna (URL)
-
-${[...urls].map((u) => `- ${u}`).join("\n") || "- " + TODO("URL reklamy (permalink / biblioteka reklam)")}
-
-Dodatkowe informacje identyfikujące:
-${ads.map((a) => `- reklama ${a.item_id}${a.advertiser_displayed ? `, reklamodawca „${a.advertiser_displayed}”` : ""}${a.first_seen_utc ? `, pierwsza obserwacja ${a.first_seen_utc}` : ""}`).join("\n")}
-- domeny: ${domains.map((d) => d.domain_fqdn).join(", ")}
-
-## (c) Zgłaszający
-
-- Imię i nazwisko / nazwa: ${submitter.name}
-- E-mail: ${submitter.email}
-
-## (d) Oświadczenie o dobrej wierze
-
-${GOOD_FAITH_STATEMENT}
-`;
-}
-
+/** evidence.md: the record in tables for a reader, in plain Polish names, with dates as `YYYY-MM-DD HH:MM UTC` and addresses defanged (raw only in evidence.json and the DSA notices). */
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
     shared_identifiers: Array<{ type: string; value: string; ads_with_identifier: number }>;
+    shared_context_not_linking: { note: string; traces: Array<{ type: string; value: string; ads_with_identifier: number; discount_reasons: string[] }> };
     ads: Array<Record<string, unknown>>;
     domains: Array<Record<string, unknown>>;
     accounts: Array<{ advertiser_displayed: string; ads: string[] }>;
   };
-  const integrity = record.integrity as { manifest: ManifestEntry[]; manifest_sha256: string; limitations: string[]; excluded_from_cert_list: Array<{ domain: string; reason: string }> };
+  const integrity = record.integrity as {
+    manifest: ManifestEntry[];
+    manifest_sha256: string;
+    limitations: string[];
+    excluded_from_cert_list: Array<{ domain: string; reason: string }>;
+    personal_data_inventory: Array<{ category: string; basis: string; retention: string }>;
+    custody_log: Array<{ utc: string; actor: string; action: string }>;
+  };
   const personas = record.impersonated_person as Array<{ impersonated_person: string; public_role: string | null; match_basis: string[]; consent_status: string; biometric_data: string }>;
-  const analysis = record.analysis as { campaign_assignment: { cohesion: number; strong_components: number }; deepfake_scores: Array<{ item_id: string; score: number | null }>; llm_summary: { model: string; narrative: string } | null; similarity_methods: Record<string, string> };
+  const analysis = record.analysis as { campaign_assignment: { cohesion: number; strong_components: number }; deepfake_scores: Array<{ item_id: string; score: number | null }>; llm_summary: { model: string; narrative: string; infrastructure?: string | null } | null; similarity_methods: Record<string, string> };
   const actions = record.requested_action as Array<{ recipient: string; name: string; action: string }>;
   const submitter = record.submitter as Submitter;
   const cell = (v: unknown) => String(v ?? "—").replace(/\|/g, "\\|").replace(/\n/g, " ");
-  return `# Paczka dowodów — kampania ${campaign.id}
+  const md = `# Paczka dowodów — kampania ${campaign.id}
 
 | Pole | Wartość |
 |---|---|
 | package_id | \`${String(record.package_id)}\` |
-| utworzono (UTC) | ${String(record.created_utc)} |
+| utworzono (UTC) | ${formatUtc(String(record.created_utc))} |
 | narzędzie | ${cell((record.tool_version as { name: string; version: string }).name)} ${cell((record.tool_version as { version: string }).version)} |
 | zgłaszający | ${cell(submitter.name)}, ${cell(submitter.email)} |
 | TLP / PAP | ${cell(record.tlp)} / ${cell(record.pap)} |
@@ -528,15 +753,23 @@ ${personas.map((p) => `- **${p.impersonated_person}**${p.public_role ? ` (${p.pu
 
 ### Wspólne identyfikatory
 
-| Typ | Wartość | Reklamy |
+| Rodzaj śladu | Wartość | Reklamy |
 |---|---|---|
-${obs.shared_identifiers.map((s) => `| ${cell(s.type)} | ${cell(s.value)} | ${s.ads_with_identifier} |`).join("\n")}
+${obs.shared_identifiers.map((s) => `| ${cell(traceTypeName(s.type))} | ${cell(s.value)} | ${s.ads_with_identifier} |`).join("\n")}
+
+#### Ślady wspólne dla wielu niezależnych stron (nie łączą reklam)
+
+${obs.shared_context_not_linking.traces.map((t) => `- ${traceTypeName(t.type)}: ${t.value} (${t.ads_with_identifier} reklam; ${t.discount_reasons.join(", ") || "wspólne dla wielu niezależnych stron"})`).join("\n") || "- brak"}
 
 ### Reklamy
 
-| ID | Platforma | Reklamodawca | Pierwsza / ostatnia obserwacja (UTC) | Link docelowy |
-|---|---|---|---|---|
-${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.advertiser_displayed)} | ${cell(a.first_seen_utc)} / ${cell(a.last_seen_utc)} | ${cell(a.landing_url)} |`).join("\n")}
+| ID | Platforma | Reklamodawca | Pierwsza / ostatnia obserwacja (UTC) | Link docelowy | Dlaczego w kampanii |
+|---|---|---|---|---|---|
+${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.advertiser_displayed)} | ${cell(formatUtc(a.first_seen_utc as string | null))} / ${cell(formatUtc(a.last_seen_utc as string | null))} | ${cell(a.landing_url)} | ${cell(a.why_in_campaign)} |`).join("\n")}
+
+#### Tekst reklam
+
+${obs.ads.map((a) => `- ${a.item_id}: ${a.ad_text ? `„${cell(String(a.ad_text).slice(0, 300))}”` : "brak tekstu"}`).join("\n")}
 
 ### Domeny
 
@@ -544,8 +777,12 @@ ${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.adve
 |---|---|---|---|---|
 ${obs.domains
   .map((d) => {
-    const reg = d.registration_data as { registrar: string | null; created_utc: string | null; nameservers: string[]; ips: Array<{ ip: string; asn: number | null }> };
-    return `| ${cell(d.domain_fqdn)}${d.excluded_from_cert_list ? " *(poza listą CERT)*" : ""} | ${cell(reg.registrar)} | ${cell(reg.created_utc)} | ${cell(reg.nameservers.join(", "))} | ${cell(reg.ips.map((i) => `${i.ip}${i.asn ? ` (AS${i.asn})` : ""}`).join(", "))} |`;
+    const reg = d.registration_data as { registrar: string | null; created_utc: string | null; nameservers: string[]; ips: Array<{ ip: string; asn: number | null; as_name: string | null }> };
+    const mark = (name: string) => {
+      const note = sharedInfrastructureNote(name);
+      return note ? ` *(${note})*` : "";
+    };
+    return `| ${cell(defangHost(String(d.domain_fqdn)))}${d.excluded_from_cert_list ? " *(poza listą CERT)*" : ""} | ${cell(reg.registrar)} | ${cell(formatUtc(reg.created_utc))} | ${cell(reg.nameservers.map((n) => `${n}${mark(n)}`).join(", "))} | ${cell(reg.ips.map((i) => `${i.ip}${i.asn ? ` (AS${i.asn})` : ""}${mark(i.as_name ?? "")}`).join(", "))} |`;
   })
   .join("\n")}
 
@@ -556,9 +793,9 @@ ${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")
 ## Analiza (wyniki modeli i heurystyk — wskazówki)
 
 - przypisanie do kampanii: union-find + Louvain; spójność ${analysis.campaign_assignment.cohesion}, składowe silnych dowodów: ${analysis.campaign_assignment.strong_components}
-- metody podobieństwa: ${Object.entries(analysis.similarity_methods).map(([k, v]) => `${k}: ${v}`).join("; ")}
+- metody podobieństwa, które dały przesłanki: ${Object.values(analysis.similarity_methods).join("; ") || "żadna (kampanię łączą wspólne ślady, nie podobieństwo)"}
 - wyniki deepfake z danych wejściowych: ${analysis.deepfake_scores.map((s) => `${s.item_id}=${s.score}`).join(", ") || "brak"}
-- streszczenie LLM: ${analysis.llm_summary ? `${analysis.llm_summary.narrative} (model: ${analysis.llm_summary.model})` : "brak"}
+- streszczenie (wygenerowane przez model ${analysis.llm_summary?.model ?? "—"}, niezweryfikowane): ${analysis.llm_summary ? `${analysis.llm_summary.narrative}${analysis.llm_summary.infrastructure ? ` Infrastruktura: ${analysis.llm_summary.infrastructure}` : ""}` : "brak"}
 
 ## Proponowane działania (do decyzji człowieka)
 
@@ -570,12 +807,24 @@ ${actions.map((a) => `| ${a.recipient} — ${cell(a.name)} | ${cell(a.action)} |
 
 Weryfikacja: \`shasum -a 256 -c manifest.sha256\`
 
-| Plik | SHA-256 | Rozmiar | Pozyskano (UTC) |
-|---|---|---|---|
-${integrity.manifest.map((m) => `| ${cell(m.file)} | \`${m.sha256}\` | ${m.size} | ${cell(m.acquired_utc)} |`).join("\n")}
+| Plik | Opis | SHA-256 | Rozmiar | Pozyskano (UTC) |
+|---|---|---|---|---|
+${integrity.manifest.map((m) => `| ${cell(m.file)} | ${cell(m.source)}${m.derived_from_sha256 ? ` (kopia zredagowana; sha256 oryginału \`${m.derived_from_sha256}\`)` : ""} | \`${m.sha256}\` | ${m.size} | ${cell(formatUtc(m.acquired_utc))} |`).join("\n")}
+
+## Dane osobowe w paczce
+
+| Kategoria | Podstawa | Retencja |
+|---|---|---|
+${integrity.personal_data_inventory.map((i) => `| ${cell(i.category)} | ${cell(i.basis)} | ${cell(i.retention)} |`).join("\n")}
+
+## Łańcuch przechowywania
+
+${integrity.custody_log.map((c) => `- ${formatUtc(c.utc)}: ${c.actor} — ${c.action}`).join("\n")}
 
 Domeny wyłączone z listy CERT (platformy, skracacze, serwisy publiczne): ${integrity.excluded_from_cert_list.map((e) => `${e.domain} (${e.reason})`).join("; ") || "brak"}.
 
 Ograniczenia: ${integrity.limitations.join("; ")}.
 `;
+  // adresy rozbrojone: surowe zostają tylko w evidence.json i zgłoszeniach DSA
+  return defangText(md);
 }

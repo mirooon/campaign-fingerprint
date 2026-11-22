@@ -11,7 +11,7 @@
  * as a variant (campaignRules.contentVariant, `campaignBasis: "content_variant"`), with lower confidence.
  */
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { campaignLinkVerdict, clusterCampaigns, verdictContext, type LinkVerdict } from "../graph/cluster";
 import { DEFAULT_LINK_CONFIG, type LinkConfig } from "../graph/config";
@@ -200,6 +200,11 @@ export interface MaterialResult {
 
 function readJson<T>(file: string): T {
   return JSON.parse(readFileSync(file, "utf8")) as T;
+}
+
+/** Folder of the job work dir that holds the inputs of the evidence pack (enriched, graph, campaigns and provenance of the batch, and the map N1... → campaign id). */
+export function evidenceInputsDir(workDir: string): string {
+  return path.join(workDir, "pakiet");
 }
 
 /** enriched.json of an existing run: next to graph.json, or in work/. */
@@ -450,7 +455,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     if (newIds.has(itemId)) continue;
     for (const f of facts) baseHolders.set(f.pivot, [...(baseHolders.get(f.pivot) ?? []), itemId]);
   }
-  const { campaigns } = phase("compare", () => clusterCampaigns(raw, { config }));
+  const { graph: clustered, campaigns } = phase("compare", () => clusterCampaigns(raw, { config }));
   for (const c of caseIds) progress(c, "group", "start");
   const { accountOf, infraItems } = verdictContext(raw.nodes);
   const nodeData = new Map<string, Record<string, unknown>>();
@@ -588,6 +593,14 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     }
     r.newCampaign = nid;
   }
+  // inputs of the evidence pack of the new campaigns (GUI export): only the new records are enriched here, and every member of N1... is new
+  const packDir = evidenceInputsDir(ctx.workDir);
+  mkdirSync(packDir, { recursive: true });
+  writeFileSync(path.join(packDir, "enriched.json"), JSON.stringify(extra));
+  writeFileSync(path.join(packDir, "graph.json"), JSON.stringify(clustered));
+  writeFileSync(path.join(packDir, "campaigns.json"), JSON.stringify(campaigns));
+  if (existsSync(path.join(importDir, "provenance.json"))) copyFileSync(path.join(importDir, "provenance.json"), path.join(packDir, "provenance.json"));
+  writeFileSync(path.join(packDir, "nowe-kampanie.json"), JSON.stringify(Object.fromEntries([...nOf].map(([campaignId, nid]) => [nid, campaignId]))));
 
   // 5. Duplicates: the same ad collected again (against the run and the earlier records of the batch)
   const baseDir = resolveBaseDir(base.baseDir, ctx.dataDir);

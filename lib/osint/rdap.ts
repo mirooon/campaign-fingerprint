@@ -4,7 +4,7 @@
  * `parseRdap` is pure and tolerant of registry differences; `lookupRdap`
  * performs one passive HTTPS GET (cached for a week, 404 cached as null).
  */
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import { toAsciiHost } from "./urls";
 
 export interface RdapInfo {
@@ -199,7 +199,7 @@ export function rdapSuspended(status: string[] | null | undefined, holds: string
 
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
-  if (!defaultCache) defaultCache = createCache({ namespace: "rdap", defaultTtlMs: TTL.week });
+  if (!defaultCache) defaultCache = createCache({ namespace: "rdap", defaultTtlMs: CACHE_TTL.rdap });
   return defaultCache;
 }
 

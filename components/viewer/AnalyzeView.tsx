@@ -13,6 +13,7 @@ import { bestCampaignLink } from "@/lib/pipeline/materialCsv";
 import { premiseSentence } from "@/lib/viewer/plain";
 import { CONFIDENCE_INFO, kitOnlyFromRules, sortByStrength } from "@/lib/viewer/strength";
 import type { PublicJob } from "@/lib/viewer/jobs";
+import EvidenceButton from "./EvidenceButton";
 import ResultCard, { itemCompleteness, provenanceOf, type ResultContext } from "./ResultCard";
 import { Empty, Help, SyntheticBadge } from "./ui";
 
@@ -532,6 +533,7 @@ function BatchResult({ job, campaigns, minLinkScore, kitOnly, filter, setFilter,
               <li key={n.id} className="rounded border border-violet-300 bg-violet-50 px-3 py-1.5">
                 <b>{n.id}</b>: {n.members.join(", ")}
                 {n.evidence[0] && <span className="block text-xs text-slate-700">Łączy je: {n.evidence[0]}</span>}
+                <span className="mt-1 block"><EvidenceButton campaignId={n.id} jobId={job.id} /></span>
               </li>
             ))}
           </ul>

@@ -11,6 +11,7 @@
  * (`uv tool install meta-ads-collector`). It uses the public web endpoint of the Ad Library, so it
  * can stop working when Meta changes the page; every failure comes back as an error, never thrown.
  */
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import type { EnvMap } from "../media/asr";
@@ -33,6 +34,10 @@ export interface AdLibraryInfo {
   pageName: string | null;
   pageDeleted: boolean | null;
   pageVerification: string | null;
+  /** When the record was fetched (UTC ISO); absent in records cached before the field existed. */
+  fetchedAt?: string | null;
+  /** SHA-256 of the adapter's raw JSON record of this ID (compact JSON.stringify of the parsed answer), so the answer can be checked later. */
+  rawSha256?: string | null;
   error: string | null;
 }
 
@@ -117,6 +122,8 @@ export function parseAdLibraryOutput(stdout: string, ids: string[]): Record<stri
       pageName: str(r.pageName),
       pageDeleted: bool(r.pageDeleted),
       pageVerification: str(r.pageVerification),
+      fetchedAt: null,
+      rawSha256: createHash("sha256").update(JSON.stringify(r)).digest("hex"),
       error: null,
     };
   }
@@ -130,7 +137,7 @@ export function adLibraryScript(): string {
 /** Looks up the given ad-library IDs (one Python process, ~1 s between requests). */
 export async function lookupAdLibrary(
   ids: string[],
-  opts: { run?: ToolRunner; python: string; timeoutMs?: number },
+  opts: { run?: ToolRunner; python: string; timeoutMs?: number; now?: () => Date },
 ): Promise<Record<string, AdLibraryInfo>> {
   const valid = [...new Set(ids.filter((id) => AD_LIBRARY_ID_RE.test(id)))];
   if (!valid.length) return {};
@@ -140,5 +147,6 @@ export async function lookupAdLibrary(
     const why = r.timedOut ? "przekroczony czas" : (r.stderr.trim().split("\n").pop() ?? "błąd").slice(0, 200);
     return Object.fromEntries(valid.map((id) => [id, emptyAdLibraryInfo(id, why)]));
   }
-  return parseAdLibraryOutput(r.stdout, valid);
+  const fetchedAt = (opts.now?.() ?? new Date()).toISOString();
+  return Object.fromEntries(Object.entries(parseAdLibraryOutput(r.stdout, valid)).map(([id, rec]) => [id, { ...rec, fetchedAt }]));
 }

@@ -7,6 +7,7 @@
  * Extraction only: deciding which values are generic (facebook, cpc, …) is the
  * graph layer's job. Pure functions, no network access.
  */
+import { isSecretParam, maskUrl } from "./redact";
 
 export type CampaignParamName =
   | "utm_source"
@@ -172,6 +173,8 @@ export function extractCampaignParams(urls: Array<string | null | undefined>): C
         if (!canonicalName) continue;
         const value = rawValue.replace(/\s+/g, " ").trim().slice(0, MAX_VALUE);
         if (!value) continue;
+        // a token or the analyst's IP under a campaign-like name is a secret of the visit, never a link between ads
+        if (isSecretParam(name, value)) continue;
         if (VALUE_FORMAT[canonicalName] && !VALUE_FORMAT[canonicalName].test(value)) continue;
         const key = `${canonicalName}\u0000${value.toLowerCase()}`;
         if (seen.has(key)) continue;
@@ -180,7 +183,7 @@ export function extractCampaignParams(urls: Array<string | null | undefined>): C
           name,
           canonicalName,
           value,
-          sourceUrl: raw.trim(),
+          sourceUrl: maskUrl(raw.trim()),
           cyrillic: CYRILLIC.test(value),
           macro: isMacro(value),
         });

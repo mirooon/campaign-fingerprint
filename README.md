@@ -102,6 +102,19 @@ Dodatkowe opcje: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json
 
 Podpowiedzi „Co dorzucić” w wyniku (`missing_data`) odpowiadają tym krokom: „link do reklamy albo strony docelowej” i „zrzut z widocznym paskiem adresu” (brak adresu), „plik HAR z wizyty na stronie” (brak zapisanej strony), „zrzut ekranu reklamy” (brak obrazu), „pełna treść reklamy” (mniej niż 5 słów).
 
+### Paczka dowodów
+
+Z karty kampanii w przeglądarce przycisk „Pobierz paczkę” daje ZIP kampanii (także kampanii z wyniku analizy materiału, `N1…`); to samo z wiersza poleceń: `bun run evidence -- --campaign K01` zapisuje katalog `data/evidence/K01/`. Narzędzie niczego nie wysyła: przygotowuje dokumenty, a człowiek decyduje o zgłoszeniu.
+
+- `evidence.json` i `evidence.md`: fakty (reklamy, domeny, wspólne ślady, rekordy z biblioteki reklam) osobno od wyników modeli; w `evidence.md` adresy są rozbrojone (`hxxps://…[.]example`).
+- `cert-domains.txt` (domeny jeszcze nieobecne na Liście Ostrzeżeń CERT; status z lokalnej kopii `CERT_LIST_FILE` albo `--cert-list`) i `cert-domains-uzasadnienie.md`.
+- `dsa-art16-<platforma>.md`: osobne zgłoszenie art. 16 DSA dla każdej platformy, z uzasadnieniem złożonym z faktów; `dsa-art16-notice.md` to spis.
+- `preservation-request.md` (zabezpieczenie danych u dostawców), `knf-notification.md` (tylko przy ofercie finansowej), `prosecutor-notification.md`, `odbiorcy.md` i `wskazniki/*.csv` (domeny i kontakt abuse rejestratora, hosting, platformy, płatności, numery).
+- `stix-bundle.json`: kampania i wskaźniki jako STIX 2.1 (import do MISP), TLP z paczki.
+- `files/`: kreacje, zrzuty, nagrania, archiwum HTML oraz HAR i zapisane strony wyłącznie jako kopie **zredagowane** z danych analityka (IP, odcisk przeglądarki, ciasteczka, tokeny); `files/warc/` to WARC z tego HAR. Manifest podaje SHA-256 oryginału obok kopii.
+- `manifest.sha256`: sumy kontrolne (`shasum -a 256 -c manifest.sha256`). `--tsa <url>` dodaje znacznik czasu RFC 3161 (`manifest.tsr`, wymaga `openssl` i sieci); bez niego pole `timestamp_token` ma wartość `null` z powodem.
+- `--prior zgloszenia.jsonl`: dziennik wcześniejszych zgłoszeń (odbiorca, data, kategoria, status); paczka pokazuje, które czekają na reakcję. `bun run recheck -- --pack data/evidence/K01` pasywnie sprawdza stan domen i reklam po zgłoszeniu i dopisuje wynik do `custody_log`.
+
 ## 3. Metodyka w 10 zdaniach
 
 1. Z każdego materiału wyciągamy ślady w pięciu rodzinach: tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory.

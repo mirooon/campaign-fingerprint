@@ -4,7 +4,7 @@
  *   <ipv6-nibbles>.origin6.asn.cymru.com   -> same format
  *   AS<n>.asn.cymru.com                    -> "ASN | CC | registry | allocated | AS name"
  */
-import { createCache, TTL, type FileCache } from "../cache";
+import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import { resolveTxt } from "./dns";
 import { canonicalIp, parseCidr, parseIp, reverseIPv4, reverseIPv6Nibbles } from "./ip";
 
@@ -130,7 +130,7 @@ export function parseCymruAsName(txt: string): CymruAsName | null {
 
 let defaultCache: FileCache | null = null;
 function getDefaultCache(): FileCache {
-  if (!defaultCache) defaultCache = createCache({ namespace: "asn", defaultTtlMs: TTL.week });
+  if (!defaultCache) defaultCache = createCache({ namespace: "asn", defaultTtlMs: CACHE_TTL.asn });
   return defaultCache;
 }
 

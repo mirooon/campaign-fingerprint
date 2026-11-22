@@ -19,6 +19,7 @@
     "pipeline": "bun scripts/pipeline.ts",
     "summarize": "bun scripts/summarize.ts",
     "evidence": "bun scripts/evidence.ts",
+    "recheck": "bun scripts/recheck.ts",
     "sample:generate": "bun scripts/gen-sample.ts",
     "llm:smoke": "bun scripts/llm-smoke.ts",
     "media:smoke": "bun scripts/media-smoke.ts",

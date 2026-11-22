@@ -116,21 +116,23 @@ export function parseCsv(content: string, delimiter?: string): Array<Record<stri
   }) as Array<Record<string, string>>;
 }
 
+/** The array of rows of a parsed .json dataset: the document itself, or its items/data/ads/records/results array. Throws for any other shape. */
+function jsonRows(data: unknown, file: string): unknown[] {
+  if (Array.isArray(data)) return data;
+  if (data && typeof data === "object") {
+    for (const key of ["items", "data", "ads", "records", "results"]) {
+      const v = (data as Record<string, unknown>)[key];
+      if (Array.isArray(v)) return v;
+    }
+  }
+  throw new Error(`${file}: expected a JSON array or an object with items/data/ads/records`);
+}
+
 /** Loads raw records from .csv/.tsv/.json/.jsonl/.ndjson. */
 export function loadRecords(file: string): Array<Record<string, unknown>> {
   const content = readFileSync(file, "utf8");
   const ext = path.extname(file).toLowerCase();
-  if (ext === ".json") {
-    const data: unknown = JSON.parse(content);
-    if (Array.isArray(data)) return data as Array<Record<string, unknown>>;
-    if (data && typeof data === "object") {
-      for (const key of ["items", "data", "ads", "records", "results"]) {
-        const v = (data as Record<string, unknown>)[key];
-        if (Array.isArray(v)) return v as Array<Record<string, unknown>>;
-      }
-    }
-    throw new Error(`${file}: expected a JSON array or an object with items/data/ads/records`);
-  }
+  if (ext === ".json") return jsonRows(JSON.parse(content), file) as Array<Record<string, unknown>>;
   if (ext === ".jsonl" || ext === ".ndjson") {
     return content
       .split(/\r?\n/)
@@ -138,6 +140,61 @@ export function loadRecords(file: string): Array<Record<string, unknown>> {
       .map((l) => JSON.parse(l) as Record<string, unknown>);
   }
   return parseCsv(content, ext === ".tsv" ? "\t" : undefined);
+}
+
+/** A row `loadRecordsLenient` left out: its number (line of a JSONL file, element of a JSON array, from 1), its id when it can still be read, and why. */
+export interface BadRow {
+  row: number;
+  id: string | null;
+  reason: string;
+}
+
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+/**
+ * Id of a JSONL line that is not valid JSON, read from its text: the value of the first id column found
+ * (`idColumn` first, then the id synonyms of the automatic mapping), e.g. `"id": "w2"` in a truncated line. Null when none.
+ */
+function idOfBrokenLine(line: string, idColumn?: string): string | null {
+  for (const col of [...(idColumn ? [idColumn] : []), ...SYNONYMS.id]) {
+    const key = col.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const m = new RegExp(`"${key}"\\s*:\\s*(?:"((?:[^"\\\\]|\\\\.)*)"|(-?\\d+(?:\\.\\d+)?))`, "i").exec(line);
+    const id = (m?.[1] ?? m?.[2])?.trim();
+    if (id) return id;
+  }
+  return null;
+}
+
+/**
+ * Like `loadRecords`, for a batch where one damaged row must not stop the rest: a JSONL line that is not valid
+ * JSON or not an object, and a JSON array element that is not an object, are left out and listed in `bad`.
+ * A file that cannot be read or parsed as a whole (also a CSV whose quoting breaks: from that point on the rows
+ * cannot be told apart) still throws.
+ */
+export function loadRecordsLenient(file: string, opts: { idColumn?: string } = {}): { records: Array<Record<string, unknown>>; bad: BadRow[] } {
+  const ext = path.extname(file).toLowerCase();
+  if (ext !== ".json" && ext !== ".jsonl" && ext !== ".ndjson") return { records: loadRecords(file), bad: [] };
+  const content = readFileSync(file, "utf8");
+  const records: Array<Record<string, unknown>> = [];
+  const bad: BadRow[] = [];
+  if (ext === ".json") {
+    jsonRows(JSON.parse(content), file).forEach((r, i) => {
+      if (isRecord(r)) records.push(r);
+      else bad.push({ row: i + 1, id: null, reason: "element tablicy nie jest obiektem JSON" });
+    });
+    return { records, bad };
+  }
+  content.split(/\r?\n/).forEach((line, i) => {
+    if (!line.trim()) return;
+    try {
+      const r: unknown = JSON.parse(line);
+      if (isRecord(r)) records.push(r);
+      else bad.push({ row: i + 1, id: null, reason: "wiersz nie jest obiektem JSON" });
+    } catch (e) {
+      bad.push({ row: i + 1, id: idOfBrokenLine(line, opts.idColumn), reason: `niepoprawny JSON (${(e as Error).message})` });
+    }
+  });
+  return { records, bad };
 }
 
 function cell(v: unknown): string | null {

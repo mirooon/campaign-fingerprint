@@ -126,7 +126,7 @@ bun run analyze-material -- --text "Ewa Przykładowa poleca…"      # sam tekst
 
 Bazę znanych kampanii buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Najważniejsze opcje analizy: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--faces`, `--ad-library`, `--add-to-base` (z `--force`). Pełna lista: `bun run analyze-material -- --help`. Sprawdzanie numerów firm w białej liście VAT i KRS (`--company-registry`, tylko `enrich` i `pipeline`, domyślnie wyłączone): docs/TECHNICAL.md §4.20.
 
-**Wynik CSV** ma wiersz na materiał i stałą kolejność kolumn; to samo zwraca eksport z GUI. Sprawa, z której import nie zrobił rekordu, też ma wiersz (`insufficient` z powodem w `missing_data`). Znaczenie kolumn: [docs/INTEGRACJA.md](docs/INTEGRACJA.md#wyjście).
+**Wynik CSV** ma wiersz na materiał i stałą kolejność kolumn; to samo zwraca eksport z GUI. Sprawa, z której import nie zrobił rekordu (także gdy jej pliku nie da się odczytać), też ma wiersz (`insufficient` z powodem w `missing_data`); jeden uszkodzony plik nie przerywa partii. Znaczenie kolumn: [docs/INTEGRACJA.md](docs/INTEGRACJA.md#wyjście).
 
 **Martwe strony.** Z `--archive` narzędzie szuka publicznej kopii martwego adresu w urlscan.io i Internet Archive i dokłada ją do materiału ze źródłem, adresem kopii i datą. Krok jest pasywny; bez sieci albo przy `ANALYZE_OFFLINE=1` jest pomijany z powodem w wyniku. Kolejność źródeł i odrzucanie starych kopii: [docs/METODYKA.md](docs/METODYKA.md#strony-niedostępne); zmienne `ARCHIVE_SOURCES` i `URLSCAN_API_KEY`: [Usługi z kluczami](#usługi-z-kluczami).
 

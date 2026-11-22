@@ -25,7 +25,7 @@ import type { ArchiveSource, PageArchive } from "../osint/archive";
 import type { CompiledWatchlist } from "../text/persona";
 import { importCases, isMaterialFile, unreadImageFormats, walkCase } from "./caseImport";
 import { enrichItems } from "./enrich";
-import { loadMapping, loadRecords, normalizeRecords, type ColumnMapping } from "./ingest";
+import { loadMapping, loadRecordsLenient, normalizeRecords, type ColumnMapping } from "./ingest";
 import { fixtureSources, type EnrichmentSources } from "./sources";
 import { resolveCasePath } from "./casePath";
 import { caseFileDuplicates, DuplicateFinder, duplicateMedia, duplicateTraits, isInsufficient, isLeadAd, missingData, type CaseFiles, type DuplicateOf, type Sufficiency } from "./materialVerdicts";
@@ -313,7 +313,9 @@ function unreadFormatsHint(caseDir: string | undefined): string {
 /**
  * Compares new material (case folders, a link, a text or a dataset file) with an existing run: imports and
  * enriches only the new records, builds one graph with the run, and gives each record a verdict, its links and
- * the outcome of every step (`steps`, skipped ones with the reason). Reads and writes files in `ctx`.
+ * the outcome of every step (`steps`, skipped ones with the reason). A case or dataset row that cannot be read
+ * or parsed is skipped with the reason (`skipped`) and the rest of the batch goes on; an error common to the
+ * whole batch (no run data, the import output cannot be written) still throws. Reads and writes files in `ctx`.
  */
 export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext): Promise<MaterialResult> {
   const toolNotes = new Map<string, string>();
@@ -349,6 +351,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   const caseOf = new Map<string, string>();
   /** Folder of each case of the batch (by case name). */
   const caseDirOf = new Map<string, string>();
+  /** Cases skipped only because their folder holds nothing the importer reads (no read or parse error). */
+  const noMaterial = new Set<string>();
   const caseDirs = [...(input.caseDir ? [input.caseDir] : []), ...(input.caseDirs ?? [])];
   if (caseDirs.length) {
     // the importer reads every case of a folder: give it a folder with only these cases
@@ -367,10 +371,13 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     for (const n of names) progress(n, "import", "start");
     let res: Awaited<ReturnType<typeof importCases>>;
     try {
+      // a file of one case that cannot be read or parsed only skips that case (importCases puts it in `skipped`);
+      // what still throws concerns the whole batch, e.g. the import output cannot be written
       res = await importCases({ casesDir, outDir: importDir, log: (m) => notes.push(m) });
     } catch (e) {
-      for (const n of names) progress(n, "import", "error", (e as Error).message);
-      throw e;
+      const message = `import partii przerwany (błąd wspólny dla wszystkich spraw): ${(e as Error).message}`;
+      for (const n of names) progress(n, "import", "error", message);
+      throw new Error(message, { cause: e });
     }
     skipped = res.skipped;
     const records = readJson<Array<Record<string, unknown>>>(path.join(importDir, "input.json")).filter((r) => names.has(String(r.case ?? r.id)));
@@ -383,21 +390,46 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     if (!single && (input.url || input.text)) items.push(bareRecord(input));
     const imported = new Set(records.map((r) => String(r.case ?? r.id)));
     for (const n of names) {
+      // reasons of the importer for this case: the whole case, or one of its files or captures (`<case>/<file>`)
+      const reasons = [...new Set(skipped.filter((x) => x.id === n || x.id.startsWith(`${n}/`)).map((x) => x.reason))];
       if (imported.has(n)) {
-        progress(n, "import", "done", `${records.filter((r) => String(r.case ?? r.id) === n).length} rekord(y)`);
+        const count = records.filter((r) => String(r.case ?? r.id) === n).length;
+        progress(n, "import", "done", `${count} rekord(y)${reasons.length ? `; pominięte: ${reasons.join("; ")}` : ""}`);
         continue;
       }
       // A case the importer passed over without a word (only files it does not read) joins `skipped`
       // too: the batch CSV then carries an `insufficient` row for it instead of losing it silently.
-      const noted = skipped.find((x) => x.id === n || x.id.startsWith(`${n}/`));
-      const reason = noted?.reason ?? `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`;
-      if (!noted) skipped.push({ id: n, reason });
+      const reason = reasons.length ? reasons.join("; ") : `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`;
+      if (!reasons.length) {
+        skipped.push({ id: n, reason });
+        noMaterial.add(n);
+      }
       progress(n, "import", "skipped", reason);
     }
   }
   if (input.datasetFile) {
     const file = path.resolve(input.datasetFile);
-    const rows = normalizeRecords(loadRecords(file), loadMapping(input.datasetMapping)).items;
+    const name = path.basename(file);
+    let mapping: ColumnMapping | undefined;
+    try {
+      mapping = loadMapping(input.datasetMapping);
+    } catch (e) {
+      throw new Error(`nie udało się odczytać mapowania kolumn ${input.datasetMapping}: ${(e as Error).message}`, { cause: e });
+    }
+    let loaded: ReturnType<typeof loadRecordsLenient>;
+    try {
+      loaded = loadRecordsLenient(file, { idColumn: mapping?.id });
+    } catch (e) {
+      throw new Error(`nie udało się odczytać pliku zbioru ${name}: ${(e as Error).message}`, { cause: e });
+    }
+    // a damaged row is skipped with the reason (an `insufficient` row in the batch CSV); the other rows go on
+    for (const bad of loaded.bad) {
+      const id = bad.id ?? `${name}:${bad.row}`;
+      const reason = `nie udało się odczytać wiersza ${bad.row} pliku ${name}: ${bad.reason}`;
+      skipped.push({ id, reason });
+      progress(id, "import", "skipped", reason);
+    }
+    const rows = normalizeRecords(loaded.records, mapping).items;
     const dir = path.dirname(file);
     const local = (p: string | null | undefined) => (p && !/^https?:\/\//i.test(p) ? (path.isAbsolute(p) ? p : path.resolve(dir, p)) : null);
     for (const it of rows) {
@@ -408,11 +440,17 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       if (it.extraVideoPaths) it.extraVideoPaths = it.extraVideoPaths.map((p) => local(p) ?? p);
       caseOf.set(it.id, it.extra.case || it.id);
     }
-    notes.push(`plik zbioru: ${rows.length} rekordów z ${path.basename(file)}`);
+    notes.push(`plik zbioru: ${rows.length} rekordów z ${name}${loaded.bad.length ? `, pominięte wiersze: ${loaded.bad.length}` : ""}`);
     items.push(...rows);
   }
   if (!items.length && (input.url || input.text)) items = [bareRecord(input)];
-  if (!items.length) throw new Error(`materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu${[...caseDirOf.values()].map(unreadFormatsHint).join("")}`);
+  if (!items.length) {
+    // a batch whose every case (or row) was skipped still has a result: the CSV keeps an insufficient row for each
+    if (skipped.length && (caseDirs.length > 1 || input.datasetFile)) return { mode: ctx.live ? "hybrid" : "offline", items: [], newCampaigns: [], skipped, steps, notes };
+    const failures = skipped.filter((x) => !noMaterial.has(x.id));
+    if (failures.length) throw new Error(`nie udało się zaimportować materiału: ${failures.map((x) => x.reason).join("; ")}`);
+    throw new Error(`materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu${[...caseDirOf.values()].map(unreadFormatsHint).join("")}`);
+  }
   const existingIds = new Set(base.items.map((i) => i.id));
   const taken = new Set<string>();
   for (const it of items) {

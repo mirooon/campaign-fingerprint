@@ -16,6 +16,7 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `ip` | Adres IP | 0.6 | kampania | Numer serwera, na którym działa strona. |
 | `asn` | Sieć (ASN) | 0.05 | kampania | Numer sieci operatora, w której stoi serwer. |
 | `nameserver` | Serwery nazw (NS) | 0.35 | kampania | Serwery, które wskazują, gdzie działa domena. |
+| `mx` | Serwer poczty (MX) | 0.4 | tylko z innym śladem | Serwer, który odbiera pocztę domeny. |
 | `registrar` | Rejestrator | 0.05 | kampania | Firma, w której kupiono domenę. |
 | `cert` | Certyfikat HTTPS | 0.8 | kampania | Plik potrzebny stronie do działania przez https. Każdy certyfikat trafia do publicznego rejestru. |
 | `tracker` | Tracker, piksel | 1 | kampania | Kod firmy reklamowej albo analitycznej z identyfikatorem konta. |
@@ -62,7 +63,8 @@ Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad wyst�
 | `cloaker_account` | Konto klienta cloakera | 0.9 | kampania | Numer klienta (cl_sid) w serwisie ukrywającym stronę przed moderacją, zapisany przez platformę stron razem z domeną cloakera (cl_domain). |
 | `launcher_account` | Konto narzędzia do uruchamiania reklam | 0.9 | kampania | Identyfikator (launcher) konta, z którego uruchomiono reklamy, zapisany przez platformę stron, gdy różni się od właściciela strony. |
 | `affiliate_account` | Konto w sieci afiliacyjnej | 0.9 | kampania | Identyfikatory partnera sieci afiliacyjnej w linku zamówienia, zakodowanym parametrze referer albo w ukrytych polach formularza: zespół i użytkownik (team_id, user_id), strumień (stream_id) albo oferta (offer_uuid), zawsze razem z adresem sieci. |
-| `hosting_account` | Konto na hostingu wideo | 0.6 | tylko z innym śladem | Biblioteka wideo jednego klienta usługi hostingu (adres hosta wideo z identyfikatorem biblioteki). |
+| `meta_token` | Token dostępu Meta | 0.95 | kampania | Tajny token dostępu do konta reklamowego Mety, zapisany w adresie (token=), w rekordzie platformy stron (fb_capi_token) albo w kodzie strony. Pokazujemy tylko skrót, nigdy sam token. |
+| `hosting_account` | Konto na hostingu wideo lub kodu | 0.6 | tylko z innym śladem | Biblioteka wideo jednego klienta usługi hostingu (adres hosta wideo z identyfikatorem biblioteki) albo konto GitHuba, z którego jsDelivr serwuje pliki strony (`cdn.jsdelivr.net/gh/<konto>/…`). |
 | `similar_image` | Podobna kreacja (podobieństwo dwóch materiałów) | 0.6 | tylko z innym śladem | Obrazy reklam różnią się tylko drobiazgami. |
 | `similar_image_semantic` | Podobny obraz (podobieństwo dwóch materiałów) | 0.45 | tylko z innym śladem | Obrazy przedstawiają to samo, choć nie są kopią. |
 | `similar_text` | Podobny tekst (podobieństwo dwóch materiałów) | 0.5 | tylko z innym śladem | Teksty reklam są do siebie bardzo podobne. |
@@ -129,6 +131,7 @@ Opisują materiał, nie łączą go z innymi.
 | `foreignPersona` | Persona z innego kraju w nazwie reklamy | z parametrów reklamy (ad_name, adset_name, campaign_name) przy kodzie PL (atrybut) |
 | `typography` | Typografia tekstu | z tekstu reklamy i strony (atrybut; ten sam tekst z inną typografią to inna redakcja szablonu, nie inny właściciel) |
 | `translationArtifacts` | Ślady tłumaczenia | z tekstu strony i napisów (atrybut; mieszane alfabety, kalki, skoki ty/wy, liczebniki słownie; bez wniosków o narodowości) |
+| `languageErrors` | Błędy językowe strony | z tekstu strony (atrybut bez wagi, B-325: akapity w innym języku niż reszta strony albo słowa z mieszanym alfabetem w zdaniu) |
 | `brandStyle` | Styl nazwy marki | z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut) |
 | `advertiserNameKind` | Rodzaj nazwy reklamodawcy | z nazwy reklamodawcy (wygenerowana marka, osoba, lokalny biznes; atrybut) |
 | `adPlatform` | Biblioteka reklam | z rekordu biblioteki |
@@ -191,6 +194,7 @@ Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki
 
 | Klucz | Nazwa | Opis |
 |---|---|---|
+| `spaced_text` | tekst rozstrzelony litera po literze | Podpis albo napis w reklamie zapisany literami oddzielonymi spacjami („P o b i e r z”). |
 | `fake_security_alert` | fałszywy alarm bezpieczeństwa z numerem telefonu | Strona straszy wirusem, zablokowanym komputerem albo zhakowanym kontem, podaje numer telefonu jako jedyne wyjście i nie pozwala łatwo jej opuścić (pełny ekran, okna alertu, pułapka „wstecz”, dźwięk alarmu). |
 | `remote_access_tool` | program do zdalnego pulpitu do pobrania | Link albo instrukcja pobrania programu do zdalnego pulpitu (np. AnyDesk, TeamViewer QuickSupport) z prośbą o podanie kodu dostępu. |
 | `clickfix_paste` | fałszywa weryfikacja z poleceniem do wklejenia | Fałszywy CAPTCHA albo „weryfikacja, że nie jesteś robotem” każe nacisnąć skrót (np. Win+R) i wkleić polecenie, które strona skopiowała do schowka. |
@@ -258,12 +262,12 @@ Wszystko w rejestrach ma polską nazwę i opis.
 
 | Sekcja | Liczba |
 |---|---|
-| Ślady łączące (typy) | 59 (kampania: 31, grupa: 3, tylko z innym śladem: 25) |
+| Ślady łączące (typy) | 61 (kampania: 32, grupa: 3, tylko z innym śladem: 26) |
 | Cechy materiału łączące albo pomagające | 18 |
-| Atrybuty materiału i kampanii | 85 |
-| Techniki manipulacji | 16 |
+| Atrybuty materiału i kampanii | 86 |
+| Techniki manipulacji | 17 |
 | Tematy narracji | 22 |
 | Haczyki narracji | 12 |
 | Bez opisu | 0 |
 
-Wygenerowano: 2026-11-22, commit `ecbcd35`.
+Wygenerowano: 2026-11-22, commit `b3ee946`.

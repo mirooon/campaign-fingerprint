@@ -245,7 +245,7 @@ function resolveBaseDir(baseDir: string, dataDir: string): string {
 
 const FEATURE_KEYS = [
   "landingUrl", "finalUrl", "landingSource", "landingFragment", "observedUrls", "inAppBrowser", "advertiser", "uiView", "adLibraryIds",
-  "personas", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "cloakerInSource", "platformAccount",
+  "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
   "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques",
 ];

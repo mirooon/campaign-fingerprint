@@ -33,6 +33,8 @@ export interface TestItemSpec {
   deepfakeScore?: number;
   /** Persona names found in text (watchlist matches). */
   personas?: string[];
+  /** Group of the public list for the personas by name (e.g. { "Adam Testowy": "Dziennikarze" }); a persona without an entry has none. */
+  personaCategories?: Record<string, string>;
   params?: Array<{ name: CampaignParamName; value: string }>;
   kit?: Partial<PageKit>;
   /** Raw OCR text of the creative (e.g. a screenshot of the ad). */
@@ -228,7 +230,7 @@ export function makeDataset(specs: TestItemSpec[], infra: TestInfra = {}): Enric
       pageKey,
       text: null,
       image: s.dhash ? { dhash: s.dhash, ahash: s.dhash, width: 100, height: 100, format: "png", source: "test", ...(s.imageSha256 ? { sha256: s.imageSha256 } : {}) } : null,
-      personas: (s.personas ?? []).map((name): PersonaMatch => ({ id: personaSlug(name), name, matched: name.toLowerCase(), source: "watchlist", role: null })),
+      personas: (s.personas ?? []).map((name): PersonaMatch => ({ id: personaSlug(name), name, matched: name.toLowerCase(), source: "watchlist", role: null, category: s.personaCategories?.[name] ?? null })),
       campaignParams: (s.params ?? []).map(
         (p): CampaignParam => ({ name: p.name, canonicalName: p.name, value: p.value, sourceUrl: s.url ?? "", cyrillic: /[\u0400-\u04FF]/.test(p.value), macro: false }),
       ),

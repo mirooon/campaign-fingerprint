@@ -126,9 +126,9 @@ function dedupePersonas(list: PersonaMatch[]): PersonaMatch[] {
  * empty map (the persona then carries the id as its name).
  * @param trait what the persona comes from ("twarzy", "głosu"), for the log line
  */
-function loadPublicPeople(trait: string, log: (message: string) => void): Map<string, { name: string; role: string | null }> {
+function loadPublicPeople(trait: string, log: (message: string) => void): Map<string, { name: string; role: string | null; category: string | null }> {
   try {
-    return new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null }]));
+    return new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null, category: e.category ?? null }]));
   } catch (e) {
     log(`lista osób publicznych nieczytelna (${errMsg(e)}): persona z ${trait} pod identyfikatorem`);
     return new Map();
@@ -193,7 +193,7 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
       for (const h of hits) if (h.persona && h.similarity !== undefined) best.set(h.persona, Math.max(best.get(h.persona) ?? 0, h.similarity));
       for (const [id, similarity] of best) {
         const who = people.get(id);
-        perItem[itemId].personas.push({ id, name: who?.name ?? id, matched: "twarz", source: "face", role: who?.role ?? null, similarity });
+        perItem[itemId].personas.push({ id, name: who?.name ?? id, matched: "twarz", source: "face", role: who?.role ?? null, category: who?.category ?? null, similarity });
         similar++;
       }
     }
@@ -245,7 +245,7 @@ async function enrichVoices(items: Item[], perItem: Record<string, ItemEnrichmen
     for (const sp of spans) if (sp.persona && sp.similarity !== undefined) best.set(sp.persona, Math.max(best.get(sp.persona) ?? 0, sp.similarity));
     for (const [id, similarity] of best) {
       const who = people.get(id);
-      perItem[it.id].personas.push({ id, name: who?.name ?? id, matched: "głos", source: "voice", role: who?.role ?? null, similarity });
+      perItem[it.id].personas.push({ id, name: who?.name ?? id, matched: "głos", source: "voice", role: who?.role ?? null, category: who?.category ?? null, similarity });
       similar++;
     }
   }

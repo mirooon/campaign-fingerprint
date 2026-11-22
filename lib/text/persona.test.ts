@@ -220,3 +220,59 @@ describe("handles as aliases of the public list", () => {
     expect(matchPersonas("Wizerunek Roberta Lewandowskiego w reklamie", real).map((p) => p.id)).toContain("robert-lewandowski");
   });
 });
+
+describe("category and voiceFake of the public list", () => {
+  it("passes the category of a list entry to the match and accepts an entry without it", () => {
+    const file = path.join(dir, "kategorie.json");
+    writeFileSync(
+      file,
+      JSON.stringify([
+        { id: "ewa-przykladowa", name: "Ewa Przykładowa", category: "Dziennikarze", voiceFake: true },
+        { id: "adam-testowy", name: "Adam Testowy" },
+      ]),
+    );
+    const wl = compileWatchlist(loadWatchlist(file));
+    const hit = matchPersonas("Reklama z Ewą Przykładową i Adamem Testowym", wl);
+    expect(hit.map((p) => [p.id, p.category])).toEqual([
+      ["ewa-przykladowa", "Dziennikarze"],
+      ["adam-testowy", null],
+    ]);
+  });
+
+  it("every entry of the shared list has a category and a source", () => {
+    const entries = loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE));
+    expect(entries.length).toBeGreaterThanOrEqual(30);
+    for (const e of entries) expect(e.category, e.name).toBeTruthy();
+  });
+});
+
+describe("the extended public list", () => {
+  const real = compileWatchlist(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)));
+  const ids = (text: string) => matchPersonas(text, real).map((p) => p.id);
+
+  it.each([
+    ["Fałszywa reklama z Sławomira Mentzena", "slawomir-mentzen"],
+    ["wideo z Sławomirem Mentzenem", "slawomir-mentzen"],
+    ["Wizerunek Magdy Gessler w reklamie", "magda-gessler"],
+    ["rozmowa z Magdą Gessler", "magda-gessler"],
+    ["Wizerunek Igi Świątek w reklamie", "iga-swiatek"],
+    ["film z Igą Świątek", "iga-swiatek"],
+  ])("%s -> %s", (text, id) => {
+    expect(ids(text)).toContain(id);
+  });
+
+  it("does not match a surname that is an ordinary word (belka, duda) alone in lower case", () => {
+    expect(ids("w suficie pękła belka, a chłopiec zagrał na dudzie i duda")).toEqual([]);
+    expect(ids("Marek Belka w wywiadzie")).toContain("marek-belka");
+  });
+
+  it("finds a person of the full NASK list (text only) by the full name, never by the surname", () => {
+    expect(ids("Michał Adamczyk poleca inwestycję")).toContain("michal-adamczyk");
+    expect(ids("poleca Michała Adamczyka")).toContain("michal-adamczyk");
+    expect(ids("adamczyk poleca inwestycję")).not.toContain("michal-adamczyk");
+  });
+
+  it("leaves out the doctors of the NASK list with an unestablished identity", () => {
+    expect(ids("Anna Kowalska i Tomasz Mazur polecają")).toEqual([]);
+  });
+});

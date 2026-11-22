@@ -22,6 +22,10 @@ export const PersonaEntrySchema = z.object({
   name: z.string().min(1),
   aliases: z.array(z.string().min(1)).optional(),
   role: z.string().optional(),
+  /** Group of the public list ("Politycy", "Dziennikarze", "Sportowcy", ...): a trait of the group of ads, never proof of a campaign. */
+  category: z.string().min(1).optional(),
+  /** True when a source documents a forged voice of this person (candidate for the voice gallery). */
+  voiceFake: z.boolean().optional(),
   matchSurnameAlone: z.boolean().optional(),
 });
 
@@ -34,6 +38,8 @@ export interface PersonaMatch {
   matched: string;
   source: "watchlist" | "ingest" | "ner" | "face" | "voice";
   role: string | null;
+  /** Group of the public list the person belongs to (e.g. "Dziennikarze"); null or absent when the entry has none. A trait of the group of ads, never proof. */
+  category?: string | null;
   /** Weighted cosine of the face for source "face" ("a face similar to X (0.xx)") or cosine of the voice for source "voice" ("a voice similar to X (0.xx)"), for review, never proof. */
   similarity?: number;
   /** True when found by the fuzzy (OCR/ASR-tolerant) matcher. */
@@ -239,7 +245,7 @@ export function matchPersonas(text: string, wl: CompiledWatchlist, opts: MatchOp
     if (hit) {
       found.push({
         index: hit.index,
-        match: { id: ce.id, name: ce.entry.name, matched: hit.matched, source: "watchlist", role: ce.entry.role ?? null },
+        match: { id: ce.id, name: ce.entry.name, matched: hit.matched, source: "watchlist", role: ce.entry.role ?? null, category: ce.entry.category ?? null },
       });
       continue;
     }
@@ -263,6 +269,7 @@ export function matchPersonas(text: string, wl: CompiledWatchlist, opts: MatchOp
           matched: f.matched,
           source: "watchlist",
           role: ce.entry.role ?? null,
+          category: ce.entry.category ?? null,
           fuzzy: true,
           distance: f.distance,
         },

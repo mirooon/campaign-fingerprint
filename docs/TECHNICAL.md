@@ -505,7 +505,7 @@ Przed = kod sprzed zadania (ten sam commit bez zmian z §4.12), po = obecny kod;
 
 ### 4.14 Persona z twarzy (`lib/media/face.ts`, od 21.11.2026, zadanie I5)
 
-**Co to jest.** Opcjonalny krok `--faces` (`enrich`, `pipeline`, `analyze-material`) szuka twarzy w obrazie reklamy, w dalszych zrzutach sprawy i w klatkach wideo (te same klatki co CLIP, `extractFrames`) i porównuje je z **zamkniętą listą 8 osób publicznych** (`data/osoby-publiczne.json`: `id`, `name`, `aliases`, `role`, `source` = publiczne ostrzeżenie, dla którego osoba jest na liście; 3–5 zdjęć każdej z Wikimedia Commons w `data/faces/<id>/`, autor i licencja w `data/faces/ZRODLA.md`, wektory w `data/faces/index.json`, budowane `face_embed.py --build-index data/faces`). Ta sama lista posłuży galerii głosów i personie z tekstu (`PUBLIC_PERSONS_FILE`; `analyze-material` bierze ją, gdy nie ma innej listy osób).
+**Co to jest.** Opcjonalny krok `--faces` (`enrich`, `pipeline`, `analyze-material`) szuka twarzy w obrazie reklamy, w dalszych zrzutach sprawy i w klatkach wideo (te same klatki co CLIP, `extractFrames`) i porównuje je z **zamkniętą listą osób publicznych** (od I5b 127 wpisów, 31 ze zdjęciami) (`data/osoby-publiczne.json`: `id`, `name`, `aliases`, `role`, `source` = publiczne ostrzeżenie, dla którego osoba jest na liście; 3–5 zdjęć każdej z Wikimedia Commons w `data/faces/<id>/`, autor i licencja w `data/faces/ZRODLA.md`, wektory w `data/faces/index.json`, budowane `face_embed.py --build-index data/faces`). Ta sama lista posłuży galerii głosów i personie z tekstu (`PUBLIC_PERSONS_FILE`; `analyze-material` bierze ją, gdy nie ma innej listy osób).
 
 **Modele.** OpenCV YuNet (`face_detection_yunet_2023mar.onnx`, MIT) i SFace (`face_recognition_sface_2021dec.onnx`, Apache-2.0) z OpenCV Zoo, w `opencv-python-headless` (Apache-2.0). Modele leżą poza repozytorium (`FACE_MODEL_DIR`), w obrazie Dockera są pobierane przy budowie. Bez InsightFace, DeepFace z domyślnymi wagami i innych wag NC.
 
@@ -533,7 +533,9 @@ Przyjęty próg `matchThreshold` = 0,46: najniższy z zerem fałszywych trafień
 
 **Pomiar na danych poufnych** (poza repozytorium, `TWARZE.md` w katalogu danych): w jednej sprawie rozpoznana Monika Olejnik (0,57, twarz ok. 220×288 px), w drugiej 22 małe twarze bez trafienia.
 
-**Zakres.** Bez crawlera twarzy i bez rozbudowy bazy z sieci poza 8 osobami (AI Act art. 5 ust. 1 lit. e); bez detektora deepfake i oceny „czy to prawdziwa osoba”. Uwagi prawne: `docs/ZGODNOSC.md`.
+**Rozszerzenie bazy (I5b, 22.11.2026).** Lista `data/osoby-publiczne.json` ma 127 wpisów: 35 osób z rolą (10 z I5/I15 i 25 nowych: tier 1 i 2 z badania podszywanych osób, lekarze z ustaloną tożsamością i źródłem, osoby wymienione w tych samych artykułach, Sekielski z wyjątku właściciela, dwoje sportowców wzmacniających słabą kategorię) oraz 92 osoby z zestawienia NASK z 12.07.2024 bez zdjęć. Nowe pola `category` (grupa z zestawienia NASK) i `voiceFake` (badanie dokumentuje podrobiony głos); `category` trafia do `PersonaMatch`, do węzła persony i do `features.personaCategories` w `analyze-material` (cecha grupy, nie dowód). Osoby z zestawienia NASK dopasowuje się wyłącznie po pełnym imieniu i nazwisku (z odmianą), bez samego nazwiska; nieregularne formy odmiany (celownik, miejscownik) są aliasami. Baza twarzy: 31 osób, 103 zdjęcia (Sołowow i Sutkowski nie mają zdjęcia na wolnej licencji o wystarczającej jakości, Torbicki i Friz mają po 1, Drzyzga 1). Kontrola: mediana kosinusa między zdjęciami tej samej osoby 0,62 (osoby poniżej progu 0,46: Brzoska 0,41 z powodu zdjęcia z profilu, Drzyzga 1 zdjęcie); najbliższa para różnych osób 0,43 (Domański–Sekielski), poniżej progu 0,46. Zdjęcie Drzyzgi z Prokopem usunięto po kontroli (detektor wziął twarz Prokopa, kosinus 0,76). Próg bez zmian.
+
+**Zakres.** Bez crawlera twarzy i bez rozbudowy bazy z sieci poza listą osób ze źródłem podszycia (AI Act art. 5 ust. 1 lit. e); bez detektora deepfake i oceny „czy to prawdziwa osoba”. Uwagi prawne: `docs/ZGODNOSC.md`.
 
 ### 4.15 Persona z głosu (`lib/media/speaker.ts`, od 21.11.2026, zadanie I15)
 
@@ -1340,7 +1342,7 @@ bun run enrich -- --personas lista.json   # lista obserwowanych osób (z próbk�
 bun run enrich -- --ner                   # nazwiska z tekstu przez skonfigurowany LLM
 bun run enrich -- --cloaking              # dwa zwykłe GET-y: UA crawlera platformy i przeglądarki mobilnej
 bun run enrich -- --ocr --asr --audio     # tesseract (pol), whisper-cli (+ffmpeg), fpcalc
-bun run enrich -- --faces                  # twarze: podobna twarz do osoby z zamkniętej listy 8 osób (OpenCV, scripts/py/setup-face.sh)
+bun run enrich -- --faces                  # twarze: podobna twarz do osoby z zamkniętej listy osób (OpenCV, scripts/py/setup-face.sh)
 bun run enrich -- --speaker --ad-library  # głos mówcy (SpeechBrain, scripts/py/setup-speaker.sh), biblioteka reklam Mety (MetaAdsCollector)
 bun run enrich -- --clip                  # embeddingi obrazów CLIP (lokalnie, ONNX)
 bun run media:smoke                       # test adapterów na syntetycznym wejściu

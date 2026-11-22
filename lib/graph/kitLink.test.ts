@@ -277,6 +277,17 @@ describe("persona (weak signal)", () => {
     expect(camp.attributes.personas).toEqual([{ id: "adam-testowy", name: "Adam Testowy", count: 1 }]);
     expect(camp.attributes.deepfakeScoreMax).toBe(0.91);
   });
+
+  it("carries the category of the person (a group trait) in the persona node, only when the list gives one", () => {
+    const res = run([
+      { id: "a", url: "https://a.example/", personas: ["Adam Testowy", "Ewa Przykładowa"], personaCategories: { "Adam Testowy": "Dziennikarze" } },
+    ]);
+    const nodes = res.graph.nodes.filter((n) => n.type === "persona");
+    expect(nodes.map((n) => [n.label, n.data.category])).toEqual([
+      ["Adam Testowy", "Dziennikarze"],
+      ["Ewa Przykładowa", undefined],
+    ]);
+  });
 });
 
 describe("ubiquity penalty", () => {

@@ -125,6 +125,7 @@ export const FEATURE_FAMILY: Record<string, FeatureFamily> = {
   adStartWeekday: "content",
   discordSnowflakes: "infra",
   shopSignals: "page",
+  companyRegistry: "page",
   emailDomainKinds: "infra",
   addressCompleteness: "infra",
   phoneAreaMismatch: "infra",

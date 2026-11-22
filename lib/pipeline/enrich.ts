@@ -38,6 +38,8 @@ import { foreignScriptCandidates } from "../osint/stealerKit";
 import { domSimhash, extractPageKit, ownScriptUrls, withRequestUrls, type PageKit, type PageScript } from "../osint/pagekit";
 import { TEXT_CONFIG } from "../osint/textConfig";
 import type { RdapInfo } from "../osint/rdap";
+import { DEFAULT_COMPANY_REGISTRY_CONFIG, lookupKrs, lookupVatWhitelist, type CompanyRegistryRecord, type RegistryLookupOptions } from "../osint/companyRegistry";
+import { companyIdsOfMaterial } from "../text/companyIds";
 import { normalizeUrl, registrableDomain } from "../osint/urls";
 import {
   extractPersonsNer,
@@ -104,6 +106,12 @@ export interface EnrichOptions {
   facesOnly?: string;
   /** Opt-in Meta Ad Library lookup of ad-library IDs via MetaAdsCollector (live mode only). */
   adLibrary?: boolean;
+  /**
+   * Opt-in company registers (live mode only): the VAT white list for NIPs and the KRS extract for KRS numbers
+   * read from the pages. Sends company numbers to third-party services: never on case data without the owner's consent.
+   * An object injects the HTTP client and the cache (tests).
+   */
+  companyRegistry?: boolean | { fetchImpl?: RegistryLookupOptions["fetchImpl"]; cache?: false };
   /** Archive decoded HTML of fetched pages here (content-addressed by raw-body SHA-256). */
   archiveDir?: string | null;
   /**
@@ -961,6 +969,31 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       progress("domains", ++done, domainSet.size);
     }),
   );
+
+  // 3b. Company registers (opt-in): VAT white list by NIP, KRS extract by number, for the identifiers of each landing page
+  if (opts.companyRegistry) {
+    const regOpts: RegistryLookupOptions = typeof opts.companyRegistry === "object" ? opts.companyRegistry : {};
+    if (sources.mode === "offline") log("rejestry firm pominięte: tryb offline");
+    else {
+      const cfg = DEFAULT_COMPANY_REGISTRY_CONFIG;
+      const today = new Date().toISOString().slice(0, 10);
+      const byId = new Map<string, Promise<CompanyRegistryRecord>>();
+      const ask = (kind: "nip" | "krs", id: string) => {
+        const key = `${kind}:${id}`;
+        if (!byId.has(key)) byId.set(key, kind === "nip" ? lookupVatWhitelist(id, today, regOpts) : lookupKrs(id, regOpts));
+        return byId.get(key)!;
+      };
+      for (const it of items) {
+        const enr = perItem[it.id];
+        const ids = companyIdsOfMaterial(enr?.pageKey ? pages[enr.pageKey]?.extract : null, [enr?.ocrText, enr?.extraOcrText].filter(Boolean).join("\n")).companyIds;
+        const wanted = (["nip", "krs"] as const).flatMap((kind) => ids.filter((c) => c.kind === kind && c.valid).slice(0, cfg.maxIdsPerMaterial).map((c) => ({ kind, id: c.value })));
+        if (!wanted.length || !enr) continue;
+        enr.companyRegistry = await Promise.all(wanted.map((w) => ask(w.kind, w.id)));
+        for (const r of enr.companyRegistry) if (r.error) enr.errors.push(`company-registry ${r.source} ${r.id}: ${r.error}`);
+      }
+      log(`rejestry firm: ${byId.size} numerów`);
+    }
+  }
 
   // 4. IPs -> ASN
   const ipSet = new Set(Object.values(hosts).flatMap((h) => h.ips));

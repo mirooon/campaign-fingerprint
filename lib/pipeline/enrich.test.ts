@@ -229,3 +229,29 @@ describe("enrichItems: further videos of a record (the landing page's video)", (
     expect(out.perItem.v1.voices?.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe("enrichItems: company registers (opt-in)", () => {
+  const body = "<html><body><p>Fikcyjny Sklep Sp. z o.o., NIP 123-456-32-18</p></body></html>";
+  const item: Item = { ...deadItem, landingUrl: "https://sklep.example/", firstSeen: "2026-10-01T00:00:00Z" };
+  const answer = { result: { subject: { name: "ZUPEŁNIE INNA FIRMA SP. Z O.O.", statusVat: "Czynny", workingAddress: "ul. Testowa 1, 00-001 Miasto", registrationLegalDate: "2026-08-01", removalDate: null } } };
+
+  it("asks the VAT white list for the NIP of the page only when the flag is on, and keeps no persons", async () => {
+    const asked: string[] = [];
+    const fetchImpl = async (url: string) => (asked.push(url), new Response(JSON.stringify({ ...answer, representatives: [{ lastName: "Nazwisko" }] })));
+    const sources = deadLive({ status: 200, body });
+    const off = await enrichItems([item], { sources, baseDir: "." });
+    expect(off.perItem[deadItem.id].companyRegistry).toBeUndefined();
+    const on = await enrichItems([item], { sources, baseDir: ".", companyRegistry: { fetchImpl, cache: false } });
+    expect(asked).toHaveLength(1);
+    expect(asked[0]).toContain("/api/search/nip/1234563218");
+    expect(on.perItem[deadItem.id].companyRegistry?.[0]).toMatchObject({ source: "vat", id: "1234563218", found: true, name: "ZUPEŁNIE INNA FIRMA SP. Z O.O." });
+    expect(JSON.stringify(on)).not.toContain("Nazwisko");
+  });
+
+  it("does not ask in offline mode", async () => {
+    const asked: string[] = [];
+    const sources = { ...deadLive({ status: 200, body }), mode: "offline" as const };
+    await enrichItems([item], { sources, baseDir: ".", companyRegistry: { fetchImpl: async (u: string) => (asked.push(u), new Response("{}")), cache: false } });
+    expect(asked).toEqual([]);
+  });
+});

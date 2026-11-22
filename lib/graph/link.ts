@@ -20,6 +20,7 @@ import { verificationTokens } from "../osint/extract";
 import { mergePlatformLinkIds, platformLinkIds, type LanderConfig } from "../osint/landerConfig";
 import { companyIdsOfMaterial } from "../text/companyIds";
 import { applyShopContext } from "../osint/shopSignals";
+import { evaluateCompanyRegistry } from "../osint/companyRegistry";
 import { brandInPath, hostingOutsideEu } from "../osint/infraSignals";
 import { tlsSignals } from "../osint/tlsSignals";
 import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type PayerContext } from "../osint/payerKind";
@@ -1311,6 +1312,19 @@ export function buildEvidenceGraph(
       const shop = applyShopContext(pageEx.shopSignals, { firstSeen: item.firstSeen });
       itemData.shopSignals = shop;
       if (shop.techniques.length) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), ...shop.techniques])];
+    }
+    // Company registers (opt-in `--company-registry`): what the VAT white list and KRS say about the page's NIP / KRS,
+    // and flags where the page differs (name, address, removal, age vs the domain): attributes, never a trace
+    if (enr?.companyRegistry?.some((r) => r.found || r.error)) {
+      const shop = pageEx?.shopSignals ? applyShopContext(pageEx.shopSignals, { firstSeen: item.firstSeen }) : null;
+      const finalDom = landingPage?.fetch.finalUrl ? registrableDomain(landingPage.fetch.finalUrl) : null;
+      const assessment = evaluateCompanyRegistry(enr.companyRegistry, {
+        brandNames: [...legalEntities, shop?.footerBrand ?? ""].filter(Boolean),
+        pageAddresses: (pageEx?.contact?.address.addresses ?? []).map((a) => ({ street: a.street, number: a.number, postalCode: a.postalCode })),
+        firstSeen: item.firstSeen,
+        domainCreated: finalDom ? dataset.domains[finalDom]?.rdap?.created : null,
+      });
+      itemData.companyRegistry = { records: enr.companyRegistry.map((r) => ({ source: r.source, id: r.id, found: r.found, name: r.name, address: r.address, status: r.status, registeredAt: r.registeredAt, removedAt: r.removedAt, error: r.error })), ...assessment };
     }
     const contact = pageEx?.contact;
     if (contact) {

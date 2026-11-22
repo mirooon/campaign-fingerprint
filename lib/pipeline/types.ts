@@ -7,6 +7,7 @@ import type { CtResult } from "../osint/ct";
 import type { DnsRecords } from "../osint/dns";
 import type { PageExtract, TextExtract } from "../osint/extract";
 import type { FetchPageResult } from "../osint/fetchPage";
+import type { CompanyRegistryRecord } from "../osint/companyRegistry";
 import type { RdapInfo } from "../osint/rdap";
 import type { TlsDetails } from "../osint/tlsSignals";
 import type { NormalizedUrl } from "../osint/urls";
@@ -181,6 +182,8 @@ export interface ItemEnrichment {
   voices?: VoiceSpan[];
   /** Meta Ad Library details for the ad-library IDs of this item (opt-in, live mode). */
   adLibrary?: AdLibraryInfo[];
+  /** Company registers (VAT white list by NIP, KRS by number) for the identifiers of the page (opt-in `companyRegistry`, live mode); company data only, no persons. */
+  companyRegistry?: CompanyRegistryRecord[];
   /** Outcome of the archive step for the landing page (opt-in); absent when the page was fetched live or the step is off. */
   archive?: { status: "used" | "rejected" | "none" | "skipped"; detail: string };
   errors: string[];

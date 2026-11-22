@@ -21,19 +21,21 @@ const args = cli(
     faces: { type: "boolean" },
     "verify-person": { type: "string" },
     "ad-library": { type: "boolean" },
+    "company-registry": { type: "boolean" },
     archive: { type: "string" },
     "no-archive": { type: "boolean" },
     "archive-lookup": { type: "boolean" },
   } as const,
   `Użycie: bun run enrich -- [--offline] [--fixtures data/sample/fixtures] [--items ...] [--out ...] [--concurrency 4] [--skip ct,rdap,favicon,image,dns,asn,page]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--archive data/work/archive | --no-archive] [--archive-lookup]
+  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--company-registry] [--archive data/work/archive | --no-archive] [--archive-lookup]
 Tryb live wykonuje wyłącznie pasywne zapytania (1 GET na stronę/przekierowanie, DNS, RDAP, crt.sh, Team Cymru) z cache w .cache/.
 --cloaking: dwa dodatkowe zwykłe GET-y (UA crawlera platformy i przeglądarki mobilnej). --ocr/--asr/--audio działają tylko z zainstalowanymi narzędziami. --clip: lokalny model CLIP (~350 MB, pobierany przy pierwszym użyciu).
 --speaker: głos mówcy z wideo (SpeechBrain ECAPA, venv z scripts/py/setup-speaker.sh, model ~85 MB przy pierwszym użyciu).
 --verify-person <id>: weryfikacja 1:1 na wniosek osoby, porównanie tylko ze zdjęciami wskazanej osoby (id z data/osoby-publiczne.json).
 --faces: twarze w obrazach, zrzutach i klatkach wideo; "podobna twarz do X (0,xx)" tylko dla osób z data/osoby-publiczne.json, do przeglądu (OpenCV YuNet + SFace, venv z scripts/py/setup-face.sh, modele ~40 MB poza repo).
 --archive-lookup: dla strony, która nie odpowiada, szuka publicznej kopii w urlscan.io i Internet Archive (Wayback) i dokłada ją z podanym źródłem i datą; pasywnie, nic nie zleca ani nie zapisuje. Źródła: ARCHIVE_SOURCES (domyślnie urlscan,wayback), opcjonalny klucz URLSCAN_API_KEY. (--archive to katalog z zapisanym HTML stron.)
---ad-library: szczegóły reklamy z biblioteki reklam Mety po identyfikatorze biblioteki (MetaAdsCollector, bez klucza API; tylko live).`,
+--ad-library: szczegóły reklamy z biblioteki reklam Mety po identyfikatorze biblioteki (MetaAdsCollector, bez klucza API; tylko live).
+--company-registry: biała lista VAT (po NIP) i odpis aktualny KRS (po numerze KRS) dla numerów ze stron: nazwa, adres siedziby, status, data wpisu, bez danych osób; flagi niezgodności nazwy i adresu, wykreślenie, wiek firmy vs domeny. Domyślnie wyłączone, tylko live. Wysyła numery do usług zewnętrznych: nie uruchamiać na materiałach spraw bez zgody właściciela danych.`,
 );
 
 void main(async () => {
@@ -55,6 +57,7 @@ void main(async () => {
     faces: !!args.faces,
     facesOnly: args["verify-person"],
     adLibrary: !!args["ad-library"],
+    companyRegistry: !!args["company-registry"],
     archive: args["no-archive"] ? null : (args.archive ?? DEFAULTS.archive),
     archiveLookup: !!args["archive-lookup"],
   });

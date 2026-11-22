@@ -4,7 +4,9 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import type { CampaignsFile, EvidenceGraph, NearMissesFile } from "@/lib/graph/model";
 import type { CampaignSummary } from "@/lib/pipeline/summary";
-import { fmtDate, count, MATERIAL, CAMPAIGN, GROUP } from "@/lib/viewer/format";
+import { baseCounts } from "@/lib/viewer/campaignView";
+import { fmtDate, count, MATERIAL, CAMPAIGN, GROUP, SINGLE_MATERIAL } from "@/lib/viewer/format";
+import type { SingleRule } from "@/lib/viewer/nearMissView";
 import AnalyzeView from "./AnalyzeView";
 import CampaignsView from "./CampaignsView";
 import ComparePanel from "./ComparePanel";
@@ -23,6 +25,8 @@ export interface ShellProps {
   campaigns: CampaignsFile;
   /** Pairs kept apart on purpose; null when the run has no `near-misses.json`. */
   nearMisses: NearMissesFile | null;
+  /** Rules computed on the server for materials left alone whose pair `near-misses.json` cut (key: the material). */
+  singleRules?: Record<string, SingleRule>;
   summaries: Record<string, CampaignSummary>;
   /** The comparison base is the bundled sample: every result screen carries the "dane syntetyczne" label. */
   synthetic: boolean;
@@ -95,7 +99,7 @@ function useViewMode(): [ViewMode, (m: ViewMode) => void] {
 }
 
 /** Application frame: header with the base summary, tabs, and the view of the chosen tab; state lives in the address (`?tab=`, `?job=`, `?a=&b=`, `?k=`). */
-export default function Shell({ graph, campaigns, nearMisses, summaries, synthetic }: ShellProps) {
+export default function Shell({ graph, campaigns, nearMisses, singleRules, summaries, synthetic }: ShellProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -121,8 +125,7 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
     [params, pathname, router],
   );
 
-  const multi = campaigns.campaigns.filter((c) => c.size > 1).length;
-  const families = campaigns.families?.length ?? 0;
+  const counts = useMemo(() => baseCounts(campaigns.campaigns, campaigns.families ?? []), [campaigns]);
   const itemCount = graph.stats.items;
   const isExpert = tab === "expert" || tab === "graph";
 
@@ -132,7 +135,7 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <h1 className="text-lg font-semibold">Analiza kampanii</h1>
           <p className="text-sm text-slate-600">
-            Baza porównawcza<Help term="baza" />: {count(itemCount, MATERIAL)} · {count(multi, CAMPAIGN)} · {count(families, GROUP)} · {graph.mode === "offline" ? "offline" : "online"} · dane z {fmtDate(campaigns.generatedAt)}
+            Baza porównawcza<Help term="baza" />: {count(itemCount, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · <span title={`Materiał niedołączony do żadnej kampanii ma własny numer K, dlatego numery K sięgają dalej niż liczba kampanii. W ramkach grup podobnych: ${counts.singlesInFamilies}, w zwiniętej sekcji zakładki Kampanie: ${counts.singles - counts.singlesInFamilies}.`}>{count(counts.singles, SINGLE_MATERIAL)}</span> · {count(counts.families, GROUP)} · {graph.mode === "offline" ? "offline" : "online"} · dane z {fmtDate(campaigns.generatedAt)}
           </p>
           {synthetic && <SyntheticBadge />}
           <nav className="ml-auto flex gap-3 text-sm" aria-label="Pomoc i tryb eksperta">
@@ -177,7 +180,7 @@ export default function Shell({ graph, campaigns, nearMisses, summaries, synthet
           />
         )}
         {tab === "campaigns" && (
-          <CampaignsView campaigns={campaigns} graph={graph} ctRecords={ctFeed.records} openId={params.get("k")} onOpen={(id) => go({ tab: "campaigns", k: id })} onCompare={(x, y) => go({ tab: "compare", a: x, b: y })} />
+          <CampaignsView campaigns={campaigns} graph={graph} nearMisses={nearMisses} singleRules={singleRules} ctRecords={ctFeed.records} openId={params.get("k")} onOpen={(id) => go({ tab: "campaigns", k: id })} onCompare={(x, y) => go({ tab: "compare", a: x, b: y })} />
         )}
         {tab === "compare" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">

@@ -38,7 +38,7 @@ export interface GroupedCampaigns {
   families: FamilyGroup[];
   /** Campaigns of two or more materials outside any group. */
   alone: Campaign[];
-  /** Materials without links (campaigns of one material), folded in the list. */
+  /** Materials left alone (campaigns of one material) outside any group, folded in the list. */
   singletons: Campaign[];
 }
 
@@ -55,6 +55,51 @@ export function groupCampaigns(campaigns: Campaign[], families: CampaignFamily[]
   }
   const rest = campaigns.filter((c) => !inFamily.has(c.id));
   return { families: groups, alone: rest.filter((c) => c.size > 1), singletons: rest.filter((c) => c.size <= 1) };
+}
+
+export interface BaseCounts {
+  /** Campaigns of two or more materials. */
+  campaigns: number;
+  /** Materials left alone (campaigns of one material, each with its own K number), in a group frame or not. */
+  singles: number;
+  /** Of `singles`, the ones shown inside a frame of a group of similar campaigns. */
+  singlesInFamilies: number;
+  families: number;
+}
+
+/**
+ * Counts for the header of the base: campaigns of two or more materials, materials left alone and groups of
+ * similar campaigns. Campaigns plus singles give every K number, so the header agrees with the highest K number;
+ * singles minus `singlesInFamilies` is the folded section of single materials in the Kampanie tab.
+ */
+export function baseCounts(campaigns: Campaign[], families: CampaignFamily[]): BaseCounts {
+  const inFamily = new Set(families.flatMap((f) => f.campaigns));
+  const singles = campaigns.filter((c) => c.size <= 1);
+  return { campaigns: campaigns.length - singles.length, singles: singles.length, singlesInFamilies: singles.filter((c) => inFamily.has(c.id)).length, families: families.length };
+}
+
+/** Materials left alone that stand in group frames of the grouped list (not in the folded section). */
+export function singlesInFamilyFrames(grouped: GroupedCampaigns): number {
+  return grouped.families.reduce((n, g) => n + g.campaigns.filter((c) => c.size <= 1).length, 0);
+}
+
+/**
+ * The material left alone to reveal in the folded section: the open campaign (`?k=`) when it is one of the
+ * listed singletons, otherwise null. A campaign of one material inside a group frame is visible anyway.
+ */
+export function singleToReveal(singletons: Campaign[], openId: string | null): string | null {
+  return openId && singletons.some((c) => c.id === openId) ? openId : null;
+}
+
+/** The campaign whose number the search names exactly ("K50", "k50 "), or null; then its card opens. */
+export function campaignIdInQuery(campaigns: Campaign[], query: string): string | null {
+  const q = query.trim().toUpperCase();
+  return q ? (campaigns.find((c) => c.id.toUpperCase() === q)?.id ?? null) : null;
+}
+
+/** Element id of a campaign card, the target of scrolling to it. */
+export function campaignAnchorId(id: string): string {
+  return `kampania-${id}`;
 }
 
 export interface CampaignFilter {

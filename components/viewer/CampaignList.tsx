@@ -5,6 +5,7 @@ import { ENTITY_LABELS_PL, isSimilarityEdge, type SimilarityEdgeType } from "@/l
 import type { CampaignSummary } from "@/lib/pipeline/summary";
 import { campaignAttributes, campaignHasPersona, personaOptions, plural } from "./compare";
 import { campaignColor } from "./palette";
+import { familyApartLines } from "@/lib/viewer/nearMissView";
 
 function fmtDate(iso: string | null): string {
   return iso ? iso.slice(0, 10) : "?";
@@ -138,7 +139,7 @@ export default function CampaignList({ campaigns, selected, onSelect, summaries,
             {c.familyId && familyById.get(c.familyId) && (
               <div
                 className="mt-1 rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-900"
-                title={`Grupa podobnych kampanii ${c.familyId}: ${familyById.get(c.familyId)!.topEvidence.map((e) => e.label).slice(0, 3).join("; ")}. Osobno, bo: ${familyById.get(c.familyId)!.apart.join("; ") || "brak dowodu na poziomie kampanii"}.`}
+                title={`Grupa podobnych kampanii ${c.familyId}: ${familyById.get(c.familyId)!.topEvidence.map((e) => e.label).slice(0, 3).join("; ")}. Osobno, bo: ${familyApartLines(familyById.get(c.familyId)!, null).join("; ") || "brak dowodu na poziomie kampanii"}.`}
               >
                 podobne kampanie {c.familyId}: {familyById.get(c.familyId)!.campaigns.filter((x) => x !== c.id).join(", ")}
                 <span className="text-violet-600"> · {evidenceTypeLabel(familyById.get(c.familyId)!.topEvidence[0]?.type ?? "similar_dom")}</span>

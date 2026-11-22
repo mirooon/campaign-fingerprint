@@ -2,6 +2,7 @@ import { connection } from "next/server";
 import { Suspense } from "react";
 import Shell from "@/components/viewer/Shell";
 import { loadViewerData, SAMPLE_BASE } from "@/lib/viewer/data";
+import { loadSingleMaterialRules } from "@/lib/viewer/singleRules";
 
 /** Reads the pipeline outputs on every request: a new run (or VIEWER_DATA_DIR) shows up without a rebuild. */
 async function ViewerWithData() {
@@ -15,7 +16,7 @@ async function ViewerWithData() {
       </main>
     );
   }
-  return <Shell graph={graph} campaigns={campaigns} nearMisses={nearMisses} summaries={summaries} synthetic={SAMPLE_BASE} />;
+  return <Shell graph={graph} campaigns={campaigns} nearMisses={nearMisses} singleRules={loadSingleMaterialRules(graph, campaigns)} summaries={summaries} synthetic={SAMPLE_BASE} />;
 }
 
 export default function Home() {

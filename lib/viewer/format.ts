@@ -59,6 +59,8 @@ export function count(n: number, forms: [string, string, string]): string {
 
 export const MATERIAL: [string, string, string] = ["materiał", "materiały", "materiałów"];
 export const CAMPAIGN: [string, string, string] = ["kampania", "kampanie", "kampanii"];
+/** A material left alone: a campaign of one material, which still has its own K number. */
+export const SINGLE_MATERIAL: [string, string, string] = ["pojedynczy materiał", "pojedyncze materiały", "pojedynczych materiałów"];
 export const CASE: [string, string, string] = ["sprawa", "sprawy", "spraw"];
 export const FILE: [string, string, string] = ["plik", "pliki", "plików"];
 export const TRACE: [string, string, string] = ["wspólny ślad", "wspólne ślady", "wspólnych śladów"];

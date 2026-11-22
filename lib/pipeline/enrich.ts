@@ -17,6 +17,9 @@ import { CACHE_TTL, createCache, type FileCache } from "../cache";
 import type { LlmProvider } from "../llm/types";
 import { detectAsr, transcribe } from "../media/asr";
 import { detectFpcalc, fingerprintAudio, type AudioFingerprint } from "../media/audioFp";
+import { verifyExperts, recordedExpertLookup, type ExpertCheck, type ExpertLookup } from "../osint/expertVerify";
+import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpert";
+import { detectAiImageMeta, type AiImageMeta } from "../media/aiImageMeta";
 import { hashFavicon, hashImage } from "../media/imageHash";
 import { brandVectors, matchBrand, type BrandHit } from "../media/brand";
 import { cloakingVerdict, isBotChallenge } from "../osint/cloaking";
@@ -79,6 +82,8 @@ export interface EnrichOptions {
   personas?: CompiledWatchlist | null;
   /** Opt-in person-name NER through the configured LLM (PLLuM/Bielik/Claude). */
   ner?: { provider: LlmProvider; cache?: FileCache | false } | null;
+  /** Opt-in expert verification (B-314), label only: an injected register lookup. Also on with env EXPERT_VERIFY_FILE (recorded answers, no network). */
+  expertVerify?: { lookup: ExpertLookup } | null;
   /** Opt-in cloaking check: two extra GETs (crawler UA, mobile UA) per landing page. */
   cloaking?: boolean;
   /** DOM simhash distance above which the two variants count as different pages. */
@@ -296,6 +301,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     opts.imageCache === false || sources.mode === "offline"
       ? null
       : (opts.imageCache ?? createCache({ namespace: "imagehash", defaultTtlMs: CACHE_TTL.imagehash }));
+  const expertLookup: ExpertLookup | null = opts.expertVerify?.lookup ?? (process.env.EXPERT_VERIFY_FILE ? recordedExpertLookup(process.env.EXPERT_VERIFY_FILE) : null);
   const nerCache = opts.ner && opts.ner.cache !== false ? (opts.ner.cache ?? createCache({ namespace: "ner", defaultTtlMs: CACHE_TTL.ner })) : null;
   const cloakThreshold = opts.cloakingDomThreshold ?? 12;
   if (opts.archiveDir) mkdirSync(opts.archiveDir, { recursive: true });
@@ -588,6 +594,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       limit(async () => {
         const errors: string[] = [];
         let image: ImageInfo | null = null;
+        let aiImageMeta: AiImageMeta | null = null;
         let ocrText: string | null = null;
         let imageEmbedding: number[] | null = null;
         let creativeBrand: BrandHit | null = null;
@@ -610,6 +617,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           try {
             const img = await loadImage(item);
             image = img.info;
+            // generator markers in the file metadata (B-302): offline, no detector model
+            if (img.bytes) aiImageMeta = detectAiImageMeta(img.bytes);
             if (ocrOn && (img.file || img.bytes)) {
               observed.unshift(...(await mediaLimit(() => readAddressBar(img.file ?? item.imagePath ?? item.imageUrl ?? "creative", { bytes: img.bytes ?? undefined }))));
               // a feed screenshot also shows the neighbouring post: keep the sponsored one, read the page name
@@ -716,6 +725,13 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           }
         }
 
+        // register check of the "doctors" named in the ad (B-314): a label, off unless a lookup is configured
+        let expertChecks: ExpertCheck[] = [];
+        if (expertLookup && item.text) {
+          const names = detectFictionalExperts(item.text, publicPersonsForExperts()).map((e) => e.name);
+          expertChecks = await verifyExperts(names, { enabled: true, lookup: expertLookup });
+        }
+
         const campaignParams = extractCampaignParams([
           item.landingUrl,
           ...(page?.fetch.redirectChain.map((h) => h.url) ?? []),
@@ -747,6 +763,8 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           ...(creativeBrand ? { creativeBrand } : {}),
           ...(videoEmbedding ? { videoEmbedding } : {}),
           ...(videoSha256 ? { videoSha256 } : {}),
+          ...(aiImageMeta ? { aiImageMeta } : {}),
+          ...(expertChecks.length ? { expertChecks } : {}),
           ...(pageKey && archiveStatus.has(pageKey) ? { archive: archiveStatus.get(pageKey) } : {}),
           errors,
         };

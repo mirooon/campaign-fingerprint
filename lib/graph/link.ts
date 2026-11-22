@@ -25,6 +25,7 @@ import { classifyPayer, isPolishAd, PAYER_KIND_NOTES_PL, summarizePayers, type P
 import { maskUrl } from "../osint/redact";
 import { rdapSuspended } from "../osint/rdap";
 import { advertiserMismatch } from "../text/advertiserMismatch";
+import { detectFictionalExperts, publicPersonsForExperts } from "../text/fictionalExpert";
 import { adStart } from "../text/adStart";
 import { displayedDomainMismatch } from "../text/displayedDomain";
 import { discordSnowflakes } from "../osint/contactIds";
@@ -1206,6 +1207,9 @@ export function buildEvidenceGraph(
       }
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
+    if (enr?.aiImageMeta) itemData.aiImageMeta = `${enr.aiImageMeta.marker}: ${enr.aiImageMeta.detail}`;
+    // fake "live stream" recorded by yt-dlp (B-301): the ad is a recording that was or is a live broadcast
+    if (/^(was_live|is_live|true)$/i.test(item.extra?.live_status ?? "")) itemData.liveStream = true;
     // Profit claims (amount + period) of the copy, OCR, transcript and page: an attribute, and a trace of the
     // scheme's script for groups only (campaignRules.familyOnlyKinds); standard deposits stay out of the key (I23)
     const claims = profitClaims(brandBody);
@@ -1223,6 +1227,15 @@ export function buildEvidenceGraph(
       const stored: MaterialNarrative = { ...narrative, date: item.firstSeen, ...(label ? { label } : {}) };
       itemData.narrative = stored;
     }
+    // A "doctor" with a title and a name that is not on the list of public figures, in a health ad (B-300):
+    // an attribute for the reviewer ("probably an invented doctor"), never a pivot.
+    if (narrative?.topics.some((t) => t.id === "health")) {
+      const experts = detectFictionalExperts(brandBody, [...publicPersonsForExperts(), ...personaHows.values()]);
+      if (experts.length) itemData.fictionalExpert = experts.map((e) => `${e.title} ${e.name}`);
+    }
+    // Register check (B-314, opt-in plugin): a label only, it changes no weight
+    const unregistered = enr?.expertChecks?.filter((c) => !c.registered).map((c) => c.name);
+    if (unregistered?.length) itemData.expertNotInRegister = unregistered;
     // Investment ad from an account named like a guest house or a person: most likely a taken-over account
     // paid with a victim's card (I23). The name is the victim's, so it links nothing; the library account
     // ID, when known, stays (the operator controls that account while the ads run).

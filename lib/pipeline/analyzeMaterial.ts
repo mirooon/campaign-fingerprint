@@ -298,7 +298,7 @@ export function resolveBaseDir(baseDir: string, dataDir: string): string {
 
 const FEATURE_KEYS = [
   "landingUrl", "finalUrl", "landingSource", "landingFragment", "observedUrls", "inAppBrowser", "advertiser", "uiView", "adLibraryIds",
-  "advertiserImpersonatesName", "advertiserMismatch", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
+  "advertiserImpersonatesName", "advertiserMismatch", "fictionalExpert", "expertNotInRegister", "liveStream", "aiImageMeta", "adPlatform", "adLibraryAdId", "adAdvertiserId", "adAdvertiserLegalName", "adAdvertiserLocation", "adAdvertiserVerified", "adRegions", "adFirstShown", "adLastShown",
   "personas", "personaCategories", "impersonatedBrand", "platformCampaignName", "landingName", "trafficSource", "platformSourceIds", "cloakerInSource", "platformAccount",
   "platformAccountSource", "platformAccountWarning", "platformTenants", "infrastructure",
   "metaAdId", "metaAppId", "clickTime", "clickCounter", "cyrillic", "cloakingSuspected", "ocrText", "asrText", "firstSeen", "techniques", "clickfix", "onionV2", "displayedDomainMismatch", "displayedBrandDomain", "phoneLines", "phoneCountryMismatch", "tollFreeOnAlert", "idnConfusable", "adStartWeekday", "discordSnowflakes", "emailDomainKinds", "addressCompleteness", "phoneAreaMismatch", "certIssuer", "certMismatch", "certExpired", "brandInPath", "hostingOutsideEu", "tldRare", "domainLangMismatch", "privacyControllerMismatch", "registrantHidden", "contactDomainDead", "narrative", "profitClaims", "localizedUi", "creativeBrand", "domainAgeDays", "certAgeDays", "pagePlatforms", "inputExtra",

@@ -471,6 +471,10 @@ export const FEATURE_INFO: Record<string, FeatureInfo> = {
   adLibraryIds: { name: "Identyfikator biblioteki reklam", source: "z OCR zrzutu", role: "links" },
   advertiserImpersonatesName: { name: "Reklamodawca podszywa się pod osobę", source: "z nazwy reklamodawcy i listy osób (atrybut, nie dowód kampanii)", role: "describes", term: "persona" },
   profitClaims: { name: "Obiecywany zysk (kwota i okres)", source: "z tekstu reklamy, strony, OCR albo transkrypcji (atrybut; łączy tylko podobne kampanie w grupę)", role: "describes" },
+  fictionalExpert: { name: "Zmyślony lekarz (prawdopodobnie AI)", source: "z tytułu (dr, prof.) i nazwiska spoza listy osób publicznych w reklamie zdrowotnej (atrybut, nie dowód kampanii)", role: "describes" },
+  expertNotInRegister: { name: "Lekarz bez wpisu w rejestrze (prawdopodobnie zmyślony)", source: "z nagranej odpowiedzi rejestru lekarzy (wtyczka opcjonalna, wyłączona domyślnie; etykieta, nie dowód kampanii)", role: "describes" },
+  liveStream: { name: "Fałszywa transmisja na żywo", source: "z metadanych nagrania (yt-dlp: was_live, is_live; atrybut, nie dowód kampanii)", role: "describes" },
+  aiImageMeta: { name: "Obraz wygenerowany przez AI (znacznik w pliku)", source: "z metadanych pliku obrazu: C2PA, IPTC, EXIF albo opis generatora (atrybut; bez metadanych brak wniosku)", role: "describes" },
   advertiserMismatch: { name: "Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)", source: "z nazwy reklamodawcy (lokalna firma albo osoba prywatna) i narracji inwestycyjnej (atrybut, nie dowód kampanii)", role: "describes" },
   displayedDomainMismatch: {
     name: "Domena pokazana w reklamie różni się od strony docelowej",

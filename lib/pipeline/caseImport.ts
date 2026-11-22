@@ -457,6 +457,8 @@ interface CaseScan {
   adPageId: string | null;
   adRecord: AdRecord | null;
   infoTime: string | null;
+  /** "was_live" or "is_live" from the yt-dlp description (a recorded or running live stream), else null (B-301). */
+  liveStatus: string | null;
   notes: string[];
   collected: Collected | null;
 }
@@ -582,14 +584,16 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
   let adLibraryId: string | null = null;
   let adPageId: string | null = null;
   let infoTime: string | null = null;
+  let liveStatus: string | null = null;
   const info = rootMedia.find((f) => /\.info\.json$/i.test(f.name));
   if (info) {
     try {
-      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number; uploader_id?: string };
+      const j = JSON.parse(readFileSync(abs(info), "utf8")) as { webpage_url?: string; playlist_uploader?: string; uploader?: string; epoch?: number; uploader_id?: string; was_live?: boolean; is_live?: boolean; live_status?: string };
       adLibraryId = /\/ads\/library\/?\?(?:.*&)?id=(\d{6,})/.exec(j.webpage_url ?? "")?.[1] ?? null;
       advertiser = j.playlist_uploader ?? j.uploader ?? null;
       // the uploader of a library ad is its advertiser page: a stable ID, unlike the name
       adPageId = adLibraryId && /^\d+$/.test(j.uploader_id ?? "") ? (j.uploader_id ?? null) : null;
+      liveStatus = j.is_live === true || j.live_status === "is_live" ? "is_live" : j.was_live === true || j.live_status === "was_live" ? "was_live" : null;
       infoTime = typeof j.epoch === "number" ? new Date(j.epoch * 1000).toISOString() : null;
     } catch {
       notes.push(`${info.name}: nieczytelny plik opisu`);
@@ -617,6 +621,7 @@ function scanCase(casesDir: string, id: string, log: (m: string) => void): CaseS
     adPageId,
     adRecord,
     infoTime,
+    liveStatus,
     notes,
     collected,
   };
@@ -750,6 +755,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         ...(rec.video ? { video: rec.video } : {}),
         ...(rec.moreVideos.length ? { more_videos: rec.moreVideos } : {}),
         ...(rec.advertiser ? { advertiser: rec.advertiser } : {}),
+        ...(s.liveStatus ? { live_status: s.liveStatus } : {}),
         ...(rec.adLibraryId ? { ad_library_id: rec.adLibraryId } : {}),
         ...(rec.adPageId ? { advertiser_id: rec.adPageId, ad_platform: "meta" } : {}),
       });

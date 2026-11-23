@@ -147,7 +147,7 @@ Dostęp do wszystkich adresów: 2026-11-21 (treść czytana jako tekst; część
 
 Każde źródło jest opcjonalne i domyślnie wyłączone: bez poświadczeń albo narzędzia wpisuje w wyniku powód pominięcia i instrukcję uzyskania dostępu.
 
-Wspólny interfejs: `lib/adlib/` (typy `AdRecord`, `AdLibrarySource`; adaptery `meta.ts`, `google.ts`; CLI `bun run adlib`). Opis dla użytkownika: [README.md](../README.md#biblioteki-reklam-jak-uzyskać-dostęp), opis techniczny: [TECHNICAL.md §3.11](TECHNICAL.md). Stan: 22.11.2026.
+Wspólny interfejs: `lib/adlib/` (typy `AdRecord`, `AdLibrarySource`; adaptery `meta.ts`, `google.ts`; CLI `bun run adlib`). Opis dla użytkownika: [README.md](JURY.md#biblioteki-reklam-jak-uzyskać-dostęp), opis techniczny: [TECHNICAL.md §3.11](TECHNICAL.md). Stan: 22.11.2026.
 
 **Żadna z bibliotek nie daje obietnicy trafień.** Wyszukiwanie w Google Ads Transparency nie dało materiałów dla rodzin kampanii z próbki; adapter jest wartością samą w sobie (nowe materiały do sprawdzenia, rozszerzanie kampanii po reklamodawcy), nie sposobem na znalezienie znanej kampanii.
 

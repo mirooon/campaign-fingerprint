@@ -234,145 +234,149 @@ Source: transcripts of investigative podcasts (OSINT Podcast https://www.youtube
 
 The sources are the page text and attributes, the ad text, screenshot OCR and request URLs from HAR. None of these addresses is opened: they are the operator's resources, and the tool only reads the record.
 
-## 6. Atrybuty, które nie łączą (22.11.2026)
+## 6. Attributes that do not link (22 Nov 2026)
 
-Te cechy pojawiają się w karcie materiału, w opisie kampanii i w paczce dowodów, ale nie mają wagi w grafie i niczego nie łączą. Atrybuty sklepu i infrastruktury są w punkcie 2 („Sygnały sklepu”).
+These features appear in the sample card, in the campaign description and in the evidence pack, but they have no weight in the graph and link nothing. Shop and infrastructure attributes are in section 2 (“Shop signals”).
 
-### 6.1 Narracja, marka na kreacji, osoby i inne atrybuty (zadanie I10)
+### 6.1 Narrative, brand on the creative, people and other attributes (task I10)
 
-**Atrybuty materiału, kampanii i grupy (nigdy dowód kampanii, bez wyniku ryzyka).**
-- **Narracja:** temat (inwestycja, dotacja, zdrowie z podkategoriami, hazard, wybory, „inwestycje dzięki AI”, złoto z NBP, wojna i surowce, „tajemnica”, „nastolatek zarobił”, odzyskanie środków, wydarzenia: mundial, zaprzysiężenie, „państwowa inwestycja”), forma przynęty (fałszywa sensacja, polecenie, fałszywy wywiad), kwoty, data materiału. Kampania i grupa mają podsumowanie narracji, a kampania na jednej infrastrukturze, która zmienia temat w ciągu tygodnia, dostaje opis „ten sam operator, dwie narracje”. Etykieta reguły IHC (`celeb_bait_investment`: osoba z listy oraz obietnica zysku, zaproszenie do grupy albo podrobione medium) jest atrybutem. Paczka dowodów bierze „usługę finansową” z narracji, z cytatem i dopiskiem „(wniosek)”.
-- **Podrabiana marka na kreacji** (CLIP zero-shot na liście ok. 20 portali, banków i instytucji) i **grupy osób** z listy osób publicznych („Dziennikarze”) są cechami grupy. **Para osób** w jednym materiale (fikcyjna rozmowa dwóch znanych osób) jest rzadsza niż jedna osoba, więc sama tworzy grupę podobnych kampanii, ale nigdy kampanię.
-- **Most i najsłabsze ogniwo:** kampania, którą trzyma razem jeden silny ślad między dwiema podgrupami, ma pole `bridge` („kampania sklejona jednym śladem: X”, kandydat do listy zniżek), a `minInternalScore` pokazuje członka, który wisi najbliżej progu.
-- **Wiek domeny i pierwszego certyfikatu** w dniu pierwszej obserwacji materiału, **platforma strony** (np. platforma stron, tracker; tylko atrybut, bez grupy, bo platforma ma tysiące niezwiązanych klientów), **liczba reklam zdjętych przez platformę**, **kolumny wejścia spoza mapowania** („dane z wejścia”).
+**Attributes of a sample, campaign and group (never campaign evidence, no risk score).**
+- **Narrative:** topic (investment, subsidy, health with subcategories, gambling, elections, “AI-powered investing”, gold from the NBP (the Polish central bank), war and raw materials, “secret”, “teenager made a fortune”, fund recovery, events: World Cup, swearing-in, “state investment”), form of the lure (fake sensational news, recommendation, fake interview), amounts, date of the sample. Campaigns and groups have a narrative summary, and a campaign on one infrastructure that changes topic within a week gets the description “same operator, two narratives”. The IHC rule label (`celeb_bait_investment`: a person from the list plus a promise of profit, an invitation to a group or a fake media outlet) is an attribute. The evidence pack takes the “financial service” from the narrative, with a quote and the note “(inference)”.
+- **Impersonated brand on the creative** (CLIP zero-shot on a list of about 20 portals, banks and institutions) and **groups of people** from the list of public figures (e.g. “Dziennikarze”, journalists) are group features. A **pair of people** in one sample (a fictional conversation between two well-known people) is rarer than one person, so on its own it creates a group of similar campaigns, but never a campaign.
+- **Bridge and weakest link:** a campaign held together by a single strong trace between two subgroups has a `bridge` field (“campaign held together by a single trace: X”, a candidate for the discount list), and `minInternalScore` shows the member that hangs closest to the threshold.
+- **Age of the domain and of its first certificate** on the day the sample was first seen, **page platform** (e.g. page-builder platform, tracker; an attribute only, with no group, because a platform has thousands of unrelated customers), **number of ads taken down by the platform**, **input columns outside the mapping** (“input data”).
 
-### 6.2 Techniki, rodzaje numerów i narracje z praktyki śledczej (zadanie I28)
+### 6.2 Techniques, phone number types and narratives from investigative practice (task I28)
 
-**Co tylko wyjaśnia** (atrybuty, bez wagi; techniki liczą się wyłącznie przy grupach podobnych kampanii, jak inne techniki):
+**What only explains** (attributes, no weight; techniques count only for groups of similar campaigns, like other techniques):
 
-- Techniki strony: fałszywy alarm bezpieczeństwa z numerem telefonu (`fake_security_alert`: alarm + numer jako jedyne wyjście + mechanizm przytrzymania), program do zdalnego pulpitu (`remote_access_tool`), fałszywa weryfikacja z poleceniem do wklejenia (`clickfix_paste`). Z polecenia ClickFix zapisujemy tylko rodzaj i skrót SHA-256 (to ładunek złośliwego oprogramowania); skrót nie jest śladem łączącym, bo wśród rodzajów nie ma „zestawu” pasującego do polecenia.
-- Domena pokazana w reklamie różna od strony docelowej (`displayedDomainMismatch`, z flagą znanej marki).
-- Rodzaj numeru telefonu (`phoneLines`: komórkowy, stacjonarny, bezpłatny, o podwyższonej opłacie, VoIP) z lokalnych metadanych `libphonenumber-js`, bez wysyłania numeru do usług, oraz flagi `phoneCountryMismatch` i `tollFreeOnAlert`. **Waga numeru się nie zmienia**: numery VoIP i aplikacyjne bywają jednorazowe, dlatego waga telefonu opiera się na rzadkości numeru (IDF), a rodzaj jest tylko wyjaśnieniem.
-- Adres, który udaje inny (`idnConfusable`: znak podobny do `/`, `.`, `-` albo mieszane alfabety w jednej etykiecie), dzień tygodnia i godzina startu reklamy z biblioteki reklam (rozkład w kampanii opisuje rytm operatora) i data utworzenia serwera lub konta Discord z identyfikatora w linku („zegar powstania”).
-- Narracje i haczyki: tematy fałszywej pomocy technicznej, zwrotu nadpłaty, oferty odzyskania środków (wtórne oszustwo wobec ofiar), oferty pracy, udawanego organu; haczyki tajemnicy, opłaty przed wypłatą i groźby blokady konta.
+- Page techniques: fake security alert with a phone number (`fake_security_alert`: alert + number as the only way out + a mechanism that keeps the user on the page), remote desktop software (`remote_access_tool`), fake verification with a command to paste (`clickfix_paste`). From a ClickFix command we store only its kind and a SHA-256 hash (the command is a malware payload); the hash is not a linking trace, because no trace kind is a “kit” that would match the command.
+- The domain shown in the ad differs from the landing page (`displayedDomainMismatch`, with a known-brand flag).
+- Phone number type (`phoneLines`: mobile, landline, toll-free, premium-rate, VoIP) from the local `libphonenumber-js` metadata, without sending the number to any service, and the flags `phoneCountryMismatch` and `tollFreeOnAlert`. **The weight of the number does not change**: VoIP and app numbers are sometimes disposable, so the phone weight rests on the rarity of the number (IDF), and the type is only an explanation.
+- An address that imitates another (`idnConfusable`: a character similar to `/`, `.`, `-` or mixed alphabets in one label), the weekday and hour at which the ad started, from the ad library (the distribution within a campaign describes the operator's rhythm), and the creation date of a Discord server or account from the ID in the link (“creation clock”).
+- Narratives and hooks: topics of fake tech support, overpayment refunds, fund recovery offers (a secondary scam targeting victims), job offers, impersonated authorities; hooks of secrecy, a fee before payout and threats of account blocking.
 
-**Zastrzeżenia ze źródeł.** Numer dzwoniącego i numer z formularza nie dowodzą tożsamości (podszywanie numeru, aplikacje). Wspólny zestaw albo platforma „fraud as a service” nie dowodzi jednego operatora. Brak literówek nie jest już sygnałem legalności, bo teksty piszą modele językowe. Zrzut salda z „platformy” nie dowodzi stanu konta (edycja DOM).
+**Caveats from the sources.** The caller's number and the number in a form do not prove identity (number spoofing, apps). A shared kit or a “fraud as a service” platform does not prove a single operator. The absence of typos is no longer a sign of legitimacy, because language models write the texts. A screenshot of a balance on a “platform” does not prove the account balance (DOM editing).
 
-## 7. Przypadki graniczne i twarde negatywy (22.11.2026)
+## 7. Borderline cases and hard negatives (22 Nov 2026)
 
-To dwa sposoby sprawdzenia, że narzędzie nie skleja kampanii na podstawie samej podobieństwa.
+These are two ways of checking that the tool does not glue campaigns together on similarity alone.
 
-### 7.1 Przypadki graniczne: celowo nie połączone (zadanie I20)
+### 7.1 Borderline cases: deliberately not linked (task I20)
 
-**Co to jest bliska para.** Para reklam, które są do siebie podobne, a metoda celowo nie połączyła ich w jedną kampanię. Każda taka para ma w zestawieniu regułę, która zablokowała połączenie, i opis tego, czego zabrakło. Zestawienie robi dwie rzeczy. Pokazuje, że metoda pilnuje fałszywych powiązań: wspólna osoba w reklamie, popularny szablon, wspólna platforma, CDN, rejestrator. I daje listę przypadków do przeglądu, gdy wynik pary leży blisko progu. Zestawienie tylko zapisuje decyzje, które metoda i tak podejmuje: nie zmienia wag, progów ani reguł, a kampanie i grupy wychodzą identyczne z tymi sprzed zadania (sprawdzone porównaniem `campaigns.json` na próbce syntetycznej i na 25 sprawach).
+**What a near-miss pair is.** A pair of ads that are similar to each other, but which the method deliberately did not link into one campaign. Each such pair has, in the report, the rule that blocked the link and a description of what was missing. The report does two things. It shows that the method guards against false links: a shared person in the ad, a popular template, a shared platform, CDN, registrar. And it gives a list of cases to review when a pair's score lies close to the threshold. The report only records decisions that the method makes anyway: it does not change weights, thresholds or rules, and the campaigns and groups come out identical to those before the task (checked by comparing `campaigns.json` on the synthetic set and on the 25 cases).
 
-**Kiedy para trafia na listę.** Nie jest w jednej kampanii, nie pochodzi z jednej sprawy i spełnia co najmniej jeden warunek: wynik pary ≥ połowa progu łączenia; para ma wspólny ślad silnego typu, który został zdyskontowany (np. domena wspólnej sieci CDN); jej kampanie leżą w jednej grupie podobnych, a ona sama nie jest w kampanii. Połowa progu i limit liczby par (domyślnie 200, najwyższe wyniki) są w konfiguracji (`nearMiss`).
+**When a pair goes on the list.** It is not in one campaign, it does not come from one case, and it meets at least one condition: the pair score is ≥ half of the linking threshold; the pair has a shared trace of a strong type that was discounted (e.g. a domain of a shared CDN); its campaigns lie in one group of similar campaigns, while the pair itself is not in a campaign. The half-threshold and the limit on the number of pairs (200 by default, highest scores first) are in the configuration (`nearMiss`).
 
-**Reguły (identyfikator, co znaczy):**
+**Rules (identifier, meaning):**
 
-- `below-min-score`: wynik pary jest poniżej progu łączenia.
-- `family-only-kind`: wynik pochodzi ze śladów, które łączą tylko w grupę (osoba w reklamie, technika strony); bez nich para jest poniżej progu.
-- `account-conflict`: reklamy stoją na różnych kontach tej samej platformy stron; platforma daje swoje szablony i biblioteki wszystkim kontom.
-- `discounted-only`: jedyne wspólne ślady to infrastruktura używana przez wiele stron (CDN, popularny rejestrator, platforma), po obniżeniu wagi nic nie zostaje.
-- `kit-only`: łączy je tylko zestaw stron (szablon, motyw, komentarze, struktura), który kupuje i kopiuje wielu operatorów; brak śladu operatora.
-- `content-only-with-infra`: łączy je tylko treść, a któraś reklama ma własną infrastrukturę, której druga nie dzieli.
-- `too-few-content-kinds`: reklamy bez infrastruktury łączy jeden rodzaj treści, a kampania wymaga dwóch.
-- `too-few-evidence-kinds`: wspólne ślady mają za mało różnych rodzajów, by uznać je za potwierdzone (domyślnie reguła nie występuje, bo wystarcza jeden rodzaj poza zestawem stron i treścią).
-- `split-by-clustering`: reguły pozwalały połączyć reklamy, ale podział sieci powiązań na kampanie (Louvain) umieścił je w różnych kampaniach.
+- `below-min-score`: the pair score is below the linking threshold.
+- `family-only-kind`: the score comes from traces that link only into a group (person in the ad, page technique); without them the pair is below the threshold.
+- `account-conflict`: the ads are on different accounts of the same page-builder platform; the platform gives its templates and libraries to all accounts.
+- `discounted-only`: the only shared traces are infrastructure used by many sites (CDN, popular registrar, platform); nothing is left once the weight is lowered.
+- `kit-only`: the ads are linked only by a page kit (template, theme, comments, structure), which many operators buy and copy; there is no operator trace.
+- `content-only-with-infra`: the ads are linked only by content, and one of them has its own infrastructure that the other does not share.
+- `too-few-content-kinds`: ads without infrastructure are linked by one kind of content, and a campaign needs two.
+- `too-few-evidence-kinds`: the shared traces have too few different kinds to count as corroborated (by default this rule never fires, because one kind outside the page kit and content is enough).
+- `split-by-clustering`: the rules allowed the ads to be linked, but partitioning the link network into campaigns (Louvain) put them in different campaigns.
 
-**Liczby z przebiegu na 25 sprawach (28 rekordów, 14 kampanii, 3 grupy podobnych; według reguły):** 52 bliskie pary, z tego `below-min-score` 37, `kit-only` 9, `account-conflict` 4, `family-only-kind` 1, `discounted-only` 1; pozostałe reguły 0. Pary, które etykiety zespołu mają w jednej kampanii, a metoda je rozdzieliła (kandydaci na fałszywe rozdzielenie): 0. Zgadza się to z recall pary równym 1,0 w ewaluacji tego przebiegu. Przy `kit-only` i `account-conflict` metoda zadziałała zgodnie z założeniem (wspólny zestaw stron albo konto platformy, nie operator). Pary `below-min-score` mają wyniki od 0,06 do 0,12 (próg 0,15) i łączą je głównie słabe ślady (sieć operatora, technika strony, układ linku śledzącego); do przeglądu warto brać najwyższe wyniki z tej reguły.
+**Numbers from the run on the 25 cases (28 records, 14 campaigns, 3 groups of similar campaigns; by rule):** 52 near-miss pairs, of which `below-min-score` 37, `kit-only` 9, `account-conflict` 4, `family-only-kind` 1, `discounted-only` 1; other rules 0. Pairs that our labels put in one campaign but the method split apart (candidates for a false split): 0. This agrees with the pair recall of 1.0 in the evaluation of this run. For `kit-only` and `account-conflict` the method worked as intended (a shared page kit or platform account, not an operator). The `below-min-score` pairs have scores from 0.06 to 0.12 (threshold 0.15) and are linked mainly by weak traces (operator network, page technique, tracking-link layout); for review it is worth taking the highest scores under this rule.
 
-**Gdzie to zobaczyć.** `near-misses.json` obok `campaigns.json` (zapisuje go każdy `build-graph`), zakładka „Celowo nie połączone” w przeglądarce, pole `nearMisses` i kolumna `blisko_bez_polaczenia` w wyniku analizy nowego materiału. Format: `docs/TECHNICAL.md`, §5.6.
+**Where to see it.** `near-misses.json` next to `campaigns.json` (written by every `build-graph`), the “Deliberately not linked” tab in the browser, and the `nearMisses` field and the `blisko_bez_polaczenia` column in the result of analyzing a new sample. Format: `docs/TECHNICAL.md`, §5.6.
 
-Bliskie pary z tego przebiegu weszły do zbioru twardych negatywów z prawdziwych materiałów (punkt 7.2), gdzie sprawdzamy, czy narzędzie nie skleja ich w kampanię.
+The near-miss pairs from this run went into the set of hard negatives from real samples (section 7.2), where we check that the tool does not glue them into a campaign.
 
-### 7.2 Twarde negatywy z prawdziwych materiałów (zadanie I21)
+### 7.2 Hard negatives from real samples (task I21)
 
-**Po co.** Najczęstszy błąd narzędzi tego typu to fałszywe sklejenie: dwa materiały różnych operacji w jednej kampanii, bo mają tę samą przynętę. Wcześniejsze testy twardych negatywów były tylko syntetyczne. Teraz mamy zbiór par z prawdziwych materiałów (25 spraw próbki i 212 materiałów walidacji) i stały test w repozytorium, że żadna z nich nie trafia do jednej kampanii. Grupa podobnych kampanii jest dozwolona.
+**Why.** The most common error of tools of this type is a false merge: two samples from different operations end up in one campaign because they use the same lure. Earlier hard-negative tests were synthetic only. Now we have a set of pairs from real samples (the 25 reference cases and 212 validation samples) and a permanent test in the repository that none of them ends up in one campaign. A group of similar campaigns is allowed.
 
-**Sześć kategorii przynęty** (para może mieć kilka):
+**Six lure categories** (a pair can have several):
 
-1. ta sama osoba w reklamie (z listy osób publicznych);
-2. ten sam motyw lub narracja (inwestycja, wywiad w mediach, zdrowie, kasyno, oferta sklepu: słowa kluczowe);
-3. podobny tekst albo obraz (krawędź podobieństwa w grafie, CLIP, pHash) bez wspólnej pełnowagowej infrastruktury;
-4. wspólny ślad zdyskontowany (CDN, platforma, kreator, rejestrator, NS, biblioteka JS, ogólny parametr kampanii);
-5. domeny zarejestrowane tego samego dnia albo podobne leksykalnie;
-6. strona pusta, błąd pobierania, cloaking albo strona zaparkowana.
+1. the same person in the ad (from the list of public figures);
+2. the same theme or narrative (investment, media interview, health, casino, shop offer: keywords);
+3. similar text or image (a similarity edge in the graph, CLIP, pHash) without shared full-weight infrastructure;
+4. a shared discounted trace (CDN, platform, site builder, registrar, NS, JS library, generic campaign parameter);
+5. domains registered on the same day or lexically similar;
+6. empty page, download error, cloaking or parked page.
 
-Do tego jako osobne źródło bliskie pary z punktu 7.1.
+In addition, as a separate source, the near-miss pairs from section 7.1.
 
-**Metoda doboru.** Bierzemy pary z różnych kampanii według etykiet (etykiety zespołu dla 25 spraw, etykiety walidacji dla pozostałych) i zostawiamy te, które spełniają co najmniej jedną kategorię. Wybór idzie od najtrudniejszych, czyli od najwyższego wyniku pary w grafie, z limitem par na kategorię i na materiał oraz udziału jednego typu pary. **Etykieta „różne kampanie” musi mieć podstawę.** Jeśli obie reklamy mają wspólny pełnowagowy identyfikator operatora (konto platformy stron, serwer kliknięć, tracker albo zarejestrowaną domenę), to według definicji naszych etykiet jest to ta sama kampania. Wtedy para trafia do „niepewnych” i nie liczy się jako negatyw. Inaczej podstawą są różne identyfikatory tego samego typu („inne konta”, „inne domeny”) albo same różne etykiety. W kategoriach z mniej niż trzema parami prawdziwymi dokładamy pary **pochodne**: bierzemy prawdziwą sprawę i podmieniamy jedną warstwę tak, żeby powstała inna operacja z tą samą przynętą. Na przykład ta sama treść i osoba z innym backendem formularza i innym kontem albo ten sam kreator i CDN z inną treścią i innym trackerem. Pary pochodne liczymy osobno. Pomiar ma dwie części: wynik pary we wspólnym grafie (sklejone, tylko grupa, rozdzielone) i leave-one-out, czyli materiał A analizowany jako nowy względem bazy bez całej jego sprawy.
+**Selection method.** We take pairs from different campaigns according to the labels (our labels for the 25 cases, validation labels for the rest) and keep those that meet at least one category. Selection starts from the hardest, i.e. from the highest pair score in the graph, with a limit of pairs per category and per sample and a cap on the share of one pair type. **The label “different campaigns” must have a basis.** If both ads share a full-weight operator identifier (page-builder account, click server, tracker or registered domain), then by the definition of our labels it is the same campaign. Such a pair goes to “uncertain” and does not count as a negative. Otherwise the basis is different identifiers of the same type (“other accounts”, “other domains”) or just different labels. In categories with fewer than three real pairs we add **derived** pairs: we take a real case and swap one layer so that it becomes a different operation with the same lure. For example the same content and person with a different form backend and a different account, or the same site builder and CDN with different content and a different tracker. Derived pairs are counted separately. The measurement has two parts: the pair's outcome in the shared graph (merged, group only, separated) and leave-one-out, i.e. sample A analyzed as new against a base without its whole case.
 
-**Wynik (pary prawdziwe, kod po zadaniu I20; para z kilkoma kategoriami liczy się w każdej):**
+**Result (real pairs, code after task I20; a pair with several categories counts in each):**
 
-| kategoria | pary | sklejone | tylko grupa | rozdzielone |
+| category | pairs | merged | group only | separated |
 |---|---|---|---|---|
-| ta sama osoba | 6 | 0 | 0 | 6 |
-| ten sam motyw | 28 | 0 | 12 | 16 |
-| podobny tekst lub obraz | 9 | 0 | 8 | 1 |
-| wspólny ślad zdyskontowany | 65 | 0 | 20 | 45 |
-| podobne domeny | 7 | 0 | 4 | 3 |
-| pusta strona | 31 | 0 | 10 | 21 |
-| bliskie pary (4e) | 52 | 0 | 12 | 40 |
-| **razem (pary bez powtórzeń)** | **97** | **0 (0%)** | **25** | **72** |
+| the same person | 6 | 0 | 0 | 6 |
+| the same theme | 28 | 0 | 12 | 16 |
+| similar text or image | 9 | 0 | 8 | 1 |
+| shared discounted trace | 65 | 0 | 20 | 45 |
+| similar domains | 7 | 0 | 4 | 3 |
+| empty page | 31 | 0 | 10 | 21 |
+| near-miss pairs (4e) | 52 | 0 | 12 | 40 |
+| **total (unique pairs)** | **97** | **0 (0%)** | **25** | **72** |
 
-Leave-one-out daje to samo: 0 sklejeń. Przed sprawdzeniem podstawy etykiet sklejonych było 25 z 104 wybranych par. Wszystkie 25 okazały się parami bez podstawy: wspólne konto platformy stron przy etykiecie walidacji, która mówi tylko „konto spoza znanych kampanii”, kopia archiwalna sprawy bez własnej etykiety, wariant znanej kampanii zapisany w innym zapisie etykiety, dwie podrodziny jednej domeny. Wśród 200 par bez podstawy narzędzie skleja 51, zawsze przez wspólne konto platformy albo wspólną domenę, czyli zgodnie z definicją kampanii.
+Leave-one-out gives the same: 0 merges. Before the basis of the labels was checked, 25 of the 104 selected pairs were merged. All 25 turned out to be pairs without a basis: a shared page-builder account with a validation label that says only “account outside known campaigns”, an archive copy of a case without its own label, a variant of a known campaign recorded under a different label notation, two subfamilies of one domain. Among 200 pairs without a basis the tool merges 51, always through a shared platform account or a shared domain, i.e. in line with the definition of a campaign.
 
-**Pary pochodne:** 18 (po 3 w każdej kategorii), sklejone 5. Jedna to błąd generatora: wariant zachował wartość parametru kampanii w formularzu, a to silny ślad operatora. Tę parę wykluczamy z testu. Cztery to znane słabości metody:
+**Derived pairs:** 18 (3 in each category), 5 merged. One is a generator error: the variant kept the value of a campaign parameter in the form, and that is a strong operator trace. We exclude this pair from the test. Four are known weaknesses of the method:
 
-- **podobny tekst + domena, do której strona tylko linkuje (1 para).** Kopia strony z tymi samymi zdaniami szablonu linkuje do tej samej domeny co oryginał (cel przycisku, kasa sprzedawcy oferty). Domena z odnośnika ma relację ×0,4 i po mnożeniu przekracza próg zdyskontowanego śladu, więc liczy się jako ślad operatora i razem z zestawem strony tworzy kampanię.
-- **dwie puste strony na jednym adresie IP spoza list (3 pary).** Jeden rodzaj śladu operatora wystarcza do kampanii, a IP hostingu współdzielonego wygląda tak samo jak serwer jednego operatora.
+- **similar text + a domain the page only links to (1 pair).** A copy of the page with the same template sentences links to the same domain as the original (button target, the offer seller's checkout). The domain from the link has a relation of ×0.4 and after multiplication exceeds the discounted-trace threshold, so it counts as an operator trace and, together with the page kit, forms a campaign.
+- **two empty pages on one IP address that is not on any list (3 pairs).** One kind of operator trace is enough for a campaign, and a shared hosting IP looks the same as the server of a single operator.
 
-**Powtórzenie na commicie `a407767`:** pary prawdziwe 100 (3 nowe bliskie pary), sklejone 0, także w leave-one-out. Pary pochodne: sklejonych 11 z 18. Sześć z nich (persona, trzy z motywu, dwie z domeny) ma wspólny token dostępu Meta: generator par pochodnych powstał przed dodaniem tej cechy i nie podmienia tokenu, a wspólny token to identyfikator operatora, więc to artefakt generatora, nie błąd narzędzia. Pięć to słabości metody: cztery opisane wyżej (domena z odnośnika, trzy puste strony na jednym IP) i jedna nowa: dwie strony z tym samym **zmyślonym ekspertem** i tymi samymi komunikatami zestawu strony tworzą kampanię (zmyślony ekspert ma wagę 0,75 i liczy się jako ślad operatora, a może być przynętą kopiowaną między operatorami). Parę z parametrem kampanii w formularzu generator na tym kodzie już rozdziela.
+**Repeated on commit `a407767`:** real pairs 100 (3 new near-miss pairs), merged 0, also in leave-one-out. Derived pairs: 11 of 18 merged. Six of them (persona, three from theme, two from domain) share a Meta access token: the derived-pair generator was written before this feature was added and does not swap the token, and a shared token is an operator identifier, so this is a generator artefact, not a tool error. Five are weaknesses of the method: the four described above (domain from a link, three empty pages on one IP) and one new one: two pages with the same **fictitious expert** and the same page-kit messages form a campaign (the fictitious expert has weight 0.75 and counts as an operator trace, but it may be a lure copied between operators). On this code, the generator already separates the pair with the campaign parameter in the form.
 
-**Proponowane poprawki sprawdzone bez zmiany kodu** (`--config`): relacja odnośnika ×0,3 usuwa pierwsze sklejenie, ale rozdziela parę jednej kampanii z 25 spraw, która stoi na tym samym wzorcu. IP i system autonomiczny jako ślady, które nie łączą same, usuwają sklejenia pustych stron, ale rozbijają 299 z 878 trafnych par walidacji. Sam system autonomiczny albo samo IP nie usuwają sklejeń. Żadna poprawka nie spełniła warunku „usuwa sklejenie i nie zmienia żadnego trafnego przypisania”, więc `lib/graph/config.ts` zostaje bez zmian. Cztery znane sklejenia są w teście oznaczone jako oczekiwany błąd (`it.fails`). Rozwiązanie wymaga nowych danych, nie wag: liczby domen na adresie IP z pasywnego DNS i rozróżnienia celu odnośnika (własny lander operatora czy usługa wielu klientów).
+**Proposed fixes checked without code changes** (`--config`): a link relation of ×0.3 removes the first merge, but splits a pair of one campaign from the 25 cases that rests on the same pattern. IP and autonomous system as traces that do not link on their own remove the empty-page merges, but break 299 of 878 correct validation pairs. The autonomous system alone or the IP alone do not remove the merges. No fix met the condition “removes the merge and changes no correct assignment”, so `lib/graph/config.ts` stays unchanged. The four known merges are marked in the test as expected failures (`it.fails`). Solving them needs new data, not weights: the number of domains on an IP address from passive DNS, and telling link targets apart (the operator's own lander or a service with many customers).
 
-**Test w repozytorium.** `tests/hardNegatives.real.test.ts` z `tests/fixtures/hard-negatives-real.json`. Plik zawiera 114 par: 97 prawdziwych i 17 pochodnych. Z każdej pary zostaje tylko struktura: typy wspólnych śladów, waga, dyskonto, siła, podobieństwo, to, czy reklama ma infrastrukturę, i konto platformy zastąpione stałą. Domen, identyfikatorów, nazwisk ani tekstów w pliku nie ma (sprawdzone skanerem wycieków). Test sprawdza, że żadna para nie trafia do jednej kampanii, a pary, które grupę tworzą samym swoim powiązaniem (33), trafiają do jednej grupy podobnych. Zastrzeżenia: etykiety są nasze, kategorie motywu i pustej strony wykrywają proste reguły, a odsetek dotyczy wybranych, najtrudniejszych par, nie wszystkich możliwych.
+**Test in the repository.** `tests/hardNegatives.real.test.ts` with `tests/fixtures/hard-negatives-real.json`. The file contains 114 pairs: 97 real and 17 derived. Only the structure of each pair remains: types of shared traces, weight, discount, strength, similarity, whether the ad has infrastructure, and the platform account replaced with a constant. There are no domains, IDs, names or texts in the file (checked with the leak scanner). The test checks that no pair ends up in one campaign, and that pairs that form a group through their own link alone (33) end up in one group of similar campaigns. Caveats: the labels are ours, the theme and empty-page categories are detected by simple rules, and the percentage refers to the selected, hardest pairs, not to all possible ones.
 
-## 8. Duplikaty i „za mało danych”
+## 8. Duplicates and “insufficient data”
 
-**Dokładny duplikat** to ta sama reklama zebrana drugi raz. Rozpoznajemy go **tylko** po: tym samym obrazie (dHash ≤ 4 bity i zgodna próba pikselowa), tym samym wideo (ten sam plik po SHA-256 albo klatki CLIP ≥ 0,97 razem z tym samym dźwiękiem na całej długości), tym samym identyfikatorze reklamy, tym samym adresie strony z identycznym szablonem albo identycznej treści strony (SHA-256 zapisanego HTML). Sprawa, której wszystkie pliki (HAR, HTML, zrzuty, wideo) są już we wcześniejszej sprawie tej samej paczki z tym samym SHA-256, też jest duplikatem, nawet gdy tamta ma pliki dodatkowe. Ten sam tekst nie wystarcza, a to samo wideo z innym wstępem to wariant, nie duplikat. Duplikat dostaje kampanię oryginału.
+An **exact duplicate** is the same ad collected a second time. We recognize it **only** by: the same image (dHash ≤ 4 bits and a matching pixel sample), the same video (the same file by SHA-256, or CLIP frames ≥ 0.97 together with the same audio over the whole length), the same ad ID, the same page URL with an identical template, or identical page content (SHA-256 of the saved HTML). A case all of whose files (HAR, HTML, screenshots, video) are already in an earlier case of the same batch with the same SHA-256 is also a duplicate, even when that earlier case has additional files. The same text is not enough, and the same video with a different intro is a variant, not a duplicate. A duplicate gets the campaign of the original.
 
-**„Za mało danych”** (`insufficient`, w CSV pole `missing_data`) pojawia się, gdy materiał nie ma adresu, identyfikatora, co najmniej 5 słów treści ani powiązania ponad progiem. Wynik wymienia, co dorzucić (np. „zrzut z widocznym paskiem adresu”). Reklama z formularzem platformy (Lead Ads, napisy „Formularz”, „Wyślij”, „Instant Form” w tekście lub OCR) nie ma strony docelowej, więc zamiast linku dostaje prośbę o identyfikator z Biblioteki Reklam albo link do strony reklamodawcy i zrzut formularza. Lepiej odmówić oceny, niż zgadywać.
+**“Insufficient data”** (`insufficient`, the `missing_data` field in CSV) appears when the sample has no URL, no ID, not even 5 words of content, and no link above the threshold. The result lists what to add (e.g. “a screenshot with the address bar visible”). An ad with a platform form (Lead Ads, the words “Formularz” (“Form”), “Wyślij” (“Send”), “Instant Form” in the text or OCR) has no landing page, so instead of a link it gets a request for the ID from the Ad Library, or for a link to the advertiser's page and a screenshot of the form. It is better to refuse an assessment than to guess.
 
-## 9. Przypisanie nowego materiału i progi
+## 9. Assigning a new sample, and thresholds
 
-Nowy materiał trafia do jednego grafu ze znanymi i dostaje jeden z werdyktów: `known_campaign`, `similar_campaigns` (nowa kampania podobna do znanych), `new_campaign`, `duplicate`, `insufficient`.
+A new sample goes into one graph with the known ones and gets one of the verdicts: `known_campaign`, `similar_campaigns` (a new campaign similar to known ones), `new_campaign`, `duplicate`, `insufficient`.
 
-Progi (wszystkie w `config.ts`, domyślny profil to `DEFAULT_LINK_CONFIG`; plik `--config` tylko dopisuje listy i nadpisuje pola):
+Thresholds (all in `config.ts`; the default profile is `DEFAULT_LINK_CONFIG`; a `--config` file only appends to lists and overrides fields):
 
-| Próg | Wartość | Uzasadnienie |
+| Threshold | Value | Rationale |
 |---|---|---|
-| `minLinkScore` | 0,15 | poniżej tego wynik pary to szum; sama persona (0,1) go nie przekracza |
-| `strongThreshold` | 0,7 | dowód silny; poniżej 0,65 zaczęłyby scalać kampanie IP i reklamodawca |
-| `familyMinScore` | 0,3 | grupa podobnych wymaga mocniejszego powiązania niż pojedynczy ślad |
-| obraz, `imageHamming` | 10 bitów z 64 | duplikat ≤ 4, wariant ≤ 6, różne kreacje na próbce ≥ 16 |
-| tekst, `tfidfThreshold` | 0,5 | przeredagowanie tych samych słów; pełne parafrazy wymagają embeddingów (0,86) |
-| struktura strony, `dom.hamming` | 6 bitów | |
-| obraz CLIP | cosinus ≥ 0,9; ten sam plik wideo ≥ 0,97 z tym samym dźwiękiem | próg nieskalibrowany na danych |
-| twarz (persona, `--faces`) | ważony cosinus ≥ próg z pomiaru (docs/TECHNICAL.md), tylko cecha grupy | próg z pomiaru na zdjęciach osób spoza listy |
-| głos (łączenie materiałów, `similar_voice`) | cosinus ≥ 0,6 | ten sam mówca 0,86–0,93, różni ≤ 0,34 na nagraniach testowych |
-| głos (persona z galerii, `--speaker`) | cosinus okna ≥ 0,5, przewaga ≥ 0,15 nad drugą osobą, co najmniej 2 sąsiednie okna, tylko cecha grupy | próg z pomiaru na nagraniach 11 osób spoza listy (docs/TECHNICAL.md, „Persona z głosu”) |
+| `minLinkScore` | 0.15 | below this a pair score is noise; a persona alone (0.1) does not exceed it |
+| `strongThreshold` | 0.7 | strong evidence; below 0.65, IP and advertiser would start merging campaigns |
+| `familyMinScore` | 0.3 | a group of similar campaigns needs a stronger link than a single trace |
+| image, `imageHamming` | 10 bits out of 64 | duplicate ≤ 4, variant ≤ 6, different creatives in the reference set ≥ 16 |
+| text, `tfidfThreshold` | 0.5 | rewording of the same words; full paraphrases need embeddings (0.86) |
+| page structure, `dom.hamming` | 6 bits | |
+| CLIP image | cosine ≥ 0.9; the same video file ≥ 0.97 with the same audio | threshold not calibrated on data |
+| face (persona, `--faces`) | weighted cosine ≥ the measured threshold (docs/TECHNICAL.md), group feature only | threshold measured on photos of people not on the list |
+| voice (linking samples, `similar_voice`) | cosine ≥ 0.6 | same speaker 0.86–0.93, different speakers ≤ 0.34 on test recordings |
+| voice (persona from the gallery, `--speaker`) | window cosine ≥ 0.5, lead of ≥ 0.15 over the second person, at least 2 adjacent windows, group feature only | threshold measured on recordings of 11 people not on the list (docs/TECHNICAL.md, section “Persona z głosu”, persona from voice) |
 
-Dawna „furtka” `singleKindMinScore` (0,5, pojedynczy rodzaj dowodu o dużym wyniku tworzył kampanię) została usunięta w I14c: pozwalała dwóm klonom portalu stać się jedną kampanią.
+The old “loophole” `singleKindMinScore` (0.5: a single kind of evidence with a high score formed a campaign) was removed in I14c: it let two clones of a portal become one campaign.
 
-**`confidence` i `score` to siła przesłanek, nie prawdopodobieństwo.** `score` to wynik noisy-OR ze wzoru wyżej. `confidence` (`certain`, `likely`, `uncertain`) mówi: `certain`, gdy najlepsze powiązanie ma przesłankę silną (waga ≥ 0,7), `likely`, gdy wynik powiązania ≥ 0,5. Żaden z nich nie był skalibrowany na zbiorze z prawdziwymi etykietami, więc „0,8” nie znaczy „80% szans, że to ta sama kampania”.
+**`confidence` and `score` are evidence strength, not probability.** `score` is the noisy-OR result from the formula above. `confidence` (`certain`, `likely`, `uncertain`) means: `certain` when the best link has strong evidence (weight ≥ 0.7), `likely` when the link score is ≥ 0.5. Neither was calibrated on a set with true labels, so “0.8” does not mean “an 80% chance that this is the same campaign”.
 
-### 9.1 Harmonogram skanów i „baza rośnie”
+<a id="91-harmonogram-skanów-i-baza-rośnie"></a>
 
-**Harmonogram.** `bun run watch` co cykl pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Listę Ostrzeżeń CERT) o nowe adresy i każdy przepuszcza przez tę samą analizę, co ręcznie zgłoszony materiał (punkt 9); wynik trafia do `data/watch.jsonl`. Przepisy wyszukiwania opierają się na silnych cechach znanych kampanii (najemca platformy stron, adres IP spoza CDN, identyfikator ścieżki, skrót zasobu, para serwerów nazw, rejestrator, pora rejestracji), a potwierdzenie kandydata idzie po infrastrukturze, nie po tytule strony ani samej nazwie domeny: kandydat z CT staje się `confirmed` dopiero przy co najmniej dwóch rodzajach wspólnej infrastruktury (ta sama para NS, godzina rejestracji w oknie kampanii, ten sam adres IP, ten sam skrót treści). Wartość widoczna w jednej kampanii i w innej (domyślne serwery nazw rejestratora, wspólny hosting) nie jest cechą żadnej z nich i nie potwierdza. Lista Ostrzeżeń CERT jest używana tylko z obowiązkowym filtrem RDAP/NS (rejestrator, pora rejestracji, para NS): sam wzorzec nazwy daje setki fałszywych trafień. Źródło, którego nie da się zapytać (brak sieci, klucza, strumienia), zostawia w raporcie cyklu powód pominięcia. Wiersz `campaign` przy werdykcie innym niż `known_campaign` to najbliższa kampania z odcisku nazw (podpowiedź źródła), nie wynik analizy.
+### 9.1 Scan schedule and “the base grows”
 
-**Baza rośnie.** Analiza niczego nie dopisuje do bazy; robi to dopiero `--add-to-base` (CLI), `watch --add-to-base` (harmonogram, domyślnie tylko `known_campaign`) i przycisk w przeglądarce. Dopisujemy rekord i dane wzbogacone, których użyło porównanie, bez ponownego liczenia cech; graf i kampanie przebudowujemy offline. Duplikatu nie dopisujemy, „za mało danych” tylko wymuszone (`--force`), bo materiał, którego nie da się porównać, nie pomaga następnym. Kampanie zachowują numery: nowy klaster dostaje numer starej kampanii, z którą dzieli najwięcej rekordów, a klaster bez poprzednika nowy numer; dzięki temu sprawa, raport czy odnośnik „K07” nie zmieniają znaczenia po dopisaniu materiału. Przed zapisem poprzednie pliki bazy trafiają do `<baza>/historia/<czas>/`, każde dopisanie ma wpis w `<baza>/dodane.jsonl` (czas, źródło `cli`/`watch`/`gui`, identyfikator, werdykt w chwili dodania), a pliki są zastępowane przez zmianę nazwy pliku tymczasowego. Automatyczne dopisywanie z harmonogramu ma jedną wadę: błędnie przypisany materiał zostaje w bazie i wpływa na kolejne wyniki, więc `historia/` pozwala wrócić do stanu sprzed zmiany.
+**Schedule.** On every cycle `bun run watch` asks public sources (CT logs, ad libraries, urlscan, the CERT Polska warning list) for new URLs and runs each one through the same analysis as a manually reported sample (section 9); the result goes to `data/watch.jsonl`. The search recipes rely on strong features of known campaigns (page-builder tenant, IP address outside CDNs, path ID, asset hash, pair of name servers, registrar, registration time), and a candidate is confirmed by infrastructure, not by the page title or the domain name alone: a CT candidate becomes `confirmed` only with at least two kinds of shared infrastructure (the same NS pair, registration time within the campaign window, the same IP address, the same content hash). A value seen in one campaign and in another (a registrar's default name servers, shared hosting) is not a feature of either and confirms nothing. The CERT Polska warning list is used only with a mandatory RDAP/NS filter (registrar, registration time, NS pair): the name pattern alone gives hundreds of false hits. A source that cannot be queried (no network, key or stream) leaves the reason for skipping it in the cycle report. The `campaign` row for a verdict other than `known_campaign` is the nearest campaign by name fingerprint (a hint about the source), not an analysis result.
 
-### 9.2 Korekty analityka (`corrections.json`)
+**The base grows.** Analysis adds nothing to the base; that is done only by `--add-to-base` (CLI), `watch --add-to-base` (schedule, by default only `known_campaign`) and the button in the browser. We append the record and the enriched data the comparison used, without recomputing features; the graph and campaigns are rebuilt offline. A duplicate is not appended, and “insufficient data” only when forced (`--force`), because a sample that cannot be compared does not help the next ones. Campaigns keep their numbers: a new cluster gets the number of the old campaign with which it shares the most records, and a cluster without a predecessor gets a new number; this way a case, a report or a reference to “K07” does not change meaning after a sample is added. Before saving, the previous base files go to `<base>/historia/<time>/`, every addition has an entry in `<base>/dodane.jsonl` (time, source `cli`/`watch`/`gui`, identifier, verdict at the moment of adding), and files are replaced by renaming a temporary file. Automatic adding from the schedule has one drawback: a wrongly assigned sample stays in the base and affects later results, so `historia/` lets you go back to the state before the change.
 
-Analityk nie edytuje grafu ręcznie. Zapisuje decyzje w pliku `corrections.json` (domyślnie obok `campaigns.json`, `build-graph --corrections plik.json`; w przeglądarce przyciski przy powiązaniu i śladzie zapisują ten plik przez `/api/corrections`), a `build-graph` stosuje je przy następnym przebiegu. Trzy rodzaje decyzji (`lib/graph/corrections.ts`):
+<a id="92-korekty-analityka-correctionsjson"></a>
 
-- **Połączenie (`mustLink`)**: dwa materiały należą do jednej kampanii. Powstaje silne powiązanie z przesłanką „decyzja analityka”.
-- **Rozdzielenie (`cannotLink`)**: dwa materiały nie mogą być w jednej kampanii. Bezpośrednie powiązanie jest cięte, a jeśli inne powiązania nadal trzymają je razem, tną się powiązania między dwiema stronami kampanii (każdy członek idzie do strony, której jest bliżej), aż podział się utrzyma. Rozdzielenie wygrywa z połączeniem.
-- **Wyłączony ślad (`disabledPivots`)**: wspólny ślad (identyfikator węzła, np. domena) przestaje liczyć się jako dowód, np. gdy okazał się infrastrukturą wspólną.
+### 9.2 Analyst corrections (`corrections.json`)
 
-Każde powiązanie zmienione decyzją zostaje w grafie z dopiskiem „decyzja analityka: …”, a kampania, której decyzja dotyczy, wymienia ją w `analystNotes` (widoczne w przeglądarce). Format pliku i trasa API: `docs/TECHNICAL.md`, §5.8.
+The analyst does not edit the graph by hand. They record decisions in the `corrections.json` file (by default next to `campaigns.json`, `build-graph --corrections file.json`; in the browser, the buttons next to a link and a trace write this file through `/api/corrections`), and `build-graph` applies them on the next run. Three kinds of decisions (`lib/graph/corrections.ts`):
+
+- **Link (`mustLink`)**: two samples belong to one campaign. A strong link is created with the evidence item “analyst decision”.
+- **Split (`cannotLink`)**: two samples must not be in one campaign. The direct link is cut, and if other links still hold them together, the links between the two sides of the campaign are cut (each member goes to the side it is closer to) until the split holds. A split wins over a link.
+- **Disabled trace (`disabledPivots`)**: a shared trace (a node identifier, e.g. a domain) stops counting as evidence, e.g. when it turns out to be shared infrastructure.
+
+Every link changed by a decision stays in the graph with the note “analyst decision: …”, and the campaign the decision concerns lists it in `analystNotes` (visible in the browser). File format and API route: `docs/TECHNICAL.md`, §5.8.
 
 ## 10. Niekompletne dane
 

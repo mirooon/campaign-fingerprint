@@ -74,13 +74,13 @@ describe("POST /api/add-to-base", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { result: { added: Array<{ id: string }> }; messages: string[] };
     expect(body.result.added.map((a) => a.id)).toEqual([result.items[0].id]);
-    expect(body.messages[0]).toMatch(/^Dodano do bazy 1 materiał: n1 \(nowa kampania K\d+\)\.$/);
+    expect(body.messages[0]).toMatch(/^Added 1 sample to the base: n1 \(new campaign K\d+\)\.$/);
 
     const second = await analyzeMaterial({ caseDir: path.join(root, "nowe", "n2") }, { dataDir: baza, workDir: path.join(root, "w2"), media: { ocr: false }, log: quiet });
     expect(second.items[0].verdict).toBe("known_campaign");
 
     const again = await POST(post({ jobId: job.id, ids: [result.items[0].id] }));
     const repeated = (await again.json()) as { messages: string[] };
-    expect(repeated.messages).toEqual(["Nic nie dodano do bazy.", expect.stringContaining("Nie dodano n1")]);
+    expect(repeated.messages).toEqual(["Nothing was added to the base.", expect.stringContaining("Not added n1")]);
   }, 180_000);
 });

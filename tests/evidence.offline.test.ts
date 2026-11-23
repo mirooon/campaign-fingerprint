@@ -374,7 +374,7 @@ describe("evidence pack", () => {
     expect(utm?.ads_with_identifier).toBe(3);
     expect(utm?.ads).toHaveLength(3);
     const context = json.observations.shared_context_not_linking.traces as Array<{ type: string; label: string; discount_reasons: string[] }>;
-    expect(context.some((t) => t.type === "registrar" && /seria rejestracji/.test(t.label))).toBe(true);
+    expect(context.some((t) => t.type === "registrar" && /registration burst/.test(t.label))).toBe(true);
     expect(context.some((t) => t.type === "nameserver" && t.discount_reasons.length > 0)).toBe(true);
     expect(shared.some((s) => s.type === "nameserver")).toBe(false);
   });

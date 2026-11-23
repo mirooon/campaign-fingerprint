@@ -153,7 +153,7 @@ describe("analyzeMaterial: a variant that does not join", () => {
     const near = Object.fromEntries((it.nearMisses ?? []).map((n) => [n.campaign, n]));
     for (const k of [campaigns.assignments["k1-1"], campaigns.assignments["k2-1"]]) {
       expect(near[k]?.rule, k).toBe("content-only-with-infra");
-      expect(near[k]?.reason, k).toMatch(/treść/);
+      expect(near[k]?.reason, k).toMatch(/content/);
     }
   }, 60_000);
 

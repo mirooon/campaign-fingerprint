@@ -75,9 +75,9 @@ describe("analyzeMaterial: RDAP and DNS without an answer", () => {
     // what the result card builds (jobs.ts merges the failed lookups, completeness picks the ones of the material)
     const domains = (it.pivots ?? []).filter((p) => p.type === "domain").map((p) => p.label);
     const list = completeness({ features: it.features, errors: it.errors, failedLookups: jobFailedLookups(res, null), lookups: true, domains });
-    const warn = list.items.filter((i) => i.status === "warn" && i.label.startsWith("Rejestr domen (RDAP) nie odpowiedział dla domeny lp-b.example"));
+    const warn = list.items.filter((i) => i.status === "warn" && i.label.startsWith("The domain registry (RDAP) did not respond for domain lp-b.example"));
     expect(warn).toHaveLength(1);
-    expect(warn[0].effect).toMatch(/^Powód: brak połączenia z siecią\. Bez daty rejestracji/);
+    expect(warn[0].effect).toMatch(/^Reason: brak połączenia z siecią\. The comparison has no registration date/);
     expect(list.complete).toBe(false);
   });
 

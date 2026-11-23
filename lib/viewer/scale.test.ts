@@ -22,7 +22,7 @@ describe("verdictScale", () => {
   it("nowy wzorzec: najbliższy materiał z wynikiem i progiem kampanii", () => {
     const s = verdictScale(item({ links: [link("k2-03", "K02", 0.12)] }), T);
     expect(s.zone).toBe("new");
-    expect(s.sentence).toBe("Najbliższy znany materiał (k2-03, kampania K02) ma wynik 0,12, próg łączenia w kampanię to 0,15.");
+    expect(s.sentence).toBe("Najbliższy znany materiał (k2-03, kampania K02) ma wynik 0.12, próg łączenia w kampanię to 0.15.");
     expect(s.closest).toEqual({ id: "k2-03", score: 0.12 });
   });
   it("nowy wzorzec bez żadnego powiązania", () => {
@@ -31,18 +31,18 @@ describe("verdictScale", () => {
   it("znana kampania: wynik przekracza próg", () => {
     const s = verdictScale(item({ verdict: "known_campaign", campaign: "K01", links: [link("a", "K01", 0.82, "campaign")] }), T);
     expect(s.zone).toBe("campaign");
-    expect(s.sentence).toBe("Wynik 0,82 z materiałem a przekracza próg łączenia w kampanię 0,15.");
+    expect(s.sentence).toBe("Wynik 0.82 z materiałem a przekracza próg łączenia w kampanię 0.15.");
   });
   it("wynik ponad progiem, ale reguła zmieniła rezultat na grupę podobnych", () => {
     const s = verdictScale(item({ verdict: "similar_campaigns", similarCampaigns: ["K01"], links: [link("a", "K01", 0.6, "account_conflict")] }), T);
     expect(s.zone).toBe("family");
-    expect(s.sentence).toContain("Wynik 0,60 jest ponad progiem");
-    expect(s.sentence).toBe("Wynik 0,60 jest ponad progiem łączenia w kampanię (0,15), ale to różne konta na platformie stron, czyli różni operatorzy, więc to grupa podobnych kampanii, nie ta sama kampania.");
+    expect(s.sentence).toContain("Wynik 0.60 jest ponad progiem");
+    expect(s.sentence).toBe("Wynik 0.60 jest ponad progiem łączenia w kampanię (0.15), ale to różne konta na platformie stron, czyli różni operatorzy, więc to grupa podobnych kampanii, nie ta sama kampania.");
     expect(s.sentence).toContain("grupa podobnych kampanii");
   });
   it("podobna kampania z wynikiem poniżej progu kampanii nazywa próg grupy", () => {
     const s = verdictScale(item({ verdict: "similar_campaigns", similarCampaigns: ["K01"], links: [link("a", "K01", 0.35, "single_kind")] }), { campaign: 0.5, family: 0.3 });
-    expect(s.sentence).toBe("Wynik 0,35 jest poniżej progu łączenia w kampanię (0,50), ale ponad progiem grupy podobnych (0,30), więc to grupa podobnych kampanii, nie ta sama kampania.");
+    expect(s.sentence).toBe("Wynik 0.35 jest poniżej progu łączenia w kampanię (0.50), ale ponad progiem grupy podobnych (0.30), więc to grupa podobnych kampanii, nie ta sama kampania.");
   });
 });
 

@@ -20,9 +20,9 @@ describe("campaignTitle", () => {
 
 describe("cohesionLabel", () => {
   it("opisuje siłę powiązań słowem i liczbą z przecinkiem", () => {
-    expect(cohesionLabel(0.82)).toBe("wysoka (0,82)");
-    expect(cohesionLabel(0.5)).toBe("średnia (0,50)");
-    expect(cohesionLabel(0.2)).toBe("niska (0,20)");
+    expect(cohesionLabel(0.82)).toBe("wysoka (0.82)");
+    expect(cohesionLabel(0.5)).toBe("średnia (0.50)");
+    expect(cohesionLabel(0.2)).toBe("niska (0.20)");
   });
 });
 

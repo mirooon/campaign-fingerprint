@@ -204,7 +204,7 @@ describe("evidence pack", () => {
     const { read, json } = pack("c1-01", "c1-readable");
     const md = read("evidence.md");
     const summary = md.split("## Streszczenie faktów")[1].split("##")[0];
-    expect(summary).not.toMatch(/\b(domain|nameserver|utm_campaign|asn|host)\b/);
+    expect(summary).not.toMatch(/\b(nameserver|utm_campaign|asn|campaign_param|platform_account)\b/);
     expect(md).toContain("| Dlaczego w kampanii |");
     expect(md).toMatch(/\| Rodzaj śladu \| Wartość \| Reklamy \|/);
     expect(md).toContain("## Dane osobowe w paczce");

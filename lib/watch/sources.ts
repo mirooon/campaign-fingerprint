@@ -33,16 +33,16 @@ export function createUrlscanWatchSource(o: UrlscanWatchOptions): WatchSource {
     name: "urlscan",
     async poll({ recipes }) {
       const mine = recipes.filter((r) => r.source === "urlscan");
-      if (!mine.length) return { hits: [], skipped: "brak przepisów urlscan (podaj --recipes)" };
+      if (!mine.length) return { hits: [], skipped: "no urlscan recipes (give --recipes)" };
       const access = await o.searcher.available();
-      if (!access.ok) return { hits: [], skipped: `${access.reason ?? "urlscan niedostępny"}${access.howToGetAccess ? ` (${access.howToGetAccess})` : ""}` };
+      if (!access.ok) return { hits: [], skipped: `${access.reason ?? "urlscan unavailable"}${access.howToGetAccess ? ` (${access.howToGetAccess})` : ""}` };
       const hits: WatchHit[] = [];
       for (const r of mine) {
         let scans;
         try {
           scans = await o.searcher.searchScans(r.query, { withRequests: !!r.feature, limit: r.limit ?? WATCH_CONFIG.maxHitsPerRecipe });
         } catch (e) {
-          return { hits, skipped: `przepis ${r.id}: ${reasonOf(e)}` };
+          return { hits, skipped: `recipe ${r.id}: ${reasonOf(e)}` };
         }
         for (const scan of scans) {
           const feature = extractFeature(r, (scan.requests ?? []).map((q) => q.url));
@@ -80,20 +80,20 @@ export function createCertlistWatchSource(o: CertlistWatchOptions): WatchSource 
     name: "certlist",
     async poll({ recipes }) {
       const mine = recipes.filter((r) => r.source === "certlist");
-      if (!mine.length) return { hits: [], skipped: "brak przepisów certlist (podaj --recipes)" };
+      if (!mine.length) return { hits: [], skipped: "no certlist recipes (give --recipes)" };
       const list = await o.fetchList();
       if ("error" in list) return { hits: [], skipped: list.error };
       const today = new Set(list.domains.map((d) => d.toLowerCase()));
       const before = await o.snapshot.load();
       await o.snapshot.save(today);
-      if (!before) return { hits: [], skipped: `pierwszy przebieg: zapisano stan listy (${today.size} domen), różnicę da następny` };
+      if (!before) return { hits: [], skipped: `first run: list state saved (${today.size} domains), the next run gives the difference` };
       const added = [...today].filter((d) => !before.has(d));
       const hits: WatchHit[] = [];
       let checks = 0;
       for (const r of mine) {
         const re = new RegExp(r.query, "i");
         for (const domain of added.filter((d) => re.test(d))) {
-          if (checks >= WATCH_CONFIG.certlistMaxChecks) return { hits, skipped: `limit ${WATCH_CONFIG.certlistMaxChecks} sprawdzeń RDAP na cykl; reszta w następnym` };
+          if (checks >= WATCH_CONFIG.certlistMaxChecks) return { hits, skipped: `limit of ${WATCH_CONFIG.certlistMaxChecks} RDAP checks per cycle; the rest in the next one` };
           checks++;
           const facts = await o.facts(domain);
           if (!facts) continue;
@@ -125,14 +125,14 @@ export function createAdlibWatchSource(o: AdlibWatchOptions): WatchSource {
       const queries: Array<{ recipe?: WatchRecipe; platform?: string; q: AdSearchQuery }> = mine.length
         ? mine.map((r) => ({ recipe: r, platform: r.platform, q: { keyword: r.query, limit: r.limit ?? WATCH_CONFIG.maxHitsPerRecipe } }))
         : (o.defaultKeywords ?? []).map((keyword) => ({ q: { keyword, limit: WATCH_CONFIG.maxHitsPerRecipe } }));
-      if (!queries.length) return { hits: [], skipped: "brak przepisów adlibrary ani słów kluczowych" };
+      if (!queries.length) return { hits: [], skipped: "no adlibrary recipes and no keywords" };
       const hits: WatchHit[] = [];
       const unavailable: string[] = [];
       let asked = 0;
       for (const [platform, source] of Object.entries(o.sources) as Array<[AdPlatform, AdLibrarySource]>) {
         const access = await source.available();
         if (!access.ok) {
-          unavailable.push(`${platform}: ${access.reason ?? "niedostępne"}`);
+          unavailable.push(`${platform}: ${access.reason ?? "unavailable"}`);
           continue;
         }
         for (const { recipe, platform: only, q } of queries) {
@@ -144,7 +144,7 @@ export function createAdlibWatchSource(o: AdlibWatchOptions): WatchSource {
           }
         }
       }
-      return asked ? { hits } : { hits: [], skipped: unavailable.join("; ") || "żadna biblioteka reklam nie jest skonfigurowana" };
+      return asked ? { hits } : { hits: [], skipped: unavailable.join("; ") || "no ad library is configured" };
     },
   };
 }

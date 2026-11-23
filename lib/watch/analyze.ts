@@ -25,7 +25,7 @@ export function createHitAnalyzer(o: HitAnalyzerOptions): (hit: WatchHit) => Pro
     const result = await o.run(input);
     o.onResult?.(hit, result);
     const item = result.items[0];
-    if (!item) throw new Error(result.skipped.map((s) => s.reason).join("; ") || "analiza nie zwróciła rekordu");
+    if (!item) throw new Error(result.skipped.map((s) => s.reason).join("; ") || "the analysis returned no record");
     return { verdict: item.verdict, campaign: item.campaign, itemId: item.id };
   };
 }

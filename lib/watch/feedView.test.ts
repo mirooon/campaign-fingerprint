@@ -10,7 +10,7 @@ describe("wiersze harmonogramu w feedzie CT", () => {
     const r = watchRowToFeedRecord(row({ recipe: "najemca", confirmations: ["najemca: x"] }))!;
     expect(r).toMatchObject({ type: "ct_candidate", source: "watch", domain: "nowa.test", observed_utc: "2026-11-22T10:00:00.000Z", status: "confirmed" });
     expect(r.candidate).toMatchObject({ campaign_id: "K04", kind: "watch" });
-    expect(r.candidate.evidence).toEqual(expect.arrayContaining(["źródło: urlscan, przepis: najemca", "werdykt analizy: known_campaign", "najemca: x"]));
+    expect(r.candidate.evidence).toEqual(expect.arrayContaining(["source: urlscan, recipe: najemca", "analysis verdict: known_campaign", "najemca: x"]));
     expect(r.stream).toBe("https://nowa.test/x?y=1");
   });
 

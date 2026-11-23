@@ -33,7 +33,7 @@ export function seedRecipes(graph: EvidenceGraph, campaigns: CampaignsFile): Wat
       const query = node && e.count >= 2 && node.strong && !node.discounts.length ? QUERIES[node.type]?.(node.key) : null;
       if (!node || !query || seen.has(query)) continue;
       seen.add(query);
-      out.push({ id: `ziarno-${c.id}-${node.type}-${out.length + 1}`, description: `kampania ${c.id}: ${node.type} ${node.key} (z bazy)`, source: "urlscan", query, every: SEED_EVERY });
+      out.push({ id: `ziarno-${c.id}-${node.type}-${out.length + 1}`, description: `campaign ${c.id}: ${node.type} ${node.key} (from the base)`, source: "urlscan", query, every: SEED_EVERY });
     }
   }
   return out;

@@ -61,7 +61,7 @@ describe("źródło urlscan", () => {
     });
     const res = await limited.poll({ now: NOW, recipes });
     expect(res.hits).toHaveLength(1);
-    expect(res.skipped).toBe("przepis r2: limit (HTTP 429)");
+    expect(res.skipped).toBe("recipe r2: limit (HTTP 429)");
   });
 });
 
@@ -85,10 +85,10 @@ describe("źródło Lista Ostrzeżeń CERT", () => {
     const src = make([["old.test"], ["old.test", "smartone.test", "smarttwo.test", "unrelated.test"]]);
     const first = await src.poll({ now: NOW, recipes });
     expect(first.hits).toEqual([]);
-    expect(first.skipped).toContain("pierwszy przebieg");
+    expect(first.skipped).toContain("first run");
     const second = await src.poll({ now: NOW, recipes });
     expect(second.hits.map((h) => h.url)).toEqual(["https://smartone.test/"]);
-    expect(second.hits[0].confirmations).toEqual(["ten sam rejestrator (Registrar Jeden Ltd)", "ta sama para serwerów nazw (ns1.test, ns2.test)"]);
+    expect(second.hits[0].confirmations).toEqual(["same registrar (Registrar Jeden Ltd)", "same name server pair (ns1.test, ns2.test)"]);
   });
 
   it("domena bez odpowiedzi RDAP nie przechodzi, a lista, której nie pobrano, jest pominięta z powodem", async () => {
@@ -153,6 +153,6 @@ describe("format przepisów", () => {
   it("lista CERT bez filtra confirm jest błędem, tak samo zły regex i powtórzony identyfikator", () => {
     expect(() => parseRecipes([{ id: "x", source: "certlist", query: "a" }])).toThrow(/confirm/);
     expect(() => parseRecipes([{ id: "x", source: "ct", query: "(" }])).toThrow(/regex/);
-    expect(() => parseRecipes([{ id: "x", source: "ct", query: "a" }, { id: "x", source: "ct", query: "b" }])).toThrow(/powtórzony/);
+    expect(() => parseRecipes([{ id: "x", source: "ct", query: "a" }, { id: "x", source: "ct", query: "b" }])).toThrow(/repeated/);
   });
 });

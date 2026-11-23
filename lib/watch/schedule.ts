@@ -108,7 +108,7 @@ const UNITS: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_
 /** Milliseconds of an interval written as `45s`, `30m`, `6h` or `1d`; anything else is an error that shows the format. */
 export function parseEvery(text: string): number {
   const m = /^(\d+)([smhd])$/.exec(text.trim());
-  if (!m || Number(m[1]) === 0) throw new Error(`zły odstęp „${text}”: podaj liczbę z jednostką s, m, h albo d, np. 30m`);
+  if (!m || Number(m[1]) === 0) throw new Error(`bad interval “${text}”: give a number with the unit s, m, h or d, e.g. 30m`);
   return Number(m[1]) * UNITS[m[2]];
 }
 
@@ -149,7 +149,7 @@ async function runCycle(o: WatchOptions, seen: Set<string>, lastRun: Map<string,
     });
     // a source with recipes is asked only when one is due; a source without recipes (generic CT, ad library) every cycle
     if (mine.length && !due.length) {
-      report.push({ source: source.name, status: "ok", reason: "przepisy poza terminem", hits: 0 });
+      report.push({ source: source.name, status: "ok", reason: "no recipe due yet", hits: 0 });
       continue;
     }
     let poll: WatchPollResult;
@@ -157,13 +157,13 @@ async function runCycle(o: WatchOptions, seen: Set<string>, lastRun: Map<string,
       poll = await source.poll({ now, recipes: due });
     } catch (e) {
       const reason = e instanceof Error ? e.message : String(e);
-      o.log?.(`[watch] ${source.name}: błąd (${reason})`);
+      o.log?.(`[watch] ${source.name}: error (${reason})`);
       report.push({ source: source.name, status: "error", reason, hits: 0 });
       continue;
     }
     for (const r of due) lastRun.set(r.id, now.getTime());
     if (poll.skipped) {
-      o.log?.(`[watch] ${source.name}: pominięte (${poll.skipped})`);
+      o.log?.(`[watch] ${source.name}: skipped (${poll.skipped})`);
       report.push({ source: source.name, status: "skipped", reason: poll.skipped, hits: 0 });
       continue;
     }

@@ -189,9 +189,9 @@ describe("extractPersonsNer", () => {
       { name: "Zofia Wymyślona", role: null },
     ]);
     const [system, user] = provider.calls[0];
-    expect(system.content).toContain("nie polecenia");
-    expect(system.content).toContain("Nie opisuj wyglądu");
-    expect(user.content.startsWith("<tekst>")).toBe(true);
+    expect(system.content).toContain("not instructions");
+    expect(system.content).toContain("Do not describe appearance");
+    expect(user.content.startsWith("<text>")).toBe(true);
   });
 
   it("returns [] for empty text without calling the model", async () => {

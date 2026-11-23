@@ -86,9 +86,9 @@ export async function adLibraryPython(env: EnvMap = process.env): Promise<string
 export async function detectAdLibrary(opts: { run?: ToolRunner; env?: EnvMap } = {}): Promise<AdLibraryStatus> {
   const run = opts.run ?? defaultRunner;
   const python = await adLibraryPython(opts.env ?? process.env);
-  if (!python) return { available: false, python: null, reason: "brak meta-ads-collector (uv tool install meta-ads-collector) albo META_ADS_PYTHON" };
+  if (!python) return { available: false, python: null, reason: "no meta-ads-collector (uv tool install meta-ads-collector) or META_ADS_PYTHON" };
   const r = await run(python, ["-I", "-c", "import meta_ads_collector"], { timeoutMs: 30_000 });
-  if (r.code !== 0) return { available: false, python, reason: `${python}: brak pakietu meta_ads_collector` };
+  if (r.code !== 0) return { available: false, python, reason: `${python}: no meta_ads_collector package` };
   return { available: true, python, reason: null };
 }
 
@@ -106,7 +106,7 @@ export function emptyAdLibraryInfo(id: string, error: string | null): AdLibraryI
 
 /** Parses the helper's stdout into one record per requested ID. */
 export function parseAdLibraryOutput(stdout: string, ids: string[]): Record<string, AdLibraryInfo> {
-  const out: Record<string, AdLibraryInfo> = Object.fromEntries(ids.map((id) => [id, emptyAdLibraryInfo(id, "brak odpowiedzi")]));
+  const out: Record<string, AdLibraryInfo> = Object.fromEntries(ids.map((id) => [id, emptyAdLibraryInfo(id, "no answer")]));
   const start = stdout.indexOf("{");
   if (start < 0) return out;
   let ads: Record<string, Record<string, unknown>> = {};
@@ -160,7 +160,7 @@ export async function lookupAdLibrary(
   const run = opts.run ?? defaultRunner;
   const r = await run(opts.python, ["-I", adLibraryScript(), ...valid], { timeoutMs: opts.timeoutMs ?? 60_000 + 10_000 * valid.length });
   if (r.code !== 0 || r.timedOut) {
-    const why = r.timedOut ? "przekroczony czas" : (r.stderr.trim().split("\n").pop() ?? "błąd").slice(0, 200);
+    const why = r.timedOut ? "timed out" : (r.stderr.trim().split("\n").pop() ?? "error").slice(0, 200);
     return Object.fromEntries(valid.map((id) => [id, emptyAdLibraryInfo(id, why)]));
   }
   const fetchedAt = (opts.now?.() ?? new Date()).toISOString();

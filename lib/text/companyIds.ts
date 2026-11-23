@@ -326,7 +326,7 @@ export function extractCompanyIds(input: { text?: string | null; html?: string |
       try {
         jsonLdValues(JSON.parse(block), lines, leis, legal);
       } catch (e) {
-        notes.push(`JSON-LD pominięty: blok nie jest poprawnym JSON (${e instanceof Error ? e.message : String(e)})`);
+        notes.push(`JSON-LD skipped: the block is not valid JSON (${e instanceof Error ? e.message : String(e)})`);
       }
     }
     add(scanText(lines.join("\n"), "jsonld", cfg));

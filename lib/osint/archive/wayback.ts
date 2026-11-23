@@ -122,7 +122,7 @@ export function createWaybackSource(opts: WaybackOptions = {}): ArchiveSource {
       try {
         html = decodeBody(page.body, config.maxBodyBytes).toString("utf8");
       } catch (e) {
-        throw new ArchiveLookupError("wayback", `kopia ${row.timestamp} nieczytelna: ${(e as Error).message}`);
+        throw new ArchiveLookupError("wayback", `copy ${row.timestamp} unreadable: ${(e as Error).message}`);
       }
       const copy: ArchivedCopy = {
         source: "wayback",

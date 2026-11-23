@@ -51,15 +51,15 @@ describe("signals of investigative practice in the GUI dictionary (I28)", () => 
 
   it("shows a ClickFix command only as kind and a short hash", () => {
     const lines = featureInfo("clickfix").format!({ kind: "powershell", sha256: "a".repeat(64) });
-    expect(lines).toEqual(["rodzaj: powershell", `SHA-256: ${"a".repeat(16)}…`]);
+    expect(lines).toEqual(["kind: powershell", `SHA-256: ${"a".repeat(16)}…`]);
   });
 
   it("reads the two domains, the phone line types and the narrative labels", () => {
     expect(featureInfo("displayedDomainMismatch").format!({ displayed: "onet.pl", landing: "losowa-strona.test" })).toEqual(["onet.pl", "losowa-strona.test"]);
     expect(featureInfo("phoneLines").format!([{ phone: "+48800000000", lineType: "toll_free", country: "PL" }])).toEqual(["+48800000000: toll-free, PL"]);
     expect(featureInfo("narrative").format!({ topics: [{ id: "tech_support" }], hooks: ["secrecy"] })).toEqual([
-      "temat: fake tech support (virus, locked computer)",
-      "haczyk: secrecy (don't tell the bank or your family)",
+      "topic: fake tech support (virus, locked computer)",
+      "hook: secrecy (don't tell the bank or your family)",
     ]);
   });
 

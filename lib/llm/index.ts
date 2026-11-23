@@ -16,7 +16,7 @@ export type { ChatMessage, ChatOptions, LlmProvider, LlmProviderName } from "./t
 export function providerName(): LlmProviderName {
   const v = (process.env.LLM_PROVIDER || "ollama").toLowerCase();
   if (v !== "ollama" && v !== "anthropic") {
-    throw new LlmError(`Nieznany LLM_PROVIDER="${v}"`, "ollama", "dozwolone: ollama | anthropic");
+    throw new LlmError(`Unknown LLM_PROVIDER="${v}"`, "ollama", "allowed: ollama | anthropic");
   }
   return v;
 }

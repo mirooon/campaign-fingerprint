@@ -27,7 +27,7 @@ Takedowns happen one ad at a time. Of 122 scam ads that CERT Polska reported to 
 
 ## The solution
 
-Odcisk kampanii links single reports into campaigns by the traces an operator leaves behind: the page-builder account, tracker and pixel IDs, the click server behind a tracking link, domains and their registration, the image fingerprint of the creative, the page template, contact details and more. Scammers swap faces and domains every few days. Accounts and click servers cost them more to replace, so they last longer. This is campaign attribution built on OSINT traces, for CERT teams, trust and safety analysts and anyone who follows malvertising or does threat intelligence on fraud. It complements fraud detection that scores single ads: a classifier can say that an ad is suspicious, and Odcisk kampanii says which other ads belong with it.
+Odcisk kampanii links single reports into campaigns by the traces an operator leaves behind: the page-builder account, tracker and pixel IDs, the click server behind a tracking link, domains and their registration, the image fingerprint of the creative, the page template, the backend that receives the phishing form, contact details and more. Scammers swap faces and domains every few days. Accounts and click servers cost them more to replace, so they last longer. This is campaign attribution built on OSINT traces, for CERT teams, trust and safety analysts and anyone who follows malvertising or does threat intelligence on fraud. It complements fraud detection that scores single ads: a classifier can say that an ad is suspicious, and Odcisk kampanii says which other ads belong with it.
 
 The result has two levels:
 

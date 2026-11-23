@@ -27,7 +27,7 @@ Reklamy zdejmuje się pojedynczo. Ze 122 oszukańczych reklam, które CERT Polsk
 
 ## Rozwiązanie
 
-Odcisk kampanii łączy pojedyncze zgłoszenia w kampanie po śladach, które zostawia operator: konto na platformie stron, identyfikatory trackerów i pikseli, serwer kliknięć za linkiem śledzącym, domeny i ich rejestracja, odcisk obrazu kreacji, szablon strony, dane kontaktowe i inne. Oszuści zmieniają twarze i domeny co kilka dni. Konto i serwer kliknięć kosztują ich więcej, więc zostają dłużej. To przypisywanie reklam do kampanii na podstawie śladów OSINT, dla zespołów CERT, analityków trust and safety i każdego, kto śledzi malvertising albo zajmuje się threat intelligence w obszarze oszustw. Uzupełnia wykrywanie oszustw, które ocenia pojedyncze reklamy: klasyfikator powie, że reklama jest podejrzana, a Odcisk kampanii powie, które inne reklamy do niej należą.
+Odcisk kampanii łączy pojedyncze zgłoszenia w kampanie po śladach, które zostawia operator: konto na platformie stron, identyfikatory trackerów i pikseli, serwer kliknięć za linkiem śledzącym, domeny i ich rejestracja, odcisk obrazu kreacji, szablon strony, backend formularza wyłudzającego dane, dane kontaktowe i inne. Oszuści zmieniają twarze i domeny co kilka dni. Konto i serwer kliknięć kosztują ich więcej, więc zostają dłużej. To przypisywanie reklam do kampanii na podstawie śladów OSINT, dla zespołów CERT, analityków trust and safety i każdego, kto śledzi malvertising albo zajmuje się threat intelligence w obszarze oszustw. Uzupełnia wykrywanie oszustw, które ocenia pojedyncze reklamy: klasyfikator powie, że reklama jest podejrzana, a Odcisk kampanii powie, które inne reklamy do niej należą.
 
 Wynik ma dwa poziomy:
 

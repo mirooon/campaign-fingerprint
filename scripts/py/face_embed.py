@@ -37,7 +37,7 @@ def faces_in(path: str, detector, recognizer) -> list[dict]:
     """Faces of one image: box in original pixels, detector score and the normalised 128-d vector."""
     img = cv2.imread(path)
     if img is None:
-        raise ValueError("nie da się odczytać obrazu")
+        raise ValueError("cannot read the image")
     h, w = img.shape[:2]
     scale = min(1.0, MAX_SIDE / max(h, w))
     if scale < 1.0:
@@ -82,15 +82,15 @@ def build_index(root: str, detector, recognizer) -> int:
                 print(f"{person}/{name}: {e}", file=sys.stderr)
                 continue
             if not found:
-                print(f"{person}/{name}: nie wykryto twarzy", file=sys.stderr)
+                print(f"{person}/{name}: no face detected", file=sys.stderr)
                 continue
             if len(found) > 1:
-                print(f"{person}/{name}: {len(found)} twarze, biorę największą", file=sys.stderr)
+                print(f"{person}/{name}: {len(found)} faces, taking the largest", file=sys.stderr)
             best = max(found, key=lambda f: f["w"] * f["h"])
             persons.setdefault(person, []).append(best["embedding"])
             sources.setdefault(person, []).append(name)
         if person not in persons:
-            print(f"{person}: brak użytecznego zdjęcia", file=sys.stderr)
+            print(f"{person}: no usable photo", file=sys.stderr)
             status = 1
     with open(os.path.join(root, "index.json"), "w", encoding="utf8") as f:
         json.dump({"model": MODEL, "persons": persons, "sources": sources}, f, separators=(",", ":"))

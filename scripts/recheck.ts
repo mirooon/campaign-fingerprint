@@ -20,19 +20,19 @@ const args = cli(
     "cert-list": { type: "string" },
     "no-ad-library": { type: "boolean" },
   } as const,
-  `Użycie: bun run recheck -- --pack data/evidence/K01 [--cert-list domains.json] [--no-ad-library]
-Pasywne ponowne sprawdzenie paczki po zgłoszeniu (DNS, lokalna lista CERT, biblioteka reklam); wpisy trafiają do custody_log w evidence.json.`,
+  `Usage: bun run recheck -- --pack data/evidence/K01 [--cert-list domains.json] [--no-ad-library]
+Passive re-check of a pack after the report (DNS, local CERT list, ad library); the entries go to custody_log in evidence.json.`,
 );
 
 void main(async () => {
-  if (!args.pack) throw new Error("podaj --pack (katalog paczki)");
+  if (!args.pack) throw new Error("give --pack (folder of the pack)");
   const file = path.join(args.pack, "evidence.json");
-  if (!existsSync(file)) throw new Error(`brak ${file}`);
+  if (!existsSync(file)) throw new Error(`no ${file}`);
   const json = JSON.parse(readFileSync(file, "utf8")) as RecheckRecord & { integrity: { custody_log: unknown[] } };
   const cert = loadCertList(args["cert-list"]);
-  const library = args["no-ad-library"] ? { available: false as const, python: null, reason: "wyłączono flagą --no-ad-library" } : await detectAdLibrary();
-  if (!library.available) console.log(`[recheck] biblioteka reklam pominięta: ${library.reason}`);
-  if (!cert.snapshot) console.log(`[recheck] lista CERT pominięta: ${cert.reason}`);
+  const library = args["no-ad-library"] ? { available: false as const, python: null, reason: "turned off with the --no-ad-library flag" } : await detectAdLibrary();
+  if (!library.available) console.log(`[recheck] ad library skipped: ${library.reason}`);
+  if (!cert.snapshot) console.log(`[recheck] CERT list skipped: ${cert.reason}`);
   const python = library.available ? library.python : null;
   const probes: RecheckProbes = {
     dns: async (domain) => {
@@ -50,5 +50,5 @@ void main(async () => {
   const entries = await recheckEntries(json, probes);
   json.integrity.custody_log.push(...entries);
   writeFileSync(file, `${JSON.stringify(json, null, 2)}\n`, "utf8");
-  console.log(`[recheck] dopisano ${entries.length} wpisów do custody_log w ${file}`);
+  console.log(`[recheck] appended ${entries.length} ${entries.length === 1 ? "entry" : "entries"} to custody_log in ${file}`);
 });

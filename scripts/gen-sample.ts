@@ -1007,9 +1007,9 @@ async function main() {
     }
   }
   writeFile("demo/zrzut-martwa-strona.png", await deadPageScreenshot());
-  console.log(`[sample] ${ADS.length} reklam, ${IMAGES.length} obrazów, ${Object.keys(DOMAINS).length} domen, ${Object.keys(http).length} odpowiedzi HTTP w fixtures`);
-  console.log(`[sample] dHash: max odległość w rodzinie kreacji = ${maxWithin}, min odległość między różnymi kreacjami = ${minAcross} (${minAcrossPair})`);
-  console.log(`[sample] portfele: TRON ${W.tronC1}, ETH ${W.ethC5}, BTC ${W.btcC5}, BTC ${W.btcN5}`);
+  console.log(`[sample] ${ADS.length} ads, ${IMAGES.length} images, ${Object.keys(DOMAINS).length} domains, ${Object.keys(http).length} HTTP responses in fixtures`);
+  console.log(`[sample] dHash: max distance within a creative family = ${maxWithin}, min distance between different creatives = ${minAcross} (${minAcrossPair})`);
+  console.log(`[sample] wallets: TRON ${W.tronC1}, ETH ${W.ethC5}, BTC ${W.btcC5}, BTC ${W.btcN5}`);
   // DOM simhash separation of landing-page templates (same campaign vs different campaigns)
   const campaignOf = (f: Family) => (f === "C3b" ? "C3" : f);
   const doms: Array<{ family: Family; hash: string }> = [];
@@ -1030,7 +1030,7 @@ async function main() {
       }
     }
   }
-  console.log(`[sample] simhash DOM: ${doms.length} szablonów, max odległość w kampanii = ${domWithin}, min między kampaniami = ${domAcross} (${domAcrossPair})`);
+  console.log(`[sample] DOM simhash: ${doms.length} templates, max distance within a campaign = ${domWithin}, min between campaigns = ${domAcross} (${domAcrossPair})`);
 }
 
 void main();

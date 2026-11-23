@@ -9,8 +9,8 @@ const args = cli(
     out: { type: "string" },
     "base-dir": { type: "string" },
   } as const,
-  `Użycie: bun run ingest -- [--input plik.csv|.json|.jsonl] [--mapping mapping.json] [--out items.json] [--base-dir katalog_obrazów]
-Bez --mapping kolumny są rozpoznawane automatycznie (synonimy PL/EN).`,
+  `Usage: bun run ingest -- [--input file.csv|.json|.jsonl] [--mapping mapping.json] [--out items.json] [--base-dir image_folder]
+Without --mapping the columns are recognized automatically (Polish and English synonyms).`,
 );
 
 void main(() => {

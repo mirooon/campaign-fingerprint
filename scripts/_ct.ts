@@ -28,14 +28,14 @@ export interface FingerprintArgs {
  */
 export function loadFingerprints(args: FingerprintArgs): FingerprintSet {
   const campaignsFile = args.campaigns ?? DEFAULTS.campaigns;
-  if (!existsSync(campaignsFile)) throw new Error(`brak ${campaignsFile} — najpierw zbuduj graf (bun run pipeline --offline)`);
+  if (!existsSync(campaignsFile)) throw new Error(`no ${campaignsFile} — build the graph first (bun run pipeline --offline)`);
   const graphFile = args.graph ?? DEFAULTS.graph;
   // The brands of a base (written by `bun run base`) next to its campaigns.json; else the sample's lexicon.
   const baseLexicon = path.join(path.dirname(path.resolve(campaignsFile)), "ct-lexicon.json");
   const config = loadCtConfig(args.lexicon ?? (existsSync(baseLexicon) ? baseLexicon : DEFAULTS.ctLexicon));
   if (args.threshold) {
     const t = Number(args.threshold);
-    if (!Number.isFinite(t) || t < 0 || t > 1) throw new Error("--threshold musi być liczbą 0..1");
+    if (!Number.isFinite(t) || t < 0 || t > 1) throw new Error("--threshold must be a number 0..1");
     config.threshold = t;
   }
   // Platforms, shorteners and public services from linking.json are not campaign-owned domains.
@@ -54,13 +54,13 @@ export function loadCampaignInfra(dataDir: string, campaignsFile: string): Map<s
 }
 
 export function printFingerprints(set: FingerprintSet): void {
-  console.log(`[ct] odciski kampanii: ${set.campaigns.length} (próg ${set.config.threshold}; pominięte domeny platform/usług: ${set.excluded.join(", ") || "brak"})`);
+  console.log(`[ct] campaign fingerprints: ${set.campaigns.length} (threshold ${set.config.threshold}; platform/service domains skipped: ${set.excluded.join(", ") || "none"})`);
   for (const fp of set.campaigns) {
     const parts = [
-      fp.templates.length ? `szablony: ${fp.templates.map((t) => t.template).join(", ")}` : null,
-      fp.brands.length ? `marki: ${fp.brands.join(", ")}` : null,
+      fp.templates.length ? `templates: ${fp.templates.map((t) => t.template).join(", ")}` : null,
+      fp.brands.length ? `brands: ${fp.brands.join(", ")}` : null,
       fp.media.length ? `media: ${fp.media.join(", ")}` : null,
     ].filter(Boolean);
-    console.log(`  ${fp.campaignId.padEnd(5)} ${parts.join(" · ") || "(brak wzorca nazw — tylko słowa kampanii)"}`);
+    console.log(`  ${fp.campaignId.padEnd(5)} ${parts.join(" · ") || "(no name pattern — campaign words only)"}`);
   }
 }

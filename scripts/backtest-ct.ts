@@ -1,7 +1,7 @@
 /**
- * bun run backtest:ct -- --list <log akcji Listy CERT (NDJSON)> (--mode lead | --mode fingerprints) [opcje]
- * (1) lead: o ile wcześniej certyfikat pojawił się w logach CT niż domena na Liście CERT (crt.sh albo nagranie).
- * (2) fingerprints: odciski kampanii znanych do dnia D, dopasowanie do certyfikatów po D, recall przy budżecie alertów.
+ * bun run backtest:ct -- --list <action log of the CERT List (NDJSON)> (--mode lead | --mode fingerprints) [options]
+ * (1) lead: how much earlier a certificate appeared in the CT logs than the domain on the CERT List (crt.sh or a recording).
+ * (2) fingerprints: fingerprints of the campaigns known up to day D, matched to certificates after D, recall at an alert budget.
  */
 import { appendFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -29,15 +29,15 @@ const args = cli(
     lexicon: { type: "string" },
     out: { type: "string" },
   } as const,
-  `Użycie: bun run backtest:ct -- --list actions_2026.log --mode lead [--certs nagranie.jsonl | (crt.sh)] [--sample 200 --seed 1] [--save-certs nagranie.jsonl] [--out wynik.json]
-       bun run backtest:ct -- --list actions_2026.log --mode fingerprints --data <baza> --since 2026-10-10T00:00:00Z --certs nagranie.jsonl [--budgets 10,50,100]
---certs: nagrane certyfikaty, wiersze JSON {"names": [...], "entry_timestamp": ..., "not_before": ...}; bez niego tryb lead pyta crt.sh (z ponowieniami; --save-certs zapisuje odpowiedzi do nagrania).
-Czas pojawienia się certyfikatu: czas wpisu w logu (SCT), a bez niego not_before + ${BACKTEST_CONFIG.notBeforeBackdateHours} h (CA cofa początek ważności).
-Tryb fingerprints używa tylko certyfikatów po dniu D i odcisków z rekordów widzianych do D (bez przecieku z przyszłości).`,
+  `Usage: bun run backtest:ct -- --list actions_2026.log --mode lead [--certs recording.jsonl | (crt.sh)] [--sample 200 --seed 1] [--save-certs recording.jsonl] [--out result.json]
+       bun run backtest:ct -- --list actions_2026.log --mode fingerprints --data <base> --since 2026-10-10T00:00:00Z --certs recording.jsonl [--budgets 10,50,100]
+--certs: recorded certificates, JSON rows {"names": [...], "entry_timestamp": ..., "not_before": ...}; without it the lead mode asks crt.sh (with retries; --save-certs saves the answers to a recording).
+Time a certificate appeared: the log entry time (SCT), and without it not_before + ${BACKTEST_CONFIG.notBeforeBackdateHours} h (CAs backdate the start of validity).
+The fingerprints mode uses only certificates after day D and fingerprints from records seen up to D (no leak from the future).`,
 );
 
 void main(async () => {
-  if (!args.list || !args.mode) throw new Error("wymagane: --list i --mode lead|fingerprints (zob. --help)");
+  if (!args.list || !args.mode) throw new Error("required: --list and --mode lead|fingerprints (see --help)");
   const listed = parseCertActions(readFileSync(args.list, "utf8"));
   if (args.mode === "lead") {
     // seeded generator (LCG): the same --seed gives the same sample
@@ -57,7 +57,7 @@ void main(async () => {
         const res = await withRetry(
           async () => {
             const r = await lookupCt(e.domain, { retries: 0 });
-            if (!r) throw new Error("crt.sh nie odpowiedział");
+            if (!r) throw new Error("crt.sh did not answer");
             return r;
           },
           { attempts: BACKTEST_CONFIG.queryAttempts, delayMs: BACKTEST_CONFIG.retryDelayMs },
@@ -74,11 +74,11 @@ void main(async () => {
     console.log(JSON.stringify({ ...result, rows: undefined }, null, 1));
     return;
   }
-  if (args.mode !== "fingerprints") throw new Error("--mode: lead albo fingerprints");
-  if (!args.data || !args.since || !args.certs) throw new Error("tryb fingerprints wymaga --data, --since i --certs");
+  if (args.mode !== "fingerprints") throw new Error("--mode: lead or fingerprints");
+  if (!args.data || !args.since || !args.certs) throw new Error("the fingerprints mode needs --data, --since and --certs");
   const dataDir = path.resolve(args.data);
   const enriched = findEnriched(dataDir);
-  if (!enriched) throw new Error(`brak enriched.json w ${dataDir}`);
+  if (!enriched) throw new Error(`no enriched.json in ${dataDir}`);
   const known = campaignsKnownBefore(readJson<CampaignsFile>(path.join(dataDir, "campaigns.json")), readJson<EnrichedDataset>(enriched), args.since);
   const set = buildFingerprints(known, { config: loadCtConfig(args.lexicon ?? DEFAULTS.ctLexicon) });
   const out = backtestFingerprints({
@@ -88,7 +88,7 @@ void main(async () => {
     listed: new Map(listed.map((e) => [e.domain, e.listedUtc])),
     budgets: (args.budgets ?? BACKTEST_CONFIG.alertBudgets.join(",")).split(",").map(Number),
   });
-  console.log(`[backtest] kampanie znane do ${args.since}: ${known.campaigns.length}; alerty: ${out.alerts.length}; domen na liście po D: ${out.positives}`);
-  for (const b of out.byBudget) console.log(`  budżet ${b.budget}: alerty ${b.alerts}, trafienia ${b.hits}, recall ${b.recall === null ? "—" : b.recall.toFixed(2)}, mediana wyprzedzenia ${b.medianLeadHours === null ? "—" : `${b.medianLeadHours.toFixed(1)} h`}`);
+  console.log(`[backtest] campaigns known up to ${args.since}: ${known.campaigns.length}; alerts: ${out.alerts.length}; domains on the list after D: ${out.positives}`);
+  for (const b of out.byBudget) console.log(`  budget ${b.budget}: alerts ${b.alerts}, hits ${b.hits}, recall ${b.recall === null ? "—" : b.recall.toFixed(2)}, median lead ${b.medianLeadHours === null ? "—" : `${b.medianLeadHours.toFixed(1)} h`}`);
   if (args.out) writeFileSync(args.out, JSON.stringify(out, null, 1));
 });

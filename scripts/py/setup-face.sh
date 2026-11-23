@@ -19,4 +19,4 @@ fetch() { # <relative path in OpenCV Zoo> <file name>
 }
 fetch face_detection_yunet face_detection_yunet_2023mar.onnx
 fetch face_recognition_sface face_recognition_sface_2021dec.onnx
-echo "gotowe: FACE_PYTHON=$PWD/$VENV/bin/python FACE_MODEL_DIR=$MODEL_DIR"
+echo "done: FACE_PYTHON=$PWD/$VENV/bin/python FACE_MODEL_DIR=$MODEL_DIR"

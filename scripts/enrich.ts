@@ -26,16 +26,16 @@ const args = cli(
     "no-archive": { type: "boolean" },
     "archive-lookup": { type: "boolean" },
   } as const,
-  `Użycie: bun run enrich -- [--offline] [--fixtures data/sample/fixtures] [--items ...] [--out ...] [--concurrency 4] [--skip ct,rdap,favicon,image,dns,asn,page]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--company-registry] [--archive data/work/archive | --no-archive] [--archive-lookup]
-Tryb live wykonuje wyłącznie pasywne zapytania (1 GET na stronę/przekierowanie, DNS, RDAP, crt.sh, Team Cymru) z cache w .cache/.
---cloaking: dwa dodatkowe zwykłe GET-y (UA crawlera platformy i przeglądarki mobilnej). --ocr/--asr/--audio działają tylko z zainstalowanymi narzędziami. --clip: lokalny model CLIP (~350 MB, pobierany przy pierwszym użyciu).
---speaker: głos mówcy z wideo (SpeechBrain ECAPA, venv z scripts/py/setup-speaker.sh, model ~85 MB przy pierwszym użyciu).
---verify-person <id>: weryfikacja 1:1 na wniosek osoby, porównanie tylko ze zdjęciami wskazanej osoby (id z data/osoby-publiczne.json).
---faces: twarze w obrazach, zrzutach i klatkach wideo; "podobna twarz do X (0,xx)" tylko dla osób z data/osoby-publiczne.json, do przeglądu (OpenCV YuNet + SFace, venv z scripts/py/setup-face.sh, modele ~40 MB poza repo).
---archive-lookup: dla strony, która nie odpowiada, szuka publicznej kopii w urlscan.io i Internet Archive (Wayback) i dokłada ją z podanym źródłem i datą; pasywnie, nic nie zleca ani nie zapisuje. Źródła: ARCHIVE_SOURCES (domyślnie urlscan,wayback), opcjonalny klucz URLSCAN_API_KEY. (--archive to katalog z zapisanym HTML stron.)
---ad-library: szczegóły reklamy z biblioteki reklam Mety po identyfikatorze biblioteki (MetaAdsCollector, bez klucza API; tylko live).
---company-registry: biała lista VAT (po NIP) i odpis aktualny KRS (po numerze KRS) dla numerów ze stron: nazwa, adres siedziby, status, data wpisu, bez danych osób; flagi niezgodności nazwy i adresu, wykreślenie, wiek firmy vs domeny. Domyślnie wyłączone, tylko live. Wysyła numery do usług zewnętrznych: nie uruchamiać na materiałach spraw bez zgody właściciela danych.`,
+  `Usage: bun run enrich -- [--offline] [--fixtures data/sample/fixtures] [--items ...] [--out ...] [--concurrency 4] [--skip ct,rdap,favicon,image,dns,asn,page]
+  [--personas list.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <person id>]] [--ad-library] [--company-registry] [--archive data/work/archive | --no-archive] [--archive-lookup]
+Live mode makes passive queries only (1 GET per page/redirect, DNS, RDAP, crt.sh, Team Cymru) with a cache in .cache/.
+--cloaking: two extra plain GETs (UA of the platform crawler and of a mobile browser). --ocr/--asr/--audio work only with the tools installed. --clip: local CLIP model (~350 MB, downloaded on first use).
+--speaker: speaker voice from the video (SpeechBrain ECAPA, venv from scripts/py/setup-speaker.sh, model ~85 MB on first use).
+--verify-person <id>: 1:1 verification at the person's request, compared only with the photos of that person (id from data/osoby-publiczne.json).
+--faces: faces in images, screenshots and video frames; "face similar to X (0.xx)" only for people in data/osoby-publiczne.json, for review (OpenCV YuNet + SFace, venv from scripts/py/setup-face.sh, models ~40 MB outside the repo).
+--archive-lookup: for a page that does not respond, looks for a public copy in urlscan.io and the Internet Archive (Wayback) and adds it with its source and date; passive, it requests and saves nothing. Sources: ARCHIVE_SOURCES (default urlscan,wayback), optional key URLSCAN_API_KEY. (--archive is the folder with the saved HTML of the pages.)
+--ad-library: ad details from the Meta ad library by library ID (MetaAdsCollector, no API key; live only).
+--company-registry: the VAT white list (by NIP) and the current KRS extract (by KRS number) for numbers found on pages: name, registered address, status, entry date, no personal data; flags for a name or address mismatch, removal, company age vs domain age. Off by default, live only. Sends the numbers to external services: do not run on case samples without the data owner's consent.`,
 );
 
 void main(async () => {

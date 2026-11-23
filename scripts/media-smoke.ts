@@ -59,12 +59,12 @@ async function main(): Promise<void> {
     const sayBin = await which("say");
     const zosia = sayBin ? /\bZosia\b/.test((await defaultRunner("say", ["-v", "?"], { timeoutMs: 10_000 })).stdout) : false;
 
-    console.log("== Dostępność ==");
-    console.log(`tesseract: ${ocr.available ? `tak (${ocr.version}, pol)` : `nie — ${ocr.reason}`}`);
-    console.log(`ASR:       ${asr.available ? `tak (${asr.tool}, model ${asr.model})` : `nie — ${asr.reason}`}`);
-    console.log(`fpcalc:    ${fp.available ? `tak (${fp.version})` : "nie"}`);
-    console.log(`ffmpeg:    ${ffmpegOk ? "tak" : "nie"}`);
-    console.log(`say Zosia: ${zosia ? "tak" : "nie"}`);
+    console.log("== Availability ==");
+    console.log(`tesseract: ${ocr.available ? `yes (${ocr.version}, pol)` : `no — ${ocr.reason}`}`);
+    console.log(`ASR:       ${asr.available ? `yes (${asr.tool}, model ${asr.model})` : `no — ${asr.reason}`}`);
+    console.log(`fpcalc:    ${fp.available ? `yes (${fp.version})` : "no"}`);
+    console.log(`ffmpeg:    ${ffmpegOk ? "yes" : "no"}`);
+    console.log(`say Zosia: ${zosia ? "yes" : "no"}`);
 
     console.log("\n== OCR ==");
     if (ocr.available) {
@@ -73,9 +73,9 @@ async function main(): Promise<void> {
       await sharp(Buffer.from(svg)).png().toFile(png);
       const t = Date.now();
       const text = await ocrImage(png);
-      console.log(`wejście:  ${OCR_TEXT}`);
-      console.log(`wynik:    ${text ?? "(brak)"}  [${ms(t)}]`);
-    } else console.log("pominięto");
+      console.log(`input:    ${OCR_TEXT}`);
+      console.log(`result:   ${text ?? "(none)"}  [${ms(t)}]`);
+    } else console.log("skipped");
 
     console.log("\n== ASR ==");
     let speechWav: string | null = null;
@@ -90,9 +90,9 @@ async function main(): Promise<void> {
     if (asr.available && speechWav) {
       const t = Date.now();
       const text = await transcribe(speechWav, { status: asr });
-      console.log(`wejście:  ${SPEECH_TEXT}`);
-      console.log(`wynik:    ${text ?? "(brak)"}  [${ms(t)}, z ładowaniem modelu]`);
-    } else console.log(`pominięto (${!asr.available ? "brak ASR" : "brak say -v Zosia lub ffmpeg"})`);
+      console.log(`input:    ${SPEECH_TEXT}`);
+      console.log(`result:   ${text ?? "(none)"}  [${ms(t)}, including model loading]`);
+    } else console.log(`skipped (${!asr.available ? "no ASR" : "no say -v Zosia or ffmpeg"})`);
 
     console.log("\n== Chromaprint ==");
     if (fp.available && speechWav && ffmpegOk) {
@@ -107,15 +107,15 @@ async function main(): Promise<void> {
       const t = Date.now();
       const [a, b, c] = await Promise.all([fingerprintAudio(speechWav), r.code === 0 ? fingerprintAudio(copy) : Promise.resolve(null), fingerprintAudio(unrelated)]);
       if (a && b && c) {
-        console.log(`ten sam lektor, ciszej i ponownie zakodowany (${path.extname(copy)}): podobieństwo ${fingerprintSimilarity(a.fingerprint, b.fingerprint).toFixed(3)}`);
-        console.log(`lektor vs niezwiązana melodia:                          podobieństwo ${fingerprintSimilarity(a.fingerprint, c.fingerprint).toFixed(3)}  [${ms(t)}]`);
-      } else console.log("nie udało się policzyć odcisków");
-    } else console.log("pominięto");
+        console.log(`same voice-over, quieter and re-encoded (${path.extname(copy)}): similarity ${fingerprintSimilarity(a.fingerprint, b.fingerprint).toFixed(3)}`);
+        console.log(`voice-over vs unrelated melody:                    similarity ${fingerprintSimilarity(a.fingerprint, c.fingerprint).toFixed(3)}  [${ms(t)}]`);
+      } else console.log("could not compute the fingerprints");
+    } else console.log("skipped");
   } finally {
     await fs.rm(tmp, { recursive: true, force: true });
   }
 }
 
 main()
-  .catch((e: unknown) => console.error(`BŁĄD (ignorowany): ${e instanceof Error ? e.message : String(e)}`))
+  .catch((e: unknown) => console.error(`ERROR (ignored): ${e instanceof Error ? e.message : String(e)}`))
   .finally(() => process.exit(0));

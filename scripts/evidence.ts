@@ -34,19 +34,19 @@ const args = cli(
     "submitter-address": { type: "string" },
     "submitter-role": { type: "string" },
   } as const,
-  `Użycie: bun run evidence -- --campaign K01 [--out data/evidence/K01] [--enriched data/work/enriched.json] [--config linking.json]
+  `Usage: bun run evidence -- --campaign K01 [--out data/evidence/K01] [--enriched data/work/enriched.json] [--config linking.json]
   [--submitter-name "…"] [--submitter-email "…"] [--submitter-address "…"] [--submitter-role "…"] [--tlp TLP:AMBER]
-  [--provenance data/provenance.json] (sumy plików wejściowych sprawy z importu; domyślnie data/provenance.json, jeśli istnieje)
-  [--tsa https://…] (znacznik czasu RFC 3161 na manifest przez openssl i sieć; bez tego lub bez sieci timestamp_token = null z powodem)
-  [--prior zgloszenia.jsonl] (dziennik wcześniejszych zgłoszeń: JSON lines lub tablica; odbiorca, reported_utc, category, status)
-  [--cert-list domains.json] (lokalna kopia Listy Ostrzeżeń CERT; domyślnie CERT_LIST_FILE; bez zapytań online)
-Paczka wg sekcji 5 raportu prawnego: evidence.json, evidence.md, cert-domains.txt, dsa-art16-notice.md, files/, manifest.sha256.`,
+  [--provenance data/provenance.json] (checksums of the case input files from the import; default data/provenance.json, if it exists)
+  [--tsa https://…] (RFC 3161 timestamp on the manifest through openssl and the network; without it or without a network timestamp_token = null with the reason)
+  [--prior reports.jsonl] (register of earlier reports: JSON lines or an array; recipient, reported_utc, category, status)
+  [--cert-list domains.json] (local copy of the CERT Warning List; default CERT_LIST_FILE; no online queries)
+Pack per section 5 of the legal report: evidence.json, evidence.md, cert-domains.txt, dsa-art16-notice.md, files/, manifest.sha256.`,
 );
 
 void main(async () => {
-  if (!args.campaign) throw new Error("podaj --campaign (np. K01)");
+  if (!args.campaign) throw new Error("give --campaign (e.g. K01)");
   const enrichedFile = args.enriched ?? DEFAULTS.enriched;
-  if (!existsSync(enrichedFile)) throw new Error(`brak ${enrichedFile} — najpierw uruchom enrich (np. bun run pipeline --offline)`);
+  if (!existsSync(enrichedFile)) throw new Error(`no ${enrichedFile} — run enrich first (e.g. bun run pipeline --offline)`);
   let gitCommit: string | null = null;
   try {
     gitCommit = execFileSync("git", ["rev-parse", "--short", "HEAD"], { encoding: "utf8" }).trim();
@@ -58,7 +58,7 @@ void main(async () => {
   const cert = loadCertList(args["cert-list"]);
   const provenanceFile = args.provenance ?? path.join(path.dirname(args.graph ?? DEFAULTS.graph), "provenance.json");
   const prior = args.prior ? parseReports(readFileSync(args.prior, "utf8")) : null;
-  for (const e of prior?.errors ?? []) console.warn(`[evidence] ${args.prior} wiersz ${e.line}: ${e.reason}`);
+  for (const e of prior?.errors ?? []) console.warn(`[evidence] ${args.prior} row ${e.line}: ${e.reason}`);
   const res = exportEvidencePack({
     campaignId: args.campaign,
     graph: readJson<EvidenceGraph>(args.graph ?? DEFAULTS.graph),
@@ -82,9 +82,9 @@ void main(async () => {
   });
   if (args.tsa) {
     const stamp = await stampManifest(res.outDir, args.tsa);
-    console.log(stamp.ok ? `[evidence] znacznik czasu: ${stamp.file}` : `[evidence] brak znacznika czasu: ${stamp.reason}`);
+    console.log(stamp.ok ? `[evidence] timestamp: ${stamp.file}` : `[evidence] no timestamp: ${stamp.reason}`);
   }
-  console.log(`[evidence] paczka kampanii ${args.campaign} -> ${res.outDir}`);
-  console.log(`[evidence] pliki: ${res.files.length}; domeny dla CERT: ${res.certDomains.length} (${res.certDomains.slice(0, 6).join(", ")}${res.certDomains.length > 6 ? ", …" : ""})`);
-  console.log(`[evidence] weryfikacja: (cd ${res.outDir} && shasum -a 256 -c manifest.sha256)`);
+  console.log(`[evidence] pack of campaign ${args.campaign} -> ${res.outDir}`);
+  console.log(`[evidence] files: ${res.files.length}; domains for CERT: ${res.certDomains.length} (${res.certDomains.slice(0, 6).join(", ")}${res.certDomains.length > 6 ? ", …" : ""})`);
+  console.log(`[evidence] verification: (cd ${res.outDir} && shasum -a 256 -c manifest.sha256)`);
 });

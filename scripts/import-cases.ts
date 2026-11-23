@@ -10,25 +10,25 @@ const args = cli(
     lookups: { type: "boolean" },
     ct: { type: "boolean" },
   } as const,
-  `Użycie: bun run import-cases -- --cases <katalog spraw> --out <katalog roboczy> [--lookups] [--ct]
-Każda sprawa to podkatalog z zapisaną stroną (HTML + <nazwa>_files), plikiem HAR i zrzutem ekranu reklamy (dowolny podzbiór).
-Wynik: input.json, mapping.json, provenance.json i fixtures/ dla trybu offline. Stron docelowych nie pobiera.
---lookups: pasywne zapytania o domeny stron docelowych (DNS, RDAP przez rdap.org, ASN przez Team Cymru).
---ct: dodatkowo crt.sh (wolne, bywa niedostępne).
-Dalej: bun run ingest -- --input <out>/input.json --mapping <out>/mapping.json --out <out>/items.json --base-dir <out>
+  `Usage: bun run import-cases -- --cases <folder of cases> --out <work folder> [--lookups] [--ct]
+Each case is a subfolder with a saved page (HTML + <name>_files), a HAR file and a screenshot of the ad (any subset).
+Result: input.json, mapping.json, provenance.json and fixtures/ for the offline mode. It does not fetch the landing pages.
+--lookups: passive queries about the domains of the landing pages (DNS, RDAP through rdap.org, ASN through Team Cymru).
+--ct: crt.sh as well (slow, sometimes unavailable).
+Next: bun run ingest -- --input <out>/input.json --mapping <out>/mapping.json --out <out>/items.json --base-dir <out>
        bun run enrich -- --items <out>/items.json --out <out>/enriched.json --offline --fixtures <out>/fixtures --archive <out>/archive [--ocr] [--clip]
        bun run build-graph -- --enriched <out>/enriched.json --graph <out>/graph.json --campaigns <out>/campaigns.json`,
 );
 
 void main(async () => {
-  if (!args.cases || !args.out) throw new Error("wymagane: --cases i --out (zob. --help)");
+  if (!args.cases || !args.out) throw new Error("required: --cases and --out (see --help)");
   const res = await importCases({
     casesDir: args.cases,
     outDir: args.out,
     lookups: args.lookups || args.ct ? liveLookups(!!args.ct) : undefined,
     log: (m) => console.log(m),
   });
-  for (const s of res.skipped) console.warn(`[${s.id}] pominięta: ${s.reason}`);
-  if (res.failedLookups.length) console.warn(`[import-cases] bez odpowiedzi (uruchom ponownie, gotowe pliki są pomijane): ${res.failedLookups.join(", ")}`);
-  console.log(`[import-cases] spraw: ${res.cases.length}, pominiętych: ${res.skipped.length}, odpowiedzi HTTP w fixtures: ${res.httpEntries} -> ${args.out}`);
+  for (const s of res.skipped) console.warn(`[${s.id}] skipped: ${s.reason}`);
+  if (res.failedLookups.length) console.warn(`[import-cases] no answer (run again, finished files are skipped): ${res.failedLookups.join(", ")}`);
+  console.log(`[import-cases] cases: ${res.cases.length}, skipped: ${res.skipped.length}, HTTP responses in fixtures: ${res.httpEntries} -> ${args.out}`);
 });

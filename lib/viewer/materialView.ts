@@ -13,26 +13,26 @@ export interface BatchSummary {
   files: number;
   materials: number;
   duplicates: number;
-  /** Materials linked to the base: a known campaign or a new one similar to known ones. */
+  /** Samples linked to the base: a known campaign or a new one similar to known ones. */
   linkedToBase: number;
   known: number;
   /** New campaigns: similar to known ones or entirely new. */
   fresh: number;
   similar: number;
   brandNew: number;
-  /** "Za mało danych": records with that verdict and the cases the import could not read (`unread`). */
+  /** "Insufficient data": records with that verdict and the cases the import could not read (`unread`). */
   insufficient: number;
-  /** Cases the import could not turn into a material (e.g. a saved page without its address); counted as materials and errors. */
+  /** Cases the import could not turn into a sample (e.g. a saved page without its address); counted as samples and errors. */
   unread: number;
-  /** Materials with an error reported by the analysis, the unread cases included. */
+  /** Samples with an error reported by the analysis, the unread cases included. */
   withErrors: number;
 }
 
 /**
- * Numbers of the funnel Pliki → Materiały → Duplikaty → Powiązania z bazą → Znane / Nowe / Za mało danych.
+ * Numbers of the funnel Files → Samples → Duplicates → Linked to base → Known / New / Insufficient data.
  * They add up: materials = duplicates + known + fresh + insufficient. `files` is the number of uploaded files.
- * A case the import could not read is a material with "za mało danych" and an error, as in the CSV, where it
- * has an `insufficient` row: without it a file would vanish from the counts while the summary said "0 błędów".
+ * A case the import could not read is a sample with "insufficient data" and an error, as in the CSV, where it
+ * has an `insufficient` row: without it a file would vanish from the counts while the summary said "0 errors".
  */
 export function batchSummary(result: MaterialCsvInput, files: number): BatchSummary {
   const count = (v: MaterialItemResult["verdict"]) => result.items.filter((i) => i.verdict === v).length;
@@ -65,17 +65,17 @@ export interface UnreadMaterial {
   hints: string[];
 }
 
-/** Advice for one reason of the import, keyed by the start of the reason the importer writes. */
+/** Advice for one reason of the import, keyed by the start of the reason the importer writes (lib/pipeline/caseImport.ts, analyzeMaterial.ts; the Polish start stays until that wording is translated). */
 const UNREAD_HINTS: Array<{ test: RegExp; hints: string[] }> = [
   {
-    test: /^brak adresu strony/,
+    test: /^(brak adresu strony|no page (url|address))/i,
     hints: [
-      "Dołącz HAR z wizyty na tej stronie w tej samej sprawie (np. podział „jedna sprawa”): adres strony odczytamy z HAR.",
-      "Albo zapisz stronę jako MHTML albo z komentarzem „saved from url” na początku pliku: z nich też odczytamy adres.",
+      "Add a HAR of a visit to this page in the same case (e.g. the “one case” split): we read the page URL from the HAR.",
+      "Or save the page as MHTML or with a “saved from url” comment at the start of the file: we read the URL from those too.",
     ],
   },
-  { test: /^HAR bez treści dokumentu/, hints: ["Dołącz zapisaną stronę (HTML) albo nagraj HAR z otwartą stroną, tak żeby zawierał jej treść."] },
-  { test: /^brak strony, zrzutu ani wideo/, hints: ["Dołącz zrzut reklamy, zapisaną stronę, HAR albo wideo: pliki innego rodzaju analiza pomija."] },
+  { test: /^(HAR bez treści dokumentu|HAR without (the )?document)/i, hints: ["Add the saved page (HTML) or record a HAR with the page open, so that it contains the page content."] },
+  { test: /^(brak strony, zrzutu ani wideo|no page, screenshot or video)/i, hints: ["Add an ad screenshot, a saved page, a HAR or a video: the analysis skips files of other kinds."] },
 ];
 
 /** What to add for the reasons of an unread case, without repeats; empty when no reason has advice. */
@@ -88,12 +88,12 @@ export function unreadMaterials(result: MaterialCsvInput): UnreadMaterial[] {
   return unreadCases(result).map(({ case: id, reasons }) => ({ id, reasons, hints: unreadHints(reasons) }));
 }
 
-/** Unread cases belong to the "za mało danych" group: the table shows them for that filter and for all materials. */
+/** Unread cases belong to the "insufficient data" group: the table shows them for that filter and for all samples. */
 export function unreadVisible(filter: ResultFilter): boolean {
   return filter === "all" || filter === "insufficient";
 }
 
-/** Items of one filter group of the result table. `uncertain` cuts across verdicts: those shown as "niepewne" (never "za mało danych" or "brak wspólnych śladów", which have nothing to check). */
+/** Items of one filter group of the result table. `uncertain` cuts across verdicts: those shown as "uncertain" (never "insufficient data" or "no shared traces", which have nothing to check). */
 export function filterItems(items: MaterialItemResult[], filter: ResultFilter): MaterialItemResult[] {
   if (filter === "uncertain") return items.filter((i) => shownConfidence(i) === "uncertain");
   const verdicts: Record<Exclude<ResultFilter, "all" | "uncertain">, MaterialItemResult["verdict"][]> = {
@@ -108,8 +108,8 @@ export function filterItems(items: MaterialItemResult[], filter: ResultFilter): 
 }
 
 /**
- * Confidence of the verdict, or null when there is none to give ("za mało danych"). A material that
- * joined its campaign only by a near-identical creative (variant) is never "pewne": it has no own
+ * Confidence of the verdict, or null when there is none to give ("insufficient data"). A sample that
+ * joined its campaign only by a near-identical creative (variant) is never "certain": it has no own
  * infrastructure, so the assignment stands on the picture alone.
  */
 export function resultConfidence(item: MaterialItemResult): Confidence | null {
@@ -119,8 +119,8 @@ export function resultConfidence(item: MaterialItemResult): Confidence | null {
 }
 
 /**
- * Confidence as the result table and card show it: `no_traces` for a new material (also one in a group of similar
- * campaigns) without a single link to a known material, where `resultConfidence` and the export say `uncertain`;
+ * Confidence as the result table and card show it: `no_traces` for a new sample (also one in a group of similar
+ * campaigns) without a single link to a known sample, where `resultConfidence` and the export say `uncertain`;
  * otherwise the same as `resultConfidence`. Only the label changes: the CSV and JSON keep `uncertain`.
  */
 export function shownConfidence(item: MaterialItemResult): ShownConfidence | null {
@@ -131,7 +131,7 @@ export function shownConfidence(item: MaterialItemResult): ShownConfidence | nul
 
 const VERDICT_ORDER: MaterialItemResult["verdict"][] = ["known_campaign", "similar_campaigns", "new_campaign", "duplicate", "insufficient"];
 
-/** Rows of the result table in order: by verdict (known campaigns first) or by the shown confidence (pewne first, none last). */
+/** Rows of the result table in order: by verdict (known campaigns first) or by the shown confidence (certain first, none last). */
 export function sortItems(items: MaterialItemResult[], by: "verdict" | "confidence"): MaterialItemResult[] {
   /** Place of a row on the confidence scale; rows without confidence go last. */
   const rank = (i: MaterialItemResult) => {
@@ -141,11 +141,11 @@ export function sortItems(items: MaterialItemResult[], by: "verdict" | "confiden
   return [...items].sort((a, b) => (by === "verdict" ? VERDICT_ORDER.indexOf(a.verdict) - VERDICT_ORDER.indexOf(b.verdict) : rank(a) - rank(b)));
 }
 
-/** Note for a variant assigned by the creative ("wariant: przypisanie po kreacji, niższa pewność") with the material it resembles; null otherwise. */
+/** Note for a variant assigned by the creative ("variant: assigned by the creative, lower confidence") with the sample it resembles; null otherwise. */
 export function variantNote(item: MaterialItemResult): string | null {
   if (item.campaignBasis !== "content_variant") return null;
   const like = item.links.find((l) => l.variant)?.other ?? bestCampaignLink(item)?.other ?? null;
-  return `wariant: przypisanie po kreacji, niższa pewność${like ? `. Kreacja jest podobna do materiału ${like}` : ""}`;
+  return `variant: assigned by the creative, lower confidence${like ? `. The creative is similar to sample ${like}` : ""}`;
 }
 
 /**

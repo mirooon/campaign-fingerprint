@@ -27,7 +27,7 @@ Skrypt wypisuje w terminalu cztery kroki (`== 1/4` … `== 4/4`):
 3. Dopisuje te 212 stron do kopii bazy (`baza-gui/`; `baza/` zostaje bez zmian).
 4. Uruchamia GUI na http://localhost:3000.
 
-**Czego się spodziewać** (pomiar zespołu na kodzie `1efb3f4`, z którego zbudowano paczkę):
+**Czego się spodziewać** (pomiar zespołu na kodzie `33c95e3`, z którego zbudowano paczkę):
 
 | Co mierzymy | Wynik |
 |---|---|

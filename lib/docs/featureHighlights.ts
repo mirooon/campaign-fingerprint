@@ -25,7 +25,7 @@ export interface FeatureHighlight {
 }
 
 /** The sample run the counts in `FeatureHighlight.sample` come from. */
-export const HIGHLIGHTS_SAMPLE = { materials: 28, commit: "b3ee946" } as const;
+export const HIGHLIGHTS_SAMPLE = { materials: 28, commit: "1107e62" } as const;
 
 /** Highlighted traces, in the order they appear in docs/CECHY.md. */
 export const FEATURE_HIGHLIGHTS: FeatureHighlight[] = [

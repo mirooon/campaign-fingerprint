@@ -102,7 +102,7 @@ Other tabs: Link graph, Compare, How it works, New domains, Recognized people an
 
 ## Results
 
-All numbers below come from one offline run on 22 Nov 2026, on commit `a407767`. Its linking code is the same as in the version submitted to the jury (tag `hacknation-2026`). Two data sets were used:
+All numbers below come from one offline run on 22 Nov 2026, on commit `5483d20`. Its linking code is the same as in the version submitted to the jury (tag `hacknation-2026`). Two data sets were used:
 
 - **25 cases from the challenge organiser** (28 records). They are private and are not in this repository, so these numbers cannot be reproduced from the public code alone.
 - **212 public scam pages** from outside the organiser's sample: mostly public urlscan.io scans, plus two Wayback Machine copies and one press article. Labels: 78 variants of four known campaigns and 134 negatives (105 pages of other operators with the same narrative or person, 29 pages from other accounts on the same page-builder platform).

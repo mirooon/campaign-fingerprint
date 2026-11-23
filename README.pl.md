@@ -102,7 +102,7 @@ Pozostałe zakładki: Link graph, Compare, How it works, New domains, Recognized
 
 ## Wyniki
 
-Wszystkie liczby poniżej pochodzą z jednego przebiegu bez sieci, 22.11.2026, na commicie `a407767`. Kod łączenia jest w nim taki sam jak w wersji oddanej jury (tag `hacknation-2026`). Użyto dwóch zbiorów:
+Wszystkie liczby poniżej pochodzą z jednego przebiegu bez sieci, 22.11.2026, na commicie `5483d20`. Kod łączenia jest w nim taki sam jak w wersji oddanej jury (tag `hacknation-2026`). Użyto dwóch zbiorów:
 
 - **25 spraw od organizatora zadania** (28 rekordów). Są poufne i nie ma ich w repozytorium, więc tych liczb nie da się odtworzyć z samego publicznego kodu.
 - **212 publicznych stron oszustw** spoza próbki organizatora: głównie publiczne skany urlscan.io, do tego dwie kopie z Wayback Machine i jeden artykuł prasowy. Etykiety: 78 wariantów czterech znanych kampanii i 134 negatywy (105 stron innych operatorów z tą samą narracją lub osobą, 29 stron z innych kont tej samej platformy stron).

@@ -6,7 +6,7 @@ Linking works like this: every trace has a weight (type × list × frequency), a
 
 ## Traces that typical tools do not give
 
-Typical OSINT tools link pages by domain, IP address, WHOIS and DNS records, certificate and image hash. We collect those traces too (section 1); below are the ones we read ourselves from the code of the page, links, identifiers and recordings. “On the sample” gives only counts from the run on 28 samples of the organiser's set (commit `b3ee946`), without values; a pair is two samples linked by that evidence. In the table of section 1 these types have ★.
+Typical OSINT tools link pages by domain, IP address, WHOIS and DNS records, certificate and image hash. We collect those traces too (section 1); below are the ones we read ourselves from the code of the page, links, identifiers and recordings. “On the sample” gives only counts from the run on 28 samples of the organiser's set (commit `1107e62`), without values; a pair is two samples linked by that evidence. In the table of section 1 these types have ★.
 
 ### Record of the page-builder panel
 
@@ -365,4 +365,4 @@ Everything in the registries has a name and a description.
 | Narrative hooks | 12 |
 | No description | 0 |
 
-Generated: 2026-11-23, commit `045a506`.
+Generated: 2026-11-23, commit `961efa5`.

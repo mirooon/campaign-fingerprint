@@ -13,12 +13,12 @@ import { FEATURE_INFO, NARRATIVE_LABEL, ROLE_LABEL, SHOP_TECHNIQUES, TECHNIQUE_I
 import { FEATURE_HIGHLIGHTS, HIGHLIGHTS_SAMPLE, highlightedTypes, type FeatureHighlight } from "./featureHighlights";
 
 /** Heading of the highlighted-traces section; its GitHub anchor is HIGHLIGHTS_ANCHOR. */
-export const HIGHLIGHTS_HEADING = "Ślady, których nie dają typowe narzędzia";
+export const HIGHLIGHTS_HEADING = "Traces that typical tools do not give";
 /** GitHub anchor of HIGHLIGHTS_HEADING (lower case, punctuation dropped, spaces to hyphens). */
-export const HIGHLIGHTS_ANCHOR = "ślady-których-nie-dają-typowe-narzędzia";
+export const HIGHLIGHTS_ANCHOR = "traces-that-typical-tools-do-not-give";
 
 /** Where a pivot type acts in linking. */
-export type PivotLevel = "kampania" | "grupa" | "tylko z innym śladem";
+export type PivotLevel = "campaign" | "group" | "only with another trace";
 
 export interface PivotRow {
   type: string;
@@ -58,6 +58,9 @@ export interface CatalogData {
   undescribed: string[];
 }
 
+/** Role of an attribute that has no entry in FEATURE_INFO (left out of the attribute table). */
+const NO_DESCRIPTION = "no description";
+
 /** Escapes a value for a Markdown table cell. */
 function cell(text: string | null | undefined): string {
   return (text ?? "").replace(/\|/g, "\\|").replace(/\s*\n\s*/g, " ").trim();
@@ -85,7 +88,7 @@ function similarityWeight(type: string, config: LinkConfig): number | null {
 }
 
 /**
- * Collects the catalog from the registries; anything without a Polish label ends up in `undescribed`, and so
+ * Collects the catalog from the registries; anything without a label ends up in `undescribed`, and so
  * does a key of the highlights registry that is neither a described pivot type nor a described attribute.
  */
 export function collectCatalog(
@@ -105,44 +108,44 @@ export function collectCatalog(
   const pivots: PivotRow[] = types.map((type) => {
     const similarity = (SIMILARITY_EDGE_TYPES as readonly string[]).includes(type);
     const weight = similarity ? similarityWeight(type, config) : ((config.typeWeights as Record<string, number | undefined>)[type] ?? null);
-    const level: PivotLevel = familyOnly.has(type) ? "grupa" : notAlone.has(type) ? "tylko z innym śladem" : "kampania";
+    const level: PivotLevel = familyOnly.has(type) ? "group" : notAlone.has(type) ? "only with another trace" : "campaign";
     const info = infoOf(type);
-    if (!info) undescribed.push(`ślad łączący: ${type} (brak wpisu w TYPE_INFO)`);
-    if (weight === null) undescribed.push(`ślad łączący: ${type} (brak wagi w konfiguracji)`);
+    if (!info) undescribed.push(`linking trace: ${type} (no entry in TYPE_INFO)`);
+    if (weight === null) undescribed.push(`linking trace: ${type} (no weight in the configuration)`);
     const sourceFeatures = Object.entries(FEATURE_INFO)
       .filter(([key]) => key.toLowerCase() === type.replace(/_/g, "").toLowerCase())
       .map(([, f]) => f.name);
     return { type, label: info?.name ?? null, weight, level, origin: info?.what ?? null, why: info?.why ?? null, example: info?.example ?? null, highlighted: starred.has(type), sourceFeatures, similarity };
   });
   for (const h of highlights) {
-    for (const t of h.types) if (!infoOf(t) || !types.includes(t)) undescribed.push(`wyróżniony ślad „${h.title}”: ${t} (brak typu śladu albo wpisu w TYPE_INFO)`);
-    for (const a of h.attributes) if (!FEATURE_INFO[a]) undescribed.push(`wyróżniony ślad „${h.title}”: ${a} (brak wpisu w FEATURE_INFO)`);
+    for (const t of h.types) if (!infoOf(t) || !types.includes(t)) undescribed.push(`highlighted trace “${h.title}”: ${t} (no trace type or no entry in TYPE_INFO)`);
+    for (const a of h.attributes) if (!FEATURE_INFO[a]) undescribed.push(`highlighted trace “${h.title}”: ${a} (no entry in FEATURE_INFO)`);
   }
 
   const featureRow = (key: string): FeatureRow => {
     const f = FEATURE_INFO[key];
-    return { key, name: f?.name ?? key, source: f?.source ?? "", role: f ? ROLE_LABEL[f.role] : "brak opisu" };
+    return { key, name: f?.name ?? key, source: f?.source ?? "", role: f ? ROLE_LABEL[f.role] : NO_DESCRIPTION };
   };
   const featureKeys = readFeatureKeys(root);
   const allKeys = [...new Set([...Object.keys(FEATURE_INFO), ...featureKeys])];
-  for (const key of featureKeys) if (!FEATURE_INFO[key]) undescribed.push(`atrybut: ${key} (jest w FEATURE_KEYS, brak wpisu w FEATURE_INFO)`);
+  for (const key of featureKeys) if (!FEATURE_INFO[key]) undescribed.push(`attribute: ${key} (in FEATURE_KEYS, no entry in FEATURE_INFO)`);
   const linkingFeatures = allKeys.filter((k) => FEATURE_INFO[k] && FEATURE_INFO[k].role !== "describes").map(featureRow);
   const attributes = allKeys.filter((k) => !FEATURE_INFO[k] || FEATURE_INFO[k].role === "describes").map(featureRow);
 
   const techKeys = [...new Set([...Object.keys(TECHNIQUE_INFO), ...Object.keys(TECHNIQUE_LABEL)])];
   const techniques = techKeys.map((key) => {
     const info = TECHNIQUE_INFO[key];
-    if (!info) undescribed.push(`technika: ${key} (brak wpisu w TECHNIQUE_INFO)`);
-    if (!TECHNIQUE_LABEL[key] && !info?.name) undescribed.push(`technika: ${key} (brak nazwy)`);
+    if (!info) undescribed.push(`technique: ${key} (no entry in TECHNIQUE_INFO)`);
+    if (!TECHNIQUE_LABEL[key] && !info?.name) undescribed.push(`technique: ${key} (no name)`);
     return { key, name: TECHNIQUE_LABEL[key] ?? info?.name ?? key, what: info?.what ?? "", shop: SHOP_TECHNIQUES.has(key) };
   });
 
   const topics = Object.entries(narrative.topics).map(([id, t]) => {
-    if (!NARRATIVE_LABEL[id]) undescribed.push(`temat narracji: ${id}`);
+    if (!NARRATIVE_LABEL[id]) undescribed.push(`narrative topic: ${id}`);
     return { id, label: NARRATIVE_LABEL[id] ?? null, sub: Object.keys(t.sub ?? {}) };
   });
   const hooks = Object.keys(narrative.hooks).map((id) => {
-    if (!NARRATIVE_LABEL[id]) undescribed.push(`haczyk narracji: ${id}`);
+    if (!NARRATIVE_LABEL[id]) undescribed.push(`narrative hook: ${id}`);
     return { id, label: NARRATIVE_LABEL[id] ?? null };
   });
 
@@ -154,97 +157,97 @@ function renderHighlights(out: string[], highlights: FeatureHighlight[]): void {
   if (!highlights.length) return;
   out.push(`## ${HIGHLIGHTS_HEADING}`);
   out.push("");
-  out.push(`Typowe narzędzia OSINT łączą strony po domenie, adresie IP, rekordach WHOIS i DNS, certyfikacie i hashu obrazu. Te ślady też zbieramy (sekcja 1), a poniżej są te, które odczytujemy sami z kodu strony, linków, identyfikatorów i nagrań. „Na próbce” podaje tylko liczby z przebiegu na ${HIGHLIGHTS_SAMPLE.materials} materiałach próbki organizatora (commit \`${HIGHLIGHTS_SAMPLE.commit}\`), bez wartości; para to dwa materiały połączone tą przesłanką. W tabeli sekcji 1 te typy mają ★.`);
+  out.push(`Typical OSINT tools link pages by domain, IP address, WHOIS and DNS records, certificate and image hash. We collect those traces too (section 1); below are the ones we read ourselves from the code of the page, links, identifiers and recordings. “On the sample” gives only counts from the run on ${HIGHLIGHTS_SAMPLE.materials} samples of the organiser's set (commit \`${HIGHLIGHTS_SAMPLE.commit}\`), without values; a pair is two samples linked by that evidence. In the table of section 1 these types have ★.`);
   out.push("");
   for (const h of highlights) {
     out.push(`### ${h.title}`);
     out.push("");
     out.push([...h.types, ...h.attributes].map((k) => `\`${k}\``).join(" · "));
     out.push("");
-    out.push(`- **Jak odczytujemy:** ${h.how}`);
-    out.push(`- **Czego nie widzą typowe narzędzia:** ${h.missed}`);
-    out.push(`- **Na próbce:** ${h.sample}`);
+    out.push(`- **How we read it:** ${h.how}`);
+    out.push(`- **What typical tools miss:** ${h.missed}`);
+    out.push(`- **On the sample:** ${h.sample}`);
     out.push("");
   }
 }
 
-/** Renders the catalog as Markdown (Polish). `date` and `commit` go to the totals section. */
+/** Renders the catalog as Markdown. `date` and `commit` go to the totals section. */
 export function renderCatalog(data: CatalogData, config: LinkConfig, date: string, commit: string): string {
   const out: string[] = [];
-  out.push("# Katalog cech");
+  out.push("# Feature catalog");
   out.push("");
-  out.push("Plik generowany: `bun run features:catalog`. Nie edytuj ręcznie.");
+  out.push("Generated file: `bun run features:catalog`. Do not edit by hand.");
   out.push("");
-  out.push(`Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej jeden rodzaj śladu z poziomu „kampania” (wynik pary po zniżkach od ${config.minLinkScore}); ślady „tylko z innym śladem” nie łączą samodzielnie, chyba że po zniżkach i rzadkości zostają mocne (od ${config.strongThreshold}, np. backend formularza z identyfikatorem klienta), a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).`);
+  out.push(`Linking works like this: every trace has a weight (type × list × frequency), and samples go into one campaign when a strong trace links them or at least one kind of trace of the “campaign” level does (pair score after discounts from ${config.minLinkScore}); “only with another trace” traces do not link on their own unless they stay strong after discounts and rarity (from ${config.strongThreshold}, e.g. a form backend with a client ID), and “group” traces link only similar campaigns (details and thresholds in [METODYKA.md](METODYKA.md)).`);
   out.push("");
   renderHighlights(out, data.highlights);
-  out.push("## 1. Ślady łączące");
+  out.push("## 1. Linking traces");
   out.push("");
-  out.push(`Próg mocnego śladu: ${config.strongThreshold}; minimalny wynik krawędzi: ${config.minLinkScore}; wspólny ślad występujący w więcej niż ${config.maxPivotDf} materiałach jest pomijany (maxPivotDf). Poziom: **kampania** (może łączyć w jedną kampanię), **grupa** (tylko podobne kampanie), **tylko z innym śladem** (wspiera, nie łączy samodzielnie).`);
+  out.push(`Strong trace threshold: ${config.strongThreshold}; minimum edge score: ${config.minLinkScore}; a shared trace found in more than ${config.maxPivotDf} samples is skipped (maxPivotDf). Level: **campaign** (can link into one campaign), **group** (similar campaigns only), **only with another trace** (supports, does not link on its own).`);
   out.push("");
   if (data.pivots.some((p) => p.highlighted)) {
-    out.push(`★ oznacza ślad opisany szerzej w sekcji [${HIGHLIGHTS_HEADING}](#${HIGHLIGHTS_ANCHOR}).`);
+    out.push(`★ marks a trace described in more detail in the section [${HIGHLIGHTS_HEADING}](#${HIGHLIGHTS_ANCHOR}).`);
     out.push("");
   }
-  out.push("| Typ | Nazwa | Waga | Poziom | Skąd | Po co | Przykład |");
+  out.push("| Type | Name | Weight | Level | Source | Why | Example |");
   out.push("|---|---|---|---|---|---|---|");
   for (const p of data.pivots.filter((p) => p.label && p.weight !== null)) {
-    const kind = p.similarity ? " (podobieństwo dwóch materiałów)" : "";
+    const kind = p.similarity ? " (similarity of two samples)" : "";
     const star = p.highlighted ? " ★" : "";
-    out.push(`| \`${p.type}\` | ${cell(p.label)}${kind}${star} | ${p.weight} | ${p.level} | ${cell(p.origin)}${p.sourceFeatures.length ? ` Cecha materiału: ${cell(p.sourceFeatures.join(", "))}.` : ""} | ${cell(p.why)} | ${cell(p.example)} |`);
+    out.push(`| \`${p.type}\` | ${cell(p.label)}${kind}${star} | ${p.weight} | ${p.level} | ${cell(p.origin)}${p.sourceFeatures.length ? ` Sample feature: ${cell(p.sourceFeatures.join(", "))}.` : ""} | ${cell(p.why)} | ${cell(p.example)} |`);
   }
   out.push("");
-  out.push("### Cechy materiału, które łączą albo pomagają");
+  out.push("### Sample features that link or help");
   out.push("");
-  out.push("| Klucz | Nazwa | Rola | Skąd |");
+  out.push("| Key | Name | Role | Source |");
   out.push("|---|---|---|---|");
   for (const f of data.linkingFeatures) out.push(`| \`${f.key}\` | ${cell(f.name)} | ${f.role} | ${cell(f.source)} |`);
   out.push("");
-  out.push("## 2. Atrybuty materiału i kampanii");
+  out.push("## 2. Attributes of the sample and the campaign");
   out.push("");
-  out.push("Opisują materiał, nie łączą go z innymi.");
+  out.push("They describe the sample and do not link it to others.");
   out.push("");
-  out.push("| Klucz | Nazwa | Skąd |");
+  out.push("| Key | Name | Source |");
   out.push("|---|---|---|");
-  for (const f of data.attributes.filter((f) => f.role !== "brak opisu")) out.push(`| \`${f.key}\` | ${cell(f.name)} | ${cell(f.source)} |`);
+  for (const f of data.attributes.filter((f) => f.role !== NO_DESCRIPTION)) out.push(`| \`${f.key}\` | ${cell(f.name)} | ${cell(f.source)} |`);
   out.push("");
-  out.push("## 3. Techniki manipulacji");
+  out.push("## 3. Manipulation techniques");
   out.push("");
-  out.push("Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki sklepowe tylko opisują stronę sklepu.");
+  out.push("Field `techniques[]`. An attribute and a group trace, not proof of one campaign. Shop techniques only describe the shop page.");
   out.push("");
-  out.push("| Klucz | Nazwa | Opis |");
+  out.push("| Key | Name | Description |");
   out.push("|---|---|---|");
-  for (const t of data.techniques) out.push(`| \`${t.key}\` | ${cell(t.name)}${t.shop ? " (sklep)" : ""} | ${cell(t.what)} |`);
+  for (const t of data.techniques) out.push(`| \`${t.key}\` | ${cell(t.name)}${t.shop ? " (shop)" : ""} | ${cell(t.what)} |`);
   out.push("");
-  out.push("## 4. Tematy i haczyki narracji");
+  out.push("## 4. Narrative topics and hooks");
   out.push("");
-  out.push("**Tematy** (o czym jest reklama; w nawiasie podkategorie):");
+  out.push("**Topics** (what the ad is about; subcategories in brackets):");
   out.push("");
   for (const t of data.topics) out.push(`- \`${t.id}\`: ${cell(t.label ?? t.id)}${t.sub.length ? ` (${t.sub.join(", ")})` : ""}`);
   out.push("");
-  out.push("**Haczyki** (forma przekazu, niezależna od tematu):");
+  out.push("**Hooks** (form of the message, independent of the topic):");
   out.push("");
   for (const h of data.hooks) out.push(`- \`${h.id}\`: ${cell(h.label ?? h.id)}`);
   out.push("");
-  out.push("## Bez opisu");
+  out.push("## No description");
   out.push("");
-  if (data.undescribed.length === 0) out.push("Wszystko w rejestrach ma polską nazwę i opis.");
+  if (data.undescribed.length === 0) out.push("Everything in the registries has a name and a description.");
   else for (const u of data.undescribed) out.push(`- ${u}`);
   out.push("");
-  out.push("## 5. Podsumowanie");
+  out.push("## 5. Summary");
   out.push("");
-  out.push("| Sekcja | Liczba |");
+  out.push("| Section | Count |");
   out.push("|---|---|");
-  out.push(`| Wyróżnione ślady (sekcja na początku) | ${data.highlights.length} |`);
-  out.push(`| Ślady łączące (typy) | ${data.pivots.length} (kampania: ${data.pivots.filter((p) => p.level === "kampania").length}, grupa: ${data.pivots.filter((p) => p.level === "grupa").length}, tylko z innym śladem: ${data.pivots.filter((p) => p.level === "tylko z innym śladem").length}) |`);
-  out.push(`| Cechy materiału łączące albo pomagające | ${data.linkingFeatures.length} |`);
-  out.push(`| Atrybuty materiału i kampanii | ${data.attributes.length} |`);
-  out.push(`| Techniki manipulacji | ${data.techniques.length} |`);
-  out.push(`| Tematy narracji | ${data.topics.length} |`);
-  out.push(`| Haczyki narracji | ${data.hooks.length} |`);
-  out.push(`| Bez opisu | ${data.undescribed.length} |`);
+  out.push(`| Highlighted traces (section at the start) | ${data.highlights.length} |`);
+  out.push(`| Linking traces (types) | ${data.pivots.length} (campaign: ${data.pivots.filter((p) => p.level === "campaign").length}, group: ${data.pivots.filter((p) => p.level === "group").length}, only with another trace: ${data.pivots.filter((p) => p.level === "only with another trace").length}) |`);
+  out.push(`| Sample features that link or help | ${data.linkingFeatures.length} |`);
+  out.push(`| Attributes of the sample and the campaign | ${data.attributes.length} |`);
+  out.push(`| Manipulation techniques | ${data.techniques.length} |`);
+  out.push(`| Narrative topics | ${data.topics.length} |`);
+  out.push(`| Narrative hooks | ${data.hooks.length} |`);
+  out.push(`| No description | ${data.undescribed.length} |`);
   out.push("");
-  out.push(`Wygenerowano: ${date}, commit \`${commit}\`.`);
+  out.push(`Generated: ${date}, commit \`${commit}\`.`);
   out.push("");
   return out.join("\n");
 }

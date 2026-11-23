@@ -282,7 +282,7 @@ These are two ways of checking that the tool does not glue campaigns together on
 
 **Numbers from the run on the 25 cases (28 records, 14 campaigns, 3 groups of similar campaigns; by rule):** 52 near-miss pairs, of which `below-min-score` 37, `kit-only` 9, `account-conflict` 4, `family-only-kind` 1, `discounted-only` 1; other rules 0. Pairs that our labels put in one campaign but the method split apart (candidates for a false split): 0. This agrees with the pair recall of 1.0 in the evaluation of this run. For `kit-only` and `account-conflict` the method worked as intended (a shared page kit or platform account, not an operator). The `below-min-score` pairs have scores from 0.06 to 0.12 (threshold 0.15) and are linked mainly by weak traces (operator network, page technique, tracking-link layout); for review it is worth taking the highest scores under this rule.
 
-**Where to see it.** `near-misses.json` next to `campaigns.json` (written by every `build-graph`), the “Deliberately not linked” tab in the browser, and the `nearMisses` field and the `blisko_bez_polaczenia` column in the result of analyzing a new sample. Format: `docs/TECHNICAL.md`, §5.6.
+**Where to see it.** `near-misses.json` next to `campaigns.json` (written by every `build-graph`), the “Deliberately not linked” tab in the browser, and the `nearMisses` field and the `near_misses` column in the result of analyzing a new sample. Format: `docs/TECHNICAL.md`, §5.6.
 
 The near-miss pairs from this run went into the set of hard negatives from real samples (section 7.2), where we check that the tool does not glue them into a campaign.
 

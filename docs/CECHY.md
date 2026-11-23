@@ -1,368 +1,368 @@
-# Katalog cech
+# Feature catalog
 
-Plik generowany: `bun run features:catalog`. Nie edytuj ręcznie.
+Generated file: `bun run features:catalog`. Do not edit by hand.
 
-Łączenie działa tak: każdy ślad ma wagę (typ × lista × częstość występowania), a materiały trafiają do jednej kampanii, gdy łączy je mocny ślad albo co najmniej jeden rodzaj śladu z poziomu „kampania” (wynik pary po zniżkach od 0.15); ślady „tylko z innym śladem” nie łączą samodzielnie, chyba że po zniżkach i rzadkości zostają mocne (od 0.7, np. backend formularza z identyfikatorem klienta), a ślady „grupy” łączą tylko podobne kampanie (szczegóły i progi w [METODYKA.md](METODYKA.md)).
+Linking works like this: every trace has a weight (type × list × frequency), and samples go into one campaign when a strong trace links them or at least one kind of trace of the “campaign” level does (pair score after discounts from 0.15); “only with another trace” traces do not link on their own unless they stay strong after discounts and rarity (from 0.7, e.g. a form backend with a client ID), and “group” traces link only similar campaigns (details and thresholds in [METODYKA.md](METODYKA.md)).
 
-## Ślady, których nie dają typowe narzędzia
+## Traces that typical tools do not give
 
-Typowe narzędzia OSINT łączą strony po domenie, adresie IP, rekordach WHOIS i DNS, certyfikacie i hashu obrazu. Te ślady też zbieramy (sekcja 1), a poniżej są te, które odczytujemy sami z kodu strony, linków, identyfikatorów i nagrań. „Na próbce” podaje tylko liczby z przebiegu na 28 materiałach próbki organizatora (commit `b3ee946`), bez wartości; para to dwa materiały połączone tą przesłanką. W tabeli sekcji 1 te typy mają ★.
+Typical OSINT tools link pages by domain, IP address, WHOIS and DNS records, certificate and image hash. We collect those traces too (section 1); below are the ones we read ourselves from the code of the page, links, identifiers and recordings. “On the sample” gives only counts from the run on 28 samples of the organiser's set (commit `b3ee946`), without values; a pair is two samples linked by that evidence. In the table of section 1 these types have ★.
 
-### Rekord panelu platformy stron
+### Record of the page-builder panel
 
 `path_id` · `platform_account` · `platform_campaign` · `cloaker_account` · `launcher_account` · `platformSourceIds` · `landingName` · `trafficSource`
 
-- **Jak odczytujemy:** Kreator stron zapisuje w kodzie strony swój rekord konfiguracji. Czytamy z niego identyfikator właściciela konta, nazwę kampanii nadaną przez kupującego ruch, nazwę strony w panelu, źródło ruchu, numer klienta cloakera (cl_sid) i konto, z którego uruchomiono reklamy (launcher). Kreator nadaje też losowy identyfikator, który wraca w ścieżkach plików strony.
-- **Czego nie widzą typowe narzędzia:** Domeny i adresy IP zmieniają się co kilka dni, a konto w panelu zostaje. WHOIS, DNS ani skan strony nie pokazują, kto w panelu kupił ruch i przez który cloaker go puścił.
-- **Na próbce:** Konto platformy odczytane w 14 z 28 materiałów. Mocna przesłanka w parach: identyfikator w ścieżkach plików w 28 parach, konto w 30, kampania w panelu w 17. Klient cloakera i konto launchera wystąpiły po razie, bez pary w próbce, więc ich łączenie sprawdza test.
+- **How we read it:** The page builder writes its configuration record into the code of the page. From it we read the account owner's ID, the campaign name given by the traffic buyer, the page name in the panel, the traffic source, the cloaker customer number (cl_sid) and the account the ads were launched from (launcher). The builder also assigns a random ID that comes back in the file paths of the page.
+- **What typical tools miss:** Domains and IP addresses change every few days, but the panel account stays. Neither WHOIS, DNS nor a page scan shows who bought the traffic in the panel and which cloaker it went through.
+- **On the sample:** Platform account read in 14 of 28 samples. Strong evidence in pairs: the ID in file paths in 28 pairs, the account in 30, the panel campaign in 17. The cloaker customer and the launcher account occurred once each, without a pair in the sample, so a test checks their linking.
 
-### Token dostępu Mety zostawiony w kodzie strony
+### Meta access token left in the code of the page
 
 `meta_token`
 
-- **Jak odczytujemy:** Operatorzy wklejają do strony token konta reklamowego Mety, którym wysyłają zdarzenia konwersji: w adresie (token=), w rekordzie platformy stron (fb_capi_token) albo w skrypcie. Zapisujemy tylko początek skrótu sha256 (12 znaków), nigdy sam token.
-- **Czego nie widzą typowe narzędzia:** Skanery stron widzą piksel Mety, a numer piksela bywa zmieniany i współdzielony. Token należy do jednego konta reklamowego i trafia na stronę przez nieuwagę operatora.
-- **Na próbce:** 6 różnych tokenów, mocna przesłanka w 13 parach.
+- **How we read it:** Operators paste into the page the token of the Meta ad account they send conversion events with: in the URL (token=), in the page-builder record (fb_capi_token) or in a script. We keep only the start of its sha256 hash (12 characters), never the token itself.
+- **What typical tools miss:** Page scanners see the Meta pixel, and the pixel number gets changed and shared. The token belongs to one ad account and ends up on the page through the operator's carelessness.
+- **On the sample:** 6 different tokens, strong evidence in 13 pairs.
 
-### Serwer kliknięć odczytany z identyfikatora kliknięcia
+### Click server read from the click ID
 
 `click_server` · `clickTime` · `clickCounter`
 
-- **Jak odczytujemy:** Identyfikator kliknięcia w formacie xid (12 bajtów) zawiera czas, identyfikator maszyny, numer procesu i licznik trackera. Dekodujemy go: ta sama maszyna i ten sam proces to ten sam serwer przekierowań, czas to chwila kliknięcia, a licznik rośnie z każdym identyfikatorem wydanym przez ten proces.
-- **Czego nie widzą typowe narzędzia:** Tracker stoi za przekierowaniem i nie zostawia swojej domeny na stronie docelowej. Identyfikator kliknięcia wygląda jak losowy ciąg, więc narzędzia go pomijają.
-- **Na próbce:** Czas i licznik odczytane w 3 materiałach. Jedna para: materiał z pierwszej paczki od organizatora połączył się z materiałem z drugiej paczki przez ten sam serwer trackera.
+- **How we read it:** A click ID in the xid format (12 bytes) holds the time, the machine ID, the process number and the counter of the tracker. We decode it: the same machine and the same process mean the same redirect server, the time is the moment of the click, and the counter grows with every ID that process issues.
+- **What typical tools miss:** The tracker sits behind the redirect and leaves no domain of its own on the landing page. The click ID looks like a random string, so tools skip it.
+- **On the sample:** Time and counter read in 3 samples. One pair: a sample from the organiser's first batch linked to a sample from the second batch through the same tracker server.
 
-### Numer reklamy z linku i przybliżona data jej utworzenia
+### Ad number from the link and the approximate date the ad was created
 
 `meta_ad` · `metaAdId` · `metaAppId` · `adCreatedApprox`
 
-- **Jak odczytujemy:** Nowy format parametru fbclid w linku niesie identyfikator klikniętej reklamy i aplikacji. Identyfikatory Mety rosną z czasem, więc z innych reklam o znanej dacie szacujemy, kiedy utworzono daną reklamę.
-- **Czego nie widzą typowe narzędzia:** Biblioteka reklam szuka po własnym numerze, a link daje numer reklamy z panelu reklamodawcy. Bez dekodowania fbclid ten numer ginie w długim parametrze.
-- **Na próbce:** Numer reklamy odczytany w 8 z 28 materiałów. Każdy z nich dotyczył innej reklamy, więc w próbce ślad nie łączył par. Służy do osi czasu i do rozpoznania kolejnej odsłony tej samej reklamy.
+- **How we read it:** The new format of the fbclid parameter in a link carries the ID of the clicked ad and of the app. Meta IDs grow over time, so from other ads with a known date we estimate when a given ad was created.
+- **What typical tools miss:** The ad library searches by its own number, while the link gives the ad number from the advertiser's panel. Without decoding fbclid this number is lost in a long parameter.
+- **On the sample:** Ad number read in 8 of 28 samples. Each concerned a different ad, so in the sample the trace linked no pairs. It serves the timeline and recognising another showing of the same ad.
 
-### Trojan w kradzionym zestawie stron
+### Trojan in a stolen page kit
 
 `c2_host` · `stealerKit`
 
-- **Jak odczytujemy:** Część zestawów stron krąży z dopisanym trojanem. Fałszywa biblioteka (np. lazysizes albo jQuery z darmowego hostingu) sprawdza, czy przeglądarka jest w panelu trackera (/admin, /panel), i wysyła ciasteczka albo dane logowania na obcy serwer. Oznaczamy zestaw i zapisujemy adres serwera C2.
-- **Czego nie widzą typowe narzędzia:** Skaner widzi znaną nazwę biblioteki i nie zagląda do środka. Tu oszuści okradają innych oszustów, a wszystkie kopie zestawu zgłaszają się do jednego serwera, więc jego adres łączy kopie.
-- **Na próbce:** 1 materiał z takim zestawem, bez pary w próbce. Łączenie po serwerze C2 sprawdza test.
+- **How we read it:** Some page kits circulate with a trojan added. A fake library (e.g. lazysizes or jQuery from free hosting) checks whether the browser is in the tracker panel (/admin, /panel) and sends cookies or login data to a foreign server. We flag the kit and record the address of the C2 server.
+- **What typical tools miss:** A scanner sees a known library name and does not look inside. Here fraudsters rob other fraudsters, and all copies of the kit report to one server, so its address links the copies.
+- **On the sample:** 1 sample with such a kit, without a pair in the sample. A test checks linking by the C2 server.
 
-### Odcisk tekstu: komunikaty programisty i zdania szablonu
+### Text fingerprint: developer messages and template sentences
 
 `kit_string` · `template_phrase`
 
-- **Jak odczytujemy:** Ze skryptów strony bierzemy komunikaty programisty (log w konsoli, błąd, ostrzeżenie), często z literówką. Z tekstu strony i podziękowania po wysłaniu formularza bierzemy rzadkie zdania; zdanie z wpadką (powtórzone słowo, mieszane alfabety) waży więcej. Liczy się tylko tekst obecny w kilku domenach, a teksty platform, frameworków i znanych bibliotek są maskowane.
-- **Czego nie widzą typowe narzędzia:** Hash strony zmienia się po każdej podmianie obrazka, ceny czy domeny. Literówka w logu i dziwne zdanie przechodzą z kopii na kopię bez zmian.
-- **Na próbce:** Wspólny komunikat programisty w 4 parach, wspólne zdanie szablonu w 17 parach. Oba ślady łączą tylko razem z innym śladem.
+- **How we read it:** From the scripts of the page we take developer messages (console log, error, warning), often with a typo. From the page text and the thank-you note after the form is sent we take rare sentences; a sentence with a slip (a repeated word, mixed scripts) weighs more. Only text present on several domains counts, and the texts of platforms, frameworks and known libraries are masked.
+- **What typical tools miss:** The page hash changes with every swapped image, price or domain. A typo in a log and an odd sentence pass from copy to copy unchanged.
+- **On the sample:** Shared developer message in 4 pairs, shared template sentence in 17 pairs. Both traces link only together with another trace.
 
-### Fałszywe komentarze i wspólny lejek leadów
+### Fake comments and a shared lead funnel
 
 `comment_block` · `lead_flow`
 
-- **Jak odczytujemy:** Komentarze „czytelników” są wpisane na stałe w kod strony. Zapisujemy zestaw autorów, a pospolite imiona, częste w blokach innych stron, ważą mniej. Z kodu stron jednej platformy bierzemy identyfikator formularza, listę przepływów i klucz zdarzeń lejka leadów.
-- **Czego nie widzą typowe narzędzia:** Blok komentarzy wygląda jak wtyczka serwisu, a lejek zaczyna działać dopiero po wysłaniu formularza. Skan infrastruktury nie widzi żadnego z nich.
-- **Na próbce:** Ten sam blok komentarzy w 15 parach. Wspólny lejek w 1 parze stron z różnych kont i różnych platform reklamowych: wynik to grupa podobnych kampanii z jednym dostawcą leadów.
+- **How we read it:** The “readers’” comments are hard-coded into the page. We record the set of authors, and common first names, frequent in the blocks of other pages, weigh less. From the code of pages of one platform we take the form ID, the list of flows and the event key of the lead funnel.
+- **What typical tools miss:** The comment block looks like a site plugin, and the funnel starts working only after the form is sent. An infrastructure scan sees neither.
+- **On the sample:** The same comment block in 15 pairs. A shared funnel in 1 pair of pages from different accounts and different ad platforms: the result is a group of similar campaigns with one lead supplier.
 
-### Odcisk montażu wideo
+### Video montage fingerprint
 
 `overlay_template` · `reused_footage`
 
-- **Jak odczytujemy:** W klatkach nagrania szukamy rozmytego albo zakrytego paska na dole cudzego filmu i napisów operatora. Zapisujemy rodzaj, kolor, położenie i rozmiar względem kadru, zaokrąglone do 5%. W rogach kadru czytamy znak studia albo stacji, z której wzięto nagranie; znaki edytorów i platform (CapCut, TikTok i inne) pomijamy.
-- **Czego nie widzą typowe narzędzia:** Porównanie obrazów i hash klatek widzą inny film, bo operator za każdym razem bierze inne nagranie. Układ napisów i znak źródła zostają te same.
-- **Na próbce:** Szablon napisów w 1 materiale, 2 różne znaki źródła; w próbce bez pary. Łączenie sprawdza test.
+- **How we read it:** In the frames of the recording we look for a blurred or covered bar at the bottom of someone else's video and for the operator's captions. We record the kind, colour, position and size relative to the frame, rounded to 5%. In the corners of the frame we read the logo of the studio or channel the footage was taken from; logos of editors and platforms (CapCut, TikTok and others) are skipped.
+- **What typical tools miss:** Image comparison and frame hashes see a different video, because the operator takes different footage each time. The caption layout and the source logo stay the same.
+- **On the sample:** Caption template in 1 sample, 2 different source logos; no pair in the sample. A test checks the linking.
 
-### Głos osoby publicznej z zamkniętej galerii
+### Voice of a public figure from a closed gallery
 
 `similar_voice` · `personas` · `personaCategories`
 
-- **Jak odczytujemy:** Ścieżkę dźwiękową tniemy na okna po 4 s, odrzucamy ciszę i samą muzykę, liczymy wektor mówcy (ECAPA) i porównujemy go z galerią 10 osób publicznych. Wynik to „głos podobny do X (0,57)” do przeglądu przez człowieka, a persona jest cechą grupy podobnych kampanii. Ten sam wektor łączy dwa nagrania z tym samym głosem.
-- **Czego nie widzą typowe narzędzia:** Detektory fałszywego głosu oceniają, czy nagranie jest sztuczne, a ich błąd na prawdziwych reklamach (EER) wynosi 25–60%. Nam wystarcza odpowiedź, czyj głos udaje nagranie.
-- **Na próbce:** Pomiar na nagraniach spoza próbki (docs/METODYKA.md): ta sama osoba rozpoznana w 70 z 70 nagrań, fałszywe trafienie w 1 z 25 nagrań obcych osób, a 5 z 5 fałszywek z publicznej kompilacji NASK przypisanych właściwej osobie.
+- **How we read it:** We cut the audio track into 4 s windows, drop silence and music alone, compute a speaker vector (ECAPA) and compare it with a gallery of 10 public figures. The result is “voice similar to X (0.57)” for a human to review, and the persona is a feature of a group of similar campaigns. The same vector links two recordings with the same voice.
+- **What typical tools miss:** Fake-voice detectors judge whether a recording is synthetic, and their error on real ads (EER) is 25–60%. We only need to know whose voice the recording imitates.
+- **On the sample:** Measured on recordings outside the sample (docs/METODYKA.md): the same person recognised in 70 of 70 recordings, a false hit in 1 of 25 recordings of other people, and 5 of 5 fakes from the public NASK compilation assigned to the right person.
 
-### Zmyślony ekspert
+### Fictitious expert
 
 `fictional_expert` · `fictionalExperts` · `expertNotInRegister`
 
-- **Jak odczytujemy:** Szukamy tytułu „dr” lub „prof.” z imieniem i nazwiskiem, którego nie ma na liście osób publicznych, w reklamie, na zrzucie, w nagraniu i na stronie. Warianty pisowni scalamy w całym zbiorze. Opcjonalna wtyczka sprawdza nazwisko w rejestrze lekarzy i dodaje etykietę.
-- **Czego nie widzą typowe narzędzia:** Rozpoznawanie osób szuka znanych twarzy i nazwisk. Zmyślony lekarz nie istnieje poza kampanią, więc jego nazwisko łączy jej materiały.
-- **Na próbce:** 4 nazwiska w 2 materiałach, bez pary w próbce. Łączenie sprawdza test.
+- **How we read it:** We look for the title “dr” or “prof.” with a full name that is not on the list of public figures, in the ad, the screenshot, the recording and on the page. Spelling variants are merged across the whole dataset. An optional plugin checks the name in the register of doctors and adds a label.
+- **What typical tools miss:** People recognition looks for known faces and names. A fictitious doctor does not exist outside the campaign, so his name links its samples.
+- **On the sample:** 4 names in 2 samples, without a pair in the sample. A test checks the linking.
 
-### Ślady w adresach i w kodzie: udawany adres, zegar Discorda, poprzednia wersja
+### Traces in addresses and code: a fake address, the Discord clock, an earlier version
 
 `idnConfusable` · `discordSnowflakes` · `foreignPersona` · `residue`
 
-- **Jak odczytujemy:** Oznaczamy adres, w którym znak udaje „/”, „.” lub „-” albo miesza alfabety. Z górnych bitów identyfikatora serwera lub konta Discord odczytujemy datę jego utworzenia. Persona z innego kraju w nazwie reklamy przy polskiej wersji i wykomentowany stary akapit w kodzie podpowiadają, że zestaw przeniesiono z innego rynku albo z wcześniejszej kampanii.
-- **Czego nie widzą typowe narzędzia:** To cechy treści i identyfikatorów. Nie ma ich w rekordach domeny, w DNS ani w skanie infrastruktury.
-- **Na próbce:** Wykomentowana stara wersja w 15 z 28 materiałów, persona z innego kraju w 1. Adresu udającego inny adres ani linku do Discorda w próbce nie było; działanie sprawdzają testy.
+- **How we read it:** We flag an address in which a character imitates “/”, “.” or “-” or mixes scripts. From the upper bits of a Discord server or account ID we read the date it was created. A persona from another country in the ad name of a Polish version and an old paragraph commented out in the code suggest that the kit was moved from another market or from an earlier campaign.
+- **What typical tools miss:** These are features of the content and the identifiers. They are not in the domain records, in DNS or in an infrastructure scan.
+- **On the sample:** An old version commented out in 15 of 28 samples, a persona from another country in 1. The sample had no address imitating another and no Discord link; tests check how it works.
 
-## 1. Ślady łączące
+## 1. Linking traces
 
-Próg mocnego śladu: 0.7; minimalny wynik krawędzi: 0.15; wspólny ślad występujący w więcej niż 400 materiałach jest pomijany (maxPivotDf). Poziom: **kampania** (może łączyć w jedną kampanię), **grupa** (tylko podobne kampanie), **tylko z innym śladem** (wspiera, nie łączy samodzielnie).
+Strong trace threshold: 0.7; minimum edge score: 0.15; a shared trace found in more than 400 samples is skipped (maxPivotDf). Level: **campaign** (can link into one campaign), **group** (similar campaigns only), **only with another trace** (supports, does not link on its own).
 
-★ oznacza ślad opisany szerzej w sekcji [Ślady, których nie dają typowe narzędzia](#ślady-których-nie-dają-typowe-narzędzia).
+★ marks a trace described in more detail in the section [Traces that typical tools do not give](#traces-that-typical-tools-do-not-give).
 
-| Typ | Nazwa | Waga | Poziom | Skąd | Po co | Przykład |
+| Type | Name | Weight | Level | Source | Why | Example |
 |---|---|---|---|---|---|---|
-| `url` | Adres strony | 1 | kampania | Pełny adres strony, do której prowadzi reklama. | Ten sam adres w dwóch reklamach to niemal pewnie ten sam operator. | przyklad.test/start |
-| `host` | Host | 0.95 | kampania | Nazwa serwera z adresu strony, razem z subdomeną. | Ta sama subdomena to zwykle ta sama strona i ten sam właściciel. | oferta.przyklad.test |
-| `domain` | Domena | 0.95 | kampania | Adres strony, np. przyklad.test. Oszuści często rejestrują nowe domeny na kilka dni. | Wspólna domena łączy materiały samodzielnie, chyba że to duży serwis używany przez wielu. | przyklad.test |
-| `ip` | Adres IP | 0.6 | kampania | Numer serwera, na którym działa strona. | Ten sam mały serwer może wskazywać jednego właściciela; wspólne adresy dużych firm hostingowych pomijamy. | 192.0.2.10 |
-| `asn` | Sieć (ASN) | 0.05 | kampania | Numer sieci operatora, w której stoi serwer. | W jednej sieci są tysiące niezależnych stron, więc to słaby ślad. | AS64500 |
-| `nameserver` | Serwery nazw (NS) | 0.35 | kampania | Serwery, które wskazują, gdzie działa domena. | Ta sama nietypowa para serwerów może łączyć domeny jednego właściciela. | ns1.dns-przyklad.test |
-| `mx` | Serwer poczty (MX) | 0.4 | tylko z innym śladem | Serwer, który odbiera pocztę domeny. | Własny serwer poczty to ślad operatora; wspólne usługi (Google, Microsoft, Zoho, poczta rejestratora) pomijamy, a ślad nigdy nie łączy kampanii sam. | mail.poczta-przyklad.test |
-| `registrar` | Rejestrator | 0.05 | kampania | Firma, w której kupiono domenę. | Popularny rejestrator mówi niewiele, rejestracje seriami mówią więcej. | Rejestrator Przykładowy |
-| `cert` | Certyfikat HTTPS | 0.8 | kampania | Plik potrzebny stronie do działania przez https. Każdy certyfikat trafia do publicznego rejestru. | Jeden certyfikat na kilka domen zwykle wystawia jeden właściciel; darmowe urzędy certyfikacji pomijamy. | certyfikat dla a.test i b.test |
-| `tracker` | Tracker, piksel | 1 | kampania | Kod firmy reklamowej albo analitycznej z identyfikatorem konta. | Ten sam identyfikator na dwóch stronach zwykle oznacza tego samego właściciela. | Meta Pixel 000000000000001 |
-| `favicon` | Favicon | 0.5 | tylko z innym śladem | Mała ikona strony w karcie przeglądarki. | Ta sama ikona wskazuje ten sam zestaw stron; sama nie wystarcza. | ikona w kształcie logo |
-| `imagehash` | Odcisk obrazu | 0.65 | tylko z innym śladem | Skrót obrazu reklamy, odporny na drobne zmiany. | Ta sama kreacja w dwóch reklamach to ta sama reklama albo jej wariant. | ta sama grafika z innym podpisem |
-| `wallet` | Portfel kryptowalut | 1 | kampania | Adres portfela, na który strona każe wpłacać. | Ten sam portfel to te same pieniądze, więc ten sam operator. | adres portfela TRON |
-| `email` | E-mail | 0.9 | kampania | Adres e-mail podany na stronie. | Ten sam kontakt na dwóch stronach to zwykle ten sam operator. | kontakt@przyklad.test |
-| `phone` | Telefon | 0.9 | kampania | Numer telefonu podany na stronie. | Ten sam numer na dwóch stronach to zwykle ten sam operator. | +48 000 000 000 |
-| `telegram` | Telegram | 0.9 | kampania | Kanał albo konto Telegram podane na stronie. | Ten sam kanał kontaktu to zwykle ten sam operator. | t.me/kanal_przyklad |
-| `advertiser` | Reklamodawca | 0.6 | kampania | Nazwa profilu, który opublikował reklamę. Cecha materiału: Reklamodawca. | Ten sam profil to to samo konto reklamowe; nazwy bywają jednak ogólne i powtarzalne. | Wiadomości Dnia Demo |
-| `endpoint` | Backend formularza | 0.95 | tylko z innym śladem | Adres, na który strona wysyła dane z formularza. | Wspólny backend na różnych domenach to mocny ślad; publiczne serwisy formularzy pomijamy. | zbieracz.test/api/zapis |
-| `hidden_fields` | Ukryte pola formularza | 0.6 | tylko z innym śladem | Zestaw nazw niewidocznych pól w formularzu strony. | Ten sam zestaw wskazuje ten sam szablon strony; sam nie wystarcza. | lp_id, offer_hash |
-| `asset` | Plik JS/CSS | 0.55 | tylko z innym śladem | Własny plik skryptu albo stylów strony. | Ten sam nietypowy plik wskazuje ten sam zestaw stron; popularne biblioteki pomijamy. | formularz-lead.9f8e.js |
-| `comment` | Komentarz w kodzie | 0.6 | tylko z innym śladem | Notatka programisty zostawiona w kodzie strony. | Ten sam nietypowy komentarz wskazuje ten sam szablon; standardowe komentarze pomijamy. | „wstaw formularz po bloku telefonu” |
-| `domain_pattern` | Wzorzec nazwy domeny | 0.6 | kampania | Powtarzalny schemat nazw domen, np. zwrot<liczba>-<słowo>.test. | Domeny z jednego schematu zwykle rejestruje jeden operator seriami. | zwrot12-abc.test, zwrot37-xyz.test |
-| `cname_target` | Przekierowanie domeny (CNAME) | 0.65 | kampania | Wpis, który kieruje domenę na inny serwer. | Wspólny, nietypowy cel przekierowania wskazuje wspólną infrastrukturę; duże sieci CDN pomijamy. | ruch.przyklad.test |
-| `campaign_param` | Parametr kampanii | 0.8 | kampania | Znacznik kampanii dopisany do linku reklamy (np. utm_campaign). | Ta sama nietypowa wartość to zwykle ta sama kampania reklamowa; ogólne wartości pomijamy. | utm_campaign=lato_07 |
-| `persona` | Persona | 0.1 | grupa | Osoba, pod którą podszywa się reklama. | Ta sama osoba pojawia się w wielu niezależnych kampaniach, dlatego sama nie łączy materiałów. | Adam Testowy |
-| `path_id` | Identyfikator konta w ścieżkach ★ | 0.85 | kampania | Losowy identyfikator w adresach plików strony, nadany przez kreator stron. | Ten sam identyfikator to to samo konto w kreatorze stron. | /a1b2c3d4-…/style.css |
-| `param_schema` | Szablon linku śledzącego | 0.12 | tylko z innym śladem | Nazwy parametrów linku i rodzaj ich wartości. | Wskazuje system kierowania ruchem, z którego korzysta wielu klientów: ślad pomocniczy. | sub1, sub2, clickid |
-| `platform_account` | Konto na platformie stron ★ | 0.9 | kampania | Identyfikator właściciela w narzędziu do budowy stron. Cecha materiału: Konto na platformie stron. | To samo konto to ten sam operator. Różne konta tej samej platformy nie trafiają do jednej kampanii bez silnej przesłanki. | konto 1a2b… |
-| `platform_campaign` | Kampania na platformie stron ★ | 0.95 | kampania | Kampania w panelu platformy stron, nazwana przez kupującego ruch. | Te same strony puszcza ta sama kampania: silny ślad. | kampania „lato-pl” |
-| `page_template` | Szablon strony na platformie | 0.35 | tylko z innym śladem | Gotowy szablon, z którego zbudowano stronę na platformie. | Ten sam szablon u różnych kont oznacza podobne kampanie, a nie jedną. | szablon „artykuł-wywiad” |
-| `click_server` | Serwer kliknięć ★ | 0.6 | kampania | Serwer, który przekierował kliknięcie w reklamę (zapisany w identyfikatorze kliknięcia). | Ten sam serwer kieruje ruch do obu stron: wspólna infrastruktura, ślad średni. | serwer 0a1b w identyfikatorze kliknięcia |
-| `meta_ad` | Identyfikator reklamy ★ | 0.95 | kampania | Numer klikniętej reklamy zapisany w linku. | Ten sam numer to ta sama reklama. | reklama 120200000000000 |
-| `ad_payer` | Płatnik reklamy | 0.65 | tylko z innym śladem | Płatnik zadeklarowany platformie reklamowej (biblioteka reklam). | Ten sam płatnik to jedno konto płacące; ogólne nazwy łączą słabiej. | „Firma Przykład” |
-| `comment_block` | Blok fałszywych komentarzy ★ | 0.45 | tylko z innym śladem | Zestaw zmyślonych komentarzy wpisany na stałe w stronę. | Ten sam zestaw autorów wskazuje ten sam szablon strony; sam nie wystarcza. | te same 8 komentarzy pod artykułem |
-| `technique` | Technika strony | 0.2 | grupa | Sposób działania strony, np. fałszywy sklep z aplikacjami, pułapka „wstecz”, licznik presji, blokada narzędzi deweloperskich, kit formularza sieci CPA (kit:formFb). | Sposób działania łączy podobne kampanie, nie wskazuje operatora. | pułapka „wstecz” |
-| `crm_key` | Klucz API CRM | 0.95 | kampania | Tajny klucz konta w CRM albo sieci afiliacyjnej, z którym formularz wysyła zgłoszenie. Pokazujemy tylko skrót (początek, koniec i sha256), nigdy cały klucz. | Jeden klucz należy do jednego konta odbiorcy leadów: dwie strony z tym samym kluczem wysyłają dane do tego samego kupca. Silny ślad, jak wspólny backend formularza. | klucz Zx81…yB9n |
-| `template_phrase` | Zdanie szablonu ★ | 0.45 | tylko z innym śladem | Rzadkie zdanie z tekstu strony albo z podziękowania po wysłaniu formularza, takie samo na stronach w różnych domenach. Zdanie z wpadką (powtórzone słowa, mieszane alfabety) waży więcej. | Wskazuje ten sam szablon strony; ten sam szablon kupuje wielu operatorów, więc do kampanii potrzebny drugi rodzaj dowodu. | „nasz opiekun zadzwoni do ciebie i przedstawi platformę” |
-| `profit_claim` | Obiecywany zysk | 0.2 | grupa | Kwota i okres obiecywanego zarobku z tekstu, zrzutu albo nagrania. | Ta sama obietnica pochodzi z tego samego scenariusza oszustwa, który kopiuje wielu operatorów: łączy tylko podobne kampanie w grupę. | 3000 zł w ciągu dnia |
-| `kit_string` | Komunikat ze skryptu zestawu ★ | 0.5 | tylko z innym śladem | Komunikat programisty zapisany w skrypcie strony (log w konsoli, błąd, ostrzeżenie), często z literówką, taki sam na stronach w różnych domenach. Skrypty platformy stron (SDK), paczki frameworków i znane biblioteki są pomijane. | Wskazuje to samo narzędzie sieci, jak skrót pliku; narzędzia używa wielu operatorów, więc do kampanii potrzebny drugi rodzaj dowodu. Liczy się przy co najmniej dwóch wspólnych komunikatach albo jednym z pięciu słów. | „moduł testowy: start!” |
-| `shared_doc` | Dokument, formularz lub czat udostępniony linkiem | 0.9 | kampania | Adres dokumentu, arkusza, formularza (Google, Notion, Microsoft Forms, Typeform, Jotform) albo udostępnionej rozmowy z modelem językowym, podany na stronie, w reklamie, na zrzucie albo w ruchu strony. | Taki zasób należy do jednego konta, więc ten sam identyfikator w dwóch materiałach wskazuje jednego operatora. Rozmowa z czatem AI bywa wklejonym planem kampanii. | formularz Google z tym samym identyfikatorem na dwóch stronach |
-| `onion` | Adres .onion | 0.9 | kampania | Adres ukrytej usługi w sieci Tor (wersja 3, 56 znaków). | Ten sam adres to ten sam zasób operatora; adresów wersji 2 nie liczymy, bo wygasły. | 56 znaków i .onion |
-| `messenger_invite` | Zaproszenie lub konto komunikatora | 0.9 | kampania | Zaproszenie na Discorda, konto albo grupa Signal, Viber lub Line podane na stronie, w reklamie albo na zrzucie. | To samo zaproszenie lub konto to zwykle ten sam operator (jak kanał Telegram). | discord.gg/kodprzyklad |
-| `c2_host` | Serwer C2 trojana w zestawie strony ★ | 0.95 | kampania | Adres serwera, do którego skrypt skopiowanego zestawu strony (np. fałszywa biblioteka lazysizes) wysyła ciasteczka lub dane logowania z fałszywego panelu trackera. | Wszystkie kopie tego samego pobranego zestawu zgłaszają się do tego samego serwera, więc wspólny adres wskazuje jednego operatora zestawu. | c2.przyklad.test |
-| `fictional_expert` | Zmyślony ekspert ★ | 0.75 | kampania | Tytuł „dr” lub „prof.” z imieniem i nazwiskiem, którego nie ma na liście osób publicznych (np. „dr Jan Testowy”), użyty na stronie, w reklamie lub na zrzucie jako autorytet. Cecha materiału: Zmyślony lekarz (prawdopodobnie AI). | Zmyśloną postać wymyśla jeden operator, więc to samo imię i nazwisko (także z literówką) na różnych domenach wskazuje jednego autora. Imię często powtarzane w zbiorze traci wagę. | dr Jan Testowy i dr Jan Testowyy |
-| `lead_flow` | Lejek leadów platformy stron ★ | 0.5 | tylko z innym śladem | Ten sam formularz, lista przepływów albo klucz zdarzeń zapisane w kodzie stron z jednej platformy. | Strony korzystają z jednego lejka leadów: ta sama sieć lub oferta, niekoniecznie jeden kupujący. | formularz 7c3e91a4… |
-| `overlay_template` | Szablon podmienionych napisów ★ | 0.45 | tylko z innym śladem | Układ montażu: rozmyty lub zakryty pasek na dole cudzego nagrania i własne napisy operatora (rodzaj, kolor, położenie i rozmiar względem kadru). | Ten sam układ w różnych filmach to to samo narzędzie lub ten sam montażysta; sam nie wystarcza, bo narzędzia są wspólne. | biały pas na dolnych 10% kadru |
-| `reused_footage` | Znak źródła cudzego nagrania ★ | 0.45 | tylko z innym śladem | Nazwa lub logo studia albo stacji w rogu kadru: znak oryginału, z którego wzięto nagranie. Znaki edytorów i platform (CapCut, TikTok i inne) są pomijane. | Ten sam znak w reklamach różnych reklamodawców to wspólna biblioteka ukradzionych nagrań; sam nie wystarcza. | „Studio Test” w prawym górnym rogu |
-| `company_id` | Identyfikator firmy na stronie | 0.5 | tylko z innym śladem | Numer firmy podany w stopce, regulaminie albo danych sprzedawcy: NIP, REGON, KRS, unijny numer VAT, numer spółki w Wielkiej Brytanii. | Ten sam numer na dwóch stronach to wspólny szablon albo wspólna ręka, ale dane firmy da się skopiować z cudzej strony, więc ślad sam nie łączy w kampanię. Numer z błędną sumą kontrolną jest zmyślony. | NIP 123-456-32-18 w stopce |
-| `bank_account` | Rachunek bankowy na stronie | 0.8 | tylko z innym śladem | Numer rachunku (IBAN albo polski NRB) podany jako konto do wpłat. | Ten sam rachunek to wspólny odbiorca pieniędzy: silniejszy ślad niż numer firmy, ale rachunki podstawionych osób („słupów”) bywają wspólne dla różnych grup, więc sam nie łączy w kampanię. | PL61 1090 1014 0000 0712 1981 2874 |
-| `postal_address` | Adres siedziby sklepu | 0.5 | tylko z innym śladem | Pełny adres podany na stronie: ulica, numer, kod pocztowy i miasto (zapis ujednolicony: „ul.” i „ulica”, kod z myślnikiem i bez to ten sam adres). | Ten sam adres na dwóch sklepach to wspólny szablon albo ta sama ręka, ale adres łatwo skopiować ze stopki cudzego sklepu, a biura wirtualne wynajmują ten sam adres niezwiązanym firmom, więc ślad sam nie łączy w kampanię. | ul. Przykładowa 1, 00-001 Miasto |
-| `cloaker_account` | Konto klienta cloakera ★ | 0.9 | kampania | Numer klienta (cl_sid) w serwisie ukrywającym stronę przed moderacją, zapisany przez platformę stron razem z domeną cloakera (cl_domain). | Ten sam numer na tej samej domenie cloakera to jedno opłacone konto, czyli ten sam operator. Sam numer albo sama domena nie łączą. | konto 12345 na cloak.example.test |
-| `launcher_account` | Konto narzędzia do uruchamiania reklam ★ | 0.9 | kampania | Identyfikator (launcher) konta, z którego uruchomiono reklamy, zapisany przez platformę stron, gdy różni się od właściciela strony. | To samo konto narzędzia to ten sam kupujący reklamy. Gdy launcher jest równy właścicielowi strony, liczy się raz, jako konto na platformie stron. | konto 1a2b… |
-| `affiliate_account` | Konto w sieci afiliacyjnej | 0.9 | kampania | Identyfikatory partnera sieci afiliacyjnej w linku zamówienia, zakodowanym parametrze referer albo w ukrytych polach formularza: zespół i użytkownik (team_id, user_id), strumień (stream_id) albo oferta (offer_uuid), zawsze razem z adresem sieci. | Strumień i oferta w tej samej sieci należą do jednego partnera, który kupuje ruch. Para zespół i użytkownik to małe liczby, więc sama nie łączy w kampanię: potrzebny drugi ślad. | siec.example.test · team_id=42, user_id=13 |
-| `meta_token` | Token dostępu Meta ★ | 0.95 | kampania | Tajny token dostępu do konta reklamowego Mety, zapisany w adresie (token=), w rekordzie platformy stron (fb_capi_token) albo w kodzie strony. Pokazujemy tylko skrót, nigdy sam token. | Token wydaje się jednemu kontu reklamowemu, więc ten sam token na dwóch stronach to ten sam operator. Tokenu nie sprawdzamy w żadnym wywołaniu do Mety. | skrót sha256 3f9a1c… |
-| `hosting_account` | Konto na hostingu wideo lub kodu | 0.6 | tylko z innym śladem | Biblioteka wideo jednego klienta usługi hostingu (adres hosta wideo z identyfikatorem biblioteki) albo konto GitHuba, z którego jsDelivr serwuje pliki strony (`cdn.jsdelivr.net/gh/<konto>/…`). | Dwie strony z plikami z tej samej biblioteki lub tego samego konta korzystają z jednego konta, w przeciwieństwie do samej domeny CDN, którą dzielą tysiące niezwiązanych stron. Ślad wspiera powiązanie, nie łączy kampanii sam. | biblioteka 0a1b2c3d |
-| `similar_image` | Podobna kreacja (podobieństwo dwóch materiałów) | 0.6 | tylko z innym śladem | Obrazy reklam różnią się tylko drobiazgami. | Ta sama grafika w wariantach to zwykle ta sama kampania. | ta sama grafika z innym napisem |
-| `similar_image_semantic` | Podobny obraz (podobieństwo dwóch materiałów) | 0.45 | tylko z innym śladem | Obrazy przedstawiają to samo, choć nie są kopią. | Wskazuje ten sam szablon kreacji; razem z innymi śladami. | ta sama scena w innym kadrze |
-| `similar_text` | Podobny tekst (podobieństwo dwóch materiałów) | 0.5 | tylko z innym śladem | Teksty reklam są do siebie bardzo podobne. | Ten sam tekst w wielu reklamach to często ta sama kampania albo ta sama narracja. | ten sam tekst z inną kwotą |
-| `similar_dom` | Ten sam układ strony (podobieństwo dwóch materiałów) | 0.45 | tylko z innym śladem | Strony mają taką samą budowę kodu. | Ten sam układ wskazuje ten sam zestaw stron, który bywa sprzedawany wielu operatorom. | ta sama strona-artykuł na innej domenie |
-| `similar_audio` | Ten sam podkład audio (podobieństwo dwóch materiałów) | 0.5 | tylko z innym śladem | Nagrania mają tę samą ścieżkę dźwiękową. | Ten sam podkład to zwykle ta sama kreacja. | ta sama muzyka i lektor |
-| `similar_voice` | Ten sam głos (podobieństwo dwóch materiałów) ★ | 0.4 | tylko z innym śladem | W nagraniach mówi ten sam głos. | Ten sam głos może być podrobiony wiele razy, więc sam nie wystarcza. | ten sam lektor w dwóch nagraniach |
+| `url` | Page URL | 1 | campaign | The full address of the page the ad leads to. | The same URL in two ads almost certainly means the same operator. | example.test/start |
+| `host` | Host | 0.95 | campaign | The server name from the page URL, including the subdomain. | The same subdomain usually means the same site and the same owner. | offer.example.test |
+| `domain` | Domain | 0.95 | campaign | The address of a site, e.g. example.test. Fraudsters often register new domains for just a few days. | A shared domain links samples on its own, unless it is a large service used by many. | example.test |
+| `ip` | IP address | 0.6 | campaign | The number of the server the page runs on. | The same small server may point to one owner; we discount addresses shared by large hosting companies. | 192.0.2.10 |
+| `asn` | Network (ASN) | 0.05 | campaign | The number of the provider network the server sits in. | One network holds thousands of unrelated sites, so this is a weak trace. | AS64500 |
+| `nameserver` | Name servers (NS) | 0.35 | campaign | Servers that tell where a domain runs. | The same unusual pair of servers may link domains of one owner. | ns1.dns-example.test |
+| `mx` | Mail server (MX) | 0.4 | only with another trace | The server that receives a domain's email. | A self-hosted mail server is a trace of the operator; we discount shared services (Google, Microsoft, Zoho, the registrar's mail), and this trace never links a campaign on its own. | mail.mail-example.test |
+| `registrar` | Registrar | 0.05 | campaign | The company the domain was bought from. | A popular registrar says little; registrations in batches say more. | Example Registrar |
+| `cert` | HTTPS certificate | 0.8 | campaign | A file a site needs to work over https. Every certificate goes into a public log. | One certificate for several domains is usually issued to one owner; we discount free certificate authorities. | a certificate for a.test and b.test |
+| `tracker` | Tracker / pixel | 1 | campaign | Code of an advertising or analytics company with an account ID. | The same ID on two pages usually means the same owner. | Meta Pixel 000000000000001 |
+| `favicon` | Favicon | 0.5 | only with another trace | The small site icon in the browser tab. | The same icon points to the same page kit; it is not enough on its own. | an icon shaped like a logo |
+| `imagehash` | Image fingerprint | 0.65 | only with another trace | A hash of the ad image that survives small changes. | The same creative in two ads means the same ad or a variant of it. | the same picture with a different caption |
+| `wallet` | Crypto wallet | 1 | campaign | The wallet address the page asks you to pay into. | The same wallet means the same money, so the same operator. | a TRON wallet address |
+| `email` | Email | 0.9 | campaign | An email address given on the page. | The same contact on two pages usually means the same operator. | contact@example.test |
+| `phone` | Phone | 0.9 | campaign | A phone number given on the page. | The same number on two pages usually means the same operator. | +48 000 000 000 |
+| `telegram` | Telegram | 0.9 | campaign | A Telegram channel or account given on the page. | The same contact channel usually means the same operator. | t.me/example_channel |
+| `advertiser` | Advertiser | 0.6 | campaign | The name of the profile that published the ad. Sample feature: Advertiser. | The same profile means the same ad account; names can be generic and repeated, though. | Daily News Demo |
+| `endpoint` | Form backend | 0.95 | only with another trace | The address the page sends form data to. | A shared backend on different domains is a strong trace; we discount public form services. | collector.test/api/save |
+| `hidden_fields` | Hidden form fields | 0.6 | only with another trace | The set of names of invisible fields in the page form. | The same set points to the same page template; it is not enough on its own. | lp_id, offer_hash |
+| `asset` | JS/CSS file | 0.55 | only with another trace | The site's own script or style file. | The same unusual file points to the same page kit; we discount popular libraries. | lead-form.9f8e.js |
+| `comment` | Code comment | 0.6 | only with another trace | A developer's note left in the page code. | The same unusual comment points to the same template; we discount standard comments. | “put the form after the phone block” |
+| `domain_pattern` | Domain name pattern | 0.6 | campaign | A repeated naming scheme of domains, e.g. refund<number>-<word>.test. | Domains from one scheme are usually registered in batches by one operator. | refund12-abc.test, refund37-xyz.test |
+| `cname_target` | Domain alias (CNAME) | 0.65 | campaign | A record that points a domain to another server. | A shared, unusual alias target points to shared infrastructure; we discount large CDNs. | traffic.example.test |
+| `campaign_param` | Campaign parameter | 0.8 | campaign | A campaign tag added to the ad link (e.g. utm_campaign). | The same unusual value usually means the same ad campaign; we discount generic values. | utm_campaign=summer_07 |
+| `persona` | Persona | 0.1 | group | The person the ad impersonates. | The same person appears in many unrelated campaigns, so on its own it does not link samples. | Adam Testowy |
+| `path_id` | Account ID in file paths ★ | 0.85 | campaign | A random ID in the addresses of the page files, assigned by the page builder. | The same ID means the same page-builder account. | /a1b2c3d4-…/style.css |
+| `param_schema` | Tracking-link template | 0.12 | only with another trace | The names of the link parameters and the kind of their values. | It points to a traffic-routing system used by many customers: a supporting trace. | sub1, sub2, clickid |
+| `platform_account` | Page-builder account ★ | 0.9 | campaign | The owner ID in a page-building tool. Sample feature: Page-builder account. | The same account means the same operator. Different accounts on the same platform do not go into one campaign without strong evidence. | account 1a2b… |
+| `platform_campaign` | Page-builder campaign ★ | 0.95 | campaign | A campaign in the page builder's panel, named by the traffic buyer. | The same pages are run by the same campaign: a strong trace. | campaign “summer-pl” |
+| `page_template` | Page template on the platform | 0.35 | only with another trace | A ready-made template the page was built from on the platform. | The same template used by different accounts means similar campaigns, not one. | template “article-interview” |
+| `click_server` | Click server ★ | 0.6 | campaign | The server that redirected the click on the ad (recorded in the click ID). | The same server routes traffic to both pages: shared infrastructure, a medium trace. | server 0a1b in the click ID |
+| `meta_ad` | Ad ID ★ | 0.95 | campaign | The number of the clicked ad, recorded in the link. | The same number means the same ad. | ad 120200000000000 |
+| `ad_payer` | Ad payer | 0.65 | only with another trace | The payer declared to the ad platform (ad library). | The same payer means one paying account; generic names link more weakly. | “Example Company” |
+| `comment_block` | Fake comment block ★ | 0.45 | only with another trace | A set of made-up comments hard-coded into the page. | The same set of authors points to the same page template; it is not enough on its own. | the same 8 comments under an article |
+| `technique` | Page technique | 0.2 | group | How the page works, e.g. a fake app store, a “back” trap, a pressure countdown, blocking developer tools, a CPA network form kit (kit:formFb). | The way of working links similar campaigns; it does not point to an operator. | a “back” trap |
+| `crm_key` | CRM API key | 0.95 | campaign | A secret key of a CRM or affiliate network account that the form sends the lead with. We show only a hash (start, end and sha256), never the whole key. | One key belongs to one lead-buyer account: two pages with the same key send data to the same buyer. A strong trace, like a shared form backend. | key Zx81…yB9n |
+| `template_phrase` | Template sentence ★ | 0.45 | only with another trace | A rare sentence from the page text or from the thank-you message after the form is sent, identical on pages on different domains. A sentence with a slip (repeated words, mixed alphabets) weighs more. | It points to the same page template; many operators buy the same template, so a campaign needs a second kind of evidence. | “our advisor will call you and present the platform” |
+| `profit_claim` | Promised profit | 0.2 | group | The amount and period of the promised earnings from the text, a screenshot or a recording. | The same promise comes from the same fraud script, which many operators copy: it only links similar campaigns into a group. | PLN 3000 in a day |
+| `kit_string` | Message from the kit script ★ | 0.5 | only with another trace | A developer message written in the page script (console log, error, warning), often with a typo, identical on pages on different domains. Page-builder scripts (SDK), framework bundles and known libraries are ignored. | It points to the same network tool, like a file hash; many operators use the tool, so a campaign needs a second kind of evidence. It counts with at least two shared messages or one message of at least five words. | “test module: start!” |
+| `shared_doc` | Document, form or chat shared by link | 0.9 | campaign | The address of a document, spreadsheet or form (Google, Notion, Microsoft Forms, Typeform, Jotform) or of a shared conversation with a language model, found on the page, in the ad, in a screenshot or in the page's network traffic. | Such a resource belongs to one account, so the same ID in two samples points to one operator. A shared AI chat is sometimes a pasted campaign plan. | a Google form with the same ID on two pages |
+| `onion` | .onion address | 0.9 | campaign | The address of a hidden service on the Tor network (version 3, 56 characters). | The same address means the same operator resource; we do not count version 2 addresses, because they have expired. | 56 characters and .onion |
+| `messenger_invite` | Messenger invite or account | 0.9 | campaign | A Discord invite, or a Signal, Viber or Line account or group, given on the page, in the ad or in a screenshot. | The same invite or account usually means the same operator (like a Telegram channel). | discord.gg/examplecode |
+| `c2_host` | Trojan C2 server in the page kit ★ | 0.95 | campaign | The address of the server to which a script of a copied page kit (e.g. a fake lazysizes library) sends cookies or login details from a fake tracker panel. | All copies of the same downloaded kit report to the same server, so a shared address points to one operator of the kit. | c2.example.test |
+| `fictional_expert` | Fictitious expert ★ | 0.75 | campaign | A “dr” or “prof.” title with a first and last name that is not on the list of public figures (e.g. “dr Jan Testowy”), used as an authority on the page, in the ad or in a screenshot. Sample feature: Fictitious doctor (probably AI). | A made-up figure is invented by one operator, so the same name (even with a typo) on different domains points to one author. A name repeated often in the data set loses weight. | dr Jan Testowy and dr Jan Testowyy |
+| `lead_flow` | Page-builder lead funnel ★ | 0.5 | only with another trace | The same form, list of flows or event key stored in the code of pages from one platform. | The pages feed one lead funnel: the same network or offer, not necessarily one buyer. | form 7c3e91a4… |
+| `overlay_template` | Replaced-caption template ★ | 0.45 | only with another trace | The editing layout: a blurred or covered bar at the bottom of someone else's footage and the operator's own captions (kind, color, position and size relative to the frame). | The same layout in different videos means the same tool or the same editor; it is not enough on its own, because tools are shared. | a white bar over the bottom 10% of the frame |
+| `reused_footage` | Source mark of reused footage ★ | 0.45 | only with another trace | The name or logo of a studio or TV station in the corner of the frame: the mark of the original the footage was taken from. Marks of editors and platforms (CapCut, TikTok and others) are ignored. | The same mark in ads of different advertisers means a shared library of stolen footage; it is not enough on its own. | “Studio Test” in the top right corner |
+| `company_id` | Company ID on the page | 0.5 | only with another trace | A company number given in the footer, the terms or the seller details: NIP, REGON, KRS (Polish company numbers), an EU VAT number, a UK company number. | The same number on two pages means a shared template or the same hand, but company details can be copied from someone else's site, so the trace does not link a campaign on its own. A number with a wrong checksum is made up. | NIP 123-456-32-18 in the footer |
+| `bank_account` | Bank account on the page | 0.8 | only with another trace | An account number (IBAN or Polish NRB) given as the account to pay into. | The same account means a shared recipient of the money: a stronger trace than a company number, but accounts of front people (“money mules”) are sometimes shared by different groups, so it does not link a campaign on its own. | PL61 1090 1014 0000 0712 1981 2874 |
+| `postal_address` | Shop's registered address | 0.5 | only with another trace | The full address given on the page: street, number, postcode and city (normalized: “ul.” and “ulica”, or a postcode with and without a hyphen, give the same address). | The same address on two shops means a shared template or the same hand, but an address is easy to copy from another shop's footer, and virtual offices rent the same address to unrelated companies, so the trace does not link a campaign on its own. | ul. Example 1, 00-001 Testville |
+| `cloaker_account` | Cloaker customer account ★ | 0.9 | campaign | The customer number (cl_sid) in a service that hides the page from moderation, stored by the page builder together with the cloaker domain (cl_domain). | The same number on the same cloaker domain is one paid account, so the same operator. The number alone or the domain alone does not link. | account 12345 at cloak.example.test |
+| `launcher_account` | Ad launcher account ★ | 0.9 | campaign | The ID (launcher) of the account the ads were launched from, stored by the page builder when it differs from the page owner. | The same launcher account means the same ad buyer. When the launcher equals the page owner, it counts once, as the page-builder account. | account 1a2b… |
+| `affiliate_account` | Affiliate network account | 0.9 | campaign | Partner IDs of an affiliate network in the order link, in an encoded referer parameter or in hidden form fields: team and user (team_id, user_id), stream (stream_id) or offer (offer_uuid), always together with the network's address. | A stream and an offer in the same network belong to one partner who buys traffic. The team and user pair are small numbers, so the pair alone does not link a campaign: a second trace is needed. | network.example.test · team_id=42, user_id=13 |
+| `meta_token` | Meta access token ★ | 0.95 | campaign | A secret access token to a Meta ad account, stored in the URL (token=), in the page-builder record (fb_capi_token) or in the page code. We show only a hash, never the token itself. | A token is issued to one ad account, so the same token on two pages means the same operator. We never use the token in any call to Meta. | sha256 hash 3f9a1c… |
+| `hosting_account` | Video or code hosting account | 0.6 | only with another trace | The video library of one customer of a hosting service (video host address with the library ID) or a GitHub account from which jsDelivr serves the page files (`cdn.jsdelivr.net/gh/<account>/…`). | Two pages with files from the same library or the same account use one account, unlike the CDN domain itself, which thousands of unrelated sites share. The trace supports a link but does not link a campaign on its own. | library 0a1b2c3d |
+| `similar_image` | Similar creative (similarity of two samples) | 0.6 | only with another trace | The ad images differ only in small details. | The same picture in variants usually means the same campaign. | the same picture with a different caption |
+| `similar_image_semantic` | Similar image (similarity of two samples) | 0.45 | only with another trace | The images show the same thing, though one is not a copy of the other. | It points to the same creative template; it counts together with other traces. | the same scene in a different frame |
+| `similar_text` | Similar text (similarity of two samples) | 0.5 | only with another trace | The ad texts are very similar to each other. | The same text in many ads often means the same campaign or the same narrative. | the same text with a different amount |
+| `similar_dom` | Same page layout (similarity of two samples) | 0.45 | only with another trace | The pages have the same code structure. | The same layout points to the same page kit, which is sometimes sold to many operators. | the same article page on another domain |
+| `similar_audio` | Same audio track (similarity of two samples) | 0.5 | only with another trace | The recordings have the same soundtrack. | The same soundtrack usually means the same creative. | the same music and voice-over |
+| `similar_voice` | Same voice (similarity of two samples) ★ | 0.4 | only with another trace | The same voice speaks in the recordings. | The same voice can be faked many times, so it is not enough on its own. | the same narrator in two recordings |
 
-### Cechy materiału, które łączą albo pomagają
+### Sample features that link or help
 
-| Klucz | Nazwa | Rola | Skąd |
+| Key | Name | Role | Source |
 |---|---|---|---|
-| `landingUrl` | Adres strony | łączy | z materiału |
-| `finalUrl` | Adres końcowy (po przekierowaniach) | łączy | z HAR albo zapisu strony |
-| `observedUrls` | Adres z paska przeglądarki | łączy | z OCR zrzutu |
-| `advertiser` | Reklamodawca | pomaga | ze zrzutu albo opisu |
-| `adLibraryIds` | Identyfikator biblioteki reklam | łączy | z OCR zrzutu |
-| `adLibraryAdId` | Identyfikator reklamy w bibliotece | łączy | z rekordu biblioteki |
-| `adAdvertiserId` | Identyfikator reklamodawcy w bibliotece | łączy | z rekordu biblioteki |
-| `companyIds` | Identyfikatory firm i rachunki na stronie | łączy | z tekstu strony, kodu, JSON-LD albo zrzutu (OCR) |
-| `platformCampaignName` | Kampania na platformie stron | łączy | z kodu strony |
-| `platformAccount` | Konto na platformie stron | łączy | z kodu strony |
-| `metaAdId` | Identyfikator reklamy | łączy | z linku (fbclid) |
-| `ocrText` | Tekst ze zrzutu | pomaga | z OCR zrzutu |
-| `videoOcrText` | Napisy w wideo | pomaga | z napisów w wideo (OCR klatek co 2 s) |
-| `asrText` | Transkrypcja nagrania | pomaga | z nagrania (ASR) |
-| `text` | Tekst reklamy | pomaga | z materiału |
-| `dhash` | Odcisk obrazu | łączy | ze zrzutu |
-| `domSimhash` | Odcisk budowy strony | pomaga | z HAR albo zapisu strony |
-| `platformSourceIds` | Identyfikatory źródeł ruchu na platformie | łączy | z linków platformy stron (parametr suuid) |
+| `landingUrl` | Page URL | links | from the sample |
+| `finalUrl` | Final URL (after redirects) | links | from the HAR or saved page |
+| `observedUrls` | URL from the address bar | links | from screenshot OCR |
+| `advertiser` | Advertiser | helps | from the screenshot or description |
+| `adLibraryIds` | Ad library ID | links | from screenshot OCR |
+| `adLibraryAdId` | Ad ID in the library | links | from the library record |
+| `adAdvertiserId` | Advertiser ID in the library | links | from the library record |
+| `companyIds` | Company IDs and bank accounts on the page | links | from the page text, code, JSON-LD or screenshot (OCR) |
+| `platformCampaignName` | Page-builder campaign | links | from the page code |
+| `platformAccount` | Page-builder account | links | from the page code |
+| `metaAdId` | Ad ID | links | from the link (fbclid) |
+| `ocrText` | Text from screenshot | helps | from screenshot OCR |
+| `videoOcrText` | Video captions | helps | from captions in the video (OCR of frames every 2 s) |
+| `asrText` | Recording transcript | helps | from the recording (ASR) |
+| `text` | Ad text | helps | from the sample |
+| `dhash` | Image fingerprint | links | from the screenshot |
+| `domSimhash` | Page-structure fingerprint | helps | from the HAR or saved page |
+| `platformSourceIds` | Traffic source IDs on the platform | links | from page-builder links (suuid parameter) |
 
-## 2. Atrybuty materiału i kampanii
+## 2. Attributes of the sample and the campaign
 
-Opisują materiał, nie łączą go z innymi.
+They describe the sample and do not link it to others.
 
-| Klucz | Nazwa | Skąd |
+| Key | Name | Source |
 |---|---|---|
-| `landingSource` | Skąd adres strony | z materiału |
-| `landingFragment` | Fragment adresu (#…) | z adresu |
-| `inAppBrowser` | Przeglądarka w aplikacji | z OCR zrzutu |
-| `uiView` | Widok na zrzucie | z OCR zrzutu |
-| `advertiserImpersonatesName` | Reklamodawca podszywa się pod osobę | z nazwy reklamodawcy i listy osób (atrybut, nie dowód kampanii) |
-| `profitClaims` | Obiecywany zysk (kwota i okres) | z tekstu reklamy, strony, OCR albo transkrypcji (atrybut; łączy tylko podobne kampanie w grupę) |
-| `fictionalExpert` | Zmyślony lekarz (prawdopodobnie AI) | z tytułu (dr, prof.) i nazwiska spoza listy osób publicznych w reklamie zdrowotnej (atrybut, nie dowód kampanii) |
-| `expertNotInRegister` | Lekarz bez wpisu w rejestrze (prawdopodobnie zmyślony) | z nagranej odpowiedzi rejestru lekarzy (wtyczka opcjonalna, wyłączona domyślnie; etykieta, nie dowód kampanii) |
-| `liveStream` | Fałszywa transmisja na żywo | z metadanych nagrania (yt-dlp: was_live, is_live; atrybut, nie dowód kampanii) |
-| `aiImageMeta` | Obraz wygenerowany przez AI (znacznik w pliku) | z metadanych pliku obrazu: C2PA, IPTC, EXIF albo opis generatora (atrybut; bez metadanych brak wniosku) |
-| `advertiserMismatch` | Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści) | z nazwy reklamodawcy (lokalna firma albo osoba prywatna) i narracji inwestycyjnej (atrybut, nie dowód kampanii) |
-| `displayedDomainMismatch` | Domena pokazana w reklamie różni się od strony docelowej | z OCR zrzutu albo tekstu reklamy i z łańcucha przekierowań (atrybut, nie dowód kampanii) |
-| `displayedBrandDomain` | Pokazana domena należy do znanej marki (bank, portal, sklep) | z listy marek (atrybut) |
-| `clickfix` | Polecenie kopiowane do schowka (ClickFix) | ze skryptu strony: tylko rodzaj i skrót SHA-256, samo polecenie jest ładunkiem złośliwego oprogramowania i nie jest zapisywane (atrybut) |
-| `stealerKit` | Trojan w zestawie strony (kradzież ciasteczek lub haseł z fałszywego panelu trackera) | ze skryptów strony i pobranych bibliotek na darmowych hostingach: sprawdzenie ścieżki /admin lub /panel plus wysyłka ciasteczka lub danych logowania do obcego hosta (atrybut; sam host C2 jest śladem) |
-| `idnConfusable` | Adres udaje inny adres (znak podobny do „/”, „.” lub „-” albo mieszane alfabety) | z adresu strony, przekierowań, paska przeglądarki na zrzucie i linków (atrybut: opisuje, jak adres wygląda dla oka) |
-| `adStartWeekday` | Dzień tygodnia startu reklamy | z daty pierwszej emisji w bibliotece reklam, UTC (atrybut; rozkład w kampanii opisuje rytm operatora) |
-| `discordSnowflakes` | Data utworzenia serwera lub konta Discord (z identyfikatora) | z linków discord.com/channels i discord.com/users: górne bity identyfikatora to czas utworzenia (atrybut: „zegar powstania”) |
-| `onionV2` | Adres .onion wersji 2 (wygasły) | z tekstu strony (atrybut; nie łączy) |
-| `phoneLines` | Rodzaj numeru telefonu | z lokalnych metadanych libphonenumber-js, bez wysyłania numeru do usług (atrybut: numery VoIP bywają jednorazowe, więc waga numeru zależy od jego rzadkości) |
-| `phoneCountryMismatch` | Kraj numeru inny niż rynek reklamy | z numeru i rynku reklamy (atrybut) |
-| `tollFreeOnAlert` | Numer bezpłatny na stronie z fałszywym alarmem | z numeru i techniki strony (atrybut) |
-| `fictionalExperts` | Zmyśleni eksperci (dr, prof. spoza listy osób publicznych) | z tekstu strony, reklamy, zrzutu i nagrania (atrybut; imię i nazwisko jest też śladem) |
-| `narrative` | Narracja i haczyki | z tekstu reklamy, strony, OCR i transkrypcji (atrybut; cecha grupy kampanii, nie dowód) |
-| `localizedUi` | Słownik interfejsu w wielu językach | ze skryptu strony (kody języków; lokalizacja platformy stron, nie ślad tekstu, atrybut) |
-| `residue` | Wykomentowana stara wersja | z komentarzy w kodzie strony (atrybut; ten sam stary akapit na dwóch stronach to ślad wspólnego szablonu, nie dowód) |
-| `foreignSegments` | Ślad innej wersji (wstawka w innym języku) | z tekstu strony, skryptów, komentarzy lub nazw reklamy (atrybut; kampania może działać też w kraju tego języka, to podpowiedź, nie wniosek o autorze) |
-| `foreignPersona` | Persona z innego kraju w nazwie reklamy | z parametrów reklamy (ad_name, adset_name, campaign_name) przy kodzie PL (atrybut) |
-| `typography` | Typografia tekstu | z tekstu reklamy i strony (atrybut; ten sam tekst z inną typografią to inna redakcja szablonu, nie inny właściciel) |
-| `translationArtifacts` | Ślady tłumaczenia | z tekstu strony i napisów (atrybut; mieszane alfabety, kalki, skoki ty/wy, liczebniki słownie; bez wniosków o narodowości) |
-| `languageErrors` | Błędy językowe strony | z tekstu strony (atrybut bez wagi, B-325: akapity w innym języku niż reszta strony albo słowa z mieszanym alfabetem w zdaniu) |
-| `brandStyle` | Styl nazwy marki | z nazwy reklamodawcy lub marki (pseudopolskie złożenie z rdzeniem finansowym, atrybut) |
-| `advertiserNameKind` | Rodzaj nazwy reklamodawcy | z nazwy reklamodawcy (wygenerowana marka, osoba, lokalny biznes; atrybut) |
-| `adPlatform` | Biblioteka reklam | z rekordu biblioteki |
-| `adAdvertiserLegalName` | Nazwa prawna reklamodawcy | z rekordu biblioteki |
-| `adAdvertiserLocation` | Kraj reklamodawcy | z rekordu biblioteki |
-| `adAdvertiserVerified` | Reklamodawca zweryfikowany | z rekordu biblioteki |
-| `adRegions` | Regiony emisji | z rekordu biblioteki |
-| `adFirstShown` | Początek emisji reklamy | z biblioteki reklam |
-| `adLastShown` | Koniec emisji reklamy | z biblioteki reklam |
-| `payerKinds` | Rodzaj płatnika z biblioteki reklam | z nazwy płatnika i beneficjenta (samodeklaracja z DSA, platforma jej nie weryfikuje) |
-| `payerSuspicious` | Podejrzany płatnik reklamy | z nazwy płatnika (zaślepka, bełkot z klawiatury albo imię i nazwisko w obcym alfabecie) |
-| `payerEqualsBeneficiary` | Płatnik równy beneficjentowi | z biblioteki reklam |
-| `companyRegistry` | Rejestry firm (biała lista VAT, KRS) | z rejestrów publicznych dla NIP i KRS ze strony (opcja --company-registry; nazwa, siedziba, status, data wpisu, bez danych osób); niezgodność nazwy lub adresu, wykreślenie, młoda firma i wiek firmy względem domeny to wyjaśnienia, nie dowód kampanii |
-| `legalEntities` | Nazwy podmiotów z formą prawną | z tekstu strony, kodu, JSON-LD albo zrzutu (OCR) |
-| `emailDomainKinds` | Rodzaj domeny adresów e-mail | z adresów e-mail na stronie (darmowa skrzynka, domena sklepu albo inna domena) |
-| `addressCompleteness` | Kompletność adresu na stronie | z tekstu strony i JSON-LD (pełny, samo miasto, skrytka albo brak) |
-| `certIssuer` | Wystawca certyfikatu TLS | z HAR (securityDetails); darmowy certyfikat to tylko kontekst, kłódka nic nie mówi o sprzedawcy |
-| `certMismatch` | Certyfikat wystawiony na inną domenę | z HAR (securityDetails): żadna nazwa certyfikatu nie obejmuje hosta |
-| `certExpired` | Certyfikat wygasły | z HAR (securityDetails): koniec ważności przed datą zapisu strony |
-| `brandInPath` | Znana marka w ścieżce adresu | z adresu strony: marka w ścieżce, a nie w nazwie domeny (typowe dla klonów kurierów i serwisów ogłoszeń) |
-| `hostingOutsideEu` | Hosting poza UE i EOG | z kraju adresu IP (wzbogacenie ASN); strony spoza UE trudniej zdjąć |
-| `tldRare` | Rzadka końcówka domeny | z nazwy domeny (końcówka spoza listy typowych dla sklepów, np. .sbs, .top); słaba wskazówka |
-| `domainLangMismatch` | Nazwa domeny w innym języku niż strona | z nazwy domeny i języka strony; słaba wskazówka |
-| `privacyControllerMismatch` | Administrator danych inny niż sklep | z polityki prywatności: adres administratora na innej domenie niż adresy kontaktowe strony |
-| `registrantHidden` | Dane rejestranta domeny zasłonięte | z RDAP (REDACTED albo usługa prywatności); większość rejestratorów tak robi, więc słaba wskazówka |
-| `contactDomainDead` | Domena e-maila kontaktowego nie odpowiada | z wzbogacenia (tryb z siecią): domena ma rekord MX, a nie odpowiada po HTTP(S) |
-| `phoneAreaMismatch` | Numer stacjonarny niezgodny z miastem adresu | z numeru telefonu i adresu na stronie |
-| `companyIdInvalid` | Identyfikator firmy z błędną sumą kontrolną | z tekstu strony, kodu, JSON-LD albo zrzutu (OCR) |
-| `personas` | Persona | z tekstu, transkrypcji albo OCR |
-| `impersonatedBrand` | Podrabiana marka | z tytułu strony |
-| `landingName` | Nazwa strony w panelu platformy | z kodu strony |
-| `trafficSource` | Źródło ruchu | z kodu strony |
-| `metaAppId` | Identyfikator aplikacji | z linku (fbclid) |
-| `clickTime` | Czas kliknięcia | z identyfikatora kliknięcia |
-| `clickCounter` | Licznik serwera kliknięć | z identyfikatora kliknięcia |
-| `firstSeen` | Pierwsza obserwacja | z materiału |
-| `cyrillic` | Cyrylica w kodzie strony | z kodu strony |
-| `cloakingSuspected` | Podejrzenie cloakingu | z dwóch pobrań strony |
-| `personaCategories` | Rodzaje osób w reklamie | z listy osób publicznych (np. polityk, prezenter, lekarz) dla osób rozpoznanych w materiale |
-| `cloakerInSource` | Cloaker w kodzie strony | z kodu strony albo nazwy źródła ruchu: oznaczenie, że strona działa przez cloaker (atrybut, nie dowód kampanii) |
-| `platformAccountSource` | Skąd wiadomo, które to konto platformy | z kodu strony: konto z adresu najemcy (tenant) albo z owner_uuid (atrybut) |
-| `platformAccountWarning` | Ostrzeżenie o niespójnym koncie platformy | z kodu strony: najemca w adresie różni się od owner_uuid, więc przypisano konto według owner_uuid (atrybut) |
-| `platformTenants` | Najemcy platformy w adresach plików strony | z adresów plików strony (landing-cdn): identyfikatory kont, na których stoi strona |
-| `infrastructure` | Wspólna infrastruktura reklam (opis) | z podsumowania kampanii: domeny, trackery, IP, kontakty i portfele łączące reklamy (tylko opis) |
-| `techniques` | Techniki strony | z kodu i treści strony: lista rozpoznanych technik oszustwa, np. fałszywe komentarze (atrybut, nie dowód kampanii) |
-| `creativeBrand` | Marka rozpoznana na obrazie reklamy | z porównania obrazu reklamy ze wzorcami marek (atrybut, prawdopodobieństwo, nie dowód kampanii) |
-| `domainAgeDays` | Wiek domeny w dniach | z daty rejestracji domeny (RDAP) i daty pierwszej obserwacji materiału; bardzo młoda domena to słaba wskazówka |
-| `certAgeDays` | Wiek pierwszego certyfikatu w dniach | z dziennika certyfikatów (CT) i daty pierwszej obserwacji materiału; świeży certyfikat to słaba wskazówka |
-| `pagePlatforms` | Platformy budowy strony | z kodu strony: rozpoznane platformy i narzędzia (np. aio, binom), na których zbudowano stronę (atrybut, nie dowód kampanii) |
-| `inputExtra` | Dodatkowe kolumny z danych wejściowych | z kolumn pliku wejściowego spoza standardowego mapowania (łączą tylko kolumny wskazane w konfiguracji) |
-| `namingMixedScript` | Nazwa z mieszanych alfabetów | z nazw w panelu platformy: litery łacińskie wymieszane z cyrylicą (słaba wskazówka) |
-| `codeCommentLang` | Język komentarzy w kodzie strony | z komentarzy w kodzie strony: ukraiński albo rosyjski (atrybut, nie dowód kampanii) |
-| `landerSlugStyle` | Styl ścieżki adresu strony | z ścieżki adresu: ciąg spółgłosek albo lista losowych słów (atrybut, nie dowód kampanii) |
-| `advertiserNameStyle` | Styl nazwy reklamodawcy | z nazwy reklamodawcy: losowa „marka” albo zagraniczne imię i nazwisko (atrybut, nie dowód kampanii) |
-| `adCreatedApprox` | Przybliżona data utworzenia reklamy | z identyfikatora reklamy Meta i innych reklam o znanych datach (szacunek, atrybut) |
+| `landingSource` | Where the page URL comes from | from the sample |
+| `landingFragment` | URL fragment (#…) | from the URL |
+| `inAppBrowser` | In-app browser | from screenshot OCR |
+| `uiView` | View in the screenshot | from screenshot OCR |
+| `advertiserImpersonatesName` | Advertiser impersonates a person | from the advertiser name and the list of people (attribute, not campaign evidence) |
+| `profitClaims` | Promised profit (amount and period) | from the ad text, page, OCR or transcript (attribute; links only similar campaigns into a group) |
+| `fictionalExpert` | Fictitious doctor (probably AI) | from a title (dr, prof.) and a name not on the list of public figures in a health ad (attribute, not campaign evidence) |
+| `expertNotInRegister` | Doctor not in the register (probably made up) | from a recorded response of the register of doctors (optional plugin, off by default; a label, not campaign evidence) |
+| `liveStream` | Fake live stream | from the recording metadata (yt-dlp: was_live, is_live; attribute, not campaign evidence) |
+| `aiImageMeta` | AI-generated image (marker in the file) | from the image file metadata: C2PA, IPTC, EXIF or the generator description (attribute; no conclusion without metadata) |
+| `advertiserMismatch` | Ad account probably hijacked (name does not match the content) | from the advertiser name (local business or private person) and an investment narrative (attribute, not campaign evidence) |
+| `displayedDomainMismatch` | Domain shown in the ad differs from the landing page | from screenshot OCR or the ad text and from the redirect chain (attribute, not campaign evidence) |
+| `displayedBrandDomain` | Domain shown belongs to a well-known brand (bank, portal, shop) | from the brand list (attribute) |
+| `clickfix` | Command copied to the clipboard (ClickFix) | from the page script: only the kind and the SHA-256 hash; the command itself is a malware payload and is not stored (attribute) |
+| `stealerKit` | Trojan in the page kit (steals cookies or passwords from a fake tracker panel) | from the page scripts and downloaded libraries on free hosting: a check for an /admin or /panel path plus sending a cookie or login details to a foreign host (attribute; the C2 host itself is a trace) |
+| `idnConfusable` | The address imitates another address (a character resembling “/”, “.” or “-”, or mixed alphabets) | from the page URL, redirects, the address bar in the screenshot and links (attribute: describes how the address looks to the eye) |
+| `adStartWeekday` | Weekday the ad started | from the date of first delivery in the ad library, UTC (attribute; the spread within a campaign describes the operator's rhythm) |
+| `discordSnowflakes` | Creation date of a Discord server or account (from the ID) | from discord.com/channels and discord.com/users links: the top bits of the ID are the creation time (attribute: a “birth clock”) |
+| `onionV2` | .onion address, version 2 (expired) | from the page text (attribute; does not link) |
+| `phoneLines` | Phone number type | from local libphonenumber-js metadata, without sending the number to any service (attribute: VoIP numbers are sometimes disposable, so the weight of a number depends on its rarity) |
+| `phoneCountryMismatch` | Number's country differs from the ad's market | from the number and the ad's market (attribute) |
+| `tollFreeOnAlert` | Toll-free number on a page with a fake alert | from the number and the page technique (attribute) |
+| `fictionalExperts` | Fictitious experts (dr, prof. not on the list of public figures) | from the page text, ad, screenshot and recording (attribute; the name is also a trace) |
+| `narrative` | Narrative and hooks | from the ad text, page, OCR and transcript (attribute; a feature of a campaign group, not evidence) |
+| `localizedUi` | Multilingual UI dictionary | from the page script (language codes; localization of the page-builder platform, not a text trace; attribute) |
+| `residue` | Commented-out old version | from comments in the page code (attribute; the same old paragraph on two pages is a trace of a shared template, not evidence) |
+| `foreignSegments` | Trace of another version (insert in another language) | from the page text, scripts, comments or ad names (attribute; the campaign may also run in the country of that language; a hint, not a conclusion about the author) |
+| `foreignPersona` | Persona from another country in the ad name | from the ad parameters (ad_name, adset_name, campaign_name) with the PL code (attribute) |
+| `typography` | Text typography | from the ad and page text (attribute; the same text with different typography is a different edit of the template, not a different owner) |
+| `translationArtifacts` | Translation traces | from the page text and captions (attribute; mixed alphabets, calques, ty/wy switches between singular and plural “you”, numbers spelled out; no conclusions about nationality) |
+| `languageErrors` | Language errors on the page | from the page text (attribute without weight, B-325: paragraphs in a different language than the rest of the page or words with mixed alphabets in a sentence) |
+| `brandStyle` | Brand name style | from the advertiser or brand name (pseudo-Polish compound with a financial stem, attribute) |
+| `advertiserNameKind` | Kind of advertiser name | from the advertiser name (generated brand, person, local business; attribute) |
+| `adPlatform` | Ad library | from the library record |
+| `adAdvertiserLegalName` | Advertiser's legal name | from the library record |
+| `adAdvertiserLocation` | Advertiser's country | from the library record |
+| `adAdvertiserVerified` | Advertiser verified | from the library record |
+| `adRegions` | Delivery regions | from the library record |
+| `adFirstShown` | Ad delivery start | from the ad library |
+| `adLastShown` | Ad delivery end | from the ad library |
+| `payerKinds` | Payer type from the ad library | from the payer and beneficiary names (DSA self-declaration; the platform does not verify it) |
+| `payerSuspicious` | Suspicious ad payer | from the payer name (placeholder, keyboard mash or a name in a foreign alphabet) |
+| `payerEqualsBeneficiary` | Payer same as beneficiary | from the ad library |
+| `companyRegistry` | Company registers (VAT white list, KRS) | from public registers for the NIP and KRS numbers on the page (option --company-registry; name, registered address, status, registration date, no personal data); a name or address mismatch, removal from the register, a young company and the company's age relative to the domain are explanations, not campaign evidence |
+| `legalEntities` | Entity names with a legal form | from the page text, code, JSON-LD or screenshot (OCR) |
+| `emailDomainKinds` | Kind of email address domain | from the email addresses on the page (free mailbox, shop domain or another domain) |
+| `addressCompleteness` | Completeness of the address on the page | from the page text and JSON-LD (full, city only, PO box or none) |
+| `certIssuer` | TLS certificate issuer | from the HAR (securityDetails); a free certificate is only context, the padlock says nothing about the seller |
+| `certMismatch` | Certificate issued for another domain | from the HAR (securityDetails): no name in the certificate covers the host |
+| `certExpired` | Expired certificate | from the HAR (securityDetails): validity ended before the page was saved |
+| `brandInPath` | Well-known brand in the URL path | from the page URL: the brand is in the path, not in the domain name (typical of courier and classifieds clones) |
+| `hostingOutsideEu` | Hosting outside the EU and EEA | from the country of the IP address (ASN enrichment); sites outside the EU are harder to take down |
+| `tldRare` | Rare domain ending | from the domain name (an ending not on the list typical of shops, e.g. .sbs, .top); a weak hint |
+| `domainLangMismatch` | Domain name in a different language than the page | from the domain name and the page language; a weak hint |
+| `privacyControllerMismatch` | Data controller other than the shop | from the privacy policy: the controller's address is on a different domain than the page's contact addresses |
+| `registrantHidden` | Domain registrant details hidden | from RDAP (REDACTED or a privacy service); most registrars do this, so a weak hint |
+| `contactDomainDead` | Contact email domain does not respond | from enrichment (network mode): the domain has an MX record but does not respond over HTTP(S) |
+| `phoneAreaMismatch` | Landline number does not match the address city | from the phone number and the address on the page |
+| `companyIdInvalid` | Company ID with a wrong checksum | from the page text, code, JSON-LD or screenshot (OCR) |
+| `personas` | Persona | from the text, transcript or OCR |
+| `impersonatedBrand` | Impersonated brand | from the page title |
+| `landingName` | Page name in the platform panel | from the page code |
+| `trafficSource` | Traffic source | from the page code |
+| `metaAppId` | App ID | from the link (fbclid) |
+| `clickTime` | Click time | from the click ID |
+| `clickCounter` | Click server counter | from the click ID |
+| `firstSeen` | First seen | from the sample |
+| `cyrillic` | Cyrillic in the page code | from the page code |
+| `cloakingSuspected` | Suspected cloaking | from two fetches of the page |
+| `personaCategories` | Kinds of people in the ad | from the list of public figures (e.g. politician, presenter, doctor) for people recognized in the sample |
+| `cloakerInSource` | Cloaker in the page code | from the page code or the traffic source name: a marker that the page runs through a cloaker (attribute, not campaign evidence) |
+| `platformAccountSource` | How we know which platform account it is | from the page code: the account from the tenant address or from owner_uuid (attribute) |
+| `platformAccountWarning` | Warning about an inconsistent platform account | from the page code: the tenant in the address differs from owner_uuid, so the account was assigned by owner_uuid (attribute) |
+| `platformTenants` | Platform tenants in the page file addresses | from the page file addresses (landing-cdn): IDs of the accounts the page sits on |
+| `infrastructure` | Shared ad infrastructure (description) | from the campaign summary: domains, trackers, IPs, contacts and wallets linking the ads (description only) |
+| `techniques` | Page techniques | from the page code and content: a list of recognized fraud techniques, e.g. fake comments (attribute, not campaign evidence) |
+| `creativeBrand` | Brand recognized in the ad image | from comparing the ad image with brand patterns (attribute, probability, not campaign evidence) |
+| `domainAgeDays` | Domain age in days | from the domain registration date (RDAP) and the date the sample was first seen; a very young domain is a weak hint |
+| `certAgeDays` | Age of the first certificate in days | from the certificate log (CT) and the date the sample was first seen; a fresh certificate is a weak hint |
+| `pagePlatforms` | Page-building platforms | from the page code: recognized platforms and tools (e.g. aio, binom) the page was built with (attribute, not campaign evidence) |
+| `inputExtra` | Extra columns from the input data | from columns of the input file outside the standard mapping (only the columns named in the configuration link) |
+| `namingMixedScript` | Name with mixed alphabets | from names in the platform panel: Latin letters mixed with Cyrillic (a weak hint) |
+| `codeCommentLang` | Language of comments in the page code | from comments in the page code: Ukrainian or Russian (attribute, not campaign evidence) |
+| `landerSlugStyle` | Style of the page URL path | from the URL path: a string of consonants or a list of random words (attribute, not campaign evidence) |
+| `advertiserNameStyle` | Style of the advertiser name | from the advertiser name: a random “brand” or a foreign first and last name (attribute, not campaign evidence) |
+| `adCreatedApprox` | Approximate ad creation date | from the Meta ad ID and other ads with known dates (estimate, attribute) |
 
-## 3. Techniki manipulacji
+## 3. Manipulation techniques
 
-Pole `techniques[]`. Atrybut i ślad grupy, nie dowód jednej kampanii. Techniki sklepowe tylko opisują stronę sklepu.
+Field `techniques[]`. An attribute and a group trace, not proof of one campaign. Shop techniques only describe the shop page.
 
-| Klucz | Nazwa | Opis |
+| Key | Name | Description |
 |---|---|---|
-| `spaced_text` | tekst rozstrzelony litera po literze | Podpis albo napis w reklamie zapisany literami oddzielonymi spacjami („P o b i e r z”). |
-| `fake_security_alert` | fałszywy alarm bezpieczeństwa z numerem telefonu | Strona straszy wirusem, zablokowanym komputerem albo zhakowanym kontem, podaje numer telefonu jako jedyne wyjście i nie pozwala łatwo jej opuścić (pełny ekran, okna alertu, pułapka „wstecz”, dźwięk alarmu). |
-| `remote_access_tool` | program do zdalnego pulpitu do pobrania | Link albo instrukcja pobrania programu do zdalnego pulpitu (np. AnyDesk, TeamViewer QuickSupport) z prośbą o podanie kodu dostępu. |
-| `clickfix_paste` | fałszywa weryfikacja z poleceniem do wklejenia | Fałszywy CAPTCHA albo „weryfikacja, że nie jesteś robotem” każe nacisnąć skrót (np. Win+R) i wkleić polecenie, które strona skopiowała do schowka. |
-| `fake_comments` | fałszywe komentarze | Pod artykułem albo reklamą jest sekcja komentarzy, w której rzekomi czytelnicy chwalą produkt albo pokazują zarobki, ale wpisano ją w kod strony, a nie pochodzi z prawdziwej wtyczki serwisu. |
-| `fake_app_store` | fałszywy sklep z aplikacjami | Strona udaje sklep z aplikacjami (Google Play, App Store) z oceną, liczbą pobrań i przyciskiem „Zainstaluj”. |
-| `back_trap` | pułapka „wstecz” | Strona przejmuje przycisk „wstecz” przeglądarki, więc po jego naciśnięciu zostajemy na niej albo trafiamy na kolejną stronę oszusta. |
-| `fake_social_post` | udawany post w serwisie społecznościowym | Strona wygląda jak post z serwisu społecznościowego (Facebook, X) z polubieniami i komentarzami, choć jest zwykłą stroną oszusta. |
-| `recent_purchase_popup` | wyskakujące „ktoś właśnie kupił” (sklep) | Na stronie wyskakują okienka, że ktoś przed chwilą kupił produkt („Anna z Poznania kupiła 2 min temu”). |
-| `low_stock_claim` | „ostatnie sztuki” i „ogląda N osób” (sklep) | Strona twierdzi, że zostały ostatnie sztuki albo że produkt ogląda w tej chwili wiele osób. |
-| `countdown_timer` | licznik czasu przy ofercie (sklep) | Przy ofercie widać licznik, który odlicza czas do końca promocji. |
-| `closing_down_story` | historia o likwidacji sklepu (sklep) | Strona opowiada, że sklep się likwiduje, zamyka albo jest wyprzedaż przed zamknięciem, i dlatego ceny są bardzo niskie. |
-| `crypto_discount` | dodatkowy rabat za płatność kryptowalutą (sklep) | Strona oferuje dodatkowy rabat za zapłatę kryptowalutą. |
-| `waitlist_upsell` | rabat jako zapis na listę oczekujących z dopłatą (sklep) | Rabat jest przedstawiony jako zapis na listę oczekujących, a po zapisie pojawia się dopłata albo dodatkowa usługa. |
-| `trial_subscription` | okres próbny z automatycznym odnowieniem subskrypcji (sklep) | Oferta „za 1 zł” albo darmowy okres próbny, po którym płatność odnawia się automatycznie jako droga subskrypcja. |
-| `blik_via_messenger` | kod BLIK przez komunikator (sklep) | Strona każe podać kod BLIK albo zapłacić przez rozmowę w komunikatorze (np. Messenger). |
-| `fake_courier_payment` | strona udająca kuriera z polem karty i wyborem paczkomatu (sklep) | Strona udaje kuriera (np. InPost, DHL): prosi o dopłatę do paczki, ma pole karty i wybór paczkomatu. |
+| `spaced_text` | text spaced out letter by letter | A caption or text in the ad written with letters separated by spaces (“D o w n l o a d”). |
+| `fake_security_alert` | fake security alert with a phone number | The page scares the user with a virus, a locked computer or a hacked account, gives a phone number as the only way out and is hard to leave (full screen, alert windows, a “back” trap, an alarm sound). |
+| `remote_access_tool` | remote desktop program to download | A link or instructions to download a remote desktop program (e.g. AnyDesk, TeamViewer QuickSupport) with a request for the access code. |
+| `clickfix_paste` | fake verification with a command to paste | A fake CAPTCHA or “verify you are not a robot” check tells the user to press a shortcut (e.g. Win+R) and paste a command that the page has copied to the clipboard. |
+| `fake_comments` | fake comments | Under the article or ad there is a comment section where supposed readers praise the product or show their earnings, but it is written into the page code and does not come from the site's real comment plugin. |
+| `fake_app_store` | fake app store | The page poses as an app store (Google Play, App Store) with a rating, a download count and an “Install” button. |
+| `back_trap` | “back” trap | The page hijacks the browser's “back” button, so pressing it keeps the user on the page or sends them to another fraudster page. |
+| `fake_social_post` | fake social media post | The page looks like a social media post (Facebook, X) with likes and comments, though it is an ordinary fraudster page. |
+| `recent_purchase_popup` | “someone just bought” pop-ups (shop) | Pop-ups on the page say that someone has just bought the product (“Anna from Gdynia bought 2 min ago”). |
+| `low_stock_claim` | “last items” and “N people viewing” (shop) | The page claims that only a few items are left or that many people are viewing the product right now. |
+| `countdown_timer` | countdown timer next to the offer (shop) | Next to the offer there is a timer counting down to the end of the promotion. |
+| `closing_down_story` | shop closing-down story (shop) | The page claims that the shop is closing down or holding a closing-down sale, which is why prices are very low. |
+| `crypto_discount` | extra discount for paying in crypto (shop) | The page offers an extra discount for paying in cryptocurrency. |
+| `waitlist_upsell` | discount as a waiting-list sign-up with a surcharge (shop) | The discount is presented as signing up for a waiting list, and after signing up a surcharge or an extra service appears. |
+| `trial_subscription` | trial period with automatic subscription renewal (shop) | An offer “for PLN 1” or a free trial, after which the payment renews automatically as an expensive subscription. |
+| `blik_via_messenger` | BLIK code via a messenger (shop) | The page asks for a BLIK code or for payment through a messenger chat (e.g. Messenger). |
+| `fake_courier_payment` | page posing as a courier with a card field and a parcel locker choice (shop) | The page poses as a courier (e.g. InPost, DHL): it asks for an extra parcel fee, has a card field and a choice of parcel locker. |
 
-## 4. Tematy i haczyki narracji
+## 4. Narrative topics and hooks
 
-**Tematy** (o czym jest reklama; w nawiasie podkategorie):
+**Topics** (what the ad is about; subcategories in brackets):
 
-- `investment`: inwestycje i zarobek
-- `subsidy`: dotacje i świadczenia
-- `health`: zdrowie (joints, weight_loss, hypertension, vision, hearing, diabetes, miracle_cure)
-- `gambling`: hazard
-- `elections`: wybory
-- `ai_trading`: handel z użyciem AI
-- `gold_reserve`: rezerwy złota
-- `commodities_war`: surowce i wojna
-- `leaked_secret`: ujawniona tajemnica
-- `testimonial_small_win`: relacja o szybkim zysku
-- `recovery`: odzyskiwanie środków
-- `sport_event`: wydarzenie sportowe
-- `inauguration`: zaprzysiężenie
-- `state_investment`: inwestycje państwowe
-- `adult_phishing`: treści 18+ i potwierdzenie wieku
-- `urgent_notice`: pilne wezwanie
-- `petition`: petycja
-- `tech_support`: fałszywa pomoc techniczna (wirus, zablokowany komputer)
-- `refund_overpayment`: zwrot nadpłaty („przelaliśmy za dużo”)
-- `recovery_offer`: oferta odzyskania utraconych środków (wtórne oszustwo wobec ofiar)
-- `job_offer`: oferta pracy (zdalna, oceny produktów za prowizję)
-- `fake_authority`: udawany organ (policja, KNF, UODO, CERT, bank)
+- `investment`: investment and earnings
+- `subsidy`: subsidies and benefits
+- `health`: health (joints, weight_loss, hypertension, vision, hearing, diabetes, miracle_cure)
+- `gambling`: gambling
+- `elections`: elections
+- `ai_trading`: AI trading
+- `gold_reserve`: gold reserves
+- `commodities_war`: commodities and war
+- `leaked_secret`: leaked secret
+- `testimonial_small_win`: story of a quick profit
+- `recovery`: fund recovery
+- `sport_event`: sports event
+- `inauguration`: inauguration
+- `state_investment`: state investments
+- `adult_phishing`: 18+ content and age verification
+- `urgent_notice`: urgent notice
+- `petition`: petition
+- `tech_support`: fake tech support (virus, locked computer)
+- `refund_overpayment`: overpayment refund (“we sent you too much”)
+- `recovery_offer`: offer to recover lost funds (repeat fraud against victims)
+- `job_offer`: job offer (remote, product reviews for commission)
+- `fake_authority`: fake authority (police, KNF, UODO, CERT, bank)
 
-**Haczyki** (forma przekazu, niezależna od tematu):
+**Hooks** (form of the message, independent of the topic):
 
-- `sensation`: sensacja
-- `endorsement`: polecenie przez znaną osobę
-- `fake_interview`: udawany wywiad
-- `secrecy`: tajemnica (nie mów bankowi ani rodzinie)
-- `withdrawal_fee`: opłata lub podatek przed wypłatą
-- `urgency_lock`: grożenie blokadą konta w terminie
-- `nationwide`: „cała Polska” (powszechność)
-- `millions_of_poles`: „miliony Polaków”
-- `pharma_villain`: koncerny farmaceutyczne jako winowajca
-- `state_program_pays`: program państwowy pokrywa koszty
-- `custody`: kajdanki lub areszt
-- `video_removed`: nagranie usunięto lub zablokowano
+- `sensation`: sensation
+- `endorsement`: endorsement by a well-known person
+- `fake_interview`: fake interview
+- `secrecy`: secrecy (don't tell the bank or your family)
+- `withdrawal_fee`: fee or tax before withdrawal
+- `urgency_lock`: threat of an account lock by a deadline
+- `nationwide`: “all of Poland” (everyone is doing it)
+- `millions_of_poles`: “millions of Poles”
+- `pharma_villain`: drug companies as the villain
+- `state_program_pays`: state program covers the costs
+- `custody`: handcuffs or arrest
+- `video_removed`: video removed or blocked
 
-## Bez opisu
+## No description
 
-Wszystko w rejestrach ma polską nazwę i opis.
+Everything in the registries has a name and a description.
 
-## 5. Podsumowanie
+## 5. Summary
 
-| Sekcja | Liczba |
+| Section | Count |
 |---|---|
-| Wyróżnione ślady (sekcja na początku) | 11 |
-| Ślady łączące (typy) | 61 (kampania: 32, grupa: 3, tylko z innym śladem: 26) |
-| Cechy materiału łączące albo pomagające | 18 |
-| Atrybuty materiału i kampanii | 86 |
-| Techniki manipulacji | 17 |
-| Tematy narracji | 22 |
-| Haczyki narracji | 12 |
-| Bez opisu | 0 |
+| Highlighted traces (section at the start) | 11 |
+| Linking traces (types) | 61 (campaign: 32, group: 3, only with another trace: 26) |
+| Sample features that link or help | 18 |
+| Attributes of the sample and the campaign | 86 |
+| Manipulation techniques | 17 |
+| Narrative topics | 22 |
+| Narrative hooks | 12 |
+| No description | 0 |
 
-Wygenerowano: 2026-11-22, commit `74d54de`.
+Generated: 2026-11-23, commit `045a506`.

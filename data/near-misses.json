@@ -1,0 +1,959 @@
+{
+  "version": 1,
+  "generatedAt": "2026-11-23T12:03:06.603Z",
+  "minLinkScore": 0.15,
+  "minScoreRatio": 0.5,
+  "maxPairs": 200,
+  "total": 17,
+  "byRule": {
+    "below-min-score": 17
+  },
+  "pairs": [
+    {
+      "a": "n-03",
+      "b": "n-04",
+      "score": 0.1223,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.12 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "favicon",
+        "ip",
+        "nameserver",
+        "registrar",
+        "tracker"
+      ],
+      "discounted": [
+        {
+          "kind": "registrar",
+          "rule": "registrars:dynadot",
+          "factor": 0.6
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:parkingcrew.net",
+          "factor": 0.05
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K08",
+      "campaignB": "K09",
+      "familyId": null
+    },
+    {
+      "a": "c1-01",
+      "b": "n-01",
+      "score": 0.122,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.12 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "campaign_param",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-02",
+      "b": "n-01",
+      "score": 0.122,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.12 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "campaign_param",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-05",
+      "b": "n-01",
+      "score": 0.122,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.12 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "campaign_param",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-03",
+      "b": "n-01",
+      "score": 0.0956,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.10 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-04",
+      "b": "n-01",
+      "score": 0.0956,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.10 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-06",
+      "b": "n-01",
+      "score": 0.0956,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.10 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-07",
+      "b": "n-01",
+      "score": 0.0956,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.10 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-09",
+      "b": "n-01",
+      "score": 0.0956,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.10 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "asset",
+        "ip",
+        "nameserver",
+        "registrar"
+      ],
+      "discounted": [
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$",
+          "factor": 0.1
+        },
+        {
+          "kind": "registrar",
+          "rule": "registrars:namecheap",
+          "factor": 0.6
+        },
+        {
+          "kind": "asset",
+          "rule": "assetLibraries:^jquery([.-][\\w.]+)?(\\.min)?\\.js$",
+          "factor": 0.05
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c2-01",
+      "b": "n-01",
+      "score": 0.0906,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.09 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_medium",
+          "factor": 0.2
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K02",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c2-04",
+      "b": "n-01",
+      "score": 0.0906,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.09 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_medium",
+          "factor": 0.2
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "score",
+        "discounted-strong"
+      ],
+      "campaignA": "K02",
+      "campaignB": "K06",
+      "familyId": null
+    },
+    {
+      "a": "c1-01",
+      "b": "c2-01",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    },
+    {
+      "a": "c1-01",
+      "b": "c2-04",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    },
+    {
+      "a": "c1-02",
+      "b": "c2-01",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    },
+    {
+      "a": "c1-02",
+      "b": "c2-04",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    },
+    {
+      "a": "c1-05",
+      "b": "c2-01",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    },
+    {
+      "a": "c1-05",
+      "b": "c2-04",
+      "score": 0.0566,
+      "rule": "below-min-score",
+      "reason": "the pair score 0.06 is below the linking threshold 0.15",
+      "sharedKinds": [
+        "asn",
+        "campaign_param",
+        "ip",
+        "nameserver"
+      ],
+      "discounted": [
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamGenericValues",
+          "factor": 0.05
+        },
+        {
+          "kind": "campaign_param",
+          "rule": "campaignParamWeakNames:utm_source",
+          "factor": 0.2
+        },
+        {
+          "kind": "nameserver",
+          "rule": "nameserverSuffixes:ns.cloudflare.com",
+          "factor": 0.1
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:104.16.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "ip",
+          "rule": "ipCidrs:172.64.0.0/13",
+          "factor": 0.02
+        },
+        {
+          "kind": "asn",
+          "rule": "asns:13335",
+          "factor": 0.02
+        }
+      ],
+      "selectedBy": [
+        "discounted-strong"
+      ],
+      "campaignA": "K01",
+      "campaignB": "K02",
+      "familyId": null
+    }
+  ]
+}

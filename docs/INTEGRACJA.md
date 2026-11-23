@@ -17,7 +17,7 @@ Rekord pliku (schemat `input-file`): `id` (wymagane), `platform`, `advertiser`, 
 ## Wyjście
 
 - **Wynik pełny:** `--json wynik.json` (albo `-` na standardowe wyjście): `MaterialResult` (schemat `material-result`): `items[]` z werdyktem (`known_campaign`, `similar_campaigns`, `new_campaign`, `duplicate`, `insufficient`), kampanią, podobnymi kampaniami, powiązaniami z przesłankami (`links[].evidence[]`: tekst, waga, siła), brakami (`missing`), błędami; `steps[]` (każdy krok z powodem pominięcia), `skipped[]`, `notes[]`. Szczegóły zagnieżdżone (cechy, przesłanki) są w schemacie opisane luźno: stabilna część kontraktu to werdykt, kampanie i przesłanki.
-- **Partia CSV:** `--csv wynik.csv`, kolumny w stałej kolejności: `material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data, blisko_bez_polaczenia` (`confidence`: `certain`, `likely`, `uncertain`; `blisko_bez_polaczenia`: znane kampanie, do których materiał był blisko, ale nie dołączył, z regułą). Sprawa, której import nie zamienił w rekord, też ma wiersz: `insufficient` z powodem importera w `missing_data`. Dotyczy to także sprawy z plikiem, którego nie da się odczytać ani sparsować, i uszkodzonego wiersza JSON/JSONL przy `--dataset`; reszta partii jest analizowana normalnie.
+- **Partia CSV:** `--csv wynik.csv`, kolumny w stałej kolejności: `material_id, case, verdict, campaign_id, similar_campaigns, new_campaign_id, duplicate_of, confidence, score, top_premise, missing_data, near_misses` (`confidence`: `certain`, `likely`, `uncertain`; `near_misses`: znane kampanie, do których materiał był blisko, ale nie dołączył, z regułą). Sprawa, której import nie zamienił w rekord, też ma wiersz: `insufficient` z powodem importera w `missing_data`. Dotyczy to także sprawy z plikiem, którego nie da się odczytać ani sparsować, i uszkodzonego wiersza JSON/JSONL przy `--dataset`; reszta partii jest analizowana normalnie.
 
 Znaczenie kolumn partii CSV (jeden wiersz na materiał, kolejność stała; to samo zwraca eksport z GUI):
 
@@ -34,7 +34,7 @@ Znaczenie kolumn partii CSV (jeden wiersz na materiał, kolejność stała; to s
 | `score` | wynik najlepszego powiązania, 0–1: siła przesłanek, nie prawdopodobieństwo; puste przy `insufficient` i `new_campaign` bez powiązań (wtedy `top_premise` też jest puste) |
 | `top_premise` | najsilniejsza przesłanka prostym językiem (np. „ten sam serwer trackera”) |
 | `missing_data` | gdy `insufficient`: co dorzucić do materiału (lista rozdzielona `;`) |
-| `blisko_bez_polaczenia` | znane kampanie, do których materiał był blisko, ale nie dołączył, z regułą (np. `K03: account-conflict`) |
+| `near_misses` | znane kampanie, do których materiał był blisko, ale nie dołączył, z regułą (np. `K03: account-conflict`) |
 
 - **Zbiór wzbogacony:** `bun run export-dataset -- --data <baza> --out <katalog> --csv` (kolumny: `material_id, campaign_id, family_id, features, top_premises, ad_library_url, basis, persona, deepfake_score`; bez wektorów głosu i twarzy) i `--neo4j <katalog>` (graf do `neo4j-admin database import`).
 

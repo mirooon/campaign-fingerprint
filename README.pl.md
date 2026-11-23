@@ -164,7 +164,7 @@ OCR (tesseract z językiem polskim), ffmpeg, modele twarzy i głosu oraz lokalny
 |---|---|
 | [docs/METODYKA.md](docs/METODYKA.md) | Metoda: ślady, wagi, reguły łączenia, walidacja, ograniczenia (po angielsku) |
 | [docs/GUI.md](docs/GUI.md) | Interfejs: zakładki, przyciski, jak przeprowadzić analizę (po angielsku) |
-| [docs/CECHY.md](docs/CECHY.md) | Katalog śladów i cech |
+| [docs/CECHY.md](docs/CECHY.md) | Katalog śladów i cech (po angielsku) |
 | [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) | Jak zbudowane są kampanie oszukańczych reklam i co w nich wskazuje operatora |
 | [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) | Źródła metadanych i ile powiązań dał każdy z nich |
 | [docs/TECHNICAL.md](docs/TECHNICAL.md) | Formaty, wagi, CLI, konfiguracja, moduły |

@@ -164,7 +164,7 @@ OCR (tesseract with Polish), ffmpeg, the face and voice models and a local LLM a
 |---|---|
 | [docs/METODYKA.md](docs/METODYKA.md) | Method: traces, weights, linking rules, validation, limits |
 | [docs/GUI.md](docs/GUI.md) | Interface: tabs, buttons, how to run an analysis |
-| [docs/CECHY.md](docs/CECHY.md) | Catalogue of traces and features (Polish) |
+| [docs/CECHY.md](docs/CECHY.md) | Catalogue of traces and features |
 | [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md) | How scam ad campaigns are built and which parts point to the operator (Polish) |
 | [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) | Metadata sources and how many links each one gave (Polish) |
 | [docs/TECHNICAL.md](docs/TECHNICAL.md) | Formats, weights, CLI, configuration, modules (Polish) |

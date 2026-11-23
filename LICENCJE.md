@@ -9,109 +9,109 @@ Stan na 22.11.2026. Wersje bibliotek npm pochodzą z zainstalowanego `node_modul
 Tabela jest wygenerowana poleceniem `bun run licenses -- --write LICENCJE.md` (skrypt `scripts/licenses.ts`, logika `lib/licenses.ts`). Skrypt czyta pole `license` z `node_modules/<pakiet>/package.json` dla `dependencies` z `package.json` i ich zależności przechodnich; pakiet bez pola jest oznaczony „BRAK POLA license”. Zależności deweloperskie (`devDependencies`: eslint, vitest, typescript, tailwind) nie wchodzą do tabeli i nie trafiają do działającej aplikacji. Wersja z Dockera ma też binaria platformy `linux`, a tabela z macOS pokazuje `darwin`; licencje tych binariów są takie same (rodzina `@img/sharp-*`: Apache-2.0, `@img/sharp-libvips-*`: LGPL-3.0-or-later, `@next/swc-*`: MIT).
 
 <!-- npm:start -->
-| Składnik | Wersja | Licencja | Rola | Sposób użycia | Źródło |
+| Component | Version | License | Role | How it is used | Source |
 |---|---|---|---|---|---|
-| @anthropic-ai/sdk | 1.10.0 | Apache-2.0 | bezpośrednia | biblioteka w procesie | npm |
-| @babel/runtime | 7.29.14 | MIT | przechodnia | biblioteka w procesie | npm |
-| @huggingface/jinja | 0.5.13 | MIT | przechodnia | biblioteka w procesie | npm |
-| @huggingface/transformers | 3.7.6 | Apache-2.0 | bezpośrednia | biblioteka w procesie | npm |
-| @img/colour | 1.1.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| @img/sharp-darwin-arm64 | 0.35.5 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| @img/sharp-libvips-darwin-arm64 | 1.3.4 | LGPL-3.0-or-later | przechodnia | biblioteka w procesie | npm |
-| @isaacs/fs-minipass | 4.0.1 | ISC | przechodnia | biblioteka w procesie | npm |
-| @next/env | 16.4.6 | MIT | przechodnia | biblioteka w procesie | npm |
-| @next/swc-darwin-arm64 | 16.4.6 | MIT | przechodnia | biblioteka w procesie | npm |
-| @noble/hashes | 2.4.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| @opentelemetry/api | 1.10.0 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/base64 | 1.1.2 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/codegen | 2.0.5 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/eventemitter | 1.1.1 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/fetch | 1.1.1 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/float | 1.0.2 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/path | 1.1.2 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/pool | 1.1.0 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @protobufjs/utf8 | 1.1.2 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| @stablelib/base64 | 1.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| @swc/helpers | 0.5.23 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| @types/node | 20.19.43 | MIT | przechodnia | biblioteka w procesie | npm |
-| baseline-browser-mapping | 2.11.38 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| boolean | 3.2.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| caniuse-lite | 1.0.30001826 | CC-BY-4.0 | przechodnia | biblioteka w procesie | npm |
-| chownr | 3.0.0 | BlueOak-1.0.0 | przechodnia | biblioteka w procesie | npm |
-| client-only | 0.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| cose-base | 2.2.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| csv-parse | 7.0.3 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| cytoscape | 3.35.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| cytoscape-fcose | 2.2.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| define-data-property | 1.1.4 | MIT | przechodnia | biblioteka w procesie | npm |
-| define-properties | 1.2.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| detect-libc | 2.1.2 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| detect-node | 2.1.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| es-define-property | 1.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| es-errors | 1.3.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| es6-error | 4.1.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| escape-string-regexp | 4.0.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| events | 3.3.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| fast-sha256 | 1.3.0 | Unlicense | przechodnia | biblioteka w procesie | npm |
-| fflate | 0.8.3 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| flatbuffers | 25.9.23 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| global-agent | 3.0.0 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| globalthis | 1.0.4 | MIT | przechodnia | biblioteka w procesie | npm |
-| gopd | 1.2.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| graphology | 0.26.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| graphology-communities-louvain | 2.0.2 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| graphology-indices | 0.17.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| graphology-types | 0.24.8 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| graphology-utils | 2.5.2 | MIT | przechodnia | biblioteka w procesie | npm |
-| guid-typescript | 1.0.9 | ISC | przechodnia | biblioteka w procesie | npm |
-| has-property-descriptors | 1.0.2 | MIT | przechodnia | biblioteka w procesie | npm |
-| json-schema-to-ts | 3.1.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| json-stringify-safe | 5.0.1 | ISC | przechodnia | biblioteka w procesie | npm |
-| jsqr | 1.4.0 | Apache-2.0 | bezpośrednia | biblioteka w procesie | npm |
-| layout-base | 2.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| libphonenumber-js | 1.13.17 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| long | 5.3.2 | Apache-2.0 | przechodnia | biblioteka w procesie | npm |
-| lucide-react | 1.77.0 | ISC | bezpośrednia | biblioteka w procesie | npm |
-| matcher | 3.0.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| minipass | 7.1.3 | BlueOak-1.0.0 | przechodnia | biblioteka w procesie | npm |
-| minizlib | 3.1.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| mnemonist | 0.39.8 | MIT | przechodnia | biblioteka w procesie | npm |
-| nanoid | 3.3.20 | MIT | przechodnia | biblioteka w procesie | npm |
-| next | 16.4.6 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| object-keys | 1.1.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| obliterator | 2.0.5 | MIT | przechodnia | biblioteka w procesie | npm |
-| onnxruntime-common | 1.21.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| onnxruntime-node | 1.21.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| onnxruntime-web | 1.22.0-dev.20250409-89f8206ba4 | MIT | przechodnia | biblioteka w procesie | npm |
-| p-limit | 7.3.3 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| pandemonium | 2.4.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| picocolors | 1.1.1 | ISC | przechodnia | biblioteka w procesie | npm |
-| platform | 1.3.6 | MIT | przechodnia | biblioteka w procesie | npm |
-| postcss | 8.5.23 | MIT | przechodnia | biblioteka w procesie | npm |
-| protobufjs | 7.6.6 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| react | 19.3.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| react-dom | 19.3.0 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| roarr | 2.15.4 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| scheduler | 0.28.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| semver | 7.8.6 | ISC | przechodnia | biblioteka w procesie | npm |
-| semver-compare | 1.0.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| serialize-error | 7.0.1 | MIT | przechodnia | biblioteka w procesie | npm |
-| sharp | 0.35.5 | Apache-2.0 | bezpośrednia | biblioteka w procesie | npm |
-| source-map-js | 1.2.3 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| sprintf-js | 1.1.3 | BSD-3-Clause | przechodnia | biblioteka w procesie | npm |
-| standardwebhooks | 1.3.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| styled-jsx | 5.1.6 | MIT | przechodnia | biblioteka w procesie | npm |
-| tar | 7.5.23 | BlueOak-1.0.0 | przechodnia | biblioteka w procesie | npm |
-| tldts | 7.5.4 | MIT | bezpośrednia | biblioteka w procesie | npm |
-| tldts-core | 7.5.4 | MIT | przechodnia | biblioteka w procesie | npm |
-| ts-algebra | 2.0.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| tslib | 2.9.1 | 0BSD | przechodnia | biblioteka w procesie | npm |
-| type-fest | 0.13.1 | (MIT OR CC0-1.0) | przechodnia | biblioteka w procesie | npm |
-| undici-types | 6.21.0 | MIT | przechodnia | biblioteka w procesie | npm |
-| yallist | 5.0.0 | BlueOak-1.0.0 | przechodnia | biblioteka w procesie | npm |
-| yocto-queue | 1.2.2 | MIT | przechodnia | biblioteka w procesie | npm |
-| zod | 4.6.7 | MIT | bezpośrednia | biblioteka w procesie | npm |
+| @anthropic-ai/sdk | 1.10.0 | Apache-2.0 | direct | in-process library | npm |
+| @babel/runtime | 7.29.14 | MIT | transitive | in-process library | npm |
+| @huggingface/jinja | 0.5.13 | MIT | transitive | in-process library | npm |
+| @huggingface/transformers | 3.7.6 | Apache-2.0 | direct | in-process library | npm |
+| @img/colour | 1.1.0 | MIT | transitive | in-process library | npm |
+| @img/sharp-darwin-arm64 | 0.35.5 | Apache-2.0 | transitive | in-process library | npm |
+| @img/sharp-libvips-darwin-arm64 | 1.3.4 | LGPL-3.0-or-later | transitive | in-process library | npm |
+| @isaacs/fs-minipass | 4.0.1 | ISC | transitive | in-process library | npm |
+| @next/env | 16.4.6 | MIT | transitive | in-process library | npm |
+| @next/swc-darwin-arm64 | 16.4.6 | MIT | transitive | in-process library | npm |
+| @noble/hashes | 2.4.0 | MIT | direct | in-process library | npm |
+| @opentelemetry/api | 1.10.0 | Apache-2.0 | transitive | in-process library | npm |
+| @protobufjs/aspromise | 1.1.2 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/base64 | 1.1.2 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/codegen | 2.0.5 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/eventemitter | 1.1.1 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/fetch | 1.1.1 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/float | 1.0.2 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/path | 1.1.2 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/pool | 1.1.0 | BSD-3-Clause | transitive | in-process library | npm |
+| @protobufjs/utf8 | 1.1.2 | BSD-3-Clause | transitive | in-process library | npm |
+| @stablelib/base64 | 1.0.1 | MIT | transitive | in-process library | npm |
+| @swc/helpers | 0.5.23 | Apache-2.0 | transitive | in-process library | npm |
+| @types/node | 20.19.43 | MIT | transitive | in-process library | npm |
+| baseline-browser-mapping | 2.11.38 | Apache-2.0 | transitive | in-process library | npm |
+| boolean | 3.2.0 | MIT | transitive | in-process library | npm |
+| caniuse-lite | 1.0.30001826 | CC-BY-4.0 | transitive | in-process library | npm |
+| chownr | 3.0.0 | BlueOak-1.0.0 | transitive | in-process library | npm |
+| client-only | 0.0.1 | MIT | transitive | in-process library | npm |
+| cose-base | 2.2.0 | MIT | transitive | in-process library | npm |
+| csv-parse | 7.0.3 | MIT | direct | in-process library | npm |
+| cytoscape | 3.35.0 | MIT | direct | in-process library | npm |
+| cytoscape-fcose | 2.2.0 | MIT | direct | in-process library | npm |
+| define-data-property | 1.1.4 | MIT | transitive | in-process library | npm |
+| define-properties | 1.2.1 | MIT | transitive | in-process library | npm |
+| detect-libc | 2.1.2 | Apache-2.0 | transitive | in-process library | npm |
+| detect-node | 2.1.0 | MIT | transitive | in-process library | npm |
+| es-define-property | 1.0.1 | MIT | transitive | in-process library | npm |
+| es-errors | 1.3.0 | MIT | transitive | in-process library | npm |
+| es6-error | 4.1.1 | MIT | transitive | in-process library | npm |
+| escape-string-regexp | 4.0.0 | MIT | transitive | in-process library | npm |
+| events | 3.3.0 | MIT | transitive | in-process library | npm |
+| fast-sha256 | 1.3.0 | Unlicense | transitive | in-process library | npm |
+| fflate | 0.8.3 | MIT | direct | in-process library | npm |
+| flatbuffers | 25.9.23 | Apache-2.0 | transitive | in-process library | npm |
+| global-agent | 3.0.0 | BSD-3-Clause | transitive | in-process library | npm |
+| globalthis | 1.0.4 | MIT | transitive | in-process library | npm |
+| gopd | 1.2.0 | MIT | transitive | in-process library | npm |
+| graphology | 0.26.0 | MIT | direct | in-process library | npm |
+| graphology-communities-louvain | 2.0.2 | MIT | direct | in-process library | npm |
+| graphology-indices | 0.17.1 | MIT | transitive | in-process library | npm |
+| graphology-types | 0.24.8 | MIT | direct | in-process library | npm |
+| graphology-utils | 2.5.2 | MIT | transitive | in-process library | npm |
+| guid-typescript | 1.0.9 | ISC | transitive | in-process library | npm |
+| has-property-descriptors | 1.0.2 | MIT | transitive | in-process library | npm |
+| json-schema-to-ts | 3.1.1 | MIT | transitive | in-process library | npm |
+| json-stringify-safe | 5.0.1 | ISC | transitive | in-process library | npm |
+| jsqr | 1.4.0 | Apache-2.0 | direct | in-process library | npm |
+| layout-base | 2.0.1 | MIT | transitive | in-process library | npm |
+| libphonenumber-js | 1.13.17 | MIT | direct | in-process library | npm |
+| long | 5.3.2 | Apache-2.0 | transitive | in-process library | npm |
+| lucide-react | 1.77.0 | ISC | direct | in-process library | npm |
+| matcher | 3.0.0 | MIT | transitive | in-process library | npm |
+| minipass | 7.1.3 | BlueOak-1.0.0 | transitive | in-process library | npm |
+| minizlib | 3.1.0 | MIT | transitive | in-process library | npm |
+| mnemonist | 0.39.8 | MIT | transitive | in-process library | npm |
+| nanoid | 3.3.20 | MIT | transitive | in-process library | npm |
+| next | 16.4.6 | MIT | direct | in-process library | npm |
+| object-keys | 1.1.1 | MIT | transitive | in-process library | npm |
+| obliterator | 2.0.5 | MIT | transitive | in-process library | npm |
+| onnxruntime-common | 1.21.0 | MIT | transitive | in-process library | npm |
+| onnxruntime-node | 1.21.0 | MIT | transitive | in-process library | npm |
+| onnxruntime-web | 1.22.0-dev.20250409-89f8206ba4 | MIT | transitive | in-process library | npm |
+| p-limit | 7.3.3 | MIT | direct | in-process library | npm |
+| pandemonium | 2.4.1 | MIT | transitive | in-process library | npm |
+| picocolors | 1.1.1 | ISC | transitive | in-process library | npm |
+| platform | 1.3.6 | MIT | transitive | in-process library | npm |
+| postcss | 8.5.23 | MIT | transitive | in-process library | npm |
+| protobufjs | 7.6.6 | BSD-3-Clause | transitive | in-process library | npm |
+| react | 19.3.0 | MIT | direct | in-process library | npm |
+| react-dom | 19.3.0 | MIT | direct | in-process library | npm |
+| roarr | 2.15.4 | BSD-3-Clause | transitive | in-process library | npm |
+| scheduler | 0.28.0 | MIT | transitive | in-process library | npm |
+| semver | 7.8.6 | ISC | transitive | in-process library | npm |
+| semver-compare | 1.0.0 | MIT | transitive | in-process library | npm |
+| serialize-error | 7.0.1 | MIT | transitive | in-process library | npm |
+| sharp | 0.35.5 | Apache-2.0 | direct | in-process library | npm |
+| source-map-js | 1.2.3 | BSD-3-Clause | transitive | in-process library | npm |
+| sprintf-js | 1.1.3 | BSD-3-Clause | transitive | in-process library | npm |
+| standardwebhooks | 1.3.0 | MIT | transitive | in-process library | npm |
+| styled-jsx | 5.1.6 | MIT | transitive | in-process library | npm |
+| tar | 7.5.23 | BlueOak-1.0.0 | transitive | in-process library | npm |
+| tldts | 7.5.4 | MIT | direct | in-process library | npm |
+| tldts-core | 7.5.4 | MIT | transitive | in-process library | npm |
+| ts-algebra | 2.0.0 | MIT | transitive | in-process library | npm |
+| tslib | 2.9.1 | 0BSD | transitive | in-process library | npm |
+| type-fest | 0.13.1 | (MIT OR CC0-1.0) | transitive | in-process library | npm |
+| undici-types | 6.21.0 | MIT | transitive | in-process library | npm |
+| yallist | 5.0.0 | BlueOak-1.0.0 | transitive | in-process library | npm |
+| yocto-queue | 1.2.2 | MIT | transitive | in-process library | npm |
+| zod | 4.6.7 | MIT | direct | in-process library | npm |
 <!-- npm:end -->
 
 Uwagi do tabeli:

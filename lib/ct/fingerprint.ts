@@ -340,13 +340,13 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
       kind = "template";
       template = spec.template;
       similar = spec.domains;
-      evidence.push(`nazwa pasuje do szablonu ${spec.template} kampanii ${fp.campaignId} (${listDomains(spec.domains)})`);
+      evidence.push(`name matches template ${spec.template} of campaign ${fp.campaignId} (${listDomains(spec.domains)})`);
     } else if (agn) {
       base = s.templateOtherTld + (agn.domains.length >= 2 ? s.supportBonus : 0);
       kind = "template_other_tld";
       template = agn.template;
       similar = agn.domains;
-      evidence.push(`ten sam szablon nazwy ${agn.template} w innej domenie najwyższego poziomu (.${d.suffix}); kampania ${fp.campaignId}: ${listDomains(agn.domains)}`);
+      evidence.push(`same name template ${agn.template} under a different top-level domain (.${d.suffix}); campaign ${fp.campaignId}: ${listDomains(agn.domains)}`);
     } else if (isLoremKit(d.t.specific) && d.t.literalChars >= cfg.minTemplateLiteralChars) {
       const sk = skeletonOf(d.t);
       const same = fp.templates.find((x) => x.lorem && !x.agnostic && x.skeleton === sk.specific);
@@ -357,7 +357,7 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
         kind = "lorem_kit";
         template = hit.template;
         similar = hit.domains;
-        evidence.push(`ten sam generator nazw (${same ? sk.specific : sk.agnostic}) co szablon ${hit.template} kampanii ${fp.campaignId}, inne słowo kotwicy (${listDomains(hit.domains)})`);
+        evidence.push(`same name generator (${same ? sk.specific : sk.agnostic}) as template ${hit.template} of campaign ${fp.campaignId}, different anchor word (${listDomains(hit.domains)})`);
       }
     }
     // literal words of a matched template are part of the pattern, not extra support
@@ -373,11 +373,11 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
       const campaignWord = d.words.find((w) => !b.includes(w) && fp.tokens.includes(w));
       const sameTld = fp.tlds.includes(d.suffix);
       const why = variantOnly
-        ? "reszta nazwy to cyfry lub słowa z domen kampanii"
+        ? "the rest of the name is digits or words from the campaign domains"
         : campaignWord
-          ? `zawiera też słowo kampanii „${campaignWord}”`
+          ? `also contains the campaign word “${campaignWord}”`
           : sameTld
-            ? `ta sama domena najwyższego poziomu (.${d.suffix})`
+            ? `same top-level domain (.${d.suffix})`
             : null;
       if (!why) continue;
       base = s.brand;
@@ -385,7 +385,7 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
       template = null;
       similar = fp.domains.filter((x) => normalizeToken(x).includes(b));
       evidence.length = 0;
-      evidence.push(`nazwa zawiera markę z leksykonu „${b}”, używaną przez kampanię ${fp.campaignId}; ${why}`);
+      evidence.push(`name contains the lexicon brand “${b}”, used by campaign ${fp.campaignId}; ${why}`);
       used.add(b);
       if (campaignWord) used.add(campaignWord);
       break;
@@ -402,7 +402,7 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
       template = null;
       similar = fp.domains.filter((x) => normalizeToken(x).includes(m));
       evidence.length = 0;
-      evidence.push(`nazwa podszywa się pod medium „${m}” (jak ${listDomains(similar)}) i zawiera słowo kampanii ${fp.campaignId} „${campaignWord}”`);
+      evidence.push(`name impersonates the media outlet “${m}” (like ${listDomains(similar)}) and contains the word “${campaignWord}” of campaign ${fp.campaignId}`);
       used.add(m);
       used.add(campaignWord);
       break;
@@ -415,7 +415,7 @@ function scoreCampaign(fp: CampaignFingerprint, d: DomainView, set: FingerprintS
     ...new Set([...lexiconTokens.filter((t) => d.norm.includes(t)), ...d.words.filter((w) => fp.tokens.includes(w))]),
   ].filter((t) => ![...used].some((u) => u.includes(t) || t.includes(u)));
   const tokens = support.slice(0, 2);
-  if (tokens.length) evidence.push(`słowa wspierające: ${tokens.join(", ")}`);
+  if (tokens.length) evidence.push(`supporting words: ${tokens.join(", ")}`);
   return {
     domain: d.domain,
     campaignId: fp.campaignId,

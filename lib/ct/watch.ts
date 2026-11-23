@@ -13,7 +13,7 @@ import { appendFeed, feedDomains, type CandidateEnrichment, type CtFeedRecord } 
 import { matchDomain, registrableOfName, type CtMatch, type FingerprintSet } from "./fingerprint";
 import type { CtStreamEvent } from "./stream";
 
-export const CANDIDATE_NOTE = "kandydat do weryfikacji przez człowieka: dopasowanie nazwy domeny do odcisku kampanii, nie dowód";
+export const CANDIDATE_NOTE = "candidate for human review: the domain name matches a campaign fingerprint, not proof";
 
 export interface CtWatcherOptions {
   set: FingerprintSet;
@@ -98,7 +98,7 @@ export class CtWatcher {
       while (this.enrichTimes.length && now - this.enrichTimes[0] > 60_000) this.enrichTimes.shift();
       if (this.enrichTimes.length >= (e.maxPerMinute ?? 30)) {
         this.stats.enrichSkipped++;
-        enrichment = { dns: null, hosts: [], rdap: null, ct: null, page: null, errors: [], skipped: "limit wzbogaceń na minutę" };
+        enrichment = { dns: null, hosts: [], rdap: null, ct: null, page: null, errors: [], skipped: "per-minute enrichment limit" };
       } else {
         this.enrichTimes.push(now);
         try {
@@ -147,7 +147,7 @@ export class CtWatcher {
       note: CANDIDATE_NOTE,
     };
     if (this.opts.feedFile) appendFeed(this.opts.feedFile, record);
-    this.opts.log?.(`[ct] kandydat ${m.domain} -> ${m.campaignId} (${m.kind}, ${m.score.toFixed(2)})`);
+    this.opts.log?.(`[ct] candidate ${m.domain} -> ${m.campaignId} (${m.kind}, ${m.score.toFixed(2)})`);
     this.opts.onCandidate?.(record);
   }
 }
@@ -184,7 +184,7 @@ export async function runBackfill(opts: BackfillOptions): Promise<BackfillResult
     }
     if (!res) {
       out.patterns.push({ pattern, status: "unavailable", certificates: 0, recent: 0 });
-      opts.log?.(`[ct] crt.sh nie odpowiedział dla wzorca ${pattern}`);
+      opts.log?.(`[ct] crt.sh did not respond for pattern ${pattern}`);
       continue;
     }
     const recent = res.certs.filter((c) => {

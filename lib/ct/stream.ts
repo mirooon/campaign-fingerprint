@@ -171,27 +171,27 @@ export async function runCtStream(opts: CtStreamOptions): Promise<CtStreamResult
         }
         resolve(o);
       };
-      const onAbort = () => finish({ kind: "stopped", reason: "przerwano" });
+      const onAbort = () => finish({ kind: "stopped", reason: "aborted" });
       try {
         ws = factory(url);
       } catch (e) {
-        resolve({ kind: "unavailable", reason: `nie można otworzyć: ${(e as Error).message}` });
+        resolve({ kind: "unavailable", reason: `cannot open: ${(e as Error).message}` });
         return;
       }
       opts.signal?.addEventListener("abort", onAbort);
-      if (deadline !== null) timers.push(setTimeout(() => finish({ kind: "stopped", reason: "upłynął czas działania" }), Math.max(0, deadline - Date.now())));
-      timers.push(setTimeout(() => finish({ kind: "unavailable", reason: "przekroczony czas połączenia" }), connectTimeoutMs));
+      if (deadline !== null) timers.push(setTimeout(() => finish({ kind: "stopped", reason: "run time is up" }), Math.max(0, deadline - Date.now())));
+      timers.push(setTimeout(() => finish({ kind: "unavailable", reason: "connection timed out" }), connectTimeoutMs));
       ws.onopen = () => {
         timers.push(
           setTimeout(() => {
-            if (!gotData) finish({ kind: "unavailable", reason: `połączono, ale brak danych przez ${Math.round(firstMessageTimeoutMs / 1000)} s` });
+            if (!gotData) finish({ kind: "unavailable", reason: `connected, but no data for ${Math.round(firstMessageTimeoutMs / 1000)} s` });
           }, firstMessageTimeoutMs),
         );
         clearTimeout(timers[timers.length - 2]); // connect timeout no longer applies
         if (typeof ws.ping === "function") intervals.push(setInterval(() => ws.ping?.(), pingIntervalMs));
         intervals.push(
           setInterval(() => {
-            if (gotData && Date.now() - lastMessage > idleTimeoutMs) finish({ kind: "ended", reason: "strumień ucichł" });
+            if (gotData && Date.now() - lastMessage > idleTimeoutMs) finish({ kind: "ended", reason: "the stream went quiet" });
           }, Math.min(idleTimeoutMs, 5_000)),
         );
       };
@@ -202,7 +202,7 @@ export async function runCtStream(opts: CtStreamOptions): Promise<CtStreamResult
         if (!gotData) {
           gotData = true;
           result.url = url;
-          log(`[ct] połączono ze strumieniem CT: ${url}`);
+          log(`[ct] connected to the CT stream: ${url}`);
         }
         const event = parseCertstreamMessage(typeof ev.data === "string" ? ev.data : String(ev.data));
         if (event) {
@@ -210,13 +210,13 @@ export async function runCtStream(opts: CtStreamOptions): Promise<CtStreamResult
           try {
             opts.onEvent(event);
           } catch (e) {
-            log(`[ct] błąd obsługi zdarzenia: ${(e as Error).message}`);
+            log(`[ct] error handling an event: ${(e as Error).message}`);
           }
         }
       };
-      ws.onerror = () => finish(gotData ? { kind: "ended", reason: "błąd połączenia" } : { kind: "unavailable", reason: "błąd połączenia" });
+      ws.onerror = () => finish(gotData ? { kind: "ended", reason: "connection error" } : { kind: "unavailable", reason: "connection error" });
       ws.onclose = (ev) =>
-        finish(gotData ? { kind: "ended", reason: `zamknięte (${ev?.code ?? "?"})` } : { kind: "unavailable", reason: `zamknięte przed danymi (${ev?.code ?? "?"})` });
+        finish(gotData ? { kind: "ended", reason: `closed (${ev?.code ?? "?"})` } : { kind: "unavailable", reason: `closed before any data (${ev?.code ?? "?"})` });
     });
 
   let reconnects = 0;
@@ -232,7 +232,7 @@ export async function runCtStream(opts: CtStreamOptions): Promise<CtStreamResult
       }
       if (o.kind === "ended") {
         working = true;
-        log(`[ct] strumień ${url} zakończył się (${o.reason})`);
+        log(`[ct] stream ${url} ended (${o.reason})`);
         break;
       }
       log(`[ct] ${url}: ${o.reason}`);

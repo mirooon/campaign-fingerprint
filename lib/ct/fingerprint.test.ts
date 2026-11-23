@@ -39,7 +39,7 @@ describe("CT matcher: domain-name templates", () => {
     const pro = matchDomain("finance23-voluptas94.pro", set)!;
     expect(pro).toMatchObject({ campaignId: "KF", kind: "template_other_tld", template: "finance<n>-<lorem><n>.*" });
     expect(pro.score).toBeCloseTo(0.85);
-    expect(pro.evidence[0]).toContain("innej domenie najwyższego poziomu (.pro)");
+    expect(pro.evidence[0]).toContain("under a different top-level domain (.pro)");
   });
 
   it("reads certificate names: subdomains and wildcards map to the registrable domain", () => {
@@ -98,7 +98,7 @@ describe("CT matcher: lexicon brands and media", () => {
   it("a configured brand used by a campaign matches with campaign context", () => {
     const m = matchDomain("kryptozysk-ai24.pro", set)!;
     expect(m).toMatchObject({ campaignId: "K1", kind: "brand", score: 0.7 });
-    expect(m.evidence[0]).toContain("„kryptozysk”");
+    expect(m.evidence[0]).toContain("“kryptozysk”");
     expect(matchDomain("kryptozysk.pro", set)?.kind).toBe("brand");
   });
 

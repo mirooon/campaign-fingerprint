@@ -73,7 +73,7 @@ describe("classifyPayer", () => {
     const r = classifyPayer("Fundacja Zielona Dolina", pl);
     expect(r.kind).toBe("other");
     expect(r.reasons.length).toBeGreaterThan(0);
-    expect(classifyPayer("Test", pl).reasons.join(" ")).toMatch(/zaślepk/);
+    expect(classifyPayer("Test", pl).reasons.join(" ")).toMatch(/placeholder/);
   });
 
   it("checks the kinds in order: a placeholder is not also gibberish", () => {

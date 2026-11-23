@@ -106,7 +106,7 @@ export interface PayerSummary {
 
 /** Caution shown with a kind in the viewer and the evidence pack (only for the kinds that need one). */
 export const PAYER_KIND_NOTES_PL: Partial<Record<PayerKind, string>> = {
-  person: "Płatnik to osoba prywatna: może być ofiarą kradzieży tożsamości, bo imię i nazwisko w repozytorium reklam wpisuje sam reklamodawca i nikt tego nie weryfikuje.",
+  person: "The payer is a private person: they may be a victim of identity theft, because the advertiser types the name into the ad repository and nobody verifies it.",
 };
 
 /** Kinds that make the declared payer suspicious by themselves. */
@@ -146,15 +146,15 @@ function hasKeyboardRun(word: string, cfg: PayerKindConfig): boolean {
 function gibberishReason(token: string, cfg: PayerKindConfig): string | null {
   const word = payerKey(token);
   if (!/^[a-z0-9]+$/.test(word)) return null;
-  if (word.length >= cfg.keyboardRunMin && hasKeyboardRun(word, cfg)) return "ciąg klawiszy z jednego rzędu klawiatury";
+  if (word.length >= cfg.keyboardRunMin && hasKeyboardRun(word, cfg)) return "a run of keys from one keyboard row";
   if (word.length < cfg.gibberishMinLength) return null;
-  if (new Set(word).size <= 2) return "powtórzone jeden lub dwa znaki";
+  if (new Set(word).size <= 2) return "one or two characters repeated";
   const switches = (word.match(/[a-z][0-9]|[0-9][a-z]/g) ?? []).length;
-  if (switches >= cfg.gibberishMinSwitches) return "litery wymieszane z cyframi";
+  if (switches >= cfg.gibberishMinSwitches) return "letters mixed with digits";
   const letters = word.replace(/[0-9]/g, "");
   const vowels = (letters.match(/[aeiouy]/g) ?? []).length;
-  if (letters.length >= cfg.gibberishMinLength && vowels === 0) return "ciąg liter bez samogłosek";
-  if (vowels / word.length <= cfg.gibberishMaxVowelShare && entropy(word) >= cfg.gibberishMinEntropy) return "ciąg znaków o wysokiej entropii i prawie bez samogłosek";
+  if (letters.length >= cfg.gibberishMinLength && vowels === 0) return "a run of letters without vowels";
+  if (vowels / word.length <= cfg.gibberishMaxVowelShare && entropy(word) >= cfg.gibberishMinEntropy) return "a high-entropy run of characters with almost no vowels";
   return null;
 }
 
@@ -220,14 +220,14 @@ export function classifyPayer(name: string, ctx: PayerContext, cfg: PayerKindCon
   const manyNonLatin = words.length >= 2 && nonLatinWords.length === words.length;
 
   if (!manyNonLatin) {
-    if (key.length <= cfg.maxPlaceholderLength) return { kind: "placeholder", reasons: [`zaślepka: nazwa ma ${key.length} znaków (próg ${cfg.maxPlaceholderLength})`] };
-    if (cfg.placeholders.includes(key)) return { kind: "placeholder", reasons: ["zaślepka: typowe słowo wpisywane, żeby ominąć formularz"] };
-    if (!/\p{L}/u.test(name)) return { kind: "placeholder", reasons: ["zaślepka: nazwa bez liter"] };
+    if (key.length <= cfg.maxPlaceholderLength) return { kind: "placeholder", reasons: [`placeholder: the name has ${key.length} characters (threshold ${cfg.maxPlaceholderLength})`] };
+    if (cfg.placeholders.includes(key)) return { kind: "placeholder", reasons: ["placeholder: a typical word typed to get past the form"] };
+    if (!/\p{L}/u.test(name)) return { kind: "placeholder", reasons: ["placeholder: a name without letters"] };
   }
 
   if (words.length === 1) {
     const reason = gibberishReason(words[0], cfg);
-    if (reason) return { kind: "gibberish", reasons: [`bełkot: ${reason}`] };
+    if (reason) return { kind: "gibberish", reasons: [`gibberish: ${reason}`] };
   }
 
   const inRange = words.length >= cfg.personWords.min && words.length <= cfg.personWords.max;
@@ -238,22 +238,22 @@ export function classifyPayer(name: string, ctx: PayerContext, cfg: PayerKindCon
   const nameShaped = inRange && words.every(looksLikeNameWord) && !words.some(companyWord);
   if (nameShaped) {
     const vietnamese = [...name.normalize("NFD")].some((ch) => cfg.vietnameseMarks.includes(ch));
-    if (ctx.polishAd && nonLatinWords.length > 0) return { kind: "person_foreign_script", reasons: ["imię i nazwisko w obcym alfabecie na reklamie po polsku"] };
-    if (ctx.polishAd && vietnamese) return { kind: "person_foreign_script", reasons: ["imię i nazwisko ze znakami typowymi dla pisowni wietnamskiej na reklamie po polsku"] };
-    return { kind: "person", reasons: ["osoba prywatna jako płatnik (może być ofiarą kradzieży tożsamości)"] };
+    if (ctx.polishAd && nonLatinWords.length > 0) return { kind: "person_foreign_script", reasons: ["a full name in a foreign script on a Polish-language ad"] };
+    if (ctx.polishAd && vietnamese) return { kind: "person_foreign_script", reasons: ["a full name with characters typical of Vietnamese spelling on a Polish-language ad"] };
+    return { kind: "person", reasons: ["a private person as the payer (may be a victim of identity theft)"] };
   }
 
-  if (words.length > 0 && words.every((w) => cfg.genericCorpWords.includes(payerKey(w)))) return { kind: "generic_corp", reasons: ["ogólna nazwa firmowa złożona z samych ogólnych słów, bez formy prawnej z numerem"] };
+  if (words.length > 0 && words.every((w) => cfg.genericCorpWords.includes(payerKey(w)))) return { kind: "generic_corp", reasons: ["a generic company name made only of generic words, without a legal form with a number"] };
   const hasRegistrationNumber = new RegExp(`\\d{${cfg.registrationDigits},}`).test(name.replace(/[\s-]/g, ""));
   if (words.length > 1 && words.length <= cfg.genericSuffixMaxWords && !hasRegistrationNumber && cfg.genericCorpWords.includes(payerKey(words[words.length - 1]))) {
-    return { kind: "generic_corp", reasons: ["ogólna nazwa firmowa: zmyślone słowo z ogólną końcówką („… Media”, „… Corp”), bez formy prawnej z numerem"] };
+    return { kind: "generic_corp", reasons: ["a generic company name: a made-up word with a generic ending (“… Media”, “… Corp”), without a legal form with a number"] };
   }
 
-  if (ctx.pageName && key && payerKey(ctx.pageName) === key) return { kind: "matches_page", reasons: ["płatnik równy nazwie strony reklamodawcy"] };
+  if (ctx.pageName && key && payerKey(ctx.pageName) === key) return { kind: "matches_page", reasons: ["the payer equals the name of the advertiser's page"] };
 
-  if (endsWithLegalForm(name, cfg)) return { kind: "registered_form", reasons: ["nazwa z formą prawną"] };
+  if (endsWithLegalForm(name, cfg)) return { kind: "registered_form", reasons: ["a name with a legal form"] };
 
-  return { kind: "other", reasons: ["nazwa nie pasuje do żadnego z rodzajów"] };
+  return { kind: "other", reasons: ["the name fits none of the kinds"] };
 }
 
 /**

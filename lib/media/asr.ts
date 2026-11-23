@@ -66,20 +66,20 @@ export async function detectAsr(opts: { run?: ToolRunner; env?: EnvMap } = {}): 
     if (await nonEmptyFile(model)) {
       const vad = defaultWhisperVadModel(env);
       const hasVad = await nonEmptyFile(vad);
-      return { available: true, tool: "whisper-cli", model, reason: null, vadModel: hasVad ? vad : null, vadReason: hasVad ? null : `bez VAD: brak modelu Silero ${vad} (ustaw WHISPER_VAD_MODEL)` };
+      return { available: true, tool: "whisper-cli", model, reason: null, vadModel: hasVad ? vad : null, vadReason: hasVad ? null : `no VAD: no Silero model ${vad} (set WHISPER_VAD_MODEL)` };
     }
-    reasons.push(`whisper-cli: brak modelu ${model} (ustaw WHISPER_MODEL)`);
+    reasons.push(`whisper-cli: no model ${model} (set WHISPER_MODEL)`);
   } else {
-    reasons.push("whisper-cli niedostępny");
+    reasons.push("whisper-cli unavailable");
   }
 
   const mlx = await run("mlx_whisper", ["--help"], { timeoutMs: 30_000 });
   if (mlx.code === 0) {
     const model = defaultMlxModel(env);
     if (await mlxModelIsLocal(model, env)) return { available: true, tool: "mlx_whisper", model, reason: null };
-    reasons.push(`mlx_whisper: model ${model} nie jest dostępny lokalnie (pierwsze użycie pobrałoby go z sieci)`);
+    reasons.push(`mlx_whisper: model ${model} is not available locally (the first use would download it)`);
   } else {
-    reasons.push("mlx_whisper niedostępny");
+    reasons.push("mlx_whisper unavailable");
   }
   return { available: false, tool: null, model: null, reason: reasons.join("; ") };
 }

@@ -117,7 +117,7 @@ describe("face adapter", () => {
 
   it("skips with a reason, without throwing, when the venv or the models are missing", async () => {
     const res = await detectFaces(["a.jpg"], { env: { FACE_PYTHON: "/nie/ma/python", FACE_MODEL_DIR: "/nie/ma" } });
-    expect(res).toEqual({ skipped: "brak adaptera twarzy (scripts/py/setup-face.sh)" });
+    expect(res).toEqual({ skipped: "no face adapter (scripts/py/setup-face.sh)" });
   });
 
   it("skips with the adapter's error when the helper fails", async () => {

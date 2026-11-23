@@ -68,7 +68,7 @@ export const DEFAULT_FACE_CONFIG: FaceConfig = {
 /** The two ONNX models of OpenCV Zoo that the helper loads from FACE_MODEL_DIR. */
 export const FACE_MODEL_FILES = ["face_detection_yunet_2023mar.onnx", "face_recognition_sface_2021dec.onnx"] as const;
 
-export const FACE_UNAVAILABLE = "brak adaptera twarzy (scripts/py/setup-face.sh)";
+export const FACE_UNAVAILABLE = "no face adapter (scripts/py/setup-face.sh)";
 
 type EnvMap = Record<string, string | undefined>;
 
@@ -211,7 +211,7 @@ export async function detectFaces(
   const modelDir = faceModelDir(env);
   const index = opts.index === undefined ? loadFaceIndex() : opts.index;
   if (!index) return { skipped: FACE_UNAVAILABLE };
-  if (opts.only && !index.persons[opts.only]) return { skipped: `brak osoby ${opts.only} w bazie twarzy (data/faces)` };
+  if (opts.only && !index.persons[opts.only]) return { skipped: `no person ${opts.only} in the face gallery (data/faces)` };
   if (!opts.run) {
     if (!(await which(python, env))) return { skipped: FACE_UNAVAILABLE };
     for (const f of FACE_MODEL_FILES) if (!(await nonEmptyFile(path.join(modelDir, f)))) return { skipped: FACE_UNAVAILABLE };
@@ -222,12 +222,12 @@ export async function detectFaces(
     timeoutMs: opts.timeoutMs ?? 60_000 + 10_000 * images.length,
   });
   if (r.code !== 0 || r.timedOut) {
-    const why = r.timedOut ? "przekroczono limit czasu" : r.stderr.trim().split("\n").slice(-1)[0] || `kod wyjścia ${r.code}`;
-    return { skipped: `adapter twarzy nie zadziałał: ${why}` };
+    const why = r.timedOut ? "timed out" : r.stderr.trim().split("\n").slice(-1)[0] || `exit code ${r.code}`;
+    return { skipped: `the face adapter failed: ${why}` };
   }
   const errors = parseFaceErrors(r.stdout);
   const failed = [...resolved.keys()].filter((file) => file in errors);
-  if (failed.length === resolved.size) return { skipped: `adapter twarzy nie odczytał żadnego obrazu: ${errors[failed[0]]}` };
+  if (failed.length === resolved.size) return { skipped: `the face adapter read no image: ${errors[failed[0]]}` };
   const byPath = parseFaceOutput(r.stdout);
   const raw: Record<string, RawFace[]> = {};
   for (const [file, original] of resolved) raw[original] = byPath[file] ?? [];

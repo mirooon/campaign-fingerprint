@@ -57,11 +57,11 @@ export async function detectSpeaker(opts: { run?: ToolRunner; env?: EnvMap } = {
   const python = speakerPython(env);
   const modelDir = speakerModelDir(env);
   if (!opts.run && !(await which(python, env))) {
-    return { available: false, python: null, modelDir, reason: `brak interpretera ${python} (uruchom scripts/py/setup-speaker.sh albo ustaw SPEAKER_PYTHON)` };
+    return { available: false, python: null, modelDir, reason: `no interpreter ${python} (run scripts/py/setup-speaker.sh or set SPEAKER_PYTHON)` };
   }
   const r = await run(python, ["-I", "-c", "import speechbrain, soundfile, torch"], { timeoutMs: 60_000 });
-  if (r.code !== 0) return { available: false, python, modelDir, reason: `${python}: brak pakietów speechbrain/soundfile/torch` };
-  if (!(await which("ffmpeg", env)) && !opts.run) return { available: false, python, modelDir, reason: "brak ffmpeg" };
+  if (r.code !== 0) return { available: false, python, modelDir, reason: `${python}: missing packages speechbrain/soundfile/torch` };
+  if (!(await which("ffmpeg", env)) && !opts.run) return { available: false, python, modelDir, reason: "no ffmpeg" };
   return { available: true, python, modelDir, reason: null };
 }
 

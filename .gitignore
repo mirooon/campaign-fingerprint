@@ -40,3 +40,6 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 .vercel
+
+# plik generowany przez next dev
+AGENTS.md

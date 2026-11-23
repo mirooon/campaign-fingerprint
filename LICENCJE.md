@@ -209,8 +209,7 @@ Domyślnie narzędzie nie wysyła żadnych zapytań (`ANALYZE_OFFLINE=1` w obraz
 
 Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Dockerfile docker-compose.yml package.json` (bez trafień) i listą zależności z punktu 1: **żaden adapter nie pobiera ani nie używa komponentów o licencji niekomercyjnej** (np. DeepFace z domyślnym modelem, InsightFace); rozpoznawanie twarzy używa wyłącznie YuNet (MIT) i SFace (Apache-2.0) z OpenCV Zoo. Żaden pakiet npm z punktu 1 nie ma licencji NC ani GPL. Składnik na licencji copyleft w obrazie to FFmpeg (GPL-2.0-or-later) jako osobny proces i `libvips` (LGPL-3.0-or-later) jako biblioteka dynamiczna `sharp`. Gdy późniejsze zadanie doda adapter (twarze, głos), powinno dopisać tu wynik takiej kontroli.
 
-
-## 7. Oświadczenie o braku wad prawnych
+## 6. Oświadczenie o braku wad prawnych
 
 - **Co obejmuje przeniesienie praw, a co nie (§4 regulaminu zadania).** Przeniesienie autorskich praw majątkowych obejmuje kod, dokumentację, testy i dane syntetyczne stworzone przez zespół. Nie obejmuje utworów osób trzecich, które pozostają na swoich licencjach i z których nabywca korzysta na tych licencjach: (a) zdjęć referencyjnych w `data/faces` (autorzy z Wikimedia Commons; CC BY, CC BY-SA, CC0 i domena publiczna; przycięte kopie są opracowaniami na licencji oryginału, przy CC BY-SA z obowiązkiem share-alike dla tych plików; każdy plik można usunąć i zastąpić własnym bez zmiany kodu); (b) wektorów głosu w `data/voices/index.json`, wyliczonych z publicznych nagrań na standardowej licencji YouTube (samych nagrań nie ma w repozytorium; podstawa prawna wyliczania wektorów z takich nagrań nie została zbadana prawnie, zob. [docs/ZGODNOSC.md](docs/ZGODNOSC.md); nabywca może ten plik usunąć i zbudować galerię z nagrań, do których ma prawa, skryptem `scripts/py/build_voice_index.py`); (c) modeli, bibliotek i narzędzi z punktów 1–4, w tym modelu VAD `speechbrain/vad-crdnn-libriparty` o niepotwierdzonej licencji wag, który jest opcjonalny, domyślnie nieużywany i do zastąpienia przed użyciem komercyjnym (§9). Autorzy nie znają roszczeń osób trzecich do żadnej z tych części; pozycje niepewne wymienia §9.
 - Repozytorium nie zawiera materiałów udostępnionych przez organizatora ani ich fragmentów; dane przykładowe i testowe są syntetyczne ([README.md](docs/JURY.md#pochodzenie-danych)).
@@ -324,7 +323,7 @@ Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Do
 | `data/faces/robert-kubica/03.jpg` | Robert Kubica | [Robert Kubica 2010 Malaysia.jpg](https://commons.wikimedia.org/wiki/File:Robert_Kubica_2010_Malaysia.jpg) | Morio | [CC BY-SA 3.0](http://creativecommons.org/licenses/by-sa/3.0/) |
 | `data/faces/robert-kubica/04.jpg` | Robert Kubica | [Rajd Polski 2015 Robert Kubica 3.JPG](https://commons.wikimedia.org/wiki/File:Rajd_Polski_2015_Robert_Kubica_3.JPG) | Makary | [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0) |
 
-## 8. Czego nie używamy
+## 7. Czego nie używamy
 
 | Składnik | Licencja | Powód |
 |---|---|---|
@@ -335,7 +334,7 @@ Sprawdzone `grep -rli 'deepface\|insightface\|buffalo' lib scripts app docker Do
 | httpx (ProjectDiscovery) | MIT | licencja nie jest problemem; odrzucony, bo aktywne sondowanie hostów łamie zasadę pasywności narzędzia |
 | DeepFace z domyślnym modelem, InsightFace | modele na licencjach niekomercyjnych | nie używane; ewentualny adapter twarzy musi mieć model o licencji pozwalającej na użycie |
 
-## 9. Do sprawdzenia
+## 8. Do sprawdzenia
 
 Rzeczy niepermisywne, niejasne albo takie, których nie dało się zweryfikować w repozytorium. Nie blokują użycia lokalnego i niekomercyjnego; przed wdrożeniem w instytucji powinien je przejrzeć prawnik.
 

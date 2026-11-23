@@ -20,7 +20,7 @@ const Body = z
     imageUrl: z.string().trim().max(2048).optional(),
     offline: z.boolean().optional(),
   })
-  .refine((b) => !!(b.url || b.text || b.imageUrl), { message: "Podaj url, text lub imageUrl" });
+  .refine((b) => !!(b.url || b.text || b.imageUrl), { message: "Give url, text or imageUrl" });
 
 export async function POST(request: Request): Promise<Response> {
   const limited = rateLimitResponse(request);
@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     json = await request.json();
   } catch {
-    return Response.json({ error: "Niepoprawny JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const parsed = Body.safeParse(json);
   if (!parsed.success) {
@@ -52,6 +52,6 @@ export async function POST(request: Request): Promise<Response> {
     );
     return Response.json(result);
   } catch (e) {
-    return Response.json({ error: `Analiza nie powiodła się: ${(e as Error).message}` }, { status: 500 });
+    return Response.json({ error: `The analysis failed: ${(e as Error).message}` }, { status: 500 });
   }
 }

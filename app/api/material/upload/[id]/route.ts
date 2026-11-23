@@ -9,7 +9,7 @@ import { UploadError } from "@/lib/viewer/upload";
 export async function PUT(request: Request, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
   const { id } = await ctx.params;
   const s = getUploadSession(id);
-  if (!s) return Response.json({ error: "Nie ma takiej sesji wgrywania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
+  if (!s) return Response.json({ error: "No such upload session (the server may have been restarted)" }, { status: 404 });
   const q = new URL(request.url).searchParams;
   const rel = q.get("path") ?? "";
   try {
@@ -17,6 +17,6 @@ export async function PUT(request: Request, ctx: { params: Promise<{ id: string 
     return Response.json({ ok: true, files: s.files, bytes: s.bytes });
   } catch (e) {
     const status = e instanceof UploadError ? (/limit/.test(e.message) ? 413 : 400) : 500;
-    return Response.json({ error: e instanceof UploadError ? e.message : `Nie udało się zapisać pliku ${rel}: ${(e as Error).message}` }, { status });
+    return Response.json({ error: e instanceof UploadError ? e.message : `Could not save the file ${rel}: ${(e as Error).message}` }, { status });
   }
 }

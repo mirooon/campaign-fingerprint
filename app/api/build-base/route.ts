@@ -59,18 +59,18 @@ export async function POST(request: Request): Promise<Response> {
   if (limited) return limited;
   const refusal = buildBaseRefusal(SAMPLE_BASE);
   if (refusal) return Response.json({ error: refusal }, { status: 403 });
-  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
+  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `The uploaded files exceed the limit of ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
   let form: FormData;
   try {
     form = await request.formData();
   } catch {
-    return Response.json({ error: "Oczekiwano multipart/form-data" }, { status: 400 });
+    return Response.json({ error: "Expected multipart/form-data" }, { status: 400 });
   }
   const files = form.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
-  if (!files.length) return Response.json({ error: "Dodaj folder spraw (jeden podfolder na sprawę) albo ZIP" }, { status: 400 });
-  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
+  if (!files.length) return Response.json({ error: "Add a folder of cases (one subfolder per case) or a ZIP" }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Too many files (max. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
   const summary = baseSummary(DATA_DIR);
-  if (summary.exists && form.get("confirm") !== "1") return Response.json({ error: "Potwierdź zastąpienie bazy", question: replaceQuestion(summary) }, { status: 409 });
+  if (summary.exists && form.get("confirm") !== "1") return Response.json({ error: "Confirm replacing the base", question: replaceQuestion(summary) }, { status: 409 });
 
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
   const casesDir = path.join(process.cwd(), ".cache", "uploads", `baza-${stamp}-${Math.random().toString(36).slice(2, 8)}`);
@@ -84,14 +84,14 @@ export async function POST(request: Request): Promise<Response> {
       await writeFile(dest, Buffer.from(await f.arrayBuffer()));
       if (/\.zip$/i.test(rel)) {
         const r = await run("unzip", ["-qq", "-o", dest, "-d", path.dirname(dest)], 120_000);
-        if (r.code !== 0) return Response.json({ error: `Nie udało się rozpakować ${rel}` }, { status: 400 });
+        if (r.code !== 0) return Response.json({ error: `Could not unpack ${rel}` }, { status: 400 });
         await rm(dest, { force: true });
       }
     }
     await flattenSingleTop(casesDir);
     await gatherLooseFiles(casesDir);
   } catch (e) {
-    return Response.json({ error: `Nie udało się zapisać wgranych plików: ${(e as Error).message}` }, { status: 500 });
+    return Response.json({ error: `Could not save the uploaded files: ${(e as Error).message}` }, { status: 500 });
   }
 
   const backup = setAsideBase(DATA_DIR, stamp);
@@ -99,7 +99,7 @@ export async function POST(request: Request): Promise<Response> {
   const after = baseSummary(DATA_DIR);
   if (r.code !== 0 || !after.exists) {
     restoreBase(DATA_DIR, backup);
-    return Response.json({ error: `Budowa bazy nie powiodła się, poprzednia baza wróciła na miejsce: ${r.stderr.split("\n").filter(Boolean).slice(-3).join(" | ")}` }, { status: 500 });
+    return Response.json({ error: `Building the base failed, the previous base was restored: ${r.stderr.split("\n").filter(Boolean).slice(-3).join(" | ")}` }, { status: 500 });
   }
   return Response.json({ summary: after, backup: backup ? path.basename(backup) : null }, { headers: { "cache-control": "no-store" } });
 }

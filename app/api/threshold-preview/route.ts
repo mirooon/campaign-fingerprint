@@ -13,7 +13,7 @@ import { previewThresholds, thresholdSteps } from "@/lib/viewer/thresholdPreview
 /** GET /api/threshold-preview: `{ current, rows }` (campaigns, singletons and the largest campaign per threshold), or `{ error }` with 503 when there is no base. */
 export async function GET(): Promise<Response> {
   const { graph, campaigns, error } = loadViewerData();
-  if (!graph || !campaigns) return Response.json({ error: error ?? "Brak bazy" }, { status: 503 });
+  if (!graph || !campaigns) return Response.json({ error: error ?? "No base" }, { status: 503 });
   const file = resolveLinkConfigFile({ dataDir: DATA_DIR, env: process.env.LINK_CONFIG, sampleConfig: SAMPLE_BASE ? path.join(DATA_DIR, "sample", "linking.json") : undefined, exists: existsSync });
   const current = campaigns.method.minLinkScore;
   const rows = previewThresholds(graph, loadLinkConfig(file ?? undefined), thresholdSteps(current));

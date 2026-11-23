@@ -1,88 +1,90 @@
-# Interfejs: jak przeprowadzić analizę
+# Interface: how to run an analysis
 
-Uruchomienie: `bun run pipeline --offline` (baza przykładowa), potem `bun run dev` i adres `http://localhost:3000`.
-Własna baza: `VIEWER_DATA_DIR=<katalog z graph.json, campaigns.json, enriched.json> bun run dev`.
+*Polish version: tag `hacknation-2026`.*
 
-Zakładki u góry: Analizuj materiał (domyślna) · Kampanie · Graf powiązań · Porównaj · Celowo nie połączone · Jak to działa · Nowe domeny · Kogo rozpoznajemy · Jakość danych. Link „Tryb eksperta” obok nagłówka otwiera widok dla osób znających metodę (pełny graf, progi, panel „Nowa reklama”).
+To run it: `bun run pipeline --offline` (example base), then `bun run dev` and open `http://localhost:3000`.
+Your own base: `VIEWER_DATA_DIR=<folder with graph.json, campaigns.json, enriched.json> bun run dev`.
 
-## Analiza materiału, krok po kroku
+Tabs at the top: Analyze sample (default) · Campaigns · Link graph · Compare · Deliberately not linked · How it works · New domains · Recognized people · Data quality. The “Expert mode” link next to the header opens a view for people who know the method (full graph, thresholds, “New ad” panel).
 
-1. W zakładce „Analizuj materiał” upuść pliki, folder albo ZIP w ramkę, albo użyj „Wybierz folder” / „Wybierz pliki”. Możesz też wpisać **Link** albo **Tekst reklamy albo nazwę produktu** (osobno lub razem z plikami).
-2. Zobacz podgląd wgrania. Tabela „Sprawa · Pliki · Uwagi” pokazuje, co narzędzie rozpoznało; przy każdej sprawie ikony rodzajów plików (tabela niżej) i uwagi, np. „HAR bez zapisanej strony”, „same zrzuty: adres odczytamy z paska przeglądarki”, „wideo ze strony (HLS): fragmenty skleimy w jedno nagranie”. Rodzaje, których analiza nie czyta samodzielnie, są zaznaczone na żółto. Odznacz sprawy, których nie chcesz analizować (sprawa bez plików do analizy jest wyłączona).
-3. Sprawdź „Podział na sprawy”. Domyślny podział to podpowiedź (czasem z pytaniem w żółtej ramce). Zmienisz go: **jedna sprawa**, **każdy podfolder to sprawa**, **każdy plik to osobny materiał**. Pliki zapisanej strony (folder `*_files`, `resources/`, skrypty, style, obrazy, wideo ze strony) dołączają do swojej strony i nie są osobnymi sprawami. Kilka luźnych ZIP-ów bez innych luźnych plików domyślnie daje osobną sprawę z każdego archiwum.
-4. Pole „Dociągnij publiczne dane o domenach (DNS, rejestr domen)” jest domyślnie włączone: pytamy publiczne rejestry o domeny z materiału, a stron oszustów nie otwieramy w przeglądarce. Wyłącz je, gdy pracujesz bez internetu.
-5. „Analizuj (liczba spraw)”. Pod spodem pojawia się przebieg: licznik spraw i czas, stan każdej sprawy (czeka, w toku, gotowe, błąd) i zwinięty „Dziennik techniczny”. Adres z `?job=` wraca do tego samego zadania po odświeżeniu strony. „Nowa analiza” czyści widok.
-6. Bez własnych plików możesz kliknąć „Wczytaj przykład”: wymyślona reklama, sprawdzana bez internetu.
+## Analyzing a sample, step by step
 
-| Ikona w podglądzie | Co z nią robimy |
+1. In the “Analyze sample” tab, drop files, a folder or a ZIP into the frame, or use “Choose folder” / “Choose files”. You can also enter a **Link** or **Ad text or product name** (on their own or together with files).
+2. Check the upload preview. The “Case · Files · Notes” table shows what the tool recognized; each case has icons of its file kinds (table below) and notes, e.g. “HAR without a saved page”, “screenshots only: we will read the URL from the browser address bar”, “video from the page (HLS): we will join the segments into one recording”. Kinds that the analysis does not read on their own are marked in yellow. Untick the cases you do not want to analyze (a case without files to analyze is disabled).
+3. Check “Split into cases”. The default split is a suggestion (sometimes with a question in a yellow box). You can change it: **one case**, **each subfolder is a case**, **each file is a separate sample**. Files of a saved page (the `*_files` folder, `resources/`, scripts, styles, images, video from the page) join their page and are not separate cases. Several loose ZIPs with no other loose files give a separate case for each archive by default.
+4. The “Fetch public domain data (DNS, domain registry)” box is ticked by default: we ask public registries about the domains in the sample, and we do not open scam pages in a browser. Untick it when you work without internet access.
+5. “Analyze (number of cases)”. The run appears below: a counter of cases and elapsed time, the state of each case (waiting, running, done, error) and a collapsed “Technical log”. The URL with `?job=` returns to the same job after a page refresh. “New analysis” clears the view.
+6. Without your own files you can click “Load example”: a made-up ad, checked without internet access.
+
+| Icon in the preview | What we do with it |
 |---|---|
-| zrzut | tekst (OCR) i adres z paska przeglądarki |
-| HAR | adresy, przekierowania, odpowiedzi serwerów |
-| strona | budowa strony, formularz, skrypty; strony nie otwieramy |
-| część strony | obrazy, skrypty, style, wideo i manifest zapisu: dołączane do strony |
-| wideo, opis wideo | tekst z klatek i z paska; opis (np. z yt-dlp) daje tytuł, kanał, datę |
-| wideo HLS | playlista `.m3u8` i segmenty `.ts` sklejamy w jedno nagranie i analizujemy jak wideo (klatki; mowa, twarze i głos tylko z wiersza poleceń, patrz niżej) |
-| ZIP | sprawa z samym ZIP-em też jest do analizy: serwer rozpakowuje archiwum przy analizie (także przy wgrywaniu plik po pliku), a cała jego zawartość należy do sprawy, w której leży ZIP; podgląd nie zagląda do środka. Archiwum z wieloma sprawami w podfolderach rozpakuj i wgraj jako folder |
-| plik zbioru (CSV, JSON) | w interfejsie jeszcze nie analizowany; użyj `bun run analyze-material -- --dataset <plik>` |
-| plik systemowy, nieobsługiwany | pomijane |
+| screenshot | text (OCR) and the URL from the browser address bar |
+| HAR | URLs, redirects, server responses |
+| page | page structure, form, scripts; we do not open the page |
+| page part | images, scripts, styles, video and the save manifest: attached to the page |
+| video, video description | text from the frames and from the address bar; the description (e.g. from yt-dlp) gives title, channel, date |
+| HLS video | the `.m3u8` playlist and the `.ts` segments are joined into one recording and analyzed like a video (frames; speech, faces and voice only from the command line, see below) |
+| ZIP | a case with only a ZIP can be analyzed too: the server unpacks the archive during the analysis (also when files are uploaded one by one), and all its content belongs to the case the ZIP is in; the preview does not look inside. An archive with many cases in subfolders: unpack it and upload it as a folder |
+| dataset file (CSV, JSON) | not analyzed in the interface yet; use `bun run analyze-material -- --dataset <file>` |
+| system file, unsupported | skipped |
 
-Limit wgrywania: domyślnie brak. Pliki idą pojedynczo i strumieniowo na dysk (pasek postępu w kroku wgrywania), więc partia wielu GB nie trafia do pamięci. Przy publicznym adresie ustaw `MATERIAL_MAX_MB` i `MATERIAL_MAX_FILES`.
+Upload limit: none by default. Files go one at a time and are streamed to disk (progress bar in the upload step), so a batch of many GB does not end up in memory. On a public address, set `MATERIAL_MAX_MB` and `MATERIAL_MAX_FILES`.
 
-Co robi analiza uruchomiona z przeglądarki (`lib/viewer/materialRunner.ts`): OCR zrzutów i klatek, pasek adresu, odczyt stron i HAR, porównanie z bazą, a przy zaznaczonym polu z kroku 4 także DNS, RDAP i ASN. Transkrypcja (`--asr`), odcisk dźwięku (`--audio`), głos (`--speaker`), twarze (`--faces`), CLIP (`--clip`) i biblioteka reklam (`--ad-library`) są **poza przeglądarką**: włączasz je w `bun run analyze-material` albo przy budowie bazy. Wiersze „podobna twarz” i „głos podobny” w karcie wyniku pojawią się więc tylko dla wyniku z takiej analizy albo dla materiałów z bazy.
+What the analysis started from the browser does (`lib/viewer/materialRunner.ts`): OCR of screenshots and frames, the address bar, reading pages and HAR, comparison with the base, and, with the box from step 4 ticked, also DNS, RDAP and ASN. Transcription (`--asr`), audio fingerprint (`--audio`), voice (`--speaker`), faces (`--faces`), CLIP (`--clip`) and the ad library (`--ad-library`) are **outside the browser**: you switch them on in `bun run analyze-material` or when building the base. So the “face similar” and “voice similar” rows in the result card appear only for a result from such an analysis or for samples from the base.
 
-## Wynik
+## Result
 
-- **Lejek liczb**: Pliki · Materiały · Duplikaty · Powiązania z bazą · Znane kampanie · Nowe kampanie · Za mało danych. Kliknięcie liczby filtruje tabelę. Pod lejkiem pasek zdań („do znanych kampanii”, „nowe podobne”, „nowe”, „duplikaty”, „za mało danych”) działa tak samo.
-- **Tabela materiałów**: miniatura zrzutu, werdykt, kampania, pewność, główna przesłanka, kompletność danych. Sortowanie „po werdykcie” albo „po pewności”, filtr „niepewne: do sprawdzenia”. Plusem na końcu wiersza rozwijasz **kartę wyniku** (przy jednym materiale jest od razu rozwinięta).
-- **Nowe kampanie z tej paczki**: materiały bez dopasowania do bazy, które łączą się między sobą, z przyciskiem „Pobierz paczkę” (niżej).
-- **Eksport**: przyciski CSV i JSON nad tabelą (kolumny jak w `bun run analyze-material --csv`).
-- Znak „?” przy terminie otwiera objaśnienie ze słownika. Ten sam słownik, plus pięć etapów metody i skala siły przesłanek, jest w zakładce „Jak to działa”.
+- **Funnel**: Files · Samples · Duplicates · Links to the base · Known campaigns · New campaigns · Insufficient data. Clicking a number filters the table. The sentence bar below the funnel (“to known campaigns”, “new, similar”, “new”, “duplicates”, “insufficient data”) works the same way.
+- **Sample table**: screenshot thumbnail, verdict, campaign, confidence, main evidence item, data completeness. Sorting “by verdict” or “by confidence”, filter “uncertain: to check”. The plus at the end of a row expands the **result card** (with a single sample it is expanded straight away).
+- **New campaigns from this batch**: samples without a match in the base that link to each other, with the “Download evidence pack” button (see below).
+- **Export**: CSV and JSON buttons above the table (columns as in `bun run analyze-material --csv`).
+- The “?” sign next to a term opens its explanation from the glossary. The same glossary, plus the five stages of the method and the evidence strength scale, is in the “How it works” tab.
 
-### Werdykt
+### Verdict
 
-| Werdykt | Znaczy |
+| Verdict | Meaning |
 |---|---|
-| Znana kampania | materiał ma wspólne ślady z kampanią z bazy powyżej progu łączenia |
-| Nowa kampania, podobna do… | ten sam szablon, narracja albo persona, ale różni operatorzy; „Osobno, bo” podaje powód |
-| Nowa kampania | żadne powiązanie nie przekracza progu |
-| Duplikat | ta sama reklama zebrana ponownie; podany jest oryginał i jego kampania |
-| Za mało danych | materiał nie ma cech do porównania; lista „Co dorzucić” mówi, czego brakuje |
+| Known campaign | the sample shares traces with a campaign from the base above the linking threshold |
+| New campaign, similar to… | the same template, narrative or persona, but different operators; “Kept apart because” gives the reason |
+| New campaign | no link crosses the threshold |
+| Duplicate | the same ad collected again; the original and its campaign are shown |
+| Insufficient data | the sample has no features to compare; the “What to add” list says what is missing |
 
-Pewność: **pewne** (przesłanka o wysokiej sile), **prawdopodobne** (siła powiązania co najmniej 0,5), **niepewne**. Wariant przypisany po samej kreacji nigdy nie jest „pewny”. Kampania „z treści, bez infrastruktury” ma słabszą podstawę niż wspólne konto lub serwer.
+Confidence: **certain** (an evidence item of high strength), **likely** (link strength at least 0.5), **uncertain**. A variant assigned on its creative alone is never “certain”. A campaign “based on content, without infrastructure” has a weaker basis than a shared account or server.
 
-Siła przesłanki: Wysoka (łączy samodzielnie) · Średnia (liczy się razem z innymi) · Wymaga potwierdzenia (potrzebny drugi rodzaj śladu) · Pominięta (ślad wspólny dla wielu niezależnych stron) · Opis, nie dowód. Każdy poziom ma słowo, ikonę i styl, nie tylko kolor.
+Evidence strength: High (links on its own) · Medium (counts together with others) · Needs corroboration (needs a second kind of trace) · Discounted (trace shared by many independent sites) · Description, not evidence. Each level has a word, an icon and a style, not only a colour.
 
-### Karta wyniku
+### Result card
 
-Od góry: werdykt i jedno zdanie wyjaśnienia (przyciski „Pokaż kampanię”, „Porównaj z najbliższą”, „Dodaj do bazy”) · skala werdyktu z progami · „Dlaczego?” (przesłanki, domyślnie najmocniejsze) · „Dlaczego nie inna kampania?” (odrzucone kandydatki z powodem) · „Co rozpoznano” · **trasa kliknięcia** · **Cechy materiału** · „Sklep” (cechy sklepu tłumaczą, dlaczego wygląda podejrzanie, nie łączą kampanii) · „Kompletność danych”.
+From the top: the verdict and one sentence of explanation (buttons “Show campaign”, “Compare with the closest sample”, “Add to base”) · the verdict scale with thresholds · “Why?” (evidence items, the strongest by default) · “Why not another campaign?” (rejected candidate campaigns with the reason) · “What we recognized” · **click route** · **Sample features** · “Shop” (shop features explain why the page looks suspicious; they do not link campaigns) · “Data completeness”.
 
-- **Cechy materiału** są pogrupowane w cztery rodziny z liczbą cech i liczbą wspólnych z bazą. Każdy wiersz ma nazwę, wartość, źródło i rolę cechy; cechy złożone (np. powiązania obiektów, trasa, konto platformy) są rozpisane czytelnie, nie jako surowy JSON. Adresy są rozbrojone. „Pokaż surowe dane” pokazuje pełne cechy materiału. W rodzinie strony stoją też techniki (w tym „chwyt sklepu”). Osobne ramki: ostrzeżenia o koncie platformy i „Notatki autora strony” (komentarze i teksty z kodu strony).
-- **Trasa kliknięcia**: ogniwa reklama → link śledzący → przekierowania → strona docelowa, każde z rolą, statusem, wiekiem domeny względem emisji (RDAP) i ostrzeżeniem o cloakingu.
-- **Co rozpoznano**: „podobna twarz do X (0,57)” i „głos podobny do X (0,70)” (gdy twarze i głos były włączone w wierszu poleceń): do sprawdzenia przez człowieka, nigdy „to jest X”. Także podrabiana marka, narracja, wiek domeny i certyfikatu.
+- **Sample features** are grouped into four families, with the number of features and the number shared with the base. Each row has the feature's name, value, source and role; compound features (e.g. object links, route, platform account) are written out readably, not as raw JSON. URLs are defanged. “Show raw data” shows the full features of the sample. The page family also holds the techniques (including “shop trick”). Separate boxes: platform account warnings and “Page author's notes” (comments and texts from the page code).
+- **Click route**: the steps ad → tracking link → redirects → landing page, each with its role, status, domain age relative to the ad run (RDAP) and a cloaking warning.
+- **What we recognized**: “face similar to X (0.57)” and “voice similar to X (0.70)” (when faces and voice were switched on in the command line): for a human to check, never “this is X”. Also the impersonated brand, narrative, and domain and certificate age.
 
-## Co zrobić z wynikiem
+## What to do with the result
 
-- **Dodaj do bazy** (przy wyniku nowej lub znanej kampanii i nad tabelą partii): dopisuje materiał do bazy, żeby następna analiza go znalazła. Po dodaniu komunikat, co dodano, a czego nie i dlaczego (duplikat, za mało danych, identyfikator już w bazie), potem odświeżenie bazy. Baza przykładowa (`data/`) i wynik „Wczytaj przykład” są tylko do odczytu: przycisk jest wyłączony, a obok stoi powód. Żeby dopisywać, skopiuj bazę i uruchom z `VIEWER_DATA_DIR=<kopia>`. Poprzednie pliki bazy trafiają do `<baza>/historia/`.
-- **Pobierz paczkę**: ZIP dowodów kampanii (`evidence.json`, lista dla CERT, szablon zgłoszenia DSA art. 16, manifest SHA-256). Wysłanie zgłoszenia to decyzja człowieka. Opis zawartości: [TECHNICAL.md](TECHNICAL.md).
-- **Decyzja analityka** (karta kampanii, zakładka „Kampanie”): „do zgłoszenia”, „zgłoszone”, „odrzucone”, „do weryfikacji”, zapis w `decyzje.json` obok bazy. „Odrzucone” i „do weryfikacji” blokują paczkę dowodów (komunikat obok przycisku); brak decyzji nie blokuje. W kodzie nie ma przycisków do poprawiania werdyktu ani składu kampanii.
+- **Add to base** (next to the result of a new or known campaign, and above the batch table): adds the sample to the base, so that the next analysis finds it. After adding, a message says what was added, what was not and why (duplicate, insufficient data, ID already in the base); then the base is refreshed. The example base (`data/`) and the “Load example” result are read-only: the button is disabled and the reason is shown next to it. To add samples, copy the base and run with `VIEWER_DATA_DIR=<copy>`. The previous base files go to `<base>/historia/`.
+- **Download evidence pack**: a ZIP with the campaign's evidence (`evidence.json`, a list for CERT, a DSA Article 16 notice template, a SHA-256 manifest). Sending a report is a human decision. Contents: [TECHNICAL.md](TECHNICAL.md) (Polish).
+- **Analyst decision** (campaign card, “Campaigns” tab): “to report”, “reported”, “rejected”, “to verify”, saved in `decyzje.json` next to the base. “Rejected” and “to verify” block the evidence pack (with a message next to the button); no decision does not block it. The code has no buttons for correcting a verdict or the make-up of a campaign.
 
-## Pozostałe widoki
+## Other views
 
-- **Kampanie**: lista z filtrami (narracja, platforma stron, okres), karta kampanii z macierzą wspólnych śladów, ewolucją i osią czasu, trasą kliknięcia pierwszego materiału, „Nowymi domenami tej kampanii”, wydrukiem i paczką dowodów.
-- **Graf powiązań**: widok zredukowany (kampanie i wspólne ślady; kliknięcie rozwija kampanię do materiałów albo ślad do innych kampanii). Pełny graf: przełącznik „pełny” albo Tryb eksperta.
-- **Porównaj**: dwa materiały obok siebie, udział rodzin cech z procentami i wspólne fragmenty tekstu (co najmniej cztery słowa).
-- **Celowo nie połączone**: pary, które wyglądają podobnie, ale metoda ich nie łączy, z powodem.
-- **Nowe domeny**: kandydaci z feedu CT z czasem certyfikatu względem pierwszej reklamy.
-- **Kogo rozpoznajemy**: osoby z galerii twarzy i głosów z liczbą wzorców i źródłem wpisu; bez wektorów.
-- **Jakość danych**: ile materiałów bez zrzutu, strony, HAR, adresu, wideo.
-- **Tryb eksperta**: panel „Nowa reklama” (ta sama analiza jednym żądaniem, `/api/analyze-material`, bez zadań i postępu), suwak progu łączenia z liczbą kampanii z klasteryzacji backendu (przybliżenie: graf trzyma najsilniejsze powiązania każdej reklamy). Stara trasa `/api/analyze` nie ma już ścieżki w GUI ([TECHNICAL.md](TECHNICAL.md) §8.1).
+- **Campaigns**: a list with filters (narrative, page-builder platform, period), a campaign card with a matrix of shared traces, evolution and timeline, the click route of the first sample, “New domains of this campaign”, printing and the evidence pack.
+- **Link graph**: reduced view (campaigns and shared traces; a click expands a campaign into its samples, or a trace into other campaigns). Full graph: the “full” toggle or Expert mode.
+- **Compare**: two samples side by side, the share of feature families with percentages, and shared text fragments (at least four words).
+- **Deliberately not linked**: pairs that look similar but that the method does not link, with the reason.
+- **New domains**: candidates from the CT feed, with the certificate time relative to the first ad.
+- **Recognized people**: people from the face and voice gallery, with the number of templates and the source of the entry; no vectors.
+- **Data quality**: how many samples have no screenshot, page, HAR, URL or video.
+- **Expert mode**: the “New ad” panel (the same analysis in a single request, `/api/analyze-material`, without jobs and progress), a linking threshold slider with the number of campaigns from the backend clustering (an approximation: the graph keeps the strongest links of each ad). The old `/api/analyze` route no longer has a path in the GUI ([TECHNICAL.md](TECHNICAL.md) §8.1).
 
-Etykieta „dane syntetyczne” stoi w nagłówku, gdy baza to próbka dołączona do repozytorium, i przy wyniku „Wczytaj przykład”.
+The “synthetic data” label is shown in the header when the base is the example data shipped with the repository, and next to the “Load example” result.
 
-## Zmienne środowiskowe
+## Environment variables
 
-`VIEWER_DATA_DIR`, `MATERIAL_WORK_DIR` (pliki zadań, domyślnie katalog tymczasowy), `MATERIAL_MAX_MB` i `MATERIAL_MAX_FILES` (limit wgrywania w MB i liczby plików; domyślnie bez limitu, pliki idą pojedynczo i strumieniowo na dysk), `MATERIAL_TIMEOUT_MS`, `LINK_CONFIG`, `PERSONAS_FILE`, `BUN_BIN`.
+`VIEWER_DATA_DIR`, `MATERIAL_WORK_DIR` (job files, a temporary folder by default), `MATERIAL_MAX_MB` and `MATERIAL_MAX_FILES` (upload limit in MB and in number of files; no limit by default, files go one at a time and are streamed to disk), `MATERIAL_TIMEOUT_MS`, `LINK_CONFIG`, `PERSONAS_FILE`, `BUN_BIN`.
 
-## Zależności dodane dla GUI
+## Dependencies added for the GUI
 
-`lucide-react` (ISC, ikony), `fflate` (MIT, rozpakowanie ZIP na serwerze). Pełna lista: [LICENCJE.md](../LICENCJE.md).
+`lucide-react` (ISC, icons), `fflate` (MIT, ZIP unpacking on the server). Full list: [LICENCJE.md](../LICENCJE.md) (Polish).

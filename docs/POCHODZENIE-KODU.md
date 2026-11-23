@@ -1,6 +1,6 @@
 # Pochodzenie kodu
 
-Szczegóły do skrótu w README (sekcja „Pochodzenie kodu”). Kody w tabeli (m0, i1, i14…) to nazwy zadań z dziennika pracy zespołu; opis każdego zadania jest w kolumnie „Co powstało” i w komunikatach commitów.
+Szczegóły do skrótu w [JURY.md](JURY.md#pochodzenie-kodu) (sekcja „Pochodzenie kodu”; do 22.11.2026 w README). Kody w tabeli (m0, i1, i14…) to nazwy zadań z dziennika pracy zespołu; opis każdego zadania jest w kolumnie „Co powstało” i w komunikatach commitów.
 
 Szkielet narzędzi OSINT i grafowych przygotowałem przed wydarzeniem, 18–20.11.2026, w osobnym prywatnym repozytorium. W trakcie wydarzenia (od 21.11.2026, 11:00) pracuję dalej.
 

@@ -65,21 +65,21 @@ export function extractZip(buf: Uint8Array, limits: { maxBytes: number; maxFiles
         }
         count += 1;
         declared += f.originalSize;
-        if (count > limits.maxFiles) throw new UploadError(`Za dużo plików w archiwum (maks. ${limits.maxFiles})`);
-        if (declared > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${limitLabel(limits.maxBytes)}`);
-        if (f.size > 0 && f.originalSize / f.size > MAX_RATIO && f.originalSize > 10 * 1024 * 1024) throw new UploadError(`Podejrzanie silna kompresja pliku ${rel} (możliwa bomba ZIP)`);
+        if (count > limits.maxFiles) throw new UploadError(`Too many files in the archive (max. ${limits.maxFiles})`);
+        if (declared > limits.maxBytes) throw new UploadError(`The unpacked archive exceeds the limit of ${limitLabel(limits.maxBytes)}`);
+        if (f.size > 0 && f.originalSize / f.size > MAX_RATIO && f.originalSize > 10 * 1024 * 1024) throw new UploadError(`Suspiciously strong compression of file ${rel} (possible ZIP bomb)`);
         return true;
       },
     });
   } catch (e) {
     if (e instanceof UploadError) throw e;
-    throw new UploadError(`Nie udało się rozpakować archiwum: ${(e as Error).message}`);
+    throw new UploadError(`Could not unpack the archive: ${(e as Error).message}`);
   }
   let real = 0;
   const entries: ZipEntry[] = [];
   for (const [name, data] of Object.entries(files)) {
     real += data.length;
-    if (real > limits.maxBytes) throw new UploadError(`Archiwum po rozpakowaniu przekracza limit ${limitLabel(limits.maxBytes)}`);
+    if (real > limits.maxBytes) throw new UploadError(`The unpacked archive exceeds the limit of ${limitLabel(limits.maxBytes)}`);
     entries.push({ path: safeRelative(name)!, data });
   }
   return { entries, rejected };

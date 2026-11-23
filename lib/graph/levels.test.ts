@@ -136,7 +136,7 @@ describe("tracker server and clicked ad from the landing URL", () => {
     ]);
     const l = res.graph.links.find((x) => x.a === "m1" && x.b === "m2")!;
     expect(l.evidence[0]).toMatchObject({ pivot: "click_server:a1b2c3", strong: false });
-    expect(l.evidence[0].evidence).toContain("maszyna a1b2c3");
+    expect(l.evidence[0].evidence).toContain("machine a1b2c3");
     expect(res.graph.nodes.find((n) => n.id === "click_server:a1b2c3")?.data.pids).toEqual([4242]);
     const m1 = res.graph.nodes.find((n) => n.id === "item:m1")!;
     expect(m1.data).toMatchObject({ clickTime: "2026-03-14T10:20:30Z", metaAdId: "120211122233344455", metaAppId: "123450000067890" });

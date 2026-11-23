@@ -84,7 +84,7 @@ describe("external form backend: client identifier and multi-client services", (
     const l = linkOf(res, "a", "b")!;
     expect(l.strong).toBe(true);
     expect(l.evidence[0].pivot).toBe(`endpoint:leads.example/api/v1/lead/<uuid>#klient=${UUID_A}`);
-    expect(l.evidence[0].evidence).toContain("ten sam backend formularza z tym samym identyfikatorem klienta");
+    expect(l.evidence[0].evidence).toContain("the same form backend with the same client ID");
     expect(same(res, "a", "b")).toBe(true);
   });
 
@@ -159,7 +159,7 @@ describe("tenant of the landing-page platform (landing-cdn/<uuid>) in place of t
       { id: "b", url: "https://kurier-beta.test/", kit: withRequestUrls(null, [`https://cdn.example/landing-cdn/${OTHER}/b2/app.js`]) },
     ]);
     const a = res.graph.nodes.find((n) => n.id === "item:a")!.data;
-    expect(String(a.platformAccountWarning)).toContain("różni się od owner_uuid");
+    expect(String(a.platformAccountWarning)).toContain("differs from owner_uuid");
     const b = res.graph.nodes.find((n) => n.id === "item:b")!.data;
     expect(b).toMatchObject({ platformAccount: U, platformAccountSource: "tenant→owner_uuid" });
     expect(linkOf(res, "a", "b")!.evidence.map((e) => e.pivot)).toContain(`platform_account:${U}`);

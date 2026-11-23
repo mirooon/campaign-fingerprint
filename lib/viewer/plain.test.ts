@@ -12,16 +12,19 @@ describe("plain dictionary", () => {
     }
   });
   it("premise sentence from the type, cleaned description otherwise", () => {
-    expect(premiseSentence({ evidence: "x", pivotType: "platform_account" })).toBe("Obie strony należą do tego samego konta na platformie stron");
+    expect(premiseSentence({ evidence: "x", pivotType: "platform_account" })).toBe("Both pages belong to the same page-builder account");
+    expect(premiseSentence({ evidence: "same registrar X — discounted: popular registrar (×0.6)" })).toBe("Same registrar X");
     expect(premiseSentence({ evidence: "ten sam rejestrator X — zdyskontowane: popularny rejestrator (×0.6)" })).toBe("Ten sam rejestrator X");
     expect(premiseFamily({ evidence: "", edgeType: "similar_dom" })).toBe("page");
     expect(premiseFamily({ evidence: "" })).toBeNull();
   });
   it("premise of the same creative file is not worded as a similar picture", () => {
-    expect(premiseSentence({ evidence: "ten sam plik kreacji (plik obrazu, SHA-256 abc…)", pivotType: "imagehash", pivot: "imagehash:sha256:abc" })).toBe("Reklamy mają ten sam plik reklamy (identyczny co do bajtu)");
-    expect(premiseSentence({ evidence: "identyczny obraz (dHash 1)", pivotType: "imagehash", pivot: "imagehash:8084ac1a1e0ca1a4" })).toBe("Reklamy mają identyczny obraz");
+    expect(premiseSentence({ evidence: "ten sam plik kreacji (plik obrazu, SHA-256 abc…)", pivotType: "imagehash", pivot: "imagehash:sha256:abc" })).toBe("The ads have the same ad file (byte-for-byte identical)");
+    expect(premiseSentence({ evidence: "identyczny obraz (dHash 1)", pivotType: "imagehash", pivot: "imagehash:8084ac1a1e0ca1a4" })).toBe("The ads have an identical image");
   });
   it("cleans jargon from descriptions", () => {
+    expect(cleanEvidence("near-identical creative (dHash, Hamming distance 3/64)")).toBe("near-identical creative");
+    expect(cleanEvidence("same page structure (simhash DOM, distance 3/64)")).toBe("same page structure");
     expect(cleanEvidence("prawie identyczna kreacja (dHash, odległość Hamminga 3/64)")).toBe("prawie identyczna kreacja");
   });
   it("glossary has the terms outside the P0 list used on screen (B-034)", () => {
@@ -61,6 +64,6 @@ describe("signals of investigative practice in the GUI dictionary (I28)", () => 
   });
 
   it("has a plain entry for the new kinds of evidence", () => {
-    for (const t of ["shared_doc", "onion", "messenger_invite"] as const) expect(TYPE_INFO[t].sentence).toMatch(/^Materiały /);
+    for (const t of ["shared_doc", "onion", "messenger_invite"] as const) expect(TYPE_INFO[t].sentence).toMatch(/^The samples /);
   });
 });

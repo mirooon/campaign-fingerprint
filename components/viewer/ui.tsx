@@ -14,7 +14,7 @@ export function Help({ term }: { term: TermId }) {
     <span className="relative inline-block align-middle">
       <button
         type="button"
-        aria-label={`Co to znaczy: ${t.term}`}
+        aria-label={`What it means: ${t.term}`}
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
         onBlur={() => setOpen(false)}
@@ -26,8 +26,8 @@ export function Help({ term }: { term: TermId }) {
         <span role="tooltip" className="absolute left-0 top-5 z-30 w-64 rounded-md border border-slate-300 bg-white p-2.5 text-left text-xs font-normal normal-case leading-snug text-slate-800 shadow-lg">
           <b className="block text-slate-900">{t.term}</b>
           {t.text}
-          {t.why && <span className="mt-1 block text-slate-600">Dlaczego ma znaczenie: {t.why}</span>}
-          {t.example && <span className="mt-1 block text-slate-600">Przykład: {t.example}</span>}
+          {t.why && <span className="mt-1 block text-slate-600">Why it matters: {t.why}</span>}
+          {t.example && <span className="mt-1 block text-slate-600">Example: {t.example}</span>}
         </span>
       )}
     </span>
@@ -57,7 +57,7 @@ export function StrengthBadge({ strength }: { strength: Strength }) {
 export function StrengthLegend() {
   return (
     <details className="rounded-md border border-slate-200 bg-white text-xs">
-      <summary className="cursor-pointer px-2.5 py-1.5 font-medium text-slate-700">Legenda: siła przesłanki<Help term="sila_przeslanki" /></summary>
+      <summary className="cursor-pointer px-2.5 py-1.5 font-medium text-slate-700">Legend: evidence strength<Help term="sila_przeslanki" /></summary>
       <ul className="space-y-1 border-t border-slate-200 p-2.5">
         {STRENGTH_ORDER.map((s) => (
           <li key={s} className="flex items-center gap-2">
@@ -70,17 +70,17 @@ export function StrengthLegend() {
   );
 }
 
-/** Label shown on every result screen while the base or the result is synthetic (sample data, "Wczytaj przykład"). */
+/** Label shown on every result screen while the base or the result is synthetic (sample data, "Load example"). */
 export function SyntheticBadge() {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900" title="To dane przykładowe, wymyślone na potrzeby pokazu. Nie pochodzą z prawdziwych oszustw.">
+    <span className="inline-flex items-center gap-1 rounded-full border border-amber-400 bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-900" title="This is example data, made up for the demo. It does not come from real frauds.">
       <FlaskConical size={13} aria-hidden />
-      dane syntetyczne
+      synthetic data
     </span>
   );
 }
 
-/** A link from a material, shown defanged (hxxps://domena[.]live) with a copy button; it is never a clickable link. */
+/** A link from a material, shown defanged (hxxps://domain[.]live) with a copy button; it is never a clickable link. */
 export function Defanged({ value }: { value: string }) {
   const [done, setDone] = useState(false);
   const shown = defangUrl(value);
@@ -89,7 +89,7 @@ export function Defanged({ value }: { value: string }) {
       <code className="truncate rounded bg-slate-100 px-1 py-0.5 text-xs">{shown}</code>
       <button
         type="button"
-        aria-label="Kopiuj rozbrojony adres"
+        aria-label="Copy defanged URL"
         className="rounded p-0.5 text-slate-500 hover:text-slate-900"
         onClick={() => {
           navigator.clipboard.writeText(shown).then(() => {

@@ -21,33 +21,33 @@ export default function ThresholdPreview() {
     fetch("/api/threshold-preview", { signal: ctl.signal })
       .then(async (r) => {
         const b = (await r.json()) as { current?: number; rows?: ThresholdRow[]; error?: string };
-        setState(r.ok && b.rows && b.current !== undefined ? { status: "ready", current: b.current, rows: b.rows } : { status: "error", message: b.error ?? "Nie udało się policzyć podglądu." });
+        setState(r.ok && b.rows && b.current !== undefined ? { status: "ready", current: b.current, rows: b.rows } : { status: "error", message: b.error ?? "Could not compute the preview." });
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError") setState({ status: "error", message: `Nie udało się policzyć podglądu: ${e.message}` });
+        if (e.name !== "AbortError") setState({ status: "error", message: `Could not compute the preview: ${e.message}` });
       });
     return () => ctl.abort();
   }, []);
-  if (state.status === "loading") return <p className="text-sm text-slate-600">Liczenie podglądu…</p>;
+  if (state.status === "loading") return <p className="text-sm text-slate-600">Computing the preview…</p>;
   if (state.status === "error") return <p className="text-sm text-slate-600">{state.message}</p>;
   const currentIndex = state.rows.findIndex((r) => r.value === state.current);
   const i = index ?? Math.max(0, currentIndex);
   const row = state.rows[i];
   return (
     <div className="space-y-3 text-sm">
-      <h3 className="font-semibold">Próg łączenia<Help term="prog_laczenia" /></h3>
-      <p className="text-xs text-slate-600">Przesuń suwak, żeby zobaczyć, ile kampanii dałyby zapisane powiązania przy innym progu. To podgląd przybliżony: graf przechowuje najsilniejsze powiązania każdej reklamy, nie wszystkie pary. Baza się nie zmienia.</p>
+      <h3 className="font-semibold">Linking threshold<Help term="prog_laczenia" /></h3>
+      <p className="text-xs text-slate-600">Move the slider to see how many campaigns the saved links would give at a different threshold. This is an approximate preview: the graph keeps the strongest links of each ad, not all pairs. The base does not change.</p>
       <label className="block">
-        <span className="text-xs text-slate-700">Próg {fmtNum(row.value)}{row.value === state.current ? " (używany w bazie)" : ""}</span>
-        <input type="range" min={0} max={state.rows.length - 1} step={1} value={i} onChange={(e) => setIndex(Number(e.target.value))} className="mt-1 w-full" aria-valuetext={`próg ${fmtNum(row.value)}`} />
+        <span className="text-xs text-slate-700">Threshold {fmtNum(row.value)}{row.value === state.current ? " (used in the base)" : ""}</span>
+        <input type="range" min={0} max={state.rows.length - 1} step={1} value={i} onChange={(e) => setIndex(Number(e.target.value))} className="mt-1 w-full" aria-valuetext={`threshold ${fmtNum(row.value)}`} />
       </label>
       <p className="rounded border border-slate-200 bg-white p-2">
-        Przy progu <b>{fmtNum(row.value)}</b>: <b>{row.campaigns}</b> {row.campaigns === 1 ? "kampania" : "kampanii"}, {row.singletons} materiałów osobno, największa kampania ma {row.largest} materiałów.
+        At threshold <b>{fmtNum(row.value)}</b>: <b>{row.campaigns}</b> {row.campaigns === 1 ? "campaign" : "campaigns"}, {row.singletons} {row.singletons === 1 ? "sample" : "samples"} alone, the largest campaign has {row.largest} {row.largest === 1 ? "sample" : "samples"}.
       </p>
       <table className="w-full border-collapse text-xs">
-        <caption className="sr-only">Liczba kampanii przy kolejnych progach</caption>
+        <caption className="sr-only">Number of campaigns at successive thresholds</caption>
         <thead>
-          <tr className="border-b border-slate-300 text-left text-slate-600"><th scope="col" className="p-1">Próg</th><th scope="col" className="p-1">Kampanie</th><th scope="col" className="p-1">Osobno</th><th scope="col" className="p-1">Największa</th></tr>
+          <tr className="border-b border-slate-300 text-left text-slate-600"><th scope="col" className="p-1">Threshold</th><th scope="col" className="p-1">Campaigns</th><th scope="col" className="p-1">Alone</th><th scope="col" className="p-1">Largest</th></tr>
         </thead>
         <tbody>
           {state.rows.map((r, k) => (

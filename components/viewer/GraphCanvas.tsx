@@ -138,7 +138,7 @@ export default function GraphCanvas({ elements, selectedId, onSelect, onShiftSel
     if (cyRef.current) mark(cyRef.current, markedKey);
   }, [markedKey]);
 
-  return <div ref={containerRef} className="h-full w-full" aria-label="Graf powiązań reklam" role="img" />;
+  return <div ref={containerRef} className="h-full w-full" aria-label="Link graph of ads" role="img" />;
 }
 
 function mark(cy: Core, markedKey: string) {

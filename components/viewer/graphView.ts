@@ -209,7 +209,7 @@ export function pathLabel(idx: GraphIndex, path: string[]): string {
     .map((id) => {
       const n = idx.nodeById.get(id);
       if (!n) return id;
-      return n.type === "item" ? `reklama ${n.key}` : truncate(n.label, 40);
+      return n.type === "item" ? `ad ${n.key}` : truncate(n.label, 40);
     })
     .join(" → ");
 }

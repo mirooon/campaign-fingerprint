@@ -36,6 +36,8 @@ Wynik ma dwa poziomy:
 
 Każde połączenie ma przesłanki opisane zwykłymi słowami i poziom siły. Pary, które wyglądają podobnie, ale celowo nie zostały połączone, są wypisane razem z regułą, która je rozdzieliła. Nowy materiał jest porównywany z bazą porównawczą i dostaje jeden werdykt: **znana kampania**, **podobne kampanie**, **nowa kampania**, **duplikat** albo **za mało danych** (z listą tego, co dorzucić).
 
+Dla każdej kampanii aplikacja może zbudować paczkę dowodów: fakty oddzielone od wyników modeli, listę domen dla CERT, zgłoszenia z art. 16 DSA, STIX 2.1 i sumy SHA-256. Narzędzie niczego nie wysyła samo; o zgłoszeniu decyduje człowiek. Harmonogram skanów (`bun run watch`) odpytuje publiczne źródła, np. logi Certificate Transparency, biblioteki reklam, urlscan.io i Listę Ostrzeżeń CERT Polska, o nowe domeny i sprawdza każdą z nich względem znanych kampanii.
+
 Analiza działa offline w Dockerze, bez kluczy API i bez zapytań wychodzących, chyba że je włączysz.
 
 ![Graf kampanii w widoku zredukowanym: każda kampania ze śladami wspólnymi dla jej materiałów](docs/img/graph-campaigns.png)

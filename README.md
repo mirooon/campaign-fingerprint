@@ -36,6 +36,8 @@ The result has two levels:
 
 Every link comes with its evidence in plain words and a strength level. Pairs that look alike but were deliberately not linked are listed with the rule that kept them apart. A new sample is compared with the reference base and gets one verdict: **known campaign**, **similar campaigns**, **new campaign**, **duplicate** or **insufficient data** (with a list of what to add).
 
+For any campaign the app can build an evidence pack: facts kept apart from model output, a domain list for CERT, notices under Article 16 of the EU Digital Services Act, STIX 2.1 and SHA-256 checksums. Nothing is sent automatically; a person decides what to report. A scan scheduler (`bun run watch`) polls public sources such as Certificate Transparency logs, ad libraries, urlscan.io and the CERT Polska warning list for new domains and checks each one against the known campaigns.
+
 The analysis runs offline in Docker, with no API keys and no outgoing requests unless you switch them on.
 
 ![Campaign graph in reduced view: each campaign with the traces its samples share](docs/img/graph-campaigns.png)

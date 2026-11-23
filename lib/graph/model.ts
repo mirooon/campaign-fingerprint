@@ -88,62 +88,62 @@ export const ENTITY_TYPES = [
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
 export const ENTITY_LABELS_PL: Record<EntityType, string> = {
-  item: "Reklama",
+  item: "Ad",
   url: "URL",
   host: "Host",
-  domain: "Domena",
-  ip: "Adres IP",
+  domain: "Domain",
+  ip: "IP address",
   asn: "ASN",
-  nameserver: "Serwery NS",
-  mx: "Serwer poczty (MX)",
-  registrar: "Rejestrator",
-  cert: "Certyfikat",
+  nameserver: "Name servers (NS)",
+  mx: "Mail server (MX)",
+  registrar: "Registrar",
+  cert: "Certificate",
   tracker: "Tracker",
   favicon: "Favicon",
-  imagehash: "Hash obrazu",
-  wallet: "Portfel krypto",
-  email: "E-mail",
-  phone: "Telefon",
+  imagehash: "Image hash",
+  wallet: "Crypto wallet",
+  email: "Email",
+  phone: "Phone",
   telegram: "Telegram",
-  advertiser: "Reklamodawca",
-  endpoint: "Backend formularza",
-  hidden_fields: "Ukryte pola formularza",
-  asset: "Plik JS/CSS",
-  comment: "Komentarz w kodzie",
-  domain_pattern: "Wzorzec nazwy domeny",
-  cname_target: "Cel CNAME",
-  campaign_param: "Parametr kampanii",
-  persona: "Persona (wizerunek)",
-  path_id: "Identyfikator konta w ścieżkach zasobów",
-  param_schema: "Szablon linku śledzącego",
-  platform_account: "Konto na platformie stron",
-  platform_campaign: "Kampania na platformie stron",
-  page_template: "Szablon strony na platformie",
-  click_server: "Serwer trackera (clickid xid)",
-  meta_ad: "Reklama w Mecie (z fbclid)",
-  ad_payer: "Płatnik reklamy (biblioteka reklam, DSA)",
-  comment_block: "Blok fałszywych komentarzy",
-  technique: "Technika strony",
-  crm_key: "Klucz API CRM / sieci afiliacyjnej",
-  template_phrase: "Zdanie szablonu strony",
-  profit_claim: "Obiecywany zysk (kwota i okres)",
-  kit_string: "Komunikat ze skryptu zestawu stron",
-  shared_doc: "Dokument, formularz lub czat udostępniony linkiem",
-  onion: "Adres .onion",
-  messenger_invite: "Zaproszenie lub konto komunikatora",
-  c2_host: "Serwer C2 trojana w zestawie strony",
-  fictional_expert: "Zmyślony ekspert (dr, prof.)",
-  lead_flow: "Wspólny lejek leadów platformy stron",
-  hosting_account: "Konto na hostingu wideo lub kodu",
-  overlay_template: "Szablon podmienionych napisów w wideo",
-  reused_footage: "Znak źródła cudzego nagrania",
-  company_id: "Identyfikator firmy (NIP, REGON, KRS, VAT)",
-  bank_account: "Rachunek bankowy (IBAN, NRB)",
-  postal_address: "Adres siedziby sklepu",
-  cloaker_account: "Konto klienta cloakera",
-  launcher_account: "Konto narzędzia do uruchamiania reklam",
-  affiliate_account: "Konto w sieci afiliacyjnej",
-  meta_token: "Token dostępu Meta (tylko skrót)",
+  advertiser: "Advertiser",
+  endpoint: "Form backend",
+  hidden_fields: "Hidden form fields",
+  asset: "JS/CSS file",
+  comment: "Code comment",
+  domain_pattern: "Domain name pattern",
+  cname_target: "CNAME target",
+  campaign_param: "Campaign parameter",
+  persona: "Persona (likeness)",
+  path_id: "Account ID in asset paths",
+  param_schema: "Tracking-link template",
+  platform_account: "Page-builder account",
+  platform_campaign: "Page-builder campaign",
+  page_template: "Page template on the platform",
+  click_server: "Tracker server (clickid xid)",
+  meta_ad: "Meta ad (from fbclid)",
+  ad_payer: "Ad payer (ad library, DSA)",
+  comment_block: "Fake comment block",
+  technique: "Page technique",
+  crm_key: "CRM / affiliate network API key",
+  template_phrase: "Page template sentence",
+  profit_claim: "Promised profit (amount and period)",
+  kit_string: "Message from a page-kit script",
+  shared_doc: "Document, form or chat shared by link",
+  onion: ".onion address",
+  messenger_invite: "Messenger invitation or account",
+  c2_host: "Trojan C2 server in the page kit",
+  fictional_expert: "Fictitious expert (dr, prof.)",
+  lead_flow: "Shared lead funnel of a page-builder platform",
+  hosting_account: "Video or code hosting account",
+  overlay_template: "Template of replaced video captions",
+  reused_footage: "Source mark of someone else's recording",
+  company_id: "Company ID (NIP, REGON, KRS, VAT)",
+  bank_account: "Bank account (IBAN, NRB)",
+  postal_address: "Shop's registered address",
+  cloaker_account: "Cloaker customer account",
+  launcher_account: "Ad launcher tool account",
+  affiliate_account: "Affiliate network account",
+  meta_token: "Meta access token (hash only)",
 };
 
 export type EdgeType =
@@ -196,7 +196,7 @@ export function isSimilarityEdge(t: string): t is SimilarityEdgeType {
 }
 
 export interface Discount {
-  /** Human-readable reason (Polish). */
+  /** Human-readable reason. */
   reason: string;
   factor: number;
   rule: string;
@@ -226,7 +226,7 @@ export interface GraphEdge {
   target: string;
   type: EdgeType;
   weight: number;
-  /** Human-readable why (Polish). */
+  /** Human-readable why. */
   evidence: string;
 }
 
@@ -468,7 +468,7 @@ export interface NearMiss {
   /** Pair score in [0,1] (noisy-OR of all evidence, discounted included). */
   score: number;
   rule: NearMissRule;
-  /** Sentence in Polish: what held the pair back, with the numbers it concerns. */
+  /** Sentence: what held the pair back, with the numbers it concerns. */
   reason: string;
   /** Rule kinds of all shared traces (pivot type, similarity edge type, or a finer kind such as "tracker_host"), sorted. */
   sharedKinds: string[];

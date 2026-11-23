@@ -24,7 +24,7 @@ function tmp(): string {
 }
 
 describe("loadClickRoute", () => {
-  it("czyta enriched.json bazy i zwraca trasę materiału", () => {
+  it("reads the base enriched.json and returns the route of a sample", () => {
     const base = tmp();
     writeFileSync(path.join(base, "enriched.json"), JSON.stringify(enriched));
     const out = loadClickRoute({ dataDir: base, itemId: "m1" });
@@ -38,7 +38,7 @@ describe("loadClickRoute", () => {
     const out = loadClickRoute({ dataDir: base, jobWorkDir: work, itemId: "m1" });
     expect(out.ok).toBe(true);
   });
-  it("brak pliku albo materiału daje komunikat ze statusem, nie wyjątek", () => {
+  it("a missing file or sample gives a message with a status, not an exception", () => {
     const base = tmp();
     expect(loadClickRoute({ dataDir: base, itemId: "m1" })).toMatchObject({ ok: false, status: 409 });
     writeFileSync(path.join(base, "enriched.json"), JSON.stringify(enriched));
@@ -49,6 +49,6 @@ describe("loadClickRoute", () => {
     writeFileSync(path.join(base, "enriched.json"), "{nie json");
     const out = loadClickRoute({ dataDir: base, itemId: "m1" });
     expect(out).toMatchObject({ ok: false, status: 500 });
-    expect(!out.ok && out.error).toContain("trasy kliknięcia");
+    expect(!out.ok && out.error).toContain("click route");
   });
 });

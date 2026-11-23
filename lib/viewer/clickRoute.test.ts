@@ -24,49 +24,49 @@ function source(over: Partial<RouteSource> = {}): RouteSource {
 }
 
 describe("clickRoute", () => {
-  it("łańcuch trzech skoków daje reklamę i trzy ogniwa z rolą, statusem i wiekiem domeny", () => {
+  it("a chain of three hops gives the ad and three links with role, status and domain age", () => {
     const route = clickRoute(source());
     expect(route.map((l) => l.role)).toEqual(["ad", "tracking", "redirect", "lure"]);
     const [, tracking, redirect, lure] = route;
-    expect(tracking.statusLabel).toBe("przekierował (HTTP 302)");
-    expect(tracking.domainNote).toBe("domena zarejestrowana 2 dni przed emisją");
+    expect(tracking.statusLabel).toBe("redirected (HTTP 302)");
+    expect(tracking.domainNote).toBe("domain registered 2 days before the ad was first shown");
     expect(tracking.fresh).toBe(true);
-    expect(redirect.statusLabel).toBe("przekierował (HTTP 301)");
+    expect(redirect.statusLabel).toBe("redirected (HTTP 301)");
     expect(redirect.domainNote).toBeNull();
-    expect(lure.statusLabel).toBe("odpowiada (HTTP 200)");
-    expect(lure.domainNote).toBe("domena zarejestrowana w dniu emisji");
+    expect(lure.statusLabel).toBe("responds (HTTP 200)");
+    expect(lure.domainNote).toBe("domain registered on the day the ad was first shown");
   });
-  it("adres bez przekierowań to jedno ogniwo-przyneta po reklamie", () => {
+  it("a URL without redirects is one lure link after the ad", () => {
     const route = clickRoute(source({ page: { requestedUrl: "https://przyneta.example/oferta", finalUrl: "https://przyneta.example/oferta", status: 200, errorCode: null, redirectChain: [] } }));
     expect(route.map((l) => l.role)).toEqual(["ad", "lure"]);
   });
-  it("strona z formularzem albo sklepem dostaje własną rolę końcową", () => {
+  it("a page with a form or a shop gets its own final role", () => {
     expect(clickRoute(source({ finalKind: "form" })).at(-1)?.role).toBe("form");
     expect(clickRoute(source({ finalKind: "shop" })).at(-1)?.role).toBe("shop");
   });
-  it("status końcowego ogniwa: nie odpowiada, zablokowany, błąd HTTP", () => {
+  it("status of the final link: no response, blocked, HTTP error", () => {
     const end = (status: number | null, errorCode: string | null) => clickRoute(source({ page: { requestedUrl: "https://x.example/", finalUrl: "https://x.example/", status, errorCode, redirectChain: [] } })).at(-1)!;
     expect(end(null, "timeout").status).toBe("no_response");
-    expect(end(null, "timeout").statusLabel).toContain("nie odpowiada");
+    expect(end(null, "timeout").statusLabel).toContain("no response");
     expect(end(null, "blocked").status).toBe("blocked");
-    expect(end(null, "blocked").statusLabel).toContain("zablokowany");
-    expect(end(404, null).statusLabel).toBe("odpowiada błędem HTTP 404");
+    expect(end(null, "blocked").statusLabel).toContain("blocked");
+    expect(end(404, null).statusLabel).toBe("responds with HTTP error 404");
   });
-  it("cloaking i ochrona przed botami to ostrzeżenia na ogniwie końcowym", () => {
+  it("cloaking and bot protection are warnings on the final link", () => {
     expect(clickRoute(source({ cloaking: { suspected: true, state: "checked" } })).at(-1)?.warning).toContain("cloaking");
-    expect(clickRoute(source({ cloaking: { suspected: false, state: "bot_challenge" } })).at(-1)?.warning).toContain("Ochrona przed botami");
+    expect(clickRoute(source({ cloaking: { suspected: false, state: "bot_challenge" } })).at(-1)?.warning).toContain("Bot protection");
     expect(clickRoute(source()).at(-1)?.warning).toBeNull();
   });
-  it("bez pobranej strony zostaje adres z reklamy i „nie sprawdzono”", () => {
+  it("without a fetched page the URL from the ad stays, “not checked”", () => {
     const route = clickRoute(source({ page: null }));
     expect(route.map((l) => l.role)).toEqual(["ad", "lure"]);
     expect(route[1].status).toBe("not_checked");
     expect(route[1].url).toBe("https://reklama.example/start");
   });
-  it("wiek domeny po emisji nie jest świeżą rejestracją przed reklamą", () => {
+  it("a domain age after the ad is not a fresh registration before the ad", () => {
     const route = clickRoute(source({ domainCreated: () => "2026-10-01T00:00:00.000Z" }));
     expect(route[1].fresh).toBe(false);
-    expect(route[1].domainNote).toContain("po emisji");
+    expect(route[1].domainNote).toContain("after the ad was first shown");
   });
 });
 
@@ -84,14 +84,14 @@ describe("routeSourceOf", () => {
     },
     domains: { "reklama.example": { rdap: { created: "2026-09-01T00:00:00.000Z" } } },
   } as unknown as Pick<EnrichedDataset, "items" | "perItem" | "pages" | "domains">;
-  it("składa dane trasy z danych wzbogaconych materiału", () => {
+  it("builds the route data from the enriched data of a sample", () => {
     const src = routeSourceOf(ds, "m1")!;
     expect(src.firstSeen).toBe("2026-09-10T00:00:00.000Z");
     expect(src.finalKind).toBe("shop");
     expect(src.domainCreated("reklama.example")).toBe("2026-09-01T00:00:00.000Z");
-    expect(clickRoute(src).at(-1)?.domainNote).toBe("domena zarejestrowana 9 dni przed emisją");
+    expect(clickRoute(src).at(-1)?.domainNote).toBe("domain registered 9 days before the ad was first shown");
   });
-  it("nieznany materiał to null", () => {
+  it("an unknown sample is null", () => {
     expect(routeSourceOf(ds, "brak")).toBeNull();
   });
 });

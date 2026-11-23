@@ -136,6 +136,17 @@ describe("detectCases", () => {
       ["b", ["partia/b.zip"], true],
     ]);
   });
+  it("folders: a folder of case folders next to stray files still splits into its sub-folders", () => {
+    const cases = detectCases(
+      f("BACKUP/p1/a.png", "BACKUP/p1/strona.html", "BACKUP/p1/strona_files/x.js", "BACKUP/p2/b.har", "BACKUP/p3/archive_x/screenshots/c.png", "Application Support/d.png", "Application Support/e.png"),
+      "folders",
+    );
+    expect(cases.map((c) => c.name)).toEqual(["p1", "p2", "p3", "Application Support"]);
+    expect(cases[0].files.map((x) => x.path)).toEqual(["BACKUP/p1/a.png", "BACKUP/p1/strona.html", "BACKUP/p1/strona_files/x.js"]);
+  });
+  it("folders: a case folder made of one page package and its _files folder stays whole", () => {
+    expect(detectCases(f("s1/cap/manifest.json", "s1/cap/dom.html", "s1/strona_files/x.js", "s2/a.png"), "folders").map((c) => c.name)).toEqual(["s1", "s2"]);
+  });
   it("unique names", () => {
     const cases = detectCases(f("a/x.png", "b/x.png", "x.png", "x.jpg"), "files");
     expect(new Set(cases.map((c) => c.name.toLowerCase())).size).toBe(cases.length);

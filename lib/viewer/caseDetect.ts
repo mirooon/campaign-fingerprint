@@ -172,6 +172,25 @@ function layout(files: InputFile[]) {
 }
 
 /**
+ * Sub-folders of one top folder when that folder is itself a folder of cases: no loose files of its
+ * own and two or more sub-folders, none of them a page package, `_files` or `resources` folder.
+ * A drop that brings stray files from elsewhere (the browser can add some) breaks the common top
+ * folder; this keeps "every sub-folder is a case" splitting the picked folder into its cases.
+ */
+function caseFoldersInside(list: InputFile[]): Map<string, InputFile[]> | null {
+  const inner = new Map<string, InputFile[]>();
+  for (const f of list) {
+    const p = segs(f.path);
+    if (p.length < 3) return null;
+    inner.set(p[1], [...(inner.get(p[1]) ?? []), f]);
+  }
+  if (inner.size < 2) return null;
+  const pkg = packageDirsOf(list.map((f) => ({ ...f, path: segs(f.path).slice(1).join("/") })));
+  for (const sub of inner.keys()) if (/_files$/i.test(sub) || sub.toLowerCase() === "resources" || pkg.has(sub)) return null;
+  return inner;
+}
+
+/**
  * Default split and the question shown above the preview. Two or more loose ZIPs and no other loose
  * file (next to no folders, or next to case folders) default to "files": every ZIP is a packed case
  * folder, and "single" or "folders" would merge them into one case.
@@ -228,7 +247,11 @@ export function detectCases(all: InputFile[], mode: SplitMode, fallbackName = "s
   const { loose, folders, attached } = layout(files);
   const out: DetectedCase[] = [];
   if (mode === "folders") {
-    for (const [t, list] of folders) out.push(describe(uniqueName(t, used), orig(list)));
+    for (const [t, list] of folders) {
+      const inner = caseFoldersInside(list);
+      if (inner) for (const [sub, subList] of inner) out.push(describe(uniqueName(sub, used), orig(subList)));
+      else out.push(describe(uniqueName(t, used), orig(list)));
+    }
     if (loose.length) out.push(describe(uniqueName(top ? `${top} (luźne pliki)` : "luźne pliki", used), orig([...loose, ...[...attached.values()].flat()])));
   } else {
     const rest = [...attached.entries()].filter(([k]) => k.startsWith("__")).flatMap(([, v]) => v);

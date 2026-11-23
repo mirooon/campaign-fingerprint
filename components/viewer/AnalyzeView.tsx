@@ -215,7 +215,11 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         for (const f of c.files) {
           const file = byPath.get(f.path);
           if (!file) continue;
-          queue.push({ file, path: top && f.path.startsWith(`${top}/`) ? f.path.slice(top.length + 1) : f.path, caseName: c.name });
+          let rel = top && f.path.startsWith(`${top}/`) ? f.path.slice(top.length + 1) : f.path;
+          // a case found one level deeper (a folder of cases next to stray files): drop the folder above it
+          const parts = rel.split("/");
+          if (parts.length > 2 && parts[1] === c.name) rel = parts.slice(1).join("/");
+          queue.push({ file, path: rel, caseName: c.name });
         }
       }
       const form = new FormData();

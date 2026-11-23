@@ -71,16 +71,16 @@ export async function searchSources(
   for (const platform of platforms) {
     const source = sources[platform];
     if (!source) {
-      out.skipped.push({ platform, reason: "brak źródła" });
+      out.skipped.push({ platform, reason: "no source" });
       continue;
     }
     if (opts.defaultQueries && !ADLIB_CONFIG.defaultQueryPlatforms.includes(platform)) {
-      out.skipped.push({ platform, reason: "domyślne zapytania pominięte: każde zapytanie zużywa limit, a słowo kluczowe pasuje tylko do nazw reklamodawców (podaj --keyword albo --advertiser)" });
+      out.skipped.push({ platform, reason: "default queries skipped: every query uses up the quota and a keyword matches advertiser names only (give --keyword or --advertiser)" });
       continue;
     }
     const access = await source.available();
     if (!access.ok) {
-      out.skipped.push({ platform, reason: access.reason ?? "niedostępne", ...(access.howToGetAccess ? { howToGetAccess: access.howToGetAccess } : {}) });
+      out.skipped.push({ platform, reason: access.reason ?? "unavailable", ...(access.howToGetAccess ? { howToGetAccess: access.howToGetAccess } : {}) });
       continue;
     }
     for (const q of queries) {

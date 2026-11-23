@@ -19,8 +19,8 @@ describe("expansionQueries", () => {
 
   it("asks for the domains of the campaign and for the library accounts of its advertisers", () => {
     const qs = expansionQueries(graph, campaign);
-    expect(qs).toContainEqual({ platform: "google", query: { keyword: "oferta-wspolna.example" }, reason: "domena kampanii" });
-    expect(qs).toContainEqual({ platform: "google", query: { advertiser: "AR0000000000000000001" }, reason: "konto reklamodawcy z biblioteki reklam" });
+    expect(qs).toContainEqual({ platform: "google", query: { keyword: "oferta-wspolna.example" }, reason: "campaign domain" });
+    expect(qs).toContainEqual({ platform: "google", query: { advertiser: "AR0000000000000000001" }, reason: "advertiser account from the ad library" });
   });
 
   it("does not ask twice for one account, and not for accounts of other campaigns", () => {

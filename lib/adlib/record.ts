@@ -14,14 +14,14 @@ const strs = (v: unknown): string[] | undefined => (Array.isArray(v) ? v.map(str
  * library address is missing (such a record cannot be a trace); unknown fields are dropped.
  */
 export function parseAdRecord(json: unknown): { record: AdRecord; error: null } | { record: null; error: string } {
-  if (!json || typeof json !== "object") return { record: null, error: "to nie jest obiekt" };
+  if (!json || typeof json !== "object") return { record: null, error: "not an object" };
   const j = json as Record<string, unknown>;
   const platform = str(j.platform) as AdPlatform | undefined;
-  if (!platform || !AD_PLATFORMS.includes(platform)) return { record: null, error: `nieznana platforma „${String(j.platform)}”` };
+  if (!platform || !AD_PLATFORMS.includes(platform)) return { record: null, error: `unknown platform “${String(j.platform)}”` };
   const adId = str(j.adId);
-  if (!adId) return { record: null, error: "brak adId" };
+  if (!adId) return { record: null, error: "no adId" };
   const libraryUrl = str(j.libraryUrl);
-  if (!libraryUrl) return { record: null, error: "brak libraryUrl" };
+  if (!libraryUrl) return { record: null, error: "no libraryUrl" };
   const a = j.advertiser && typeof j.advertiser === "object" ? (j.advertiser as Record<string, unknown>) : null;
   const name = a ? str(a.name) : undefined;
   const creatives = (Array.isArray(j.creatives) ? j.creatives : []).flatMap((c): AdRecord["creatives"] => {

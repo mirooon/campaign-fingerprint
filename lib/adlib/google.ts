@@ -22,7 +22,7 @@ import { createGoogleRpcSource, looksLikeDomain } from "./googleRpc";
 import type { AdLibrarySource, AdRecord, AdSearchQuery } from "./types";
 
 const HOW_TO_GET_ACCESS =
-  "gcloud auth application-default login oraz gcloud config set project <projekt z sandboxem BigQuery> (bez ADC działa też CLI bq po gcloud auth login); pip install google-cloud-bigquery";
+  "gcloud auth application-default login and gcloud config set project <project with a BigQuery sandbox> (without ADC the bq CLI also works after gcloud auth login); pip install google-cloud-bigquery";
 const ADVERTISER_ID_RE = /^AR\d+$/;
 const CREATIVE_ID_RE = /^CR\d+$/;
 
@@ -81,10 +81,10 @@ function verifiedFlag(status: string | undefined): boolean | null {
 
 /** Remarks about what the level of detail of an answer leaves out (empty for the richest level). */
 function detailNotes(detail: GoogleOutput["detail"]): string[] {
-  const hint = "podnieś ADLIB_BQ_MAX_BYTES, żeby je dostać (zapytanie zużywa limit BigQuery)";
-  if (detail === "lean") return [`Google: limit bajtów pozwolił tylko na podstawowe kolumny, brak nazwy reklamodawcy, nazwy prawnej, statusu weryfikacji, regionów i dat; ${hint}`];
-  if (detail === "identity") return [`Google: limit bajtów pozwolił na nazwy i status weryfikacji, bez regionów i dat emisji; ${hint}`];
-  if (detail === "regions") return [`Google: limit bajtów pozwolił na regiony, bez dat emisji; ${hint}`];
+  const hint = "raise ADLIB_BQ_MAX_BYTES to get them (the query uses up the BigQuery quota)";
+  if (detail === "lean") return [`Google: the byte limit allowed only the basic columns, without the advertiser name, legal name, verification status, regions and dates; ${hint}`];
+  if (detail === "identity") return [`Google: the byte limit allowed names and verification status, without regions and dates shown; ${hint}`];
+  if (detail === "regions") return [`Google: the byte limit allowed regions, without dates shown; ${hint}`];
   return [];
 }
 
@@ -99,10 +99,10 @@ export function parseGoogleOutput(stdout: string, fetchedAt: string): { records:
   try {
     json = start < 0 ? {} : JSON.parse(stdout.slice(start));
   } catch {
-    throw new Error("Google: niepoprawny wynik skryptu google_atc.py");
+    throw new Error("Google: invalid output of the google_atc.py script");
   }
   if (json.error) throw new Error(`Google: ${json.error}${json.howToGetAccess ? `. ${json.howToGetAccess}` : ""}`);
-  if (!Array.isArray(json.rows)) throw new Error("Google: niepoprawny wynik skryptu google_atc.py (brak pola rows)");
+  if (!Array.isArray(json.rows)) throw new Error("Google: invalid output of the google_atc.py script (no rows field)");
   const records = json.rows.flatMap((r): AdRecord[] => {
     const adId = clean(r.creative_id);
     if (!adId) return [];
@@ -149,8 +149,8 @@ export function createGoogleSource(opts: GoogleSourceOptions = {}): AdLibrarySou
       JSON.stringify(full),
       async () => {
         const r = await run(python, full, { timeoutMs: ADLIB_CONFIG.google.timeoutMs });
-        if (r.timedOut) throw new Error("Google: przekroczony czas zapytania BigQuery");
-        if (r.code === null) throw new Error(`Google: nie uruchomiono ${python} (${r.stderr.trim().slice(0, 120)})`);
+        if (r.timedOut) throw new Error("Google: the BigQuery query timed out");
+        if (r.code === null) throw new Error(`Google: could not start ${python} (${r.stderr.trim().slice(0, 120)})`);
         return parseGoogleOutput(r.stdout, now());
       },
       { ttlMs: ADLIB_CONFIG.google.cacheTtlMs },
@@ -162,12 +162,12 @@ export function createGoogleSource(opts: GoogleSourceOptions = {}): AdLibrarySou
   /** Whether BigQuery can be used now (`google_atc.py --check`), with the reason and the way to get access. */
   async function bigQueryAvailable(): Promise<{ ok: boolean; reason?: string; howToGetAccess?: string }> {
     const r = await run(python, [script, "--check"], { timeoutMs: 60_000 });
-    if (r.code === null) return { ok: false, reason: `nie uruchomiono ${python}: ${r.stderr.trim().slice(0, 120)}`, howToGetAccess: HOW_TO_GET_ACCESS };
+    if (r.code === null) return { ok: false, reason: `could not start ${python}: ${r.stderr.trim().slice(0, 120)}`, howToGetAccess: HOW_TO_GET_ACCESS };
     try {
       const j = JSON.parse(r.stdout.slice(r.stdout.indexOf("{"))) as { ok?: boolean; reason?: string | null };
-      return j.ok ? { ok: true } : { ok: false, reason: j.reason ?? "brak dostępu do BigQuery", howToGetAccess: HOW_TO_GET_ACCESS };
+      return j.ok ? { ok: true } : { ok: false, reason: j.reason ?? "no access to BigQuery", howToGetAccess: HOW_TO_GET_ACCESS };
     } catch {
-      return { ok: false, reason: `skrypt google_atc.py nie zwrócił odpowiedzi (${(r.stderr.trim().split("\n").pop() ?? "").slice(0, 120)})`, howToGetAccess: HOW_TO_GET_ACCESS };
+      return { ok: false, reason: `the google_atc.py script returned no answer (${(r.stderr.trim().split("\n").pop() ?? "").slice(0, 120)})`, howToGetAccess: HOW_TO_GET_ACCESS };
     }
   }
 
@@ -196,7 +196,7 @@ export function createGoogleSource(opts: GoogleSourceOptions = {}): AdLibrarySou
       if (looksLikeDomain(q.keyword)) {
         // BigQuery has no landing domain: a domain can only be searched through the RPC
         const a = await rpc.available();
-        if (!a.ok) throw new Error(`Google: wyszukiwanie po domenie wymaga nieoficjalnego RPC. ${a.howToGetAccess ?? ""}`.trim());
+        if (!a.ok) throw new Error(`Google: searching by domain needs the unofficial RPC. ${a.howToGetAccess ?? ""}`.trim());
         return rpc.search(q);
       }
       return searchBigQuery(q);

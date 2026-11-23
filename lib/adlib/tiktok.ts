@@ -11,7 +11,7 @@ import { ADLIB_CONFIG } from "./config";
 import type { AdLibrarySource, AdRecord, AdSearchQuery } from "./types";
 
 const CONF = ADLIB_CONFIG.tiktok;
-const HOW_TO_GET_ACCESS = "wniosek o dostęp do TikTok Commercial Content Library API na developers.tiktok.com (odpowiedź do 2 dni roboczych, możliwe tylko dla badaczy); potem TIKTOK_CLIENT_KEY i TIKTOK_CLIENT_SECRET w .env";
+const HOW_TO_GET_ACCESS = "apply for access to the TikTok Commercial Content Library API at developers.tiktok.com (answer within 2 working days, researchers only); then TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET in .env";
 
 /** Sender of one POST (injected; the default uses `fetch`); returns the answer body. */
 export type TikTokFetch = (url: string, init: { method: "POST"; headers: Record<string, string>; body: string }) => Promise<string>;
@@ -40,11 +40,11 @@ export function parseTikTokAds(body: string, fetchedAt: string): AdRecord[] {
   try {
     json = JSON.parse(body);
   } catch {
-    throw new Error("TikTok: niepoprawna odpowiedź (to nie JSON)");
+    throw new Error("TikTok: invalid answer (not JSON)");
   }
   const err = json.error;
   if (err?.code && err.code !== "ok") throw new Error(`TikTok: ${err.message || err.code}`);
-  if (!Array.isArray(json.data?.ads)) throw new Error("TikTok: niepoprawna odpowiedź (brak listy reklam)");
+  if (!Array.isArray(json.data?.ads)) throw new Error("TikTok: invalid answer (no ad list)");
   return json.data.ads.flatMap((a): AdRecord[] => {
     const id = a.ad?.id;
     if (!id) return [];
@@ -91,7 +91,7 @@ export function createTikTokSource(opts: TikTokOptions = {}): AdLibrarySource {
     } catch {
       // reported below with the same message as a missing token
     }
-    if (!access) throw new Error("TikTok: brak tokenu w odpowiedzi (sprawdź klucze aplikacji)");
+    if (!access) throw new Error("TikTok: no token in the answer (check the app keys)");
     return access;
   }
 
@@ -109,7 +109,7 @@ export function createTikTokSource(opts: TikTokOptions = {}): AdLibrarySource {
   return {
     platform: "tiktok",
     async available() {
-      return hasKeys() ? { ok: true } : { ok: false, reason: "brak TIKTOK_CLIENT_KEY i TIKTOK_CLIENT_SECRET", howToGetAccess: HOW_TO_GET_ACCESS };
+      return hasKeys() ? { ok: true } : { ok: false, reason: "no TIKTOK_CLIENT_KEY and TIKTOK_CLIENT_SECRET", howToGetAccess: HOW_TO_GET_ACCESS };
     },
     async search(q: AdSearchQuery) {
       const filters: Record<string, unknown> = {};

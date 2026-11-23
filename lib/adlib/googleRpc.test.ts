@@ -44,13 +44,13 @@ describe("Google ATC public RPC (unofficial, off by default)", () => {
   });
 
   it("reports an answer of an unknown shape instead of returning nothing", () => {
-    expect(() => parseSearchCreatives("<html>blocked</html>", { domain: "a.example", fetchedAt: NOW })).toThrow(/niepoprawna odpowiedź/);
+    expect(() => parseSearchCreatives("<html>blocked</html>", { domain: "a.example", fetchedAt: NOW })).toThrow(/invalid answer/);
   });
 
   it("is switched off by default, with the reason and how to switch it on", async () => {
     const a = await createGoogleRpcSource({ env: {} }).available();
     expect(a.ok).toBe(false);
-    expect(a.reason).toContain("nieoficjalne");
+    expect(a.reason).toContain("unofficial");
     expect(a.howToGetAccess).toContain("ADLIB_GOOGLE_RPC=1");
     expect((await createGoogleRpcSource({ env: { ADLIB_GOOGLE_RPC: "1" } }).available()).ok).toBe(true);
   });
@@ -67,6 +67,6 @@ describe("Google ATC public RPC (unofficial, off by default)", () => {
 
   it("refuses a search that is not a domain", async () => {
     const src = createGoogleRpcSource({ env: { ADLIB_GOOGLE_RPC: "1" }, fetchFn: async () => "{}" });
-    await expect(src.search({ keyword: "inwestycja" })).rejects.toThrow(/domen/);
+    await expect(src.search({ keyword: "inwestycja" })).rejects.toThrow(/domain/);
   });
 });

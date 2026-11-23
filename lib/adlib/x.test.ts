@@ -30,7 +30,7 @@ describe("X source (import of the repository's CSV export)", () => {
   });
 
   it("says which columns are missing when the file is not the repository's export", () => {
-    expect(() => parseXExport("a,b\n1,2\n", NOW)).toThrow(/kolumn/);
+    expect(() => parseXExport("a,b\n1,2\n", NOW)).toThrow(/column/);
   });
 
   it("is unavailable without a file, and says where to get it", async () => {

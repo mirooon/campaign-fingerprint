@@ -34,13 +34,13 @@ describe("nearMissRows", () => {
   it("one row per pair: scores, shared traces by their names in the GUI, the rule and the plain reason", () => {
     const [row] = nearMissRows(file([pair({})]));
     expect(row).toMatchObject({ a: "a1", b: "b1", score: 0.4, rule: "kit-only", ruleName: NEAR_MISS_RULE_INFO["kit-only"].term, reasonPlain: NEAR_MISS_RULE_INFO["kit-only"].text });
-    expect(row.traces).toEqual(["Szablon strony na platformie", "Ukryte pola formularza"]);
+    expect(row.traces).toEqual(["Page template on the platform", "Hidden form fields"]);
   });
 
   it("names a trace without a dictionary entry by its kind and marks discounted ones", () => {
     const [row] = nearMissRows(file([pair({ sharedKinds: ["tracker_host", "domain"], discounted: [{ kind: "domain", rule: "domains:cdn.example", factor: 0.02 }] })]));
     expect(row.traces).toContain("tracker_host");
-    expect(row.traces).toContain("Domena (pominięty ślad)");
+    expect(row.traces).toContain("Domain (pominięty ślad)");
   });
 
   it("no pairs, no rows", () => {
@@ -89,18 +89,18 @@ describe("singleMaterialNote", () => {
   });
 
   it("below the threshold: short 'poniżej progu', no rule", () => {
-    expect(singleMaterialNote(nearest(0.1), 0.15, "below-min-score")).toBe("Najbliżej kampanii K04 (materiał 136-x), wynik 0,10 poniżej progu łączenia 0,15.");
+    expect(singleMaterialNote(nearest(0.1), 0.15, "below-min-score")).toBe("Najbliżej kampanii K04 (materiał 136-x), wynik 0.10 poniżej progu łączenia 0.15.");
   });
 
   it("at or above the threshold: the rule and its reason, worded as 'ale nie dołączony, bo …'", () => {
     const line = singleMaterialNote(nearest(0.9), 0.15, "kit-only");
-    expect(line).toBe(`Najbliżej kampanii K04 (materiał 136-x), wynik 0,90 ponad progiem łączenia 0,15, ale nie dołączony (reguła „${NEAR_MISS_RULE_INFO["kit-only"].term}”), bo ${notJoinedReason("kit-only")}`);
-    expect(line).toMatch(/bo łączy je tylko szablon/);
-    expect(singleMaterialNote(nearest(0.15), 0.15, "account-conflict")).toContain("ponad progiem łączenia 0,15, ale nie dołączony (reguła „Różne konta na platformie”)");
+    expect(line).toBe(`Najbliżej kampanii K04 (materiał 136-x), wynik 0.90 ponad progiem łączenia 0.15, ale nie dołączony (reguła „${NEAR_MISS_RULE_INFO["kit-only"].term}”), bo ${notJoinedReason("kit-only")}`);
+    expect(line).toMatch(/bo they are linked only by a template/);
+    expect(singleMaterialNote(nearest(0.15), 0.15, "account-conflict")).toContain("ponad progiem łączenia 0.15, ale nie dołączony (reguła „Different platform accounts”)");
   });
 
   it("above the threshold without a recorded rule: says so instead of leaving the score unexplained", () => {
-    expect(singleMaterialNote(nearest(0.9), 0.15, null)).toBe("Najbliżej kampanii K04 (materiał 136-x), wynik 0,90 ponad progiem łączenia 0,15, ale nie dołączony. Powodu nie ma w zapisanych danych tej bazy.");
+    expect(singleMaterialNote(nearest(0.9), 0.15, null)).toBe("Najbliżej kampanii K04 (materiał 136-x), wynik 0.90 ponad progiem łączenia 0.15, ale nie dołączony. Powodu nie ma w zapisanych danych tej bazy.");
   });
 });
 
@@ -110,7 +110,7 @@ describe("familyApartLines", () => {
 
   it("one kind refused as kit-only: the kit counts as one kind, discounted traces outside the kit are named", () => {
     const nm = file([pair({ familyId: "R01", rule: "kit-only", discounted: ip }), pair({ a: "a2", familyId: "R01", rule: "kit-only" }), pair({ a: "a3", familyId: "R02", rule: "too-few-evidence-kinds" })]);
-    expect(familyApartLines(family([ONE_KIND_APART]), nm)).toEqual(["łączą je tylko cechy zestawu stron, liczone razem jako jeden rodzaj dowodu; Adres IP pominięto jako ślad wielu stron"]);
+    expect(familyApartLines(family([ONE_KIND_APART]), nm)).toEqual(["łączą je tylko cechy zestawu stron, liczone razem jako jeden rodzaj dowodu; IP address pominięto jako ślad wielu stron"]);
   });
 
   it("without the list, or with another one-kind rule in the group: the stored words with the kit clause", () => {

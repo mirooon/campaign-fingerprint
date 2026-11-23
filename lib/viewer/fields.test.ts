@@ -35,7 +35,7 @@ describe("exactFileLabel", () => {
 describe("faceLines i voiceLines", () => {
   it("twarz jest „podobna do”, nigdy „to jest”", () => {
     const lines = faceLines([{ image: "x.png", x: 0, y: 0, w: 5, h: 5, persona: "adam-testowy", similarity: 0.571 }, { image: "x.png", x: 9, y: 9, w: 5, h: 5 }], nameOf);
-    expect(lines[0]).toBe("Podobna twarz do Adam Testowy (0,57), do sprawdzenia przez człowieka.");
+    expect(lines[0]).toBe("Podobna twarz do Adam Testowy (0.57), do sprawdzenia przez człowieka.");
     expect(lines.join(" ")).not.toMatch(/to jest/i);
     expect(lines[1]).toContain("2 twarze");
   });
@@ -44,11 +44,11 @@ describe("faceLines i voiceLines", () => {
   });
   it("kilka twarzy tej samej osoby daje jedno zdanie z najwyższym wynikiem", () => {
     const lines = faceLines([{ image: "a", x: 0, y: 0, w: 1, h: 1, persona: "adam-testowy", similarity: 0.5 }, { image: "b", x: 0, y: 0, w: 1, h: 1, persona: "adam-testowy", similarity: 0.62 }], nameOf);
-    expect(lines.filter((l) => l.startsWith("Podobna twarz"))).toEqual(["Podobna twarz do Adam Testowy (0,62), do sprawdzenia przez człowieka."]);
+    expect(lines.filter((l) => l.startsWith("Podobna twarz"))).toEqual(["Podobna twarz do Adam Testowy (0.62), do sprawdzenia przez człowieka."]);
   });
   it("głos jest „podobny do”, z przedziałem czasu", () => {
     const lines = voiceLines([{ start: 3, end: 11, persona: "adam-testowy", similarity: 0.7 }], nameOf);
-    expect(lines).toEqual(["Głos podobny do Adam Testowy (0,70) w sekundach 3–11, do sprawdzenia przez człowieka."]);
+    expect(lines).toEqual(["Głos podobny do Adam Testowy (0.70) w sekundach 3–11, do sprawdzenia przez człowieka."]);
   });
   it("pusta lista nie daje zdań", () => {
     expect(faceLines(undefined, nameOf)).toEqual([]);
@@ -88,7 +88,7 @@ describe("bridgeNote", () => {
 
 describe("weakestLinkNote", () => {
   it("najsłabsze ogniwo z wynikiem i progiem", () => {
-    expect(weakestLinkNote(camp({ minInternalScore: 0.22, weakestMember: { id: "d", score: 0.22, links: 1 } }), 0.15)).toBe("Najsłabsze ogniwo: d, najlepsze powiązanie 0,22 (próg łączenia 0,15), 1 powiązanie.");
+    expect(weakestLinkNote(camp({ minInternalScore: 0.22, weakestMember: { id: "d", score: 0.22, links: 1 } }), 0.15)).toBe("Najsłabsze ogniwo: d, najlepsze powiązanie 0.22 (próg łączenia 0.15), 1 powiązanie.");
   });
   it("bez pola null", () => {
     expect(weakestLinkNote(camp(), 0.15)).toBeNull();
@@ -112,7 +112,7 @@ describe("domainAgeNote", () => {
 
 describe("brandNote", () => {
   it("marka rozpoznana na kreacji, z rodzajem i pewnością", () => {
-    expect(brandNote({ name: "Portal Testowy", kind: "media", probability: 0.81 })).toBe("Podrabiana marka: Portal Testowy (portal informacyjny), rozpoznana na kreacji (0,81).");
+    expect(brandNote({ name: "Portal Testowy", kind: "media", probability: 0.81 })).toBe("Podrabiana marka: Portal Testowy (portal informacyjny), rozpoznana na kreacji (0.81).");
   });
   it("bez marki null", () => {
     expect(brandNote(undefined)).toBeNull();

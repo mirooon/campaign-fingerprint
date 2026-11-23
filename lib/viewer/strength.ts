@@ -1,7 +1,7 @@
 /**
- * One scale of premise strength for the whole GUI (§6.1) and the words for verdict confidence.
- * Strength of a premise: Wysoka / Średnia / Wymaga potwierdzenia / Pominięta (+ "Opis, nie dowód"
- * for attributes). Confidence of a verdict: pewne / prawdopodobne / niepewne. The two scales never
+ * One scale of evidence strength for the whole GUI (§6.1) and the words for verdict confidence.
+ * Strength of a piece of evidence: High / Medium / Needs corroboration / Discounted (+ "Description, not
+ * evidence" for attributes). Confidence of a verdict: certain / likely / uncertain. The two scales never
  * share words.
  */
 import type { LinkVerdict } from "@/lib/graph/cluster";
@@ -14,12 +14,13 @@ export const DEFAULT_KIT_ONLY = ["similar_dom", "comment", "asset", "hidden_fiel
 /** Types that never count for a campaign, only for groups of similar campaigns (modus operandi). */
 export const FAMILY_ONLY_TYPES = new Set(["technique"]);
 
-/** Below this weight a non-strong premise needs confirmation. */
+/** Below this weight a piece of evidence that is not strong needs corroboration. */
 export const MEDIUM_MIN_WEIGHT = 0.1;
 
 /**
- * KIT_ONLY from campaigns.json → method.rules: the list in parentheses of the campaign rule
- * ("sama cecha zestawu stron lub persona (similar_dom, comment, …) wymaga drugiego rodzaju dowodu").
+ * KIT_ONLY from campaigns.json → method.rules: the list in parentheses of the campaign rule saying that a
+ * page-kit feature or a persona alone needs a second kind of evidence. The pattern matches the Polish wording
+ * of older bases ("… (similar_dom, comment, …) wymaga drugiego rodzaju dowodu"), which is stored data.
  * Falls back to the default list when the rules are missing or have another wording.
  */
 export function kitOnlyFromRules(rules: string[] | undefined | null): Set<string> {
@@ -43,14 +44,14 @@ export interface EvidenceLike {
   edgeType?: string | null;
 }
 
-/** Type of a premise: the shared node type or the similarity type (null when the backend did not say). */
+/** Type of a piece of evidence: the shared node type or the similarity type (null when the backend did not say). */
 export function evidenceType(ev: EvidenceLike): string | null {
   return ev.pivotType ?? ev.edgeType ?? null;
 }
 
 /**
- * Level of one premise. Without the type (older backend) the scale has only Wysoka, Średnia and
- * Pominięta.
+ * Level of one piece of evidence. Without the type (older backend) the scale has only High, Medium and
+ * Discounted.
  */
 export function evidenceStrength(ev: EvidenceLike, kitOnly: Set<string> = new Set(DEFAULT_KIT_ONLY)): Strength {
   if (ev.discounted) return "skipped";
@@ -70,11 +71,11 @@ export interface StrengthInfo {
 }
 
 export const STRENGTH_INFO: Record<Strength, StrengthInfo> = {
-  high: { label: "Wysoka", caption: "łączy samodzielnie", rank: 0 },
-  medium: { label: "Średnia", caption: "liczy się razem z innymi", rank: 1 },
-  confirm: { label: "Wymaga potwierdzenia", caption: "potrzebny drugi rodzaj śladu", rank: 2 },
-  skipped: { label: "Pominięta", caption: "wspólna dla wielu niezależnych stron", rank: 3 },
-  descriptive: { label: "Opis, nie dowód", caption: "pomaga filtrować, nie łączy", rank: 4 },
+  high: { label: "High", caption: "links on its own", rank: 0 },
+  medium: { label: "Medium", caption: "counts together with others", rank: 1 },
+  confirm: { label: "Needs corroboration", caption: "needs a second kind of trace", rank: 2 },
+  skipped: { label: "Discounted", caption: "shared by many independent sites", rank: 3 },
+  descriptive: { label: "Description, not evidence", caption: "helps to filter, does not link", rank: 4 },
 };
 
 export const STRENGTH_ORDER: Strength[] = ["high", "medium", "confirm", "skipped", "descriptive"];
@@ -87,30 +88,30 @@ export function sortByStrength<T extends EvidenceLike>(evs: T[], kitOnly?: Set<s
 export type Confidence = "certain" | "likely" | "uncertain";
 
 /**
- * Confidence as the GUI shows it: the three levels of the export, plus `no_traces` for a new material that
- * shares no trace with any known material. Such a material is `uncertain` in the CSV and JSON, but on screen
- * "blisko progu" would be wrong: there is no link to put next to the threshold.
+ * Confidence as the GUI shows it: the three levels of the export, plus `no_traces` for a new sample that
+ * shares no trace with any known sample. Such a sample is `uncertain` in the CSV and JSON, but on screen
+ * "near the threshold" would be wrong: there is no link to put next to the threshold.
  */
 export type ShownConfidence = Confidence | "no_traces";
 
 export const CONFIDENCE_INFO: Record<ShownConfidence, { label: string; short: string; rank: number; help: string }> = {
-  certain: { label: "pewne", short: "pewne", rank: 0, help: "Najlepsze powiązanie z kampanią ma przesłankę o wysokiej sile." },
-  likely: { label: "prawdopodobne", short: "prawdopodobne", rank: 1, help: "Siła powiązania z kampanią wynosi co najmniej 0,5." },
-  uncertain: { label: "niepewne (blisko progu)", short: "niepewne", rank: 2, help: "Powiązanie z kampanią jest słabe albo nie przekracza progu. Warto sprawdzić ręcznie." },
-  no_traces: { label: "brak wspólnych śladów z bazą", short: "brak wspólnych śladów", rank: 3, help: "Żaden znany materiał nie ma wspólnego śladu z tym materiałem, więc nie ma powiązania, które dałoby się ocenić." },
+  certain: { label: "certain", short: "certain", rank: 0, help: "The best link to a campaign has a piece of evidence of high strength." },
+  likely: { label: "likely", short: "likely", rank: 1, help: "The link strength to the campaign is at least 0.5." },
+  uncertain: { label: "uncertain (near the threshold)", short: "uncertain", rank: 2, help: "The link to the campaign is weak or does not cross the threshold. Worth checking by hand." },
+  no_traces: { label: "no shared traces with the base", short: "no shared traces", rank: 3, help: "No known sample shares a trace with this sample, so there is no link to assess." },
 };
 
-/** Campaign rule for a pair (LinkVerdict) in plain Polish. */
+/** Campaign rule for a pair (LinkVerdict) in plain English. */
 export function ruleText(rule: LinkVerdict | string, minLinkScore: number): string {
   switch (rule) {
     case "campaign":
-      return "łączy w kampanię";
+      return "links into a campaign";
     case "below":
-      return `za słabe: poniżej progu łączenia (${String(minLinkScore).replace(".", ",")})`;
+      return `too weak: below the linking threshold (${String(minLinkScore)})`;
     case "single_kind":
-      return "tylko jeden rodzaj śladu, np. sam szablon strony. To wskazuje na podobną kampanię, nie na tę samą";
+      return "only one kind of trace, e.g. just the page template. This points to a similar campaign, not the same one";
     case "account_conflict":
-      return "różne konta na platformie stron, czyli różni operatorzy";
+      return "different page-builder accounts, so different operators";
     default:
       return String(rule);
   }

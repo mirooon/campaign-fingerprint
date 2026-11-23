@@ -11,13 +11,13 @@ async function errorMessage(res: Response): Promise<string> {
   } catch {
     // the answer is not JSON: fall through to the generic message
   }
-  return `Nie udało się pobrać paczki (kod ${res.status})`;
+  return `Could not download the evidence pack (code ${res.status})`;
 }
 
 /**
- * "Pobierz paczkę dowodów": downloads the ZIP of one campaign from `POST /api/evidence`
+ * "Download evidence pack": downloads the ZIP of one campaign from `POST /api/evidence`
  * (evidence.json, list for the CERT warning list, DSA Art. 16 notice, SHA-256 manifest).
- * `jobId` is given for campaigns of new materials (N1...). `blockedReason` (the analyst rejected the campaign) turns the button off and shows why. A failure shows its message next to the button.
+ * `jobId` is given for campaigns of new samples (N1...). `blockedReason` (the analyst rejected the campaign) turns the button off and shows why. A failure shows its message next to the button.
  */
 export default function EvidenceButton({ campaignId, jobId, blockedReason }: { campaignId: string; jobId?: string; blockedReason?: string | null }) {
   const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export default function EvidenceButton({ campaignId, jobId, blockedReason }: { c
       const url = URL.createObjectURL(await res.blob());
       const a = document.createElement("a");
       a.href = url;
-      a.download = `paczka-dowodow-${campaignId}.zip`;
+      a.download = `evidence-pack-${campaignId}.zip`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -42,9 +42,9 @@ export default function EvidenceButton({ campaignId, jobId, blockedReason }: { c
   };
   return (
     <span className="inline-flex flex-wrap items-center gap-2">
-      <button type="button" onClick={download} disabled={busy || !!blockedReason} className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:opacity-60" title="ZIP z evidence.json, listą domen dla CERT, zgłoszeniem DSA i sumami SHA-256. Narzędzie niczego nie wysyła.">
+      <button type="button" onClick={download} disabled={busy || !!blockedReason} className="inline-flex items-center gap-1.5 rounded-md border border-slate-400 bg-white px-2.5 py-1 text-xs font-medium text-slate-900 hover:bg-slate-100 disabled:opacity-60" title="ZIP with evidence.json, a domain list for CERT, a DSA notice and SHA-256 checksums. The tool sends nothing.">
         {busy ? <Loader2 size={13} className="animate-spin" aria-hidden /> : <Download size={13} aria-hidden />}
-        Pobierz paczkę
+        Download evidence pack
       </button>
       {blockedReason && <span className="text-xs text-slate-700">{blockedReason}</span>}
       {error && <span role="alert" className="text-xs text-red-800">{error}</span>}

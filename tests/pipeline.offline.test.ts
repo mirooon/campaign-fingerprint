@@ -128,7 +128,7 @@ describe("page kit, CNAME, domain pattern, campaign parameters and personas", ()
   it("hard negative: a public form service shared by C5, N1 and N2 does not merge them", () => {
     // each site has its own access key: three different clients of the service, no shared node
     const forms = graph.nodes.filter((n) => n.type === "endpoint" && n.data.host === "api.web3forms.com");
-    expect(forms.map((n) => n.data.clientIdSource)).toEqual(["ukryte pole access_key", "ukryte pole access_key", "ukryte pole access_key"]);
+    expect(forms.map((n) => n.data.clientIdSource)).toEqual(["hidden field access_key", "hidden field access_key", "hidden field access_key"]);
     expect(new Set(forms.map((n) => n.data.clientId)).size).toBe(3);
     expect(node("domain:web3forms.com")?.weight ?? 0).toBeLessThan(0.05);
     const a = campaigns.assignments;

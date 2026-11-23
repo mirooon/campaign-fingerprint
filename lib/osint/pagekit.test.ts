@@ -162,7 +162,7 @@ describe("endpoints: inline scripts", () => {
       "cb.example/callback/<n>#klient=12345",
     ]);
     expect(kit(html).endpoints.every((e) => e.via === "literal")).toBe(true);
-    expect(kit(html).endpoints.find((e) => e.host === "cb.example")).toMatchObject({ pathTemplate: "/callback/<n>", clientId: "12345", clientIdSource: "ścieżka" });
+    expect(kit(html).endpoints.find((e) => e.host === "cb.example")).toMatchObject({ pathTemplate: "/callback/<n>", clientId: "12345", clientIdSource: "path" });
   });
 
   it("does not scan external or non-JS scripts and keeps the first via when deduplicating", () => {

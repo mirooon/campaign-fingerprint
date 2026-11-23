@@ -100,7 +100,7 @@ describe("external form backend: client identifier and multi-client services", (
   it("reads the client ID from a hidden field of the form", () => {
     const hidden = (v: string) => `<input type="hidden" name="account_id" value="${v}"><input type="hidden" name="csrf" value="0123456789abcdef0123">`;
     const a = withForm("a", "zdrowie-dzis.example", "https://crm.example/submit", hidden("48151623"));
-    expect(a.kit!.endpoints![0]).toMatchObject({ clientId: "48151623", clientIdSource: "ukryte pole account_id", key: "crm.example/submit#klient=48151623" });
+    expect(a.kit!.endpoints![0]).toMatchObject({ clientId: "48151623", clientIdSource: "hidden field account_id", key: "crm.example/submit#klient=48151623" });
     const res = run([a, withForm("b", "portal-finansowy.test", "https://crm.example/submit", hidden("48151623"))]);
     expect(same(res, "a", "b")).toBe(true);
   });

@@ -55,7 +55,7 @@ export interface EndpointRef {
    * of the key: two clients of one multi-client service are different backends.
    */
   clientId?: string | null;
-  /** Where the client identifier was found ("ścieżka", "parametr <name>", "ukryte pole <name>"). */
+  /** Where the client identifier was found ("path", "parameter <name>", "hidden field <name>"). */
   clientIdSource?: string | null;
 }
 
@@ -562,11 +562,11 @@ function clientIdOfUrl(u: URL): { id: string; source: string } | null {
       // keep the raw segment
     }
     const id = seg ? clientIdOfSegment(seg) : null;
-    if (id) return { id, source: "ścieżka" };
+    if (id) return { id, source: "path" };
   }
   for (const [name, value] of u.searchParams) {
     const id = clientIdOfValue(name, value);
-    if (id) return { id, source: `parametr ${name.slice(0, 40)}` };
+    if (id) return { id, source: `parameter ${name.slice(0, 40)}` };
   }
   return null;
 }
@@ -1020,7 +1020,7 @@ export function extractPageKit(html: string, pageUrl: string, opts: { minTags?: 
           const id = clientIdOfValue(fieldName, attrs.value ?? "");
           if (id) {
             formEp.clientId = id;
-            formEp.clientIdSource = `ukryte pole ${fieldName.slice(0, 40)}`;
+            formEp.clientIdSource = `hidden field ${fieldName.slice(0, 40)}`;
             formEp.key = endpointKey(formEp.host, formEp.pathTemplate, false, id);
           }
         }

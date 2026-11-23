@@ -757,7 +757,21 @@ const FLAG_ORDER: ShopFlag[] = [
   "catalogIncoherent",
 ];
 
-const LEGAL_NAMES_PL: Record<string, string> = { terms: "regulamin", returns: "zwroty", privacy: "polityka prywatności", contact: "kontakt" };
+const LEGAL_PAGE_NAMES: Record<string, string> = { terms: "terms", returns: "returns", privacy: "privacy policy", contact: "contact" };
+
+/** English names of the catalog categories of `shopSignalsConfig` (its keys stay as written in the config). */
+const CATEGORY_NAMES: Record<string, string> = {
+  elektronika: "electronics",
+  zabawki: "toys",
+  "odzież": "clothing",
+  "narzędzia": "tools",
+  kosmetyki: "cosmetics",
+  "robótki": "crafts",
+  "ogród": "garden",
+  meble: "furniture",
+  sport: "sport",
+  "zwierzęta": "pets",
+};
 
 /** Flags that hold, in a fixed order, with one sentence of evidence per flag. */
 function flagsOf(s: ShopSignals, ctx: ShopContext): { flags: ShopFlag[]; details: Partial<Record<ShopFlag, string>> } {
@@ -779,21 +793,21 @@ function flagsOf(s: ShopSignals, ctx: ShopContext): { flags: ShopFlag[]; details
     reviewsNoSellerReply: s.reviewsNoSellerReply,
     catalogIncoherent: s.catalogIncoherent,
   };
-  details.legalPagesMissing = `brak linków do: ${s.legalPagesMissing.map((k) => LEGAL_NAMES_PL[k] ?? k).join(", ")}`;
-  details.sitewideDeepDiscount = `${s.discounts.pricedItems} produktów z cenami, rabat do ${s.discounts.maxDiscountPct ?? 0}% (mediana ${s.discounts.medianDiscountPct ?? 0}%)`;
-  details.omnibusMissing = "rabaty bez wzmianki o najniższej cenie z 30 dni";
-  details.transferOnly = "jedyna metoda płatności to przelew";
-  details.irreversibleOnly = `metody trudne do cofnięcia: ${s.paymentMethods.join(", ")}`;
-  details.paymentRecipientPerson = "odbiorca wpłaty wygląda na osobę prywatną albo tytuł przelewu to „prezent”/„darowizna”";
-  details.deliveryWide = s.deliveryDays ? `czas realizacji ${s.deliveryDays.min}–${s.deliveryDays.max} dni` : "";
-  details.reviewsAllPerfect = s.reviews ? `${s.reviews.count} opinii, ${Math.round((s.reviews.share5 ?? 1) * 100)}% to 5/5, bez ocen 1–2` : "";
-  details.reviewsNarrowWindow = s.reviews ? `${s.reviews.count} opinii z okna ${s.reviews.windowDays ?? 0} dni` : "";
-  details.reviewsNone = "sklep z produktami i bez ani jednej opinii";
-  details.footerBrandMismatch = s.footerBrandMismatch ? `stopka: „${s.footerBrandMismatch.footer}”, strona: „${s.footerBrandMismatch.brand}”` : "";
-  details.footerYearStale = `rok w stopce ${s.footerYear}, pierwszy zapis ${yearOf(ctx.firstSeen)}`;
-  details.claimedSinceContradicted = s.claimedSince ? `deklarowany staż „${s.claimedSince.quote}” (od ${s.claimedSince.year}), pierwsza migawka archiwum ${yearOf(ctx.archiveFirstSeen)}` : "";
-  details.reviewsNoSellerReply = s.reviews ? `${s.reviews.count} opinii i ani jednej odpowiedzi sprzedawcy` : "";
-  details.catalogIncoherent = `produkty z kategorii: ${s.catalogCategories.join(", ")}`;
+  details.legalPagesMissing = `no links to: ${s.legalPagesMissing.map((k) => LEGAL_PAGE_NAMES[k] ?? k).join(", ")}`;
+  details.sitewideDeepDiscount = `${s.discounts.pricedItems} products with prices, discount up to ${s.discounts.maxDiscountPct ?? 0}% (median ${s.discounts.medianDiscountPct ?? 0}%)`;
+  details.omnibusMissing = "discounts without a mention of the lowest price of the last 30 days";
+  details.transferOnly = "bank transfer is the only payment method";
+  details.irreversibleOnly = `methods that are hard to reverse: ${s.paymentMethods.join(", ")}`;
+  details.paymentRecipientPerson = "the payment recipient looks like a private person or the transfer title is “prezent” (gift) / “darowizna” (donation)";
+  details.deliveryWide = s.deliveryDays ? `delivery time ${s.deliveryDays.min}–${s.deliveryDays.max} days` : "";
+  details.reviewsAllPerfect = s.reviews ? `${s.reviews.count} reviews, ${Math.round((s.reviews.share5 ?? 1) * 100)}% are 5/5, no 1–2 ratings` : "";
+  details.reviewsNarrowWindow = s.reviews ? `${s.reviews.count} reviews within ${s.reviews.windowDays ?? 0} days` : "";
+  details.reviewsNone = "a shop with products and not a single review";
+  details.footerBrandMismatch = s.footerBrandMismatch ? `footer: “${s.footerBrandMismatch.footer}”, page: “${s.footerBrandMismatch.brand}”` : "";
+  details.footerYearStale = `footer year ${s.footerYear}, first recorded ${yearOf(ctx.firstSeen)}`;
+  details.claimedSinceContradicted = s.claimedSince ? `claimed track record “${s.claimedSince.quote}” (since ${s.claimedSince.year}), first archive snapshot ${yearOf(ctx.archiveFirstSeen)}` : "";
+  details.reviewsNoSellerReply = s.reviews ? `${s.reviews.count} reviews and not a single seller reply` : "";
+  details.catalogIncoherent = `products from the categories: ${s.catalogCategories.map((c) => CATEGORY_NAMES[c] ?? c).join(", ")}`;
   const flags = FLAG_ORDER.filter((f) => holds[f]);
   return { flags, details: Object.fromEntries(flags.map((f) => [f, details[f]])) as Partial<Record<ShopFlag, string>> };
 }

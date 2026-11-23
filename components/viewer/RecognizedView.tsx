@@ -7,7 +7,7 @@ import { Empty, Help } from "./ui";
 type State = { status: "loading" } | { status: "ready"; people: RecognizedPerson[]; notes: string[] } | { status: "error"; message: string };
 
 /**
- * "Kogo rozpoznajemy?" (B-025): transparency of the biometric step. Lists the closed set of people the tool compares
+ * "Recognized people" (B-025): transparency of the biometric step. Lists the closed set of people the tool compares
  * faces and voices with, how many reference samples each has and the public source that put them on the list.
  */
 export default function RecognizedView() {
@@ -18,32 +18,32 @@ export default function RecognizedView() {
       .then((r) => r.json() as Promise<{ people: RecognizedPerson[]; notes: string[] }>)
       .then((b) => setState({ status: "ready", people: b.people, notes: b.notes }))
       .catch((e: Error) => {
-        if (e.name !== "AbortError") setState({ status: "error", message: `Nie udało się wczytać listy: ${e.message}` });
+        if (e.name !== "AbortError") setState({ status: "error", message: `Could not load the list: ${e.message}` });
       });
     return () => ctl.abort();
   }, []);
   return (
     <div className="mx-auto max-w-4xl space-y-3 p-4">
-      <h2 className="text-xl font-semibold">Kogo rozpoznajemy?<Help term="baza_osob" /></h2>
+      <h2 className="text-xl font-semibold">Who do we recognize?<Help term="baza_osob" /></h2>
       <p className="text-sm text-slate-700">
-        Narzędzie porównuje twarze i głosy z materiału tylko z tą zamkniętą listą osób, których wizerunek bywa podszywany w oszustwach. Wynik to „podobna twarz do X” albo „głos podobny do X” z liczbą od 0 do 1: wskazówka do sprawdzenia przez człowieka, nigdy ustalenie tożsamości. Wzorce twarzy i głosu zostają na tym komputerze.
+        The tool compares faces and voices from a sample only with this closed list of people whose likeness is often impersonated in frauds. The result is “face similar to X” or “voice similar to X” with a number from 0 to 1: a hint for a person to check, never an identification. Face and voice templates stay on this computer.
       </p>
-      {state.status === "loading" && <p className="text-sm text-slate-600">Wczytywanie listy…</p>}
+      {state.status === "loading" && <p className="text-sm text-slate-600">Loading the list…</p>}
       {state.status === "error" && <p className="text-sm text-slate-600">{state.message}</p>}
       {state.status === "ready" && (
         <>
           {state.people.length === 0 ? (
-            <Empty>Brak galerii twarzy i głosów. Zbuduj ją według README (setup-face.sh, build_voice_index.py).</Empty>
+            <Empty>No face and voice gallery yet. Build it as the README describes (setup-face.sh, build_voice_index.py).</Empty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-sm">
-                <caption className="sr-only">Osoby z listy rozpoznawania z liczbą wzorców twarzy i głosu oraz źródłem wpisu</caption>
+                <caption className="sr-only">People on the recognition list with the number of face and voice templates and the source of the entry</caption>
                 <thead>
                   <tr className="border-b border-slate-300 text-left text-xs text-slate-600">
-                    <th scope="col" className="p-1.5 font-medium">Osoba</th>
-                    <th scope="col" className="p-1.5 font-medium">Twarz (zdjęcia)</th>
-                    <th scope="col" className="p-1.5 font-medium">Głos (fragmenty)</th>
-                    <th scope="col" className="p-1.5 font-medium">Źródło wpisu na listę</th>
+                    <th scope="col" className="p-1.5 font-medium">Person</th>
+                    <th scope="col" className="p-1.5 font-medium">Face (photos)</th>
+                    <th scope="col" className="p-1.5 font-medium">Voice (clips)</th>
+                    <th scope="col" className="p-1.5 font-medium">Source of the list entry</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -55,7 +55,7 @@ export default function RecognizedView() {
                       </th>
                       <td className="p-1.5">{p.faces || "—"}</td>
                       <td className="p-1.5">{p.voices || "—"}</td>
-                      <td className="max-w-md p-1.5 text-xs text-slate-700">{p.source ?? "brak wpisu w liście osób"}</td>
+                      <td className="max-w-md p-1.5 text-xs text-slate-700">{p.source ?? "no entry in the list of people"}</td>
                     </tr>
                   ))}
                 </tbody>

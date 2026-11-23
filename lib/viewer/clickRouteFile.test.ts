@@ -30,7 +30,7 @@ describe("loadClickRoute", () => {
     const out = loadClickRoute({ dataDir: base, itemId: "m1" });
     expect(out.ok && out.route.map((l) => l.role)).toEqual(["ad", "tracking", "lure"]);
   });
-  it("dla zadania czyta dane z folderu pakietu, nie z bazy", () => {
+  it("for a job it reads the data from the package folder, not from the base", () => {
     const base = tmp();
     const work = tmp();
     mkdirSync(path.join(work, "pakiet"));
@@ -44,7 +44,7 @@ describe("loadClickRoute", () => {
     writeFileSync(path.join(base, "enriched.json"), JSON.stringify(enriched));
     expect(loadClickRoute({ dataDir: base, itemId: "nie-ma" })).toMatchObject({ ok: false, status: 404 });
   });
-  it("uszkodzony plik to komunikat z powodem", () => {
+  it("a broken file gives a message with a reason", () => {
     const base = tmp();
     writeFileSync(path.join(base, "enriched.json"), "{nie json");
     const out = loadClickRoute({ dataDir: base, itemId: "m1" });

@@ -22,7 +22,7 @@ describe("liveLookupsOption", () => {
   });
 });
 
-describe("wybór w pamięci sesji", () => {
+describe("choice in session storage", () => {
   it("writing and reading agree; a foreign value means no choice", () => {
     expect(parseLiveChoice(liveChoiceValue(true))).toBe(true);
     expect(parseLiveChoice(liveChoiceValue(false))).toBe(false);

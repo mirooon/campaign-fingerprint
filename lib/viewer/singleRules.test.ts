@@ -9,7 +9,7 @@ import { combineScores } from "@/lib/graph/weights";
 import { singleMaterialRules } from "./singleRules";
 
 const item = (key: string, data: Record<string, unknown> = {}): GraphNode => ({ id: `item:${key}`, type: "item", key, label: key, df: 1, weight: null, strong: false, discounts: [], data, campaignId: null });
-const pivot = (type: NonNullable<PairEvidence["pivotType"]>, weight: number): PairEvidence => ({ kind: "pivot", pivot: `${type}:x`, pivotType: type, edgeType: null, weight, strong: false, discounted: false, evidence: "ślad", pathA: [], pathB: [] });
+const pivot = (type: NonNullable<PairEvidence["pivotType"]>, weight: number): PairEvidence => ({ kind: "pivot", pivot: `${type}:x`, pivotType: type, edgeType: null, weight, strong: false, discounted: false, evidence: "trace", pathA: [], pathB: [] });
 const link = (a: string, b: string, ev: PairEvidence[]): ItemLink => ({ a, b, score: combineScores(ev.map((e) => e.weight)), strong: false, evidence: ev });
 const camp = (id: string, members: string[]): Campaign => ({ id, size: members.length, members, firstSeen: null, lastSeen: null, topEvidence: [], domains: [], advertisers: [], cohesion: 0, strongComponents: 1, attributes: { personas: [], cyrillic: 0, cloakingSuspected: 0, deepfakeScoreMax: null } });
 

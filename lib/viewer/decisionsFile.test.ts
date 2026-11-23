@@ -15,7 +15,7 @@ const tmp = () => {
 };
 
 describe("decisionsFile", () => {
-  it("brak pliku to puste decyzje, zapis tworzy plik bez plików tymczasowych", () => {
+  it("no file means empty decisions, a write creates the file without temporary files", () => {
     const file = path.join(tmp(), "decyzje.json");
     expect(loadDecisions(file)).toEqual({ ok: true, file: { version: 1, decisions: {} } });
     const saved = saveDecision(file, "K03", "rejected", new Date("2026-11-22T10:00:00Z"));
@@ -23,7 +23,7 @@ describe("decisionsFile", () => {
     expect(JSON.parse(readFileSync(file, "utf8")).decisions.K03.decidedAt).toBe("2026-11-22T10:00:00.000Z");
     expect(readdirSync(path.dirname(file))).toEqual(["decyzje.json"]);
   });
-  it("uszkodzony plik nie jest nadpisywany po cichu: komunikat z powodem", () => {
+  it("a broken file is not silently overwritten: a message with a reason", () => {
     const file = path.join(tmp(), "decyzje.json");
     writeFileSync(file, "{zepsute");
     const out = loadDecisions(file);

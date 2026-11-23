@@ -46,7 +46,7 @@ describe("groupCampaigns", () => {
   });
 });
 
-describe("liczby bazy w nagłówku", () => {
+describe("base numbers in the header", () => {
   const list = [camp("K1"), camp("K2"), camp("K3", { size: 1 }), camp("K4", { size: 1 }), camp("K5", { size: 1 })];
   const families = [{ id: "R1", campaigns: ["K2", "K3"], members: [], size: 4, topEvidence: [], apart: [] }];
 
@@ -63,7 +63,7 @@ describe("liczby bazy w nagłówku", () => {
   });
 });
 
-describe("pojedynczy materiał otwarty z zewnątrz", () => {
+describe("a single sample opened from outside", () => {
   const singles = [camp("K50", { size: 1 }), camp("K51", { size: 1 })];
 
   it("expands the collapsed section only for an open single sample of that section", () => {

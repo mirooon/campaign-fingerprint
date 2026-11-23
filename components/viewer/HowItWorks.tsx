@@ -26,7 +26,7 @@ const RULES = [
 
 /**
  * "How it works": five stages, the rules in plain words with the base's thresholds (the "How did we compute this?" anchor),
- * the strength scale and the glossary. Opened with `#jak-policzylismy`, it scrolls to the methodology section.
+ * the strength scale and the glossary. Opened with `#how-we-computed`, it scrolls to the methodology section.
  */
 export default function HowItWorks({ rules, method }: { rules: string[]; method?: CampaignsFile["method"] }) {
   useEffect(() => {
@@ -65,7 +65,7 @@ export default function HowItWorks({ rules, method }: { rules: string[]; method?
           {STRENGTH_ORDER.map((s) => <li key={s} className="flex items-center gap-2"><StrengthBadge strength={s} /><span className="text-slate-700">{STRENGTH_INFO[s].caption}</span></li>)}
         </ul>
       </section>
-      <section id="slowniczek">
+      <section id="glossary">
         <h3 className="mb-1.5 font-semibold">Glossary</h3>
         <dl className="space-y-2 text-sm">
           {(Object.entries(GLOSSARY) as Array<[TermId, (typeof GLOSSARY)[TermId]]>).map(([id, t]) => (

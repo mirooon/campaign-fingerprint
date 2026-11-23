@@ -62,7 +62,7 @@ describe("buildEvidenceZip", () => {
     expect(out.ok).toBe(true);
     if (!out.ok) return;
     expect(names(out.zip)).toEqual(expect.arrayContaining(["evidence.json", "cert-domains.txt", "dsa-art16-notice.md", "manifest.sha256"]));
-    expect(out.fileName).toMatch(/^paczka-dowodow-.*\.zip$/);
+    expect(out.fileName).toMatch(/^evidence-pack-.*\.zip$/);
   });
 
   it("zips the pack of a campaign of new materials (N1) of the job", () => {

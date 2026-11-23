@@ -58,7 +58,19 @@ function Card({ c, open, minLinkScore, graph, assignments, nearMisses, singleRul
   }, [c, graph.links, assignments, minLinkScore, nearMisses, singleRule]);
   return (
     <article id={campaignAnchorId(c.id)} className="scroll-mt-4 rounded-lg border border-slate-300 bg-white">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full items-start gap-2 p-3 text-left">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggle}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggle();
+          }
+        }}
+        aria-expanded={open}
+        className="flex w-full cursor-pointer items-start gap-2 p-3 text-left"
+      >
         {open ? <ChevronDown size={16} aria-hidden className="mt-0.5 shrink-0" /> : <ChevronRight size={16} aria-hidden className="mt-0.5 shrink-0" />}
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold text-slate-900">{campaignTitle(c)}</span>
@@ -76,7 +88,7 @@ function Card({ c, open, minLinkScore, graph, assignments, nearMisses, singleRul
             {attrs.cloakingSuspected > 0 && <span className="rounded bg-slate-100 px-1.5 py-0.5">cloaking ×{attrs.cloakingSuspected}<Help term="cloaking" /></span>}
           </span>
         </span>
-      </button>
+      </div>
       {open && (
         <div className="space-y-2 border-t border-slate-200 p-3 text-sm">
           <div>

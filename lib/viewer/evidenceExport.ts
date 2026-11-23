@@ -70,7 +70,7 @@ export function buildEvidenceZip(input: EvidenceExportInput): EvidenceExportResu
   if ("error" in inputs) return { ok: false, status: inputs.status, error: inputs.error };
   const summariesFile = path.join(input.dataDir, "summaries.json");
   const cert = loadCertList();
-  const outDir = mkdtempSync(path.join(os.tmpdir(), "paczka-dowodow-"));
+  const outDir = mkdtempSync(path.join(os.tmpdir(), "evidence-pack-"));
   try {
     exportEvidencePack({
       campaignId: inputs.campaignId,
@@ -88,7 +88,7 @@ export function buildEvidenceZip(input: EvidenceExportInput): EvidenceExportResu
     });
     const names = listFiles(outDir);
     const zip = zipSync(Object.fromEntries(names.map((n) => [n, new Uint8Array(readFileSync(path.join(outDir, n)))])));
-    return { ok: true, zip, fileName: `paczka-dowodow-${input.campaignId}.zip`, files: names.length };
+    return { ok: true, zip, fileName: `evidence-pack-${input.campaignId}.zip`, files: names.length };
   } catch (e) {
     return { ok: false, status: 500, error: `Could not build the pack: ${(e as Error).message}` };
   } finally {

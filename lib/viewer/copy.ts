@@ -6,7 +6,7 @@ import type { Campaign } from "@/lib/graph/model";
 import type { Decision } from "./decisions";
 
 /** Anchor of the methodology section in "How it works" (an id in the URL, kept as it is). */
-export const METHOD_ANCHOR = "jak-policzylismy";
+export const METHOD_ANCHOR = "how-we-computed";
 
 /** Visualisations that carry a "How to read" caption. */
 export type VisualId = "graph" | "evolution" | "threshold" | "compare" | "strength";

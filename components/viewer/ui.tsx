@@ -16,7 +16,12 @@ export function Help({ term }: { term: TermId }) {
         type="button"
         aria-label={`What it means: ${t.term}`}
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={(e) => {
+          // the "?" can sit inside a clickable card header: open the tip without toggling the card
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
         onBlur={() => setOpen(false)}
         className="ml-1 inline-flex h-4 w-4 items-center justify-center rounded-full text-slate-500 hover:text-slate-900 focus:outline-2 focus:outline-slate-900"
       >

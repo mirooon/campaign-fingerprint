@@ -107,26 +107,26 @@ const TRACKER_LABELS: Record<string, string> = {
   meta_pixel: "Meta Pixel",
   tiktok_pixel: "TikTok Pixel",
   yandex_metrica: "Yandex Metrica",
-  meta_domain_verification: "token weryfikacji domeny Meta",
-  google_site_verification: "token weryfikacji Google Search Console",
-  yandex_verification: "token weryfikacji Yandex Webmaster",
+  meta_domain_verification: "Meta domain verification token",
+  google_site_verification: "Google Search Console verification token",
+  yandex_verification: "Yandex Webmaster verification token",
   clarity: "Microsoft Clarity",
-  matomo: "Matomo (serwer/strona)",
+  matomo: "Matomo (server/site)",
   posthog: "PostHog",
-  adsense: "wydawca AdSense",
+  adsense: "AdSense publisher",
 };
 
 const TECHNIQUE_LABELS: Record<string, string> = {
-  fake_app_store: "udawany sklep z aplikacjami",
-  back_trap: "pułapka przycisku „wstecz”",
-  fake_social_post: "udawany post z serwisu społecznościowego",
-  fake_comments: "fałszywe komentarze wpisane w stronę",
-  fake_security_alert: "fałszywy alarm bezpieczeństwa z numerem telefonu",
-  remote_access_tool: "program do zdalnego pulpitu do pobrania",
-  clickfix_paste: "fałszywa weryfikacja z poleceniem do wklejenia",
-  scarcity_counter: "licznik presji („zostało N miejsc”)",
-  anti_devtools: "blokada narzędzi deweloperskich (F12, menu kontekstowe)",
-  "kit:formFb": "kit formularza sieci CPA (formFb)",
+  fake_app_store: "fake app store",
+  back_trap: "“back” button trap",
+  fake_social_post: "fake social media post",
+  fake_comments: "fake comments written into the page",
+  fake_security_alert: "fake security alert with a phone number",
+  remote_access_tool: "remote desktop program to download",
+  clickfix_paste: "fake verification with a command to paste",
+  scarcity_counter: "pressure counter (“N places left”)",
+  anti_devtools: "developer tools block (F12, context menu)",
+  "kit:formFb": "CPA network form kit (formFb)",
 };
 
 /** Canonical link parameters that carry the ID of the Meta ad in templates ({{ad.id}}). */
@@ -281,8 +281,8 @@ export function buildEvidenceGraph(
     const addLeadFlow = (from: string, basePath: string[], token: string, relation: number) => {
       const label = leadFlowLabel(token);
       const id = g.node("lead_flow", token, label, { kind: token.split(":")[0] });
-      g.edge(from, id, "mentions", `lejek leadów platformy stron: ${label}`);
-      add(id, "lead_flow", [...basePath, id], relation, `ten sam lejek leadów platformy stron (${label})`);
+      g.edge(from, id, "mentions", `lead funnel of a page-builder platform: ${label}`);
+      add(id, "lead_flow", [...basePath, id], relation, `the same lead funnel of a page-builder platform (${label})`);
     };
     const enr = dataset.perItem[item.id];
     const advertiser = item.advertiser ?? enr?.advertiserOcr ?? null;
@@ -340,15 +340,15 @@ export function buildEvidenceGraph(
     for (const libId of libraryIds) {
       const id = g.node("campaign_param", `ad_library_id=${libId}`, `ad_library_id=${libId}`, {
         canonicalName: "ad_library_id",
-        name: fromInput(libId) ? "identyfikator biblioteki reklam (z opisu materiału)" : "identyfikator biblioteki reklam (OCR)",
+        name: fromInput(libId) ? "ad library ID (from the sample description)" : "ad library ID (OCR)",
         value: libId,
         cyrillic: false,
         macro: false,
         // without these filters the library lists only active ads and a removed ad is not shown
         sourceUrl: `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=ALL&id=${libId}`,
       });
-      g.edge(itemNode, id, "carries_param", fromInput(libId) ? "identyfikator biblioteki reklam z opisu materiału" : "identyfikator biblioteki reklam odczytany ze zrzutu ekranu (OCR)");
-      add(id, "campaign_param", [itemNode, id], 1, `ten sam identyfikator w bibliotece reklam (${libId}): ta sama reklama`);
+      g.edge(itemNode, id, "carries_param", fromInput(libId) ? "ad library ID from the sample description" : "ad library ID read from the screenshot (OCR)");
+      add(id, "campaign_param", [itemNode, id], 1, `the same ad library ID (${libId}): the same ad`);
     }
 
     // Record of a public ad library (lib/adlib): the library ID of platforms other than Meta (Meta's is read above)
@@ -363,21 +363,21 @@ export function buildEvidenceGraph(
       if (libRecord.advertiserId) itemData.adAdvertiserId = libRecord.advertiserId;
       if (libRecord.legalName) itemData.adAdvertiserLegalName = libRecord.legalName;
       if (libRecord.location) itemData.adAdvertiserLocation = libRecord.location;
-      if (libRecord.verified !== null) itemData.adAdvertiserVerified = libRecord.verified ? "tak" : "nie";
+      if (libRecord.verified !== null) itemData.adAdvertiserVerified = libRecord.verified ? "yes" : "no";
       if (libRecord.regions.length) itemData.adRegions = libRecord.regions;
       if (libRecord.firstShown) itemData.adFirstShown = libRecord.firstShown;
       if (libRecord.lastShown) itemData.adLastShown = libRecord.lastShown;
       if (libRecord.platform !== "meta" && libRecord.adId) {
         const idNode = g.node("campaign_param", adLibraryIdKey(libRecord.platform, libRecord.adId), adLibraryIdKey(libRecord.platform, libRecord.adId), {
           canonicalName: "ad_library_id",
-          name: `identyfikator reklamy w bibliotece ${libRecord.platform}`,
+          name: `ad ID in the ${libRecord.platform} library`,
           value: `${libRecord.platform}:${libRecord.adId}`,
           cyrillic: false,
           macro: false,
           sourceUrl: libRecord.libraryUrl,
         });
-        g.edge(itemNode, idNode, "carries_param", `identyfikator reklamy w bibliotece reklam (${libRecord.platform})`);
-        add(idNode, "campaign_param", [itemNode, idNode], 1, `ten sam identyfikator w bibliotece reklam (${libRecord.platform}: ${libRecord.adId}): ta sama reklama`);
+        g.edge(itemNode, idNode, "carries_param", `ad ID in the ad library (${libRecord.platform})`);
+        add(idNode, "campaign_param", [itemNode, idNode], 1, `the same ad library ID (${libRecord.platform}: ${libRecord.adId}): the same ad`);
       }
       for (const name of libRecord.payers) {
         const key = normAdvertiser(name);
@@ -388,8 +388,8 @@ export function buildEvidenceGraph(
         const payerKey = adPayerKey(libRecord.platform, key);
         const prev = (g.nodes.get(nodeId("ad_payer", payerKey))?.data.adLibraryIds as string[] | undefined) ?? [];
         const payerNode = g.node("ad_payer", payerKey, name, { name, platform: libRecord.platform, adLibraryIds: libRecord.adId ? [...new Set([...prev, libRecord.adId])] : prev, ...payerKindData(payerClass) });
-        g.edge(itemNode, payerNode, "paid_by", `płatnik reklamy według biblioteki reklam (${libRecord.platform})`);
-        add(payerNode, "ad_payer", [itemNode, payerNode], 1, `ten sam płatnik reklamy w bibliotece reklam („${name}”)`);
+        g.edge(itemNode, payerNode, "paid_by", `ad payer according to the ad library (${libRecord.platform})`);
+        add(payerNode, "ad_payer", [itemNode, payerNode], 1, `the same ad payer in the ad library (“${name}”)`);
       }
     }
 
@@ -403,7 +403,7 @@ export function buildEvidenceGraph(
         takenDown: r.takenDown,
         violations: r.violations,
         euReach: r.euReach,
-        audience: r.ageMin !== null || r.ageMax !== null ? `${r.ageMin ?? "?"}–${r.ageMax ?? "?"} lat${r.gender && r.gender !== "All" ? `, ${r.gender}` : ""}` : null,
+        audience: r.ageMin !== null || r.ageMax !== null ? `${r.ageMin ?? "?"}–${r.ageMax ?? "?"} years${r.gender && r.gender !== "All" ? `, ${r.gender}` : ""}` : null,
         locations: r.locations,
         pageName: r.pageName,
         creativeText: r.creative?.text ?? null,
@@ -414,7 +414,7 @@ export function buildEvidenceGraph(
       if (started && !itemData.adFirstShown) itemData.adFirstShown = started;
       const names = new Map<string, { label: string; roles: Set<string>; payerClass: ReturnType<typeof classifyPayer> }>();
       for (const r of lib) {
-        for (const [role, list] of [["płatnik", r.payers], ["beneficjent", r.beneficiaries]] as const) {
+        for (const [role, list] of [["payer", r.payers], ["beneficiary", r.beneficiaries]] as const) {
           for (const n of list) {
             const key = normAdvertiser(n);
             if (!key) continue;
@@ -429,9 +429,9 @@ export function buildEvidenceGraph(
       for (const [key, { label, roles, payerClass }] of names) {
         const prev = (g.nodes.get(nodeId("ad_payer", key))?.data.adLibraryIds as string[] | undefined) ?? [];
         const id = g.node("ad_payer", key, label, { name: label, adLibraryIds: [...new Set([...prev, ...lib.map((r) => r.id)])], ...payerKindData(payerClass) });
-        const roleTxt = [...roles].join(" i ");
-        g.edge(itemNode, id, "paid_by", `${roleTxt} reklamy według biblioteki reklam Mety (przejrzystość DSA)`);
-        add(id, "ad_payer", [itemNode, id], 1, `ten sam ${roleTxt} reklamy w bibliotece reklam („${label}”)`);
+        const roleTxt = [...roles].join(" and ");
+        g.edge(itemNode, id, "paid_by", `ad ${roleTxt} according to the Meta Ad Library (DSA transparency)`);
+        add(id, "ad_payer", [itemNode, id], 1, `the same ad ${roleTxt} in the ad library (“${label}”)`);
       }
     }
 
@@ -468,12 +468,12 @@ export function buildEvidenceGraph(
         ...(metaPage?.pageVerification ? { pageVerification: metaPage.pageVerification } : {}),
         ...(takenDownIds.length ? { takenDownIds, adsTakenDown: takenDownIds.length } : {}),
       });
-      g.edge(itemNode, a, "posted_by", `reklamodawca według biblioteki reklam (${account.platform}), identyfikator ${account.id}`);
-      add(a, "advertiser", [itemNode, a], 1, `to samo konto reklamodawcy w bibliotece reklam (${account.platform}: ${account.id}${libRecord?.legalName ? `, „${libRecord.legalName}”` : ""})`);
+      g.edge(itemNode, a, "posted_by", `advertiser according to the ad library (${account.platform}), ID ${account.id}`);
+      add(a, "advertiser", [itemNode, a], 1, `the same advertiser account in the ad library (${account.platform}: ${account.id}${libRecord?.legalName ? `, “${libRecord.legalName}”` : ""})`);
     } else if (advertiser) {
       const a = g.node("advertiser", normAdvertiser(advertiser), advertiser);
-      g.edge(itemNode, a, "posted_by", "reklamodawca podany w danych reklamy");
-      add(a, "advertiser", [itemNode, a], 1, `ten sam reklamodawca „${advertiser}”`);
+      g.edge(itemNode, a, "posted_by", "advertiser given in the ad data");
+      add(a, "advertiser", [itemNode, a], 1, `the same advertiser “${advertiser}”`);
       advertiserNamePivot = a;
     }
 
@@ -484,31 +484,31 @@ export function buildEvidenceGraph(
       const value = item.extra[column]?.trim();
       if (!value || !ENTITY_TYPES.includes(type) || type === "item") continue;
       const id = g.node(type, `extra:${column}=${value}`, `${column}: ${value}`, { column, value, fromInput: true });
-      g.edge(itemNode, id, "mentions", `kolumna ${column} danych wejściowych`);
-      add(id, type, [itemNode, id], 1, `ta sama wartość kolumny ${column} z danych wejściowych („${value}”)`);
+      g.edge(itemNode, id, "mentions", `input data column ${column}`);
+      add(id, type, [itemNode, id], 1, `the same value of input data column ${column} (“${value}”)`);
     }
 
     if (enr?.image) {
-      const ih = g.node("imagehash", enr.image.dhash, `obraz ${enr.image.dhash}`, {
+      const ih = g.node("imagehash", enr.image.dhash, `image ${enr.image.dhash}`, {
         dhash: enr.image.dhash,
         ahash: enr.image.ahash,
         width: enr.image.width,
         height: enr.image.height,
       });
       g.node("item", item.id, "", { dhash: enr.image.dhash });
-      g.edge(itemNode, ih, "has_image", "dHash kreacji reklamy");
+      g.edge(itemNode, ih, "has_image", "dHash of the ad creative");
       // an ad-library view is mostly interface: two different ads can hash identically
-      if (ui?.view !== "ad_library") add(ih, "imagehash", [itemNode, ih], 1, `identyczny obraz (dHash ${enr.image.dhash})`);
+      if (ui?.view !== "ad_library") add(ih, "imagehash", [itemNode, ih], 1, `identical image (dHash ${enr.image.dhash})`);
     }
     // The same creative file (SHA-256 of the bytes): a node of the image-hash type keyed "sha256:<hex>"
     const creativeFiles: Array<{ sha: string; media: "image" | "video" }> = [];
     if (enr?.image?.sha256) creativeFiles.push({ sha: enr.image.sha256, media: "image" });
     if (enr?.videoSha256) creativeFiles.push({ sha: enr.videoSha256, media: "video" });
     for (const f of creativeFiles) {
-      const what = f.media === "video" ? "plik wideo" : "plik obrazu";
-      const id = g.node("imagehash", `${CREATIVE_FILE_PREFIX}${f.sha}`, `${what} kreacji ${f.sha.slice(0, 12)}…`, { sha256: f.sha, media: f.media, exactFile: true });
-      g.edge(itemNode, id, "has_image", `SHA-256 pliku kreacji (${what})`);
-      add(id, "imagehash", [itemNode, id], 1, `ten sam plik kreacji (${what}, SHA-256 ${f.sha.slice(0, 16)}…)`);
+      const what = f.media === "video" ? "video file" : "image file";
+      const id = g.node("imagehash", `${CREATIVE_FILE_PREFIX}${f.sha}`, `creative ${what} ${f.sha.slice(0, 12)}…`, { sha256: f.sha, media: f.media, exactFile: true });
+      g.edge(itemNode, id, "has_image", `SHA-256 of the creative file (${what})`);
+      add(id, "imagehash", [itemNode, id], 1, `the same creative file (${what}, SHA-256 ${f.sha.slice(0, 16)}…)`);
     }
 
     /**
@@ -526,24 +526,24 @@ export function buildEvidenceGraph(
         itemData.cloakerInSource = true;
         if (cl.sid && cl.domain) {
           const key = `${cl.domain}/${cl.sid}`;
-          const id = g.node("cloaker_account", key, `konto cloakera ${cl.sid} na ${cl.domain}`, { sid: cl.sid, cloakerHost: cl.domain });
-          g.edge(from, id, "built_on", `platforma stron zapisuje w kodzie konto klienta cloakera (cl_sid ${cl.sid}, cl_domain ${cl.domain})`);
-          add(id, "cloaker_account", [...basePath, id], relation, `to samo konto klienta cloakera (cl_sid ${cl.sid} na ${cl.domain})`);
+          const id = g.node("cloaker_account", key, `cloaker account ${cl.sid} on ${cl.domain}`, { sid: cl.sid, cloakerHost: cl.domain });
+          g.edge(from, id, "built_on", `the page-builder platform writes the cloaker customer account into the code (cl_sid ${cl.sid}, cl_domain ${cl.domain})`);
+          add(id, "cloaker_account", [...basePath, id], relation, `the same cloaker customer account (cl_sid ${cl.sid} on ${cl.domain})`);
         }
       }
       if (lc.launcherId) {
         itemData.launcher = lc.launcherId;
         if (lc.launcherId === lc.ownerId) itemData.launcherSameAsOwner = true;
         else if (!lc.ownerId) {
-          const id = g.node("platform_account", lc.launcherId, `konto ${lc.launcherId.slice(0, 8)}… na platformie stron`, { ownerId: lc.launcherId, platform: lc.platform });
-          g.edge(from, id, "built_on", `pole launcher rekordu platformy wskazuje konto (ta sama wartość co owner_uuid na innych stronach)`);
-          add(id, "platform_account", [...basePath, id], relation, `to samo konto na platformie stron (launcher ${lc.launcherId})`);
+          const id = g.node("platform_account", lc.launcherId, `page-builder account ${lc.launcherId.slice(0, 8)}…`, { ownerId: lc.launcherId, platform: lc.platform });
+          g.edge(from, id, "built_on", `the launcher field of the platform record points to the account (the same value as owner_uuid on other pages)`);
+          add(id, "platform_account", [...basePath, id], relation, `the same page-builder account (launcher ${lc.launcherId})`);
           itemData.platformAccount ??= lc.launcherId;
           itemData.platformAccountSource ??= "launcher";
         } else {
-          const id = g.node("launcher_account", lc.launcherId, `konto launchera ${lc.launcherId.slice(0, 8)}…`, { launcherId: lc.launcherId, ownerId: lc.ownerId });
-          g.edge(from, id, "built_on", `rekord platformy zapisuje konto, z którego uruchomiono reklamy (launcher ${lc.launcherId}, inne niż owner_uuid ${lc.ownerId})`);
-          add(id, "launcher_account", [...basePath, id], relation, `to samo konto narzędzia do uruchamiania reklam (launcher ${lc.launcherId})`);
+          const id = g.node("launcher_account", lc.launcherId, `launcher account ${lc.launcherId.slice(0, 8)}…`, { launcherId: lc.launcherId, ownerId: lc.ownerId });
+          g.edge(from, id, "built_on", `the platform record stores the account the ads were launched from (launcher ${lc.launcherId}, different from owner_uuid ${lc.ownerId})`);
+          add(id, "launcher_account", [...basePath, id], relation, `the same ad launcher tool account (launcher ${lc.launcherId})`);
         }
       }
       if (lc.fbCampaignNameId) {
@@ -557,8 +557,8 @@ export function buildEvidenceGraph(
           macro: false,
           origin: "script",
         });
-        g.edge(from, id, "carries_param", `16-cyfrowy identyfikator w nazwie kampanii Meta (fb_campaign_name) w rekordzie platformy stron`);
-        add(id, "campaign_param", [...basePath, id], relation, `ten sam identyfikator w nazwie kampanii Meta (${v})`);
+        g.edge(from, id, "carries_param", `16-digit ID in the Meta campaign name (fb_campaign_name) in the page-builder platform record`);
+        add(id, "campaign_param", [...basePath, id], relation, `the same ID in the Meta campaign name (${v})`);
       }
     };
     // Replaced captions on a borrowed video (B-326) and the watermark of the original recording (B-327):
@@ -566,16 +566,16 @@ export function buildEvidenceGraph(
     if (enr?.videoOverlay) {
       const o = enr.videoOverlay;
       itemData.subtitleOverlay = { kind: o.kind, color: o.color, box: o.box, frames: o.frames };
-      const id = g.node("overlay_template", o.key, `napisy podmienione: ${o.kind === "strip" ? `pas ${o.color === "black" ? "czarny" : "biały"}` : "rozmycie"} (${o.key.split(":")[2]})`, { kind: o.kind, box: o.box });
-      g.edge(itemNode, id, "mentions", "pas z podmienionymi napisami na dole nagrania");
-      add(id, "overlay_template", [itemNode, id], 1, `ten sam układ podmienionych napisów (${o.key})`);
+      const id = g.node("overlay_template", o.key, `replaced captions: ${o.kind === "strip" ? `${o.color === "black" ? "black" : "white"} strip` : "blur"} (${o.key.split(":")[2]})`, { kind: o.kind, box: o.box });
+      g.edge(itemNode, id, "mentions", "strip with replaced captions at the bottom of the recording");
+      add(id, "overlay_template", [itemNode, id], 1, `the same layout of replaced captions (${o.key})`);
     }
     if (enr?.sourceWatermark) {
       const w = enr.sourceWatermark;
       itemData.sourceWatermark = { text: w.text, corner: w.corner };
-      const id = g.node("reused_footage", `watermark:${w.text}`, `znak źródła nagrania: ${w.text}`, { text: w.text, corner: w.corner });
-      g.edge(itemNode, id, "mentions", `znak źródła w rogu kadru nagrania (${w.corner})`);
-      add(id, "reused_footage", [itemNode, id], 1, `ten sam znak źródła cudzego nagrania („${w.text}”)`);
+      const id = g.node("reused_footage", `watermark:${w.text}`, `recording source mark: ${w.text}`, { text: w.text, corner: w.corner });
+      g.edge(itemNode, id, "mentions", `source mark in the corner of the recording frame (${w.corner})`);
+      add(id, "reused_footage", [itemNode, id], 1, `the same source mark of someone else's recording (“${w.text}”)`);
     }
 
     const addContacts = (
@@ -588,55 +588,55 @@ export function buildEvidenceGraph(
       if (!src) return;
       for (const e of src.emails ?? []) {
         const id = g.node("email", e, e);
-        g.edge(from, id, "mentions", `adres e-mail ${where}`);
-        add(id, "email", [...basePath, id], relation, `ten sam e-mail ${e}`);
+        g.edge(from, id, "mentions", `email address ${where}`);
+        add(id, "email", [...basePath, id], relation, `the same email ${e}`);
       }
       for (const p of src.phones ?? []) {
         const id = g.node("phone", p, p);
-        g.edge(from, id, "mentions", `numer telefonu ${where}`);
-        add(id, "phone", [...basePath, id], relation, `ten sam numer telefonu ${p}`);
+        g.edge(from, id, "mentions", `phone number ${where}`);
+        add(id, "phone", [...basePath, id], relation, `the same phone number ${p}`);
       }
       for (const w of src.whatsapp ?? []) {
         const isPhone = w.startsWith("+");
         // a group invitation has no node type of its own: the label says WhatsApp, so the viewer does not read it as Telegram
         const id = isPhone ? g.node("phone", w, w, { whatsapp: true }) : g.node("telegram", w, `WhatsApp ${w}`, { whatsappGroup: true });
-        g.edge(from, id, "mentions", `kontakt WhatsApp ${where}`);
-        add(id, isPhone ? "phone" : "telegram", [...basePath, id], relation, `ten sam kontakt WhatsApp ${w}`);
+        g.edge(from, id, "mentions", `WhatsApp contact ${where}`);
+        add(id, isPhone ? "phone" : "telegram", [...basePath, id], relation, `the same WhatsApp contact ${w}`);
       }
       for (const t of src.telegram ?? []) {
         const id = g.node("telegram", t, t);
-        g.edge(from, id, "mentions", `kontakt Telegram ${where}`);
-        add(id, "telegram", [...basePath, id], relation, `ten sam kontakt Telegram ${t}`);
+        g.edge(from, id, "mentions", `Telegram contact ${where}`);
+        add(id, "telegram", [...basePath, id], relation, `the same Telegram contact ${t}`);
       }
       for (const d of src.sharedDocs ?? []) {
         const [service, ...rest] = d.split(":");
         const llm = service === "llm_chat";
-        const id = g.node("shared_doc", d, llm ? `udostępniony czat z modelem językowym (${rest.join(":").slice(0, 12)}…)` : `${service} ${rest.join(":").slice(0, 16)}…`, { service });
-        g.edge(from, id, "mentions", `${llm ? "udostępniony czat z modelem językowym" : "udostępniony dokument lub formularz"} ${where}`);
-        add(id, "shared_doc", [...basePath, id], relation, `ten sam ${llm ? "udostępniony czat z modelem językowym" : "udostępniony dokument lub formularz"} (${service})`);
+        const id = g.node("shared_doc", d, llm ? `shared chat with a language model (${rest.join(":").slice(0, 12)}…)` : `${service} ${rest.join(":").slice(0, 16)}…`, { service });
+        g.edge(from, id, "mentions", `${llm ? "shared chat with a language model" : "shared document or form"} ${where}`);
+        add(id, "shared_doc", [...basePath, id], relation, `the same ${llm ? "shared chat with a language model" : "shared document or form"} (${service})`);
       }
       for (const o of src.onion ?? []) {
         const id = g.node("onion", o, `${o.slice(0, 12)}….onion`, {});
-        g.edge(from, id, "mentions", `adres .onion ${where}`);
-        add(id, "onion", [...basePath, id], relation, `ten sam adres .onion (${o.slice(0, 12)}…)`);
+        g.edge(from, id, "mentions", `.onion address ${where}`);
+        add(id, "onion", [...basePath, id], relation, `the same .onion address (${o.slice(0, 12)}…)`);
       }
       for (const m of src.messengers ?? []) {
         const [service, ...rest] = m.split(":");
         const id = g.node("messenger_invite", m, `${service} ${rest.join(":")}`, { service });
-        g.edge(from, id, "mentions", `zaproszenie lub konto komunikatora ${where}`);
-        add(id, "messenger_invite", [...basePath, id], relation, `to samo zaproszenie lub konto komunikatora (${service})`);
+        g.edge(from, id, "mentions", `messenger invitation or account ${where}`);
+        add(id, "messenger_invite", [...basePath, id], relation, `the same messenger invitation or account (${service})`);
       }
       for (const w of src.wallets ?? []) {
         const id = g.node("wallet", `${w.kind}:${w.address}`, `${w.kind.toUpperCase()} ${shortAddr(w.address)}`, {
           kind: w.kind,
           address: w.address,
         });
-        g.edge(from, id, "mentions", `adres portfela ${where}`);
-        add(id, "wallet", [...basePath, id], relation, `ten sam portfel ${w.kind.toUpperCase()} ${w.address}`);
+        g.edge(from, id, "mentions", `wallet address ${where}`);
+        add(id, "wallet", [...basePath, id], relation, `the same wallet ${w.kind.toUpperCase()} ${w.address}`);
       }
     };
 
-    addContacts(itemNode, [itemNode], enr?.text, "w treści reklamy", 1);
+    addContacts(itemNode, [itemNode], enr?.text, "in the ad text", 1);
 
     /** Adds url -> host -> domain (+ ip/asn, ns, registrar, certs) and returns the url node. */
     const addUrlInfra = (url: string, path: string[], relation: number, infraRelation = relation): string | null => {
@@ -649,12 +649,12 @@ export function buildEvidenceGraph(
       const domainInfraRel = relation * (platform ? platform.factor : 1);
       const urlNode = g.node("url", nu.url, shortUrl(nu.url), { url: nu.url, registrableDomain: nu.registrableDomain });
       const urlPath = [...path, urlNode];
-      add(urlNode, "url", urlPath, relation, `ten sam URL ${shortUrl(nu.url)}`);
+      add(urlNode, "url", urlPath, relation, `the same URL ${shortUrl(nu.url)}`);
       const hostLabel = nu.isIdn ? `${toUnicodeHost(nu.host)} (${nu.host})` : nu.host;
       const hostNode = g.node("host", nu.host, hostLabel, { registrableDomain: nu.registrableDomain, isIdn: nu.isIdn });
-      g.edge(urlNode, hostNode, "on_host", "host adresu URL");
+      g.edge(urlNode, hostNode, "on_host", "host of the URL");
       const hostPath = [...urlPath, hostNode];
-      add(hostNode, "host", hostPath, relation, `ten sam host ${hostLabel}`);
+      add(hostNode, "host", hostPath, relation, `the same host ${hostLabel}`);
 
       const hostInfo = dataset.hosts[nu.host];
       // CNAME chain: the registrable domain of each target (operator TDS domains survive label rotation)
@@ -668,8 +668,8 @@ export function buildEvidenceGraph(
         const targets = (cnData.targets as string[] | undefined) ?? [];
         if (!targets.includes(target)) targets.push(target);
         cnData.targets = targets.sort();
-        g.edge(hostNode, cnNode, "cname_to", `rekord CNAME: ${nu.host} → ${target}`);
-        add(cnNode, "cname_target", [...hostPath, cnNode], hostingRel, `wspólny cel CNAME ${td}`);
+        g.edge(hostNode, cnNode, "cname_to", `CNAME record: ${nu.host} → ${target}`);
+        add(cnNode, "cname_target", [...hostPath, cnNode], hostingRel, `shared CNAME target ${td}`);
       }
       for (const ip of hostInfo?.ips ?? []) {
         const asn = dataset.ips[ip];
@@ -679,9 +679,9 @@ export function buildEvidenceGraph(
           prefix: asn?.prefix ?? null,
           country: asn?.country ?? null,
         });
-        g.edge(hostNode, ipNode, "resolves_to", "rekord DNS A/AAAA");
+        g.edge(hostNode, ipNode, "resolves_to", "DNS A/AAAA record");
         const ipPath = [...hostPath, ipNode];
-        add(ipNode, "ip", ipPath, hostingRel, `wspólny adres IP ${ip}`);
+        add(ipNode, "ip", ipPath, hostingRel, `shared IP address ${ip}`);
         if (asn?.asn) {
           const asnNode = g.node("asn", `AS${asn.asn}`, `AS${asn.asn}${asn.asName ? ` ${asn.asName.split(" ")[0]}` : ""}`, {
             asn: asn.asn,
@@ -689,8 +689,8 @@ export function buildEvidenceGraph(
             country: asn.country,
             registry: asn.registry,
           });
-          g.edge(ipNode, asnNode, "announced_by", `prefiks ${asn.prefix ?? "?"} ogłaszany przez AS${asn.asn}`);
-          add(asnNode, "asn", [...ipPath, asnNode], hostingRel, `ten sam system autonomiczny AS${asn.asn}`);
+          g.edge(ipNode, asnNode, "announced_by", `prefix ${asn.prefix ?? "?"} announced by AS${asn.asn}`);
+          add(asnNode, "asn", [...ipPath, asnNode], hostingRel, `the same autonomous system AS${asn.asn}`);
         }
       }
 
@@ -711,9 +711,9 @@ export function buildEvidenceGraph(
           // an archived copy predates the registration: the domain changed hands, so its old content says nothing about the operator
           ...(di?.reRegistered ? { reRegistered: true } : {}),
         });
-        g.edge(hostNode, domainNode, "in_domain", "domena rejestrowalna (eTLD+1)");
+        g.edge(hostNode, domainNode, "in_domain", "registrable domain (eTLD+1)");
         const domainPath = [...hostPath, domainNode];
-        add(domainNode, "domain", domainPath, relation, `ta sama domena ${domain}`);
+        add(domainNode, "domain", domainPath, relation, `the same domain ${domain}`);
         const tpl = templateOf.get(domain);
         if (tpl) {
           for (const [key, agnostic] of [
@@ -722,15 +722,15 @@ export function buildEvidenceGraph(
           ] as const) {
             if (!templateShared(key)) continue;
             const domainsWithTpl = [...(templateDomains.get(key) ?? [])].sort();
-            const pNode = g.node("domain_pattern", key, `wzorzec ${key}`, {
+            const pNode = g.node("domain_pattern", key, `pattern ${key}`, {
               template: key,
               agnostic,
               literalChars: tpl.literalChars,
               domains: domainsWithTpl.slice(0, 50),
               domainCount: domainsWithTpl.length,
             });
-            g.edge(domainNode, pNode, "matches_pattern", `nazwa ${domain} pasuje do wzorca ${key}`);
-            add(pNode, "domain_pattern", [...domainPath, pNode], relation, `ten sam wzorzec nazw domen ${key}`);
+            g.edge(domainNode, pNode, "matches_pattern", `name ${domain} matches pattern ${key}`);
+            add(pNode, "domain_pattern", [...domainPath, pNode], relation, `the same domain name pattern ${key}`);
           }
         }
         if (di) {
@@ -738,34 +738,34 @@ export function buildEvidenceGraph(
             const nsList = [...di.ns].sort();
             const nsKey = nsList.join(" + ");
             const nsNode = g.node("nameserver", nsKey, nsList.join(", "), { nameservers: nsList });
-            g.edge(domainNode, nsNode, "uses_ns", "rekordy NS domeny");
-            add(nsNode, "nameserver", [...domainPath, nsNode], Math.min(hostingRel, domainInfraRel), `te same serwery NS (${nsList.join(", ")})`);
+            g.edge(domainNode, nsNode, "uses_ns", "NS records of the domain");
+            add(nsNode, "nameserver", [...domainPath, nsNode], Math.min(hostingRel, domainInfraRel), `the same name servers (${nsList.join(", ")})`);
           }
           // Own mail server (B-177): the MX set, discounted when every host is a shared provider (weights.ts)
           const mxList = [...new Set((di.mx ?? []).map((m) => m.toLowerCase().replace(/\.$/, "")).filter(Boolean))].sort();
           if (mxList.length) {
             const mxNode = g.node("mx", mxList.join(" + "), mxList.join(", "), { mx: mxList });
-            g.edge(domainNode, mxNode, "uses_mx", "rekordy MX domeny");
-            add(mxNode, "mx", [...domainPath, mxNode], domainInfraRel, `ten sam serwer poczty (${mxList.join(", ")})`);
+            g.edge(domainNode, mxNode, "uses_mx", "MX records of the domain");
+            add(mxNode, "mx", [...domainPath, mxNode], domainInfraRel, `the same mail server (${mxList.join(", ")})`);
           }
           // Verification tokens in TXT: one per Business Manager / Search Console account, like a pixel ID
           for (const t of verificationTokens(di.txt ?? [])) {
             const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;
             const id = g.node("tracker", `${t.kind}:${t.id}`, label, { kind: t.kind, trackerId: t.id, verification: true });
-            g.edge(domainNode, id, "uses_tracker", "token weryfikacji domeny w rekordzie DNS TXT");
-            add(id, "tracker", [...domainPath, id], domainInfraRel, `ten sam ${label} (konto platformy, które zweryfikowało domenę)`);
+            g.edge(domainNode, id, "uses_tracker", "domain verification token in a DNS TXT record");
+            add(id, "tracker", [...domainPath, id], domainInfraRel, `the same ${label} (the platform account that verified the domain)`);
           }
           if (di.rdap?.registrar) {
             const reg = di.rdap.registrar;
             const regNode = g.node("registrar", reg.toLowerCase(), reg, { registrar: reg });
-            g.edge(domainNode, regNode, "registered_with", `RDAP: rejestrator${di.rdap.created ? `, utworzona ${di.rdap.created.slice(0, 10)}` : ""}`);
-            add(regNode, "registrar", [...domainPath, regNode], domainInfraRel, `ten sam rejestrator ${reg}`);
+            g.edge(domainNode, regNode, "registered_with", `RDAP: registrar${di.rdap.created ? `, created ${di.rdap.created.slice(0, 10)}` : ""}`);
+            add(regNode, "registrar", [...domainPath, regNode], domainInfraRel, `the same registrar ${reg}`);
           }
           for (const cert of di.ct?.certs ?? []) {
             const regDomains = new Set(cert.sanDomains.map((s) => registrableDomain(s)).filter((d): d is string => !!d));
             if (regDomains.size < 2) continue; // only certificates that can link different domains
             const key = cert.serial ?? cert.id;
-            const certNode = g.node("cert", key, `cert ${cert.issuer} ${cert.notBefore?.slice(0, 10) ?? ""} (${regDomains.size} domen)`, {
+            const certNode = g.node("cert", key, `cert ${cert.issuer} ${cert.notBefore?.slice(0, 10) ?? ""} (${regDomains.size} domains)`, {
               crtshId: cert.id,
               serial: cert.serial,
               issuer: cert.issuer,
@@ -775,8 +775,8 @@ export function buildEvidenceGraph(
               sanCount: cert.sanDomains.length,
               sanRegistrableCount: regDomains.size,
             });
-            g.edge(domainNode, certNode, "has_cert", "CT log: domena w SAN certyfikatu");
-            add(certNode, "cert", [...domainPath, certNode], domainInfraRel, `wspólny certyfikat TLS (${cert.issuer}), SAN obejmuje obie domeny`);
+            g.edge(domainNode, certNode, "has_cert", "CT log: domain in the certificate SAN");
+            add(certNode, "cert", [...domainPath, certNode], domainInfraRel, `shared TLS certificate (${cert.issuer}), the SAN covers both domains`);
           }
         }
       }
@@ -803,9 +803,9 @@ export function buildEvidenceGraph(
         const isFinal = idx === chain.length - 1;
         const urlNode = addUrlInfra(hop.url, path, 1, isFinal ? pageRel : 1);
         if (!urlNode) return;
-        if (prev === null) g.edge(itemNode, urlNode, "landing", "link docelowy reklamy");
+        if (prev === null) g.edge(itemNode, urlNode, "landing", "landing link of the ad");
         else if (prev !== urlNode) {
-          g.edge(prev, urlNode, "redirect", prevHop?.kind === "meta-refresh" ? "przekierowanie meta refresh" : `przekierowanie HTTP ${prevHop?.status ?? ""}`.trim());
+          g.edge(prev, urlNode, "redirect", prevHop?.kind === "meta-refresh" ? "meta refresh redirect" : `HTTP redirect ${prevHop?.status ?? ""}`.trim());
         }
         if (prev !== urlNode) path = [...path, urlNode];
         prev = urlNode;
@@ -836,8 +836,8 @@ export function buildEvidenceGraph(
         for (const t of ex.trackers) {
           const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;
           const id = g.node("tracker", `${t.kind}:${t.id}`, label, { kind: t.kind, trackerId: t.id });
-          g.edge(finalUrlNode, id, "uses_tracker", "identyfikator trackera w kodzie strony");
-          add(id, "tracker", [...finalPath, id], rel, `ten sam identyfikator ${label}`);
+          g.edge(finalUrlNode, id, "uses_tracker", "tracker ID in the page code");
+          add(id, "tracker", [...finalPath, id], rel, `the same tracker ID ${label}`);
         }
         const fav = page?.favicon;
         if (fav?.hashes) {
@@ -851,27 +851,27 @@ export function buildEvidenceGraph(
             dhash: fav.hashes.dhash,
             ...(brand ? { impersonatedBrand: brand } : {}),
           });
-          g.edge(finalUrlNode, id, "has_favicon", "favicon strony (hash Shodan mmh3)");
-          add(id, "favicon", [...finalPath, id], rel, `identyczny favicon (mmh3 ${fav.hashes.mmh3})`);
+          g.edge(finalUrlNode, id, "has_favicon", "page favicon (Shodan mmh3 hash)");
+          add(id, "favicon", [...finalPath, id], rel, `identical favicon (mmh3 ${fav.hashes.mmh3})`);
         }
-        addContacts(finalUrlNode, finalPath, ex, "na stronie docelowej", rel);
+        addContacts(finalUrlNode, finalPath, ex, "on the landing page", rel);
         // the same identifiers in the page's requests (HAR) when the page text no longer carries them
-        addContacts(finalUrlNode, finalPath, page?.kit?.requestContacts, "w żądaniach strony (HAR)", rel);
+        addContacts(finalUrlNode, finalPath, page?.kit?.requestContacts, "in the page's requests (HAR)", rel);
         // a v2 onion address is long retired: an attribute of the material, not a trace
         if (ex.onionV2?.length) itemData.onionV2 = ex.onionV2;
         // The example number of the form field travels with the template to every site built on it:
         // a template trace (page_template, notAloneKinds), never a shared phone line (I23, 3b).
         for (const p of ex.phoneExamples ?? []) {
-          const id = g.node("page_template", `phone_example:${p}`, `przykładowy numer z formularza ${p}`, { phoneExample: p });
-          g.edge(finalUrlNode, id, "built_on", "przykładowy numer w polu formularza (placeholder, „np. …”)");
-          add(id, "page_template", [...finalPath, id], rel, `ten sam przykładowy numer z szablonu formularza ${p}`);
+          const id = g.node("page_template", `phone_example:${p}`, `example number from the form ${p}`, { phoneExample: p });
+          g.edge(finalUrlNode, id, "built_on", "example number in a form field (placeholder, “e.g. …”)");
+          add(id, "page_template", [...finalPath, id], rel, `the same example number from the form template ${p}`);
         }
         for (const d of ex.outboundDomains) {
           const disc = discounter.domainDiscount(d);
           if (disc && disc.factor === 0) continue;
           const id = g.node("domain", d, d, { registrableDomain: d });
-          g.edge(finalUrlNode, id, "links_to", "strona docelowa linkuje do tej domeny");
-          add(id, "domain", [...finalPath, id], rel * config.outboundLinkFactor, `strona linkuje do domeny ${d}`);
+          g.edge(finalUrlNode, id, "links_to", "the landing page links to this domain");
+          add(id, "domain", [...finalPath, id], rel * config.outboundLinkFactor, `the page links to domain ${d}`);
         }
       }
 
@@ -881,8 +881,8 @@ export function buildEvidenceGraph(
         const rel = pageRel;
         const finalPath = path;
         for (const ep of kit.endpoints) {
-          const client = ep.clientId ? ` (klient ${ep.clientId.length > 16 ? `${ep.clientId.slice(0, 15)}…` : ep.clientId})` : "";
-          const label = ep.sameOrigin ? `backend ${ep.pathTemplate} (ta sama domena)` : `backend ${ep.host}${ep.pathTemplate}${client}`;
+          const client = ep.clientId ? ` (client ${ep.clientId.length > 16 ? `${ep.clientId.slice(0, 15)}…` : ep.clientId})` : "";
+          const label = ep.sameOrigin ? `backend ${ep.pathTemplate} (same domain)` : `backend ${ep.host}${ep.pathTemplate}${client}`;
           const id = g.node("endpoint", ep.key, label, {
             host: ep.host,
             pathTemplate: ep.pathTemplate,
@@ -892,21 +892,21 @@ export function buildEvidenceGraph(
             registrableDomain: registrableDomain(ep.host),
             ...(ep.clientId ? { clientId: ep.clientId, clientIdSource: ep.clientIdSource ?? null } : {}),
           });
-          g.edge(finalUrlNode, id, "posts_to", `strona wysyła dane (${ep.via}${ep.method ? `, ${ep.method}` : ""}) do ${ep.raw}`);
+          g.edge(finalUrlNode, id, "posts_to", `the page sends data (${ep.via}${ep.method ? `, ${ep.method}` : ""}) to ${ep.raw}`);
           const how = ep.sameOrigin
-            ? `ten sam backend formularza *${ep.pathTemplate}`
+            ? `the same form backend *${ep.pathTemplate}`
             : ep.clientId
-              ? `ten sam backend formularza z tym samym identyfikatorem klienta (${ep.host}${ep.pathTemplate}, ${ep.clientIdSource ?? "identyfikator"} ${ep.clientId})`
-              : `ten sam backend formularza ${ep.host}${ep.pathTemplate}`;
+              ? `the same form backend with the same client ID (${ep.host}${ep.pathTemplate}, ${ep.clientIdSource ?? "ID"} ${ep.clientId})`
+              : `the same form backend ${ep.host}${ep.pathTemplate}`;
           const known = ep.sameOrigin ? null : knownBackendLabel(ep.host);
           add(id, "endpoint", [...finalPath, id], rel, known ? `${how} [${known}]` : how);
         }
         const hidden = discounter.specificHiddenFields(kit.hiddenFields);
         if (hidden.length >= config.kit.minHiddenFields) {
           const key = hidden.join(",");
-          const id = g.node("hidden_fields", key, `ukryte pola: ${hidden.join(", ")}`, { fields: hidden });
-          g.edge(finalUrlNode, id, "has_hidden_fields", "zestaw ukrytych pól formularza");
-          add(id, "hidden_fields", [...finalPath, id], rel, `ten sam zestaw ukrytych pól (${hidden.join(", ")})`);
+          const id = g.node("hidden_fields", key, `hidden fields: ${hidden.join(", ")}`, { fields: hidden });
+          g.edge(finalUrlNode, id, "has_hidden_fields", "set of hidden form fields");
+          add(id, "hidden_fields", [...finalPath, id], rel, `the same set of hidden fields (${hidden.join(", ")})`);
         }
         for (const asset of kit.assets) {
           if (!asset.sameOrigin) {
@@ -921,15 +921,15 @@ export function buildEvidenceGraph(
             kind: asset.kind,
             sameOrigin: asset.sameOrigin,
           });
-          g.edge(finalUrlNode, id, "loads_asset", `strona ładuje ${asset.kind.toUpperCase()} ${asset.url}`);
-          add(id, "asset", [...finalPath, id], rel, `ten sam plik ${asset.kind.toUpperCase()} ${asset.basename}`);
+          g.edge(finalUrlNode, id, "loads_asset", `the page loads ${asset.kind.toUpperCase()} ${asset.url}`);
+          add(id, "asset", [...finalPath, id], rel, `the same ${asset.kind.toUpperCase()} file ${asset.basename}`);
           // Files hotlinked from one account's site on a free hosting platform: that account's hosting,
           // not a copied kit (a buyer copies kit files to its own domain)
           const site = asset.sameOrigin ? null : discounter.accountSite(asset.host);
           if (site) {
             const hostNode = g.node("host", asset.host, asset.host, { registrableDomain: registrableDomain(asset.host), isIdn: false });
-            g.edge(id, hostNode, "on_host", `plik leży na witrynie jednego konta platformy hostingowej (${site.reason})`);
-            add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `pliki strony ładowane z tej samej witryny konta na darmowym hostingu (${asset.host})`);
+            g.edge(id, hostNode, "on_host", `the file sits on the site of a single hosting-platform account (${site.reason})`);
+            add(hostNode, "host", [...finalPath, id, hostNode], rel * site.factor, `page files loaded from the same free-hosting account site (${asset.host})`);
           }
         }
         // Account on video or code hosting named in the page, its requests or its file addresses (B-342,
@@ -939,27 +939,27 @@ export function buildEvidenceGraph(
         for (const h of accounts) {
           const [service, ...rest] = h.split(":");
           const id = g.node("hosting_account", h, `${service} ${rest.join(":")}`, { service });
-          g.edge(finalUrlNode, id, "mentions", `zasób z konta ${service} ${rest.join(":")}`);
-          add(id, "hosting_account", [...finalPath, id], rel, `to samo konto na hostingu (${service} ${rest.join(":")})`);
+          g.edge(finalUrlNode, id, "mentions", `resource from account ${service} ${rest.join(":")}`);
+          add(id, "hosting_account", [...finalPath, id], rel, `the same hosting account (${service} ${rest.join(":")})`);
         }
         if (accounts.length) itemData.hostingAccounts = [...new Set([...((itemData.hostingAccounts as string[] | undefined) ?? []), ...accounts])].sort();
         for (const text of kit.comments) {
           const cyr = /[\u0400-\u04FF]/.test(text);
-          const id = g.node("comment", text, `„${text.length > 60 ? `${text.slice(0, 59)}…` : text}”`, { text, cyrillic: cyr });
-          g.edge(finalUrlNode, id, "has_comment", "komentarz w kodzie strony");
-          add(id, "comment", [...finalPath, id], rel, `ten sam komentarz w kodzie („${text.length > 80 ? `${text.slice(0, 79)}…` : text}”)`);
+          const id = g.node("comment", text, `“${text.length > 60 ? `${text.slice(0, 59)}…` : text}”`, { text, cyrillic: cyr });
+          g.edge(finalUrlNode, id, "has_comment", "comment in the page code");
+          add(id, "comment", [...finalPath, id], rel, `the same code comment (“${text.length > 80 ? `${text.slice(0, 79)}…` : text}”)`);
         }
         for (const pid of kit.pathIds ?? []) {
-          const id = g.node("path_id", pid.id, `konto ${pid.id.slice(0, 8)}… w ścieżkach zasobów`, { pathId: pid.id, prefix: pid.prefix });
-          g.edge(finalUrlNode, id, "uses_path_id", `identyfikator (UUID) w ścieżkach zasobów ładowanych z domeny strony: ${pid.prefix}${pid.id}/…`);
-          add(id, "path_id", [...finalPath, id], rel, `ten sam identyfikator w ścieżkach zasobów (${pid.prefix}${pid.id})`);
+          const id = g.node("path_id", pid.id, `account ${pid.id.slice(0, 8)}… in asset paths`, { pathId: pid.id, prefix: pid.prefix });
+          g.edge(finalUrlNode, id, "uses_path_id", `ID (UUID) in the paths of assets loaded from the page's domain: ${pid.prefix}${pid.id}/…`);
+          add(id, "path_id", [...finalPath, id], rel, `the same ID in asset paths (${pid.prefix}${pid.id})`);
         }
         // Records of the landing-page platform (window.aio): account, campaign, template, traffic source
         const lc = kit.lander;
         const tenants = kit.platformTenants ?? [];
         if (tenants.length) itemData.platformTenants = tenants;
         if (lc?.ownerId && tenants.length && !tenants.includes(lc.ownerId)) {
-          itemData.platformAccountWarning = `najemca landing-cdn (${tenants.join(", ")}) różni się od owner_uuid (${lc.ownerId}) z window.${lc.platform}: konto przypisane według owner_uuid`;
+          itemData.platformAccountWarning = `landing-cdn tenant (${tenants.join(", ")}) differs from owner_uuid (${lc.ownerId}) in window.${lc.platform}: account assigned by owner_uuid`;
         }
         if (!lc?.ownerId && tenants.length) {
           // No page code with the owner (a HAR or a scan's request list): the tenant stands in for the account
@@ -967,13 +967,13 @@ export function buildEvidenceGraph(
           for (const t of tenants) {
             const mapped = tenantOwner.get(t) ?? null;
             const account = mapped ?? t;
-            const id = g.node("platform_account", account, `konto ${account.slice(0, 8)}… na platformie stron`, {
+            const id = g.node("platform_account", account, `page-builder account ${account.slice(0, 8)}…`, {
               ownerId: mapped ?? (g.nodes.get(nodeId("platform_account", account))?.data.ownerId as string | undefined) ?? null,
               tenantId: t,
               platform: lc?.platform ?? "aio",
             });
-            g.edge(finalUrlNode, id, "built_on", `pliki strony leżą w katalogu najemcy platformy stron (landing-cdn/${t})${mapped ? `; ten sam najemca ma konto owner_uuid ${mapped}` : ""}`);
-            add(id, "platform_account", [...finalPath, id], rel, `to samo konto na platformie stron (najemca landing-cdn ${t}${mapped ? ` = owner_uuid ${mapped}` : ""})`);
+            g.edge(finalUrlNode, id, "built_on", `page files sit in the folder of a page-builder tenant (landing-cdn/${t})${mapped ? `; the same tenant has account owner_uuid ${mapped}` : ""}`);
+            add(id, "platform_account", [...finalPath, id], rel, `the same page-builder account (landing-cdn tenant ${t}${mapped ? ` = owner_uuid ${mapped}` : ""})`);
           }
           const first = tenants[0];
           const mapped = tenantOwner.get(first) ?? null;
@@ -993,24 +993,24 @@ export function buildEvidenceGraph(
           if (lc.ownerId) {
             const prevTenants = (g.nodes.get(nodeId("platform_account", lc.ownerId))?.data.tenants as string[] | undefined) ?? [];
             const tenantsOfOwner = [...new Set([...prevTenants, ...tenants.filter((t) => t !== lc.ownerId)])].sort();
-            const id = g.node("platform_account", lc.ownerId, `konto ${lc.ownerId.slice(0, 8)}… na platformie stron`, {
+            const id = g.node("platform_account", lc.ownerId, `page-builder account ${lc.ownerId.slice(0, 8)}…`, {
               ownerId: lc.ownerId,
               platform: lc.platform,
               ...(tenantsOfOwner.length ? { tenants: tenantsOfOwner } : {}),
             });
-            g.edge(finalUrlNode, id, "built_on", `strona zapisuje w kodzie konto właściciela na platformie stron (window.${lc.platform}, owner_uuid ${lc.ownerId})`);
-            add(id, "platform_account", [...finalPath, id], rel, `to samo konto na platformie stron (owner_uuid ${lc.ownerId})`);
+            g.edge(finalUrlNode, id, "built_on", `the page writes the owner's page-builder account into its code (window.${lc.platform}, owner_uuid ${lc.ownerId})`);
+            add(id, "platform_account", [...finalPath, id], rel, `the same page-builder account (owner_uuid ${lc.ownerId})`);
           }
           if (lc.campaignId) {
-            const name = lc.campaignName ? `„${lc.campaignName}”` : lc.campaignId.slice(0, 8);
-            const id = g.node("platform_campaign", lc.campaignId, `kampania ${name}`, { campaignId: lc.campaignId, name: lc.campaignName, number: lc.campaignNumber, ownerId: lc.ownerId });
-            g.edge(finalUrlNode, id, "built_on", `strona należy do kampanii ${name} na platformie stron (${lc.campaignId}${lc.campaignNumber ? `, nr ${lc.campaignNumber}` : ""})`);
-            add(id, "platform_campaign", [...finalPath, id], rel, `ta sama kampania na platformie stron (${name}, ${lc.campaignId})`);
+            const name = lc.campaignName ? `“${lc.campaignName}”` : lc.campaignId.slice(0, 8);
+            const id = g.node("platform_campaign", lc.campaignId, `campaign ${name}`, { campaignId: lc.campaignId, name: lc.campaignName, number: lc.campaignNumber, ownerId: lc.ownerId });
+            g.edge(finalUrlNode, id, "built_on", `the page belongs to page-builder campaign ${name} (${lc.campaignId}${lc.campaignNumber ? `, no. ${lc.campaignNumber}` : ""})`);
+            add(id, "platform_campaign", [...finalPath, id], rel, `the same page-builder campaign (${name}, ${lc.campaignId})`);
           }
           if (lc.templateId) {
-            const id = g.node("page_template", lc.templateId, `szablon strony ${lc.templateId.slice(0, 8)}…`, { templateId: lc.templateId, landerTypeId: lc.landerTypeId });
-            g.edge(finalUrlNode, id, "built_on", `strona zbudowana na szablonie platformy (lander_template_uuid ${lc.templateId})`);
-            add(id, "page_template", [...finalPath, id], rel, `ten sam szablon strony na platformie (lander_template_uuid ${lc.templateId})`);
+            const id = g.node("page_template", lc.templateId, `page template ${lc.templateId.slice(0, 8)}…`, { templateId: lc.templateId, landerTypeId: lc.landerTypeId });
+            g.edge(finalUrlNode, id, "built_on", `the page is built on a platform template (lander_template_uuid ${lc.templateId})`);
+            add(id, "page_template", [...finalPath, id], rel, `the same page template on the platform (lander_template_uuid ${lc.templateId})`);
           }
           addVisitFields(lc, finalUrlNode, finalPath, rel);
         }
@@ -1019,14 +1019,14 @@ export function buildEvidenceGraph(
           if (ex?.trackers.some((x) => x.kind === t.kind && x.id === t.id)) continue;
           const label = `${TRACKER_LABELS[t.kind] ?? t.kind} ${t.id}`;
           const id = g.node("tracker", `${t.kind}:${t.id}`, label, { kind: t.kind, trackerId: t.id });
-          g.edge(finalUrlNode, id, "uses_tracker", "identyfikator trackera w adresie żądania strony (HAR)");
-          add(id, "tracker", [...finalPath, id], rel, `ten sam identyfikator ${label} (z żądań strony)`);
+          g.edge(finalUrlNode, id, "uses_tracker", "tracker ID in a page request URL (HAR)");
+          add(id, "tracker", [...finalPath, id], rel, `the same tracker ID ${label} (from page requests)`);
         }
         const requestHosts = new Set<string>();
         for (const host of kit.requestHosts ?? []) {
           // public services and the browser's own traffic say nothing about the operator: no node at all
           if (discounter.domainDiscount(registrableDomain(host)) || discounter.browserHost(host)) continue;
-          const id = g.node("endpoint", `tracker_host:${host}`, `host ${host} (żądania strony)`, {
+          const id = g.node("endpoint", `tracker_host:${host}`, `host ${host} (page requests)`, {
             host,
             pathTemplate: "*",
             sameOrigin: false,
@@ -1034,8 +1034,8 @@ export function buildEvidenceGraph(
             registrableDomain: registrableDomain(host),
             trackerHost: true,
           });
-          g.edge(finalUrlNode, id, "posts_to", `strona wysyła żądania do ${host} (HAR)`);
-          add(id, "endpoint", [...finalPath, id], rel, `ten sam host spoza domeny strony w jej żądaniach (${host})`);
+          g.edge(finalUrlNode, id, "posts_to", `the page sends requests to ${host} (HAR)`);
+          add(id, "endpoint", [...finalPath, id], rel, `the same host outside the page's domain in its requests (${host})`);
           requestHosts.add(host);
         }
         // Third-party hosts kept above (push, trackers, back-button scripts) listed on the material (B-158)
@@ -1056,37 +1056,37 @@ export function buildEvidenceGraph(
         const cb = kit.commentBlock;
         if (cb) {
           const who = `${cb.authors.slice(0, 3).join(", ")}${cb.authors.length > 3 ? "…" : ""}`;
-          const id = g.node("comment_block", cb.key, `blok ${cb.count} komentarzy (${who})`, { authors: cb.authors, count: cb.count, samples: cb.samples });
-          g.edge(finalUrlNode, id, "has_comment_block", `sekcja komentarzy wpisana w kod strony, bez wtyczki serwisu (${cb.count} komentarzy, ${cb.authors.length} autorów)`);
-          add(id, "comment_block", [...finalPath, id], rel, `ten sam blok fałszywych komentarzy (${cb.authors.length} autorów: ${who})`);
+          const id = g.node("comment_block", cb.key, `block of ${cb.count} comment${cb.count === 1 ? "" : "s"} (${who})`, { authors: cb.authors, count: cb.count, samples: cb.samples });
+          g.edge(finalUrlNode, id, "has_comment_block", `comment section written into the page code, without a site plugin (${cb.count} comment${cb.count === 1 ? "" : "s"}, ${cb.authors.length} author${cb.authors.length === 1 ? "" : "s"})`);
+          add(id, "comment_block", [...finalPath, id], rel, `the same fake comment block (${cb.authors.length} author${cb.authors.length === 1 ? "" : "s"}: ${who})`);
           itemData.commentBlock = id;
           itemData.fakeCommentCount = Math.max(Number(itemData.fakeCommentCount ?? 0), cb.count);
         }
         // The key of the CRM / lead API the form posts with: one account of the buyer of the leads (I23).
         // Only the hash and a preview ever reach the graph, the report and the evidence pack.
         for (const k of kit.crmKeys ?? []) {
-          const id = g.node("crm_key", k.sha256, `klucz API CRM ${k.preview}`, { sha256: k.sha256, preview: k.preview, field: k.name, via: k.via });
-          g.edge(finalUrlNode, id, "posts_to", `formularz wysyła zgłoszenia z kluczem API (${k.name}, ${k.preview})`);
-          add(id, "crm_key", [...finalPath, id], rel, `ten sam klucz API CRM / sieci afiliacyjnej (${k.preview}, sha256 ${k.sha256.slice(0, 12)}…)`);
+          const id = g.node("crm_key", k.sha256, `CRM API key ${k.preview}`, { sha256: k.sha256, preview: k.preview, field: k.name, via: k.via });
+          g.edge(finalUrlNode, id, "posts_to", `the form sends submissions with an API key (${k.name}, ${k.preview})`);
+          add(id, "crm_key", [...finalPath, id], rel, `the same CRM / affiliate network API key (${k.preview}, sha256 ${k.sha256.slice(0, 12)}…)`);
         }
         // Rare sentences of the template (page text, thank-you message of the scripts): notAloneKinds (I23).
         // A copying error shared by two pages is rarer than a correct sentence: a higher relation, capped.
         const tp = config.templatePhrase;
         for (const p of tp ? (kit.templatePhrases ?? []).filter((x) => phraseShared(x.key)) : []) {
           const quote = p.text.length > 60 ? `${p.text.slice(0, 59)}…` : p.text;
-          const id = g.node("template_phrase", p.key, `zdanie „${quote}”`, { text: p.text, source: p.source, ...(p.oddity ? { oddity: p.oddity } : {}) });
-          g.edge(finalUrlNode, id, "mentions", `zdanie ${p.source === "script" ? "z komunikatu w skrypcie strony" : p.source === "comment" ? "z komentarza w kodzie strony (wykomentowana stara wersja)" : "z tekstu strony"}: „${quote}”`);
+          const id = g.node("template_phrase", p.key, `sentence “${quote}”`, { text: p.text, source: p.source, ...(p.oddity ? { oddity: p.oddity } : {}) });
+          g.edge(finalUrlNode, id, "mentions", `sentence ${p.source === "script" ? "from a message in the page script" : p.source === "comment" ? "from a comment in the page code (commented-out old version)" : "from the page text"}: “${quote}”`);
           const oddRel = p.oddity && tp ? Math.min(tp.oddityFactor, tp.maxWeight / config.typeWeights.template_phrase) : 1;
-          const odd = p.oddity === "repeat" ? ", z tą samą wpadką: powtórzone słowa" : p.oddity === "mixed_script" ? ", z tą samą wpadką: mieszane alfabety" : "";
-          add(id, "template_phrase", [...finalPath, id], rel * oddRel, `to samo rzadkie zdanie szablonu „${quote}”${odd}`);
+          const odd = p.oddity === "repeat" ? ", with the same slip: repeated words" : p.oddity === "mixed_script" ? ", with the same slip: mixed alphabets" : "";
+          add(id, "template_phrase", [...finalPath, id], rel * oddRel, `the same rare template sentence “${quote}”${odd}`);
         }
         // Developer messages of the kit's own scripts (I25, notAloneKinds): a node per shared message; the
         // pair rule (several messages or one long one) is applied when pivots become pair premises.
         for (const k of config.kitString ? (kit.kitStrings ?? []).filter((x) => kitShared(x.key)) : []) {
           const quote = k.text.length > 60 ? `${k.text.slice(0, 59)}…` : k.text;
-          const id = g.node("kit_string", k.key, `komunikat „${quote}”`, { text: k.text, words: k.key.split(" ").length, ...(k.oddity ? { oddity: k.oddity } : {}) });
-          g.edge(finalUrlNode, id, "mentions", `komunikat programisty w skrypcie strony: „${quote}”`);
-          add(id, "kit_string", [...finalPath, id], rel, `ten sam komunikat ze skryptu zestawu stron „${quote}”`);
+          const id = g.node("kit_string", k.key, `message “${quote}”`, { text: k.text, words: k.key.split(" ").length, ...(k.oddity ? { oddity: k.oddity } : {}) });
+          g.edge(finalUrlNode, id, "mentions", `developer message in the page script: “${quote}”`);
+          add(id, "kit_string", [...finalPath, id], rel, `the same message from the page-kit script “${quote}”`);
         }
         // Lead funnel of the landing-page platform (B-332, notAloneKinds): form, flows, key id, event host
         for (const tok of kit.leadFlow ?? []) addLeadFlow(finalUrlNode, finalPath, tok, rel);
@@ -1100,8 +1100,8 @@ export function buildEvidenceGraph(
         // Techniques: the same modus operandi (second level only, campaignRules.familyOnlyKinds)
         for (const t of kit.techniques ?? []) {
           const id = g.node("technique", t, TECHNIQUE_LABELS[t] ?? t, { technique: t });
-          g.edge(finalUrlNode, id, "uses_technique", `technika strony: ${TECHNIQUE_LABELS[t] ?? t}`);
-          add(id, "technique", [...finalPath, id], rel, `ta sama technika strony (${TECHNIQUE_LABELS[t] ?? t}): podobny sposób działania`);
+          g.edge(finalUrlNode, id, "uses_technique", `page technique: ${TECHNIQUE_LABELS[t] ?? t}`);
+          add(id, "technique", [...finalPath, id], rel, `the same page technique (${TECHNIQUE_LABELS[t] ?? t}): similar modus operandi`);
           const list = (itemData.techniques as string[] | undefined) ?? [];
           if (!list.includes(t)) itemData.techniques = [...list, t];
         }
@@ -1111,9 +1111,9 @@ export function buildEvidenceGraph(
         if (kit.stealerKit) {
           itemData.stealerKit = kit.stealerKit;
           for (const host of kit.stealerKit.c2Hosts) {
-            const id = g.node("c2_host", host, `serwer C2 ${host}`, { signals: kit.stealerKit.signals });
-            g.edge(finalUrlNode, id, "mentions", `skrypt zestawu stron wysyła ciasteczka lub dane logowania do ${host}`);
-            add(id, "c2_host", [...finalPath, id], rel, `ten sam serwer C2 (${host}), do którego trojan w zestawie stron wysyła dane`);
+            const id = g.node("c2_host", host, `C2 server ${host}`, { signals: kit.stealerKit.signals });
+            g.edge(finalUrlNode, id, "mentions", `a page-kit script sends cookies or login data to ${host}`);
+            add(id, "c2_host", [...finalPath, id], rel, `the same C2 server (${host}) that the trojan in the page kit sends data to`);
           }
         }
       }
@@ -1132,7 +1132,7 @@ export function buildEvidenceGraph(
         if (page.extract?.cms?.length) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), ...page.extract.cms])].sort();
         const site = page.extract?.siteAttributes;
         if (site?.tldRare) itemData.tldRare = site.tldRare;
-        if (site?.domainLangMismatch) itemData.domainLangMismatch = `domena: ${site.domainLangMismatch.domainLang}, strona: ${site.domainLangMismatch.pageLang}`;
+        if (site?.domainLangMismatch) itemData.domainLangMismatch = `domain: ${site.domainLangMismatch.domainLang}, page: ${site.domainLangMismatch.pageLang}`;
         if (site?.privacyControllerMismatch) itemData.privacyControllerMismatch = site.privacyControllerMismatch.controllerDomains;
         if (site?.fakeCourierPayment) itemData.techniques = [...new Set([...((itemData.techniques as string[] | undefined) ?? []), "fake_courier_payment"])];
         const outside = hostingOutsideEu((finalHost ? (dataset.hosts[finalHost]?.ips ?? []) : []).map((ip) => dataset.ips[ip]?.country));
@@ -1204,9 +1204,9 @@ export function buildEvidenceGraph(
       ...metaTokenKeysIn([item.landingUrl, ...(landingPage?.fetch.redirectChain.map((h) => h.url) ?? []), landingPage?.fetch.finalUrl, ...outboundUrls]),
     ]);
     for (const k of [...tokenKeys].sort()) {
-      const id = g.node("meta_token", k, `token dostępu Meta (sha256 ${k}…)`, { sha256Prefix: k });
-      g.edge(itemNode, id, "carries_param", `token dostępu Meta w adresie lub kodzie strony (sha256 ${k}…)`);
-      add(id, "meta_token", [itemNode, id], 1, `ten sam token dostępu Meta (sha256 ${k}…)`);
+      const id = g.node("meta_token", k, `Meta access token (sha256 ${k}…)`, { sha256Prefix: k });
+      g.edge(itemNode, id, "carries_param", `Meta access token in the page URL or code (sha256 ${k}…)`);
+      add(id, "meta_token", [itemNode, id], 1, `the same Meta access token (sha256 ${k}…)`);
     }
     const params = [...(enr?.campaignParams ?? []), ...pageParams].map((cp) => [cp, 1] as const);
     for (const [cp, relation] of [...params, ...linkParams.map((cp) => [cp, config.outboundParamFactor ?? 0.8] as const)]) {
@@ -1216,7 +1216,7 @@ export function buildEvidenceGraph(
       if (perClick.has(cp.canonicalName)) continue;
       if (cp.name.toLowerCase() === "stream_id" && affStreams.has(cp.value.trim().toLowerCase())) continue;
       const value = cp.value.trim();
-      const origin = cp.origin === "form" ? " (z formularza)" : cp.origin === "script" ? " (ze skryptu strony)" : "";
+      const origin = cp.origin === "form" ? " (from the form)" : cp.origin === "script" ? " (from the page script)" : "";
       // An internal number of a tracker (campaign_id=319) names a campaign only on one tracker server:
       // every installation counts from 1, so with an xid the machine goes into the key.
       const scope = scopedParams.has(cp.canonicalName) && /^\d+$/.test(value) && machines.length ? machines : [null];

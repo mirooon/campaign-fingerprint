@@ -6,7 +6,7 @@ import { DEFAULT_LINK_CONFIG } from "../lib/graph/config";
 import { collectCatalog, renderCatalog } from "../lib/docs/featuresCatalog";
 import { cli, main } from "./_cli";
 
-const USAGE = "Użycie: bun run features:catalog [--out docs/CECHY.md]\nGeneruje katalog cech z rejestrów w kodzie.";
+const USAGE = "Usage: bun run features:catalog [--out docs/CECHY.md]\nGenerates the feature catalog from the registries in the code.";
 
 /** Short hash of HEAD, or "unknown" outside a git checkout. */
 function gitCommit(root: string): string {
@@ -25,5 +25,5 @@ void main(() => {
   const md = renderCatalog(data, DEFAULT_LINK_CONFIG, new Date().toISOString().slice(0, 10), gitCommit(root));
   mkdirSync(path.dirname(out), { recursive: true });
   writeFileSync(out, md);
-  console.log(`${path.relative(root, out)}: ${data.pivots.length} śladów, ${data.attributes.length} atrybutów, ${data.techniques.length} technik, ${data.topics.length} tematów, ${data.hooks.length} haczyków, ${data.undescribed.length} bez opisu`);
+  console.log(`${path.relative(root, out)}: ${data.pivots.length} traces, ${data.attributes.length} attributes, ${data.techniques.length} techniques, ${data.topics.length} topics, ${data.hooks.length} hooks, ${data.undescribed.length} without a description`);
 });

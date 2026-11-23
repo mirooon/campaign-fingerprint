@@ -39,12 +39,12 @@ export function materialClusters(rows: BatchRow[]): Record<string, string> {
  * Throws on any other shape, so a wrong file does not score as "no labels".
  */
 export function truthFromLabels(json: unknown): Record<string, string> {
-  if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("plik etykiet: oczekiwano obiektu JSON");
+  if (!json || typeof json !== "object" || Array.isArray(json)) throw new Error("labels file: a JSON object was expected");
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(json)) {
     if (typeof v === "string") out[k] = v;
     else if (Array.isArray(v) && v.every((x) => typeof x === "string")) for (const c of v) out[c] = k;
-    else throw new Error(`plik etykiet: wartość dla „${k}” nie jest ani etykietą, ani listą spraw`);
+    else throw new Error(`labels file: the value for “${k}” is neither a label nor a list of cases`);
   }
   return out;
 }

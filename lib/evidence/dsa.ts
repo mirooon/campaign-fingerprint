@@ -48,7 +48,7 @@ export interface DsaNotice {
   content: string;
 }
 
-const NO_PLATFORM = "nieznana-platforma";
+const NO_PLATFORM = "unknown-platform";
 const LIBRARY_LINK = /\/ads\/library\//i;
 
 /** File-safe, lower-case name of a platform ("YouTube Shorts" → "youtube-shorts"); a fixed name when the platform is unknown. */
@@ -81,11 +81,11 @@ function platformLocation(ad: DsaAd): string {
   const posts = ad.ad_urls.filter((u) => !LIBRARY_LINK.test(u));
   const pages = [...new Set((ad.repository_record ?? []).map((r) => r.page_id).filter((p): p is string => !!p))];
   const parts = [
-    ...libraryLinks.map((u) => `biblioteka reklam: ${u}${ad.ad_ids.ad_library_id ? ` (identyfikator biblioteki ${ad.ad_ids.ad_library_id})` : ""}`),
-    ...(ad.advertiser_displayed || pages.length ? [`strona reklamodawcy: ${[ad.advertiser_displayed ? `„${ad.advertiser_displayed}”` : null, ...pages.map(pageUrl)].filter(Boolean).join(", ")}`] : []),
-    ...posts.map((u) => `adres reklamy lub posta: ${u}`),
+    ...libraryLinks.map((u) => `ad library: ${u}${ad.ad_ids.ad_library_id ? ` (library ID ${ad.ad_ids.ad_library_id})` : ""}`),
+    ...(ad.advertiser_displayed || pages.length ? [`advertiser page: ${[ad.advertiser_displayed ? `“${ad.advertiser_displayed}”` : null, ...pages.map(pageUrl)].filter(Boolean).join(", ")}`] : []),
+    ...posts.map((u) => `address of the ad or post: ${u}`),
   ];
-  return `- reklama ${ad.item_id} (identyfikator ${ad.ad_ids.ad_id ?? ad.item_id}, pierwsza obserwacja ${ad.first_seen_utc ?? "?"})${parts.length ? `:\n${parts.map((p) => `  - ${p}`).join("\n")}` : ": brak linku do reklamy na platformie, dołącz zrzut ekranu i datę"}`;
+  return `- ad ${ad.item_id} (ID ${ad.ad_ids.ad_id ?? ad.item_id}, first seen ${ad.first_seen_utc ?? "?"})${parts.length ? `:\n${parts.map((p) => `  - ${p}`).join("\n")}` : ": no link to the ad on the platform, attach a screenshot and the date"}`;
 }
 
 /**
@@ -99,12 +99,12 @@ function justification(input: DsaInput, platform: string, ads: DsaAd[], landingD
   const dates = ads.map((a) => a.first_seen_utc).filter((d): d is string => !!d).sort();
   const known = input.domains.filter((d) => landingDomains.includes(d.domain));
   const sentences = [
-    `W okresie ${formatRange(dates[0] ?? null, dates.at(-1) ?? null)} (UTC) zarejestrowano ${ads.length} ${ads.length === 1 ? "reklamę" : "reklam(y)"} w serwisie ${platform}, kierujących do domen: ${landingDomains.join(", ") || "brak"}.`,
-    input.financialOffer ? "Reklamy oferują usługi finansowe (inwestycje lub kryptowaluty) i mają cechy oszustwa: obietnica zysku prowadzi na stronę zbierającą dane lub wpłaty." : "Reklamy mają cechy oszustwa: prowadzą na strony zbierające dane lub wpłaty od osób, które w nie kliknęły.",
-    ...(input.personas.length ? [`W reklamach użyto wizerunku lub nazwiska: ${input.personas.join(", ")}; zgody tej osoby nie ustalono, więc podszywanie się służy uwiarygodnieniu oferty.`] : []),
-    ...(input.deepfake ? ["Materiał ma wynik modelu wskazujący na treść syntetyczną (wskazówka, nie dowód)."] : []),
-    ...known.map((d) => `Domena ${d.domain}: zarejestrowana ${formatUtc(d.created_utc)}; ${d.cert_status === "active" ? `na Liście Ostrzeżeń CERT od ${formatUtc(d.cert_insert_date)}` : d.cert_status === "unchecked" ? "status na Liście Ostrzeżeń CERT niesprawdzony" : "nie ma jej na Liście Ostrzeżeń CERT"}.`),
-    "Szkic złożony z faktów paczki dowodów; do weryfikacji przez człowieka przed wysłaniem.",
+    `In the period ${formatRange(dates[0] ?? null, dates.at(-1) ?? null)} (UTC), ${ads.length} ${ads.length === 1 ? "ad was" : "ads were"} recorded on ${platform}, leading to the domains: ${landingDomains.join(", ") || "none"}.`,
+    input.financialOffer ? "The ads offer financial services (investments or crypto) and bear the marks of fraud: the promise of profit leads to a page that collects data or payments." : "The ads bear the marks of fraud: they lead to pages that collect data or payments from people who clicked them.",
+    ...(input.personas.length ? [`The ads use the image or name of: ${input.personas.join(", ")}; this person's consent has not been established, so the impersonation serves to make the offer credible.`] : []),
+    ...(input.deepfake ? ["The sample has a model score indicating synthetic content (a hint, not proof)."] : []),
+    ...known.map((d) => `Domain ${d.domain}: registered ${formatUtc(d.created_utc)}; ${d.cert_status === "active" ? `on the CERT Warning List since ${formatUtc(d.cert_insert_date)}` : d.cert_status === "unchecked" ? "status on the CERT Warning List not checked" : "not on the CERT Warning List"}.`),
+    "Draft put together from the facts of the evidence pack; for a human to verify before sending.",
   ];
   return sentences.join(" ");
 }
@@ -113,37 +113,37 @@ function justification(input: DsaInput, platform: string, ads: DsaAd[], landingD
 function renderOne(input: DsaInput, platform: string, ads: DsaAd[]): string {
   const domains = [...new Set(ads.flatMap(landingOf).map((u) => registrableDomain(u)).filter((d): d is string => !!d))].sort();
   const category = input.personas.length
-    ? `podszywanie się pod osobę (${input.personas.join(", ")}): wizerunek użyty w reklamie bez zgody, w celu oszustwa`
-    : "oszustwo: reklama fałszywej oferty";
-  return `# Zgłoszenie nielegalnych treści (art. 16 ust. 2 DSA) — ${platform} — SZABLON
+    ? `impersonation of a person (${input.personas.join(", ")}): image used in the ad without consent, for fraud`
+    : "fraud: ad for a fake offer";
+  return `# Notice of illegal content (Art. 16(2) DSA) — ${platform} — TEMPLATE
 
-Kategoria zgłoszenia: ${category}
+Notice category: ${category}
 
-> Wygenerowano z paczki dowodów \`${input.packageId}\` (kampania ${input.campaignId}, ${input.createdUtc}).
-> Przed wysłaniem człowiek weryfikuje treść i decyduje o zgłoszeniu. Ten plik dotyczy tylko reklam w serwisie ${platform}. Wysyłaj precyzyjne zgłoszenia: masowe i nieprecyzyjne mogą skutkować zawieszeniem ich rozpatrywania (art. 23 ust. 2 DSA).
+> Generated from the evidence pack \`${input.packageId}\` (campaign ${input.campaignId}, ${input.createdUtc}).
+> Before sending, a human verifies the content and decides whether to report. This file covers only the ads on ${platform}. Send precise notices: mass and imprecise ones may lead to their handling being suspended (Art. 23(2) DSA).
 
-## (a) Wyjaśnienie, dlaczego treść jest nielegalna
+## (a) Explanation of why the content is illegal
 
 ${justification(input, platform, ads, domains)}
 
-Proponowane podstawy prawne (do weryfikacji): ${input.legalCandidates.join("; ")}.
+Proposed legal bases (to verify): ${input.legalCandidates.join("; ")}.
 
-## (b) Dokładna lokalizacja elektroniczna (URL)
+## (b) Exact electronic location (URL)
 
-### Lokalizacja reklamy na platformie
+### Location of the ad on the platform
 
 ${ads.map(platformLocation).join("\n")}
 
-### Strony docelowe (per reklama)
+### Landing pages (per ad)
 
-${ads.map((a) => `- reklama ${a.item_id}:\n${landingOf(a).map((u) => `  - ${u}`).join("\n") || "  - brak adresu docelowego"}`).join("\n")}
+${ads.map((a) => `- ad ${a.item_id}:\n${landingOf(a).map((u) => `  - ${u}`).join("\n") || "  - no landing URL"}`).join("\n")}
 
-## (c) Zgłaszający
+## (c) Submitter
 
-- Imię i nazwisko / nazwa: ${input.submitter.name}
+- Full name / name: ${input.submitter.name}
 - E-mail: ${input.submitter.email}
 
-## (d) Oświadczenie o dobrej wierze
+## (d) Statement of good faith
 
 ${input.goodFaith}
 `;
@@ -154,7 +154,7 @@ export function renderDsaNotices(input: DsaInput): DsaNotice[] {
   const byPlatform = new Map<string, { label: string; ads: DsaAd[] }>();
   for (const ad of input.ads) {
     const slug = platformSlug(ad.platform);
-    const cur = byPlatform.get(slug) ?? { label: ad.platform ?? "nieznana platforma", ads: [] };
+    const cur = byPlatform.get(slug) ?? { label: ad.platform ?? "unknown platform", ads: [] };
     cur.ads.push(ad);
     byPlatform.set(slug, cur);
   }
@@ -163,12 +163,12 @@ export function renderDsaNotices(input: DsaInput): DsaNotice[] {
 
 /** Cover note `dsa-art16-notice.md`: which file goes to which platform and how to file them. */
 export function renderDsaIndex(input: DsaInput, notices: DsaNotice[]): string {
-  return `# Zgłoszenia art. 16 DSA — kampania ${input.campaignId}
+  return `# Art. 16 DSA notices — campaign ${input.campaignId}
 
-Paczka \`${input.packageId}\`, ${input.createdUtc}. Każda platforma dostaje osobne zgłoszenie, tylko o swoich reklamach (nie mieszaj serwisów w jednym zgłoszeniu):
+Pack \`${input.packageId}\`, ${input.createdUtc}. Each platform gets a separate notice, only about its own ads (do not mix services in one notice):
 
-${notices.map((n) => `- \`${n.file}\` — ${n.platform}`).join("\n") || "- brak reklam"}
+${notices.map((n) => `- \`${n.file}\` — ${n.platform}`).join("\n") || "- no ads"}
 
-W punkcie (b) każdego zgłoszenia najpierw stoi lokalizacja reklamy na platformie (link do biblioteki reklam, identyfikator, strona reklamodawcy), potem strony docelowe per reklama. Człowiek weryfikuje treść przed wysłaniem; narzędzie niczego nie wysyła.
+In point (b) of each notice the location of the ad on the platform comes first (ad library link, ID, advertiser page), then the landing pages per ad. A human verifies the content before sending; the tool sends nothing.
 `;
 }

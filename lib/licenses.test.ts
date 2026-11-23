@@ -16,7 +16,7 @@ describe("licenseOf", () => {
     expect(licenseOf(pkgs["lib-a"])).toBe("MIT");
     expect(licenseOf(pkgs["bin-darwin"])).toBe("LGPL-3.0-or-later");
     expect(licenseOf(pkgs["lib-b"])).toBe("BSD-3-Clause OR MIT");
-    expect(licenseOf(pkgs["no-license"])).toBe("BRAK POLA license");
+    expect(licenseOf(pkgs["no-license"])).toBe("NO license FIELD");
   });
 });
 
@@ -29,7 +29,7 @@ describe("resolveProductionPackages", () => {
 
   it("lists a dependency that is not installed instead of dropping it", () => {
     const rows = resolveProductionPackages(["lib-a", "ghost"], read);
-    expect(rows.find((r) => r.name === "ghost")).toEqual({ name: "ghost", version: "?", license: "NIE ZAINSTALOWANY", direct: true });
+    expect(rows.find((r) => r.name === "ghost")).toEqual({ name: "ghost", version: "?", license: "NOT INSTALLED", direct: true });
   });
 
   it("marks direct dependencies", () => {
@@ -42,7 +42,7 @@ describe("resolveProductionPackages", () => {
 describe("renderLicenseTable", () => {
   it("renders one Markdown row per package", () => {
     const md = renderLicenseTable([{ name: "lib-a", version: "2.1.0", license: "MIT", direct: true }]);
-    expect(md).toContain("| lib-a | 2.1.0 | MIT | bezpośrednia | biblioteka w procesie | npm |");
+    expect(md).toContain("| lib-a | 2.1.0 | MIT | direct | in-process library | npm |");
   });
 });
 

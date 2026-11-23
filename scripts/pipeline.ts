@@ -31,9 +31,9 @@ const args = cli(
     "company-registry": { type: "boolean" },
     "archive-lookup": { type: "boolean" },
   } as const,
-  `Użycie: bun run pipeline [--offline] [--input plik] [--mapping mapping.json] [--fixtures dir] [--config linking.json] [--text tfidf|embedding|none] [--skip ct,...]
-  [--personas lista.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <id osoby>]] [--ad-library] [--company-registry] [--archive-lookup]
-Kroki: ingest -> enrich -> build-graph -> evaluate (jeśli są etykiety).`,
+  `Usage: bun run pipeline [--offline] [--input file] [--mapping mapping.json] [--fixtures dir] [--config linking.json] [--text tfidf|embedding|none] [--skip ct,...]
+  [--personas list.json] [--ner] [--cloaking] [--ocr] [--asr] [--audio] [--clip] [--speaker] [--faces [--verify-person <person id>]] [--ad-library] [--company-registry] [--archive-lookup]
+Steps: ingest -> enrich -> build-graph -> evaluate (if there are labels).`,
 );
 
 void main(async () => {

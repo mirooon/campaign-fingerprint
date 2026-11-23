@@ -1,7 +1,7 @@
 /**
- * bun run sensitivity -- --enriched <plik> [--labels <etykiety.json>] [--config <linking.json>] [--runs 50]
- *   [--spread 0.1,0.2,0.3] [--seed 1] [--one-at-a-time 0.7,1.3] [--thresholds 0.8,0.9,1.1,1.2] --out <katalog>
- * bun run sensitivity -- --dump-config <plik> --spread 0.2 [--seed 1] [--config <linking.json>]
+ * bun run sensitivity -- --enriched <file> [--labels <labels.json>] [--config <linking.json>] [--runs 50]
+ *   [--spread 0.1,0.2,0.3] [--seed 1] [--one-at-a-time 0.7,1.3] [--thresholds 0.8,0.9,1.1,1.2] --out <folder>
+ * bun run sensitivity -- --dump-config <file> --spread 0.2 [--seed 1] [--config <linking.json>]
  */
 import { readFileSync, writeFileSync } from "node:fs";
 import { perturbWeights } from "../lib/graph/sensitivity";
@@ -25,21 +25,21 @@ const args = cli(
     text: { type: "string" },
     "dump-config": { type: "string" },
   } as const,
-  `Użycie: bun run sensitivity -- --enriched <plik> [--labels <etykiety.json>] [--config linking.json] [--runs 50] [--spread 0.1,0.2,0.3]
-         [--seed 1] [--one-at-a-time 0.7,1.3] [--thresholds 0.8,0.9,1.1,1.2] --out <katalog> [--text tfidf|embedding|none]
-Mierzy, jak bardzo wynik zależy od dokładnych wag (niczego nie stroi): (A) losowe zaburzenie wszystkich wag naraz o ±rozrzut,
-(B) każda waga osobno × czynniki, (C) każdy próg osobno × czynniki. Wagi i progi są znajdowane po nazwach pól konfiguracji.
-Konfiguracja bazowa jak w build-graph (--config, inaczej wbudowane wagi). Wynik: <out>/sensitivity.json i sensitivity.md.
-Etykiety prawdy: pole label reklam z enriched; plik --labels ({"etykieta": ["sprawa", …]} albo {"sprawa": "etykieta"}) je uzupełnia i nadpisuje.
-       bun run sensitivity -- --dump-config <plik> --spread 0.2 [--seed 1] [--config linking.json]
-zapisuje jedną zaburzoną konfigurację (pełną, do użycia jako --config) i kończy.`,
+  `Usage: bun run sensitivity -- --enriched <file> [--labels <labels.json>] [--config linking.json] [--runs 50] [--spread 0.1,0.2,0.3]
+         [--seed 1] [--one-at-a-time 0.7,1.3] [--thresholds 0.8,0.9,1.1,1.2] --out <folder> [--text tfidf|embedding|none]
+Measures how much the result depends on the exact weights (tunes nothing): (A) random perturbation of all weights at once by ±spread,
+(B) each weight on its own × factors, (C) each threshold on its own × factors. Weights and thresholds are found by the field names of the configuration.
+Base configuration as in build-graph (--config, otherwise the built-in weights). Result: <out>/sensitivity.json and sensitivity.md.
+Truth labels: the label field of the ads from enriched; a --labels file ({"label": ["case", …]} or {"case": "label"}) fills them in and overrides them.
+       bun run sensitivity -- --dump-config <file> --spread 0.2 [--seed 1] [--config linking.json]
+writes one perturbed configuration (complete, to use as --config) and stops.`,
 );
 
 /** Comma-separated numbers ("0.1,0.2") → list; throws on anything that is not a finite number. */
 function numbers(flag: string, text: string | undefined, fallback: number[]): number[] {
   if (text === undefined) return fallback;
   const out = text.split(",").map((s) => Number(s.trim()));
-  if (!out.length || out.some((n) => !Number.isFinite(n))) throw new Error(`--${flag}: oczekiwano liczb oddzielonych przecinkami, jest „${text}”`);
+  if (!out.length || out.some((n) => !Number.isFinite(n))) throw new Error(`--${flag}: expected comma-separated numbers, got “${text}”`);
   return out;
 }
 
@@ -47,7 +47,7 @@ function numbers(flag: string, text: string | undefined, fallback: number[]): nu
 function integer(flag: string, text: string | undefined, fallback: number): number {
   if (text === undefined) return fallback;
   const n = Number(text);
-  if (!Number.isInteger(n)) throw new Error(`--${flag}: oczekiwano liczby całkowitej, jest „${text}”`);
+  if (!Number.isInteger(n)) throw new Error(`--${flag}: expected an integer, got “${text}”`);
   return n;
 }
 
@@ -59,12 +59,12 @@ void main(async () => {
   if (dump) {
     const [spread] = numbers("spread", args.spread, [0.2]);
     writeFileSync(dump, `${JSON.stringify({ ...perturbWeights(loadLinkConfig(config), { spread, seed }), replaceLists: true }, null, 2)}\n`, "utf8");
-    console.log(`[sensitivity] zaburzona konfiguracja (±${spread}, ziarno ${seed}) zapisana do ${dump}`);
+    console.log(`[sensitivity] perturbed configuration (±${spread}, seed ${seed}) written to ${dump}`);
     return;
   }
-  if (!args.out) throw new Error("brak --out <katalog>");
+  if (!args.out) throw new Error("no --out <folder>");
   const text = (args.text ?? process.env.TEXT_SIMILARITY ?? "tfidf") as "tfidf" | "embedding" | "none";
-  if (!["tfidf", "embedding", "none"].includes(text)) throw new Error(`--text: nieznana metoda ${text}`);
+  if (!["tfidf", "embedding", "none"].includes(text)) throw new Error(`--text: unknown method ${text}`);
   const result = await runSensitivity({
     enriched,
     config,
@@ -77,5 +77,5 @@ void main(async () => {
     text,
     outDir: args.out,
   });
-  console.log(`[sensitivity] zapisano ${args.out}/sensitivity.json i sensitivity.md (bazowo: F1 par ${result.base.f1.toFixed(4)}, kampanii ${result.base.clusters})`);
+  console.log(`[sensitivity] wrote ${args.out}/sensitivity.json and sensitivity.md (base: pair F1 ${result.base.f1.toFixed(4)}, campaigns ${result.base.clusters})`);
 });

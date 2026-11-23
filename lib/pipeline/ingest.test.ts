@@ -94,8 +94,8 @@ describe("loadRecordsLenient", () => {
     const { records, bad } = loadRecordsLenient(f);
     expect(records).toEqual([{ id: "w1", text: "a" }, { id: "w4" }]);
     expect(bad).toEqual([
-      { row: 3, id: "w2", reason: expect.stringMatching(/^niepoprawny JSON \(.+\)$/) },
-      { row: 4, id: null, reason: "wiersz nie jest obiektem JSON" },
+      { row: 3, id: "w2", reason: expect.stringMatching(/^invalid JSON \(.+\)$/) },
+      { row: 4, id: null, reason: "row is not a JSON object" },
     ]);
   });
 
@@ -111,8 +111,8 @@ describe("loadRecordsLenient", () => {
     expect(loadRecordsLenient(f)).toEqual({
       records: [{ id: 1 }, { id: 2 }],
       bad: [
-        { row: 2, id: null, reason: "element tablicy nie jest obiektem JSON" },
-        { row: 3, id: null, reason: "element tablicy nie jest obiektem JSON" },
+        { row: 2, id: null, reason: "array element is not a JSON object" },
+        { row: 3, id: null, reason: "array element is not a JSON object" },
       ],
     });
     const broken = path.join(dir, "zly.json");

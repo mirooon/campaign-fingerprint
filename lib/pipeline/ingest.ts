@@ -180,7 +180,7 @@ export function loadRecordsLenient(file: string, opts: { idColumn?: string } = {
   if (ext === ".json") {
     jsonRows(JSON.parse(content), file).forEach((r, i) => {
       if (isRecord(r)) records.push(r);
-      else bad.push({ row: i + 1, id: null, reason: "element tablicy nie jest obiektem JSON" });
+      else bad.push({ row: i + 1, id: null, reason: "array element is not a JSON object" });
     });
     return { records, bad };
   }
@@ -189,9 +189,9 @@ export function loadRecordsLenient(file: string, opts: { idColumn?: string } = {
     try {
       const r: unknown = JSON.parse(line);
       if (isRecord(r)) records.push(r);
-      else bad.push({ row: i + 1, id: null, reason: "wiersz nie jest obiektem JSON" });
+      else bad.push({ row: i + 1, id: null, reason: "row is not a JSON object" });
     } catch (e) {
-      bad.push({ row: i + 1, id: idOfBrokenLine(line, opts.idColumn), reason: `niepoprawny JSON (${(e as Error).message})` });
+      bad.push({ row: i + 1, id: idOfBrokenLine(line, opts.idColumn), reason: `invalid JSON (${(e as Error).message})` });
     }
   });
   return { records, bad };

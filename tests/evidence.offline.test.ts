@@ -49,11 +49,11 @@ describe("evidence pack", () => {
       good_faith_statement: GOOD_FAITH_STATEMENT,
       submitter: { name: "Analityk Testowy", email: "analityk@example.org" },
     });
-    expect(json.submitter.address).toMatch(/^\[UZUPEŁNIJ/);
+    expect(json.submitter.address).toMatch(/^\[FILL IN/);
     expect(json.tool_version.name).toBe("starter-test");
-    expect(json.legal_assessment.note).toMatch(/^\(wniosek\)/);
+    expect(json.legal_assessment.note).toMatch(/^\(conclusion\)/);
     expect(Object.keys(json.observations)).toEqual(expect.arrayContaining(["ads", "domains", "accounts", "shared_identifiers"]));
-    expect(json.analysis.note).toMatch(/wskazówki/);
+    expect(json.analysis.note).toMatch(/hints/);
     expect(json.analysis.link_scores.length).toBeGreaterThan(0);
     // model outputs (scores, LLM text) never appear among the observations
     expect(JSON.stringify(json.observations)).not.toMatch(/"score"|deepfake|llm/i);
@@ -100,7 +100,7 @@ describe("evidence pack", () => {
     const p = json.impersonated_person[0];
     expect(p.impersonated_person).toBe("Adam Testowy");
     expect(p.match_basis.join(" ")).toMatch(/DROZD/);
-    expect(p.biometric_data).toMatch(/^brak/);
+    expect(p.biometric_data).toMatch(/^none/);
     expect(p.synthetic_media_assessment.scores).toEqual(
       expect.arrayContaining([
         { item_id: "c1-01", score: 0.93 },
@@ -138,7 +138,7 @@ describe("evidence pack", () => {
   it("proposes actions per recipient and fills the DSA Art. 16 notice template", () => {
     const res = pack("c3-01", "c3");
     expect(res.json.requested_action.map((a: { recipient: string }) => a.recipient)).toEqual(["D", "C", "K", "U", "P", "S", "E"]);
-    expect(res.json.requested_action.every((a: { status: string }) => a.status === "propozycja")).toBe(true);
+    expect(res.json.requested_action.every((a: { status: string }) => a.status === "proposal")).toBe(true);
     expect(res.read("dsa-art16-notice.md")).toContain("dsa-art16-facebook.md");
     const notice = res.read("dsa-art16-facebook.md");
     for (const section of ["## (a)", "## (b)", "## (c)", "## (d)"]) expect(notice).toContain(section);
@@ -147,8 +147,8 @@ describe("evidence pack", () => {
     expect(notice).toContain("analityk@example.org");
     expect(notice).toContain("https://wiadomosci-demo.test/artykul/marek-fikcyjny-wywiad?src=fb1");
     expect(notice).toContain("https://lp.oferta-fikcyjna.example/rejestracja?src=fb1&sub1=mb_kowal&offer_id=771304");
-    expect(res.read("evidence.md")).toContain("## Obserwacje (fakty)");
-    expect(res.read("evidence.md")).toContain("## Analiza (wyniki modeli i heurystyk — wskazówki)");
+    expect(res.read("evidence.md")).toContain("## Observations (facts)");
+    expect(res.read("evidence.md")).toContain("## Analysis (outputs of models and heuristics — hints)");
   });
 
   it("writes no embedding vector into any file of the pack, even when the enrichment holds them", () => {
@@ -178,7 +178,7 @@ describe("evidence pack", () => {
     for (const f of ["preservation-request.md", "knf-notification.md", "prosecutor-notification.md"]) expect(res.files, f).toContain(f);
     expect(res.read("preservation-request.md")).toContain("kryptozysk-ai.example");
     const dsa = res.read("dsa-art16-facebook.md");
-    expect(dsa.split("## (b)")[0]).not.toContain("[UZUPEŁNIJ");
+    expect(dsa.split("## (b)")[0]).not.toContain("[FILL IN");
     expect(dsa).toMatch(/Adam Testowy/);
   });
 
@@ -189,27 +189,27 @@ describe("evidence pack", () => {
     const domain = res.json.observations.domains.find((d: { domain_fqdn: string }) => d.domain_fqdn === "kryptozysk-ai.example");
     expect(domain.registration_data).toHaveProperty("registrar_iana_id");
     expect(domain.registration_data).toHaveProperty("abuse_email");
-    expect(domain.registration_data.rdap_query_note).toMatch(/czas zapytania/);
+    expect(domain.registration_data.rdap_query_note).toMatch(/time of the RDAP query/);
   });
 
   it("states the retention from the configuration instead of a placeholder", () => {
     const { json } = pack("c1-01", "c1-retention");
     const text = JSON.stringify(json.integrity.personal_data_inventory);
-    expect(text).not.toContain("UZUPEŁNIJ");
-    expect(text).toMatch(/do zakończenia sprawy/);
-    expect(text).toMatch(/RDAP 7 dni/);
+    expect(text).not.toContain("FILL IN");
+    expect(text).toMatch(/until the case is closed/);
+    expect(text).toMatch(/RDAP 7 days/);
   });
 
   it("writes evidence.md in plain words: Polish trace names, the reason per ad, readable dates, sections that were only in JSON", () => {
     const { read, json } = pack("c1-01", "c1-readable");
     const md = read("evidence.md");
-    const summary = md.split("## Streszczenie faktów")[1].split("##")[0];
+    const summary = md.split("## Summary of facts")[1].split("##")[0];
     expect(summary).not.toMatch(/\b(nameserver|utm_campaign|asn|campaign_param|platform_account)\b/);
-    expect(md).toContain("| Dlaczego w kampanii |");
-    expect(md).toMatch(/\| Rodzaj śladu \| Wartość \| Reklamy \|/);
-    expect(md).toContain("## Dane osobowe w paczce");
-    expect(md).toContain("## Łańcuch przechowywania");
-    expect(md).toContain("#### Tekst reklam");
+    expect(md).toContain("| Why in the campaign |");
+    expect(md).toMatch(/\| Kind of trace \| Value \| Ads \|/);
+    expect(md).toContain("## Personal data in the pack");
+    expect(md).toContain("## Chain of custody");
+    expect(md).toContain("#### Ad text");
     expect(md).not.toMatch(/T\d\d:\d\d:\d\d\.\d+Z \|/); // no raw ISO timestamps in the tables of ads and files
     for (const a of json.observations.ads) expect(typeof a.why_in_campaign).toBe("string");
     expect(Object.keys(json.analysis.similarity_methods).every((k) => ["image", "text", "dom", "audio"].includes(k))).toBe(true);
@@ -218,7 +218,7 @@ describe("evidence pack", () => {
   it("keeps a chain of custody of at least three entries and a null time stamp with its reason when no TSA was used", () => {
     const { json } = pack("c1-01", "c1-custody");
     expect(json.integrity.custody_log.length).toBeGreaterThanOrEqual(3);
-    expect(json.integrity.custody_log.map((e: { actor: string }) => e.actor)).toEqual(expect.arrayContaining(["starter (wzbogacanie)", "starter (eksport paczki)"]));
+    expect(json.integrity.custody_log.map((e: { actor: string }) => e.actor)).toEqual(expect.arrayContaining(["starter (enrichment)", "starter (pack export)"]));
     expect(json.integrity.timestamp_token).toBeNull();
     expect(json.integrity.timestamp_note).toMatch(/--tsa/);
   });
@@ -288,7 +288,7 @@ describe("evidence pack", () => {
     expect(res.read("cert-domains.txt")).toBe("kz-ai-start.test\nzysk-ai-platforma.example\n");
     const reasons = res.read("cert-domains-uzasadnienie.md");
     expect(reasons).toContain("kz-ai-start.test");
-    expect(reasons).toMatch(/kryptozysk-ai\.example.*już na liście.*4711/);
+    expect(reasons).toMatch(/kryptozysk-ai\.example.*already on the list.*4711/);
     expect(res.json.observations.ads_to_listed_domains).toBeGreaterThan(0);
   });
 
@@ -314,9 +314,9 @@ describe("evidence pack", () => {
     expect(ad.company_identifiers).toEqual([{ kind: "nip", value: "1234563219", checksum_valid: false, check: "checksum", source: "text", quote: "NIP 123-456-32-19" }]);
     expect(ad.legal_entities).toEqual(["Fikcyjny Sklep Sp. z o.o."]);
     const md = res.read("evidence.md");
-    expect(md).toMatch(/płatnik zadeklarowany w repozytorium reklam: osoba prywatna/);
-    expect(md).toMatch(/suma kontrolna błędna/);
-    expect(md).toMatch(/nie dowód, kto płacił/);
+    expect(md).toMatch(/payer declared in the ad repository: private person/);
+    expect(md).toMatch(/checksum invalid/);
+    expect(md).toMatch(/not proof of who paid/);
     // an ad without a declared payer says nothing about one
     expect(res.json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-04").payer_kinds).toBeNull();
   });
@@ -360,10 +360,10 @@ describe("evidence pack", () => {
     const fb = res.read("dsa-art16-facebook.md");
     const b = fb.split("## (b)")[1];
     expect(b.indexOf("id=1000000000000101")).toBeGreaterThan(-1);
-    expect(b.indexOf("id=1000000000000101")).toBeLessThan(b.indexOf("Strony docelowe"));
+    expect(b.indexOf("id=1000000000000101")).toBeLessThan(b.indexOf("Landing pages"));
     const ig = res.read("dsa-art16-instagram.md");
     expect(ig).not.toContain("id=1000000000000101");
-    expect(fb).toMatch(/Kategoria zgłoszenia: podszywanie się/);
+    expect(fb).toMatch(/Notice category: impersonation/);
   });
 
   it("lists all undiscounted shared traces (not only the top six) and the discounted ones apart", () => {
@@ -407,11 +407,11 @@ describe("evidence pack", () => {
 
   it("takes the financial offer from the narrative of the ads, with a quote marked as a conclusion", () => {
     const c1 = pack("c1-01", "c1-knf");
-    expect(c1.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toContain("usługi inwestycyjne");
+    expect(c1.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toContain("investment services");
     const offered = c1.json.observations.domains.map((d: { financial_service_offered: string | null }) => d.financial_service_offered).filter(Boolean);
     expect(offered.length).toBeGreaterThan(0);
-    expect(offered[0]).toContain("(wniosek");
+    expect(offered[0]).toContain("(conclusion");
     const c5 = pack("c5-01", "c5-knf");
-    expect(c5.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toBe("informacja (jeśli oferta dotyczy usług finansowych)");
+    expect(c5.json.requested_action.find((a: { recipient: string }) => a.recipient === "K").action).toBe("information (if the offer concerns financial services)");
   });
 });

@@ -34,7 +34,7 @@ MIN_CONSISTENCY = 0.4
 MIN_CLUSTER_WINDOWS = 3
 MAX_FRAGMENT_SECONDS = 120
 DOWNLOAD_THREADS = 8
-YOUTUBE_LICENCE = "standardowa licencja YouTube; użycie: wyliczenie wektora cech głosu do badań, nagranie nie jest przechowywane w repozytorium ani publikowane"
+YOUTUBE_LICENCE = "standard YouTube licence; use: computing a voice feature vector for research, the recording is neither stored in the repository nor published"
 
 
 def load_embedder():
@@ -59,7 +59,7 @@ def fetch_fragment(entry: dict, dest: Path) -> dict | None:
     ]
     r = subprocess.run(cmd, capture_output=True, text=True)
     if r.returncode != 0 or not dest.exists():
-        print(f"{entry['url']}: yt-dlp nie pobrał fragmentu: {r.stderr.strip().splitlines()[-1:] }", file=sys.stderr)
+        print(f"{entry['url']}: yt-dlp did not download the fragment: {r.stderr.strip().splitlines()[-1:] }", file=sys.stderr)
         return None
     meta = json.loads(r.stdout.strip().splitlines()[-1])
     info = {k: meta.get(k) for k in ("id", "title", "channel", "license", "upload_date", "webpage_url")}
@@ -111,18 +111,18 @@ def write_zrodla(path: Path, rows: dict[str, list[dict]], names: dict[str, str])
     """Writes the list of sources of the gallery: recording URL, time fragment, licence or basis of use, download date."""
     today = date.today().isoformat()
     lines = [
-        "# Źródła nagrań głosu (`data/voices`)",
+        "# Sources of the voice recordings (`data/voices`)",
         "",
-        "Galeria głosów osób publicznych z zamkniętej listy (`data/osoby-publiczne.json`, ta sama co dla twarzy). **W repozytorium są tylko wektory cech głosu (192 liczby na nagranie, `index.json`) i ta lista źródeł; nagrań nie ma ani w repozytorium, ani w obrazie.** Wektor nie pozwala odtworzyć głosu.",
+        "Voice gallery of public figures from a closed list (`data/osoby-publiczne.json`, the same as for faces). **The repository holds only the voice feature vectors (192 numbers per recording, `index.json`) and this list of sources; the recordings are neither in the repository nor in the image.** The vector does not allow the voice to be reconstructed.",
         "",
-        f"Podstawa użycia: {YOUTUBE_LICENCE}. Gdy film ma licencję Creative Commons, jest to podane w kolumnie Licencja. Data pobrania wszystkich fragmentów: {today} (yt-dlp, tylko wskazany fragment dźwięku). Wzorzec osoby to średnia wektorów z nagrań; fragmenty, w których osoba nie jest dominującym mówcą albo nie pasują do pozostałych nagrań, zostały odrzucone (kolumna Użyto).",
+        f"Basis of use: {YOUTUBE_LICENCE}. When a video has a Creative Commons licence, it is given in the Licence column. Download date of all fragments: {today} (yt-dlp, only the given audio fragment). The pattern of a person is the mean of the vectors of the recordings; fragments in which the person is not the dominant speaker or that do not match the other recordings were rejected (Used column).",
         "",
     ]
     for pid, recs in rows.items():
-        lines += [f"## {names.get(pid, pid)} (`{pid}`)", "", "| Nagranie | Kanał | Fragment | Licencja | Użyto |", "|---|---|---|---|---|"]
+        lines += [f"## {names.get(pid, pid)} (`{pid}`)", "", "| Recording | Channel | Fragment | Licence | Used |", "|---|---|---|---|---|"]
         for r in recs:
-            lic = r.get("license") or "standardowa licencja YouTube (podstawa użycia powyżej)"
-            lines.append(f"| {r['url']} | {r.get('channel') or ''} | {r['start']}–{r['start'] + r['seconds']} s | {lic} | {'tak' if r['used'] else 'nie (' + r['why'] + ')'} |")
+            lic = r.get("license") or "standard YouTube licence (basis of use above)"
+            lines.append(f"| {r['url']} | {r.get('channel') or ''} | {r['start']}–{r['start'] + r['seconds']} s | {lic} | {'yes' if r['used'] else 'no (' + r['why'] + ')'} |")
         lines.append("")
     path.write_text("\n".join(lines))
 
@@ -152,7 +152,7 @@ def main() -> int:
         if 30 <= e["seconds"] <= MAX_FRAGMENT_SECONDS:
             valid.append(e)
         else:
-            print(f"{e['url']}: fragment {e['seconds']} s poza 30-{MAX_FRAGMENT_SECONDS} s, pominięty", file=sys.stderr)
+            print(f"{e['url']}: fragment {e['seconds']} s outside 30-{MAX_FRAGMENT_SECONDS} s, skipped", file=sys.stderr)
 
     def wav_of(e: dict) -> Path:
         """Path of the WAV of a source entry under `--work-dir/<set>/<person>/`."""
@@ -186,7 +186,7 @@ def main() -> int:
         for r in rows[pid]:
             vec = chosen.get(r["key"])
             if vec is None:
-                r["why"] = "brak wyraźnego mówcy albo niespójne z pozostałymi nagraniami"
+                r["why"] = "no clear speaker or inconsistent with the other recordings"
                 continue
             r["used"] = True
             persons.setdefault(pid, []).append([round(float(x), 6) for x in vec])
@@ -194,9 +194,9 @@ def main() -> int:
         if len(used) >= 2:
             m = np.array(used) @ np.array(used).T
             off = m[~np.eye(len(used), dtype=bool)]
-            print(f"{pid}: {len(used)}/{len(rows[pid])} nagrań, kosinus między nagraniami: średnio {off.mean():.2f}, min {off.min():.2f}", file=sys.stderr)
+            print(f"{pid}: {len(used)}/{len(rows[pid])} recordings, cosine between recordings: mean {off.mean():.2f}, min {off.min():.2f}", file=sys.stderr)
         else:
-            print(f"{pid}: użyto {len(used)}/{len(rows[pid])} nagrań", file=sys.stderr)
+            print(f"{pid}: used {len(used)}/{len(rows[pid])} recordings", file=sys.stderr)
     if rows:
         (work / "gallery.json").write_text(json.dumps({pid: [{"key": r["key"], "used": r["used"]} for r in recs] for pid, recs in rows.items()}))
     if args.index:

@@ -5,16 +5,16 @@
  */
 import type { EvidenceGraph } from "../graph/model";
 
-/** Source a pivot or similarity type comes from; types missing here are listed as "inne". */
+/** Source a pivot or similarity type comes from; types missing here are listed as "other". */
 export const SOURCE_OF_TYPE: Record<string, string> = {
-  url: "wejście (adres)",
-  host: "wejście (adres)",
-  domain: "wejście (adres)",
-  advertiser: "wejście (reklamodawca)",
-  campaign_param: "adres i HAR",
-  param_schema: "adres i HAR",
-  click_server: "adres i HAR",
-  meta_ad: "adres i HAR",
+  url: "input (URL)",
+  host: "input (URL)",
+  domain: "input (URL)",
+  advertiser: "input (advertiser)",
+  campaign_param: "URL and HAR",
+  param_schema: "URL and HAR",
+  click_server: "URL and HAR",
+  meta_ad: "URL and HAR",
   ip: "DNS",
   nameserver: "DNS",
   cname_target: "DNS",
@@ -37,16 +37,16 @@ export const SOURCE_OF_TYPE: Record<string, string> = {
   wallet: "HTML/HAR",
   telegram: "HTML/HAR",
   similar_dom: "HTML/HAR",
-  domain_pattern: "nazwa domeny",
-  imagehash: "obraz",
-  similar_image: "obraz",
-  similar_image_semantic: "obraz (CLIP)",
-  similar_text: "tekst (OCR/ASR/strona)",
-  persona: "tekst i twarze",
+  domain_pattern: "domain name",
+  imagehash: "image",
+  similar_image: "image",
+  similar_image_semantic: "image (CLIP)",
+  similar_text: "text (OCR/ASR/page)",
+  persona: "text and faces",
   technique: "HTML/HAR",
-  ad_payer: "biblioteka reklam",
-  similar_audio: "nagranie (odcisk audio)",
-  similar_voice: "nagranie (głos)",
+  ad_payer: "ad library",
+  similar_audio: "recording (audio fingerprint)",
+  similar_voice: "recording (voice)",
 };
 
 export interface SourceStatRow {
@@ -100,13 +100,13 @@ export function sourceStats(graph: EvidenceGraph): SourceStats {
     }
   }
   const rows = [...acc.entries()]
-    .map(([type, r]) => ({ type, source: SOURCE_OF_TYPE[type] ?? "inne", links: r.links, campaigns: r.campaigns.size, onlyLinks: r.only, strongLinks: r.strong }))
+    .map(([type, r]) => ({ type, source: SOURCE_OF_TYPE[type] ?? "other", links: r.links, campaigns: r.campaigns.size, onlyLinks: r.only, strongLinks: r.strong }))
     .sort((a, b) => b.links - a.links || a.type.localeCompare(b.type));
   return { campaigns: inCampaigns.size, links, rows };
 }
 
 /** Markdown table of the statistics (for pasting into a document), with the totals above it. */
 export function sourceStatsMarkdown(s: SourceStats): string {
-  const head = [`Kampanie z ≥ 2 materiałami: ${s.campaigns}; powiązania wewnątrz kampanii: ${s.links}.`, "", "| typ | źródło | powiązania | kampanie | jedyny dowód | mocne |", "|---|---|---|---|---|---|"];
+  const head = [`Campaigns with ≥ 2 samples: ${s.campaigns}; links inside campaigns: ${s.links}.`, "", "| type | source | links | campaigns | only evidence | strong |", "|---|---|---|---|---|---|"];
   return [...head, ...s.rows.map((r) => `| ${r.type} | ${r.source} | ${r.links} | ${r.campaigns} | ${r.onlyLinks} | ${r.strongLinks} |`)].join("\n");
 }

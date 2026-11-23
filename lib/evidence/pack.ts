@@ -1,6 +1,6 @@
 /**
  * Evidence pack export for one campaign, following section 5 of the legal report
- * ("Proponowany format paczki dowodów"): header, impersonated person (no biometric
+ * ("Proposed format of the evidence pack"): header, impersonated person (no biometric
  * templates), ads / domains / accounts with IDs, URLs and UTC timestamps, SHA-256 of the
  * archived HTML, fixtures and creatives, facts separated from model outputs, requested
  * actions per recipient, a domain list for the CERT warning list and a DSA Art. 16 notice
@@ -25,7 +25,7 @@ import { adLibraryFacts, pageUrl } from "./adRecords";
 import type { CampaignFacts } from "./facts";
 import { recipientFiles } from "./recipients";
 import { retentionPolicy } from "./retention";
-import { methodsWithPremises, sharedInfrastructureNote, traceTypeName, whyInCampaign } from "./readable";
+import { methodsWithPremises, sharedInfrastructureNote, traceTypeName, traceTypeNameInText, whyInCampaign } from "./readable";
 import { harToWarc } from "./warc";
 import { buildStixBundle } from "./stix";
 import { continuationAfterNotice, pendingReports, REPORT_WAIT_DAYS, type ReportEntry } from "./reports";
@@ -41,9 +41,9 @@ import { defangUrl } from "../viewer/defang";
 import { TECHNIQUE_LABEL } from "../viewer/plain";
 
 export const GOOD_FAITH_STATEMENT =
-  "Oświadczam, że w dobrej wierze uważam, iż informacje i zarzuty zawarte w zgłoszeniu są prawidłowe i kompletne.";
+  "I declare in good faith that the information and allegations contained in this notice are accurate and complete.";
 
-const TODO = (what: string) => `[UZUPEŁNIJ: ${what}]`;
+const TODO = (what: string) => `[FILL IN: ${what}]`;
 
 export interface Submitter {
   name: string | null;
@@ -128,31 +128,31 @@ function utc(iso: string | null | undefined): string | null {
 }
 
 const RECIPIENTS = {
-  D: "platforma (art. 16 DSA)",
-  C: "CSIRT NASK — Lista Ostrzeżeń CERT",
-  K: "KNF",
-  U: "UODO (skarga osoby, której wizerunek użyto)",
-  P: "prokuratura / Policja",
-  S: "Prezes UKE (skarga, art. 22zh)",
-  E: "zabezpieczenie danych (art. 218a k.p.k. / e-evidence)",
+  D: "platform (Art. 16 DSA)",
+  C: "CSIRT NASK — CERT Warning List",
+  K: "KNF (Polish Financial Supervision Authority)",
+  U: "UODO (complaint of the person whose image was used)",
+  P: "public prosecutor / Police",
+  S: "President of UKE (complaint, Art. 22zh)",
+  E: "data preservation (Art. 218a of the Code of Criminal Procedure / e-evidence)",
 } as const;
 
-function requestedActions(hasFinancialOffer: boolean): Array<{ recipient: keyof typeof RECIPIENTS; name: string; action: string; status: "propozycja" }> {
+function requestedActions(hasFinancialOffer: boolean): Array<{ recipient: keyof typeof RECIPIENTS; name: string; action: string; status: "proposal" }> {
   return [
-    { recipient: "D", name: RECIPIENTS.D, action: "usunięcie reklam i rozważenie blokady konta reklamodawcy; zachowanie danych reklam i płatnika", status: "propozycja" },
-    { recipient: "C", name: RECIPIENTS.C, action: "wpis domen z pliku cert-domains.txt na Listę Ostrzeżeń (do 50 domen na zgłoszenie)", status: "propozycja" },
+    { recipient: "D", name: RECIPIENTS.D, action: "remove the ads and consider blocking the advertiser account; preserve the data of the ads and the payer", status: "proposal" },
+    { recipient: "C", name: RECIPIENTS.C, action: "add the domains from cert-domains.txt to the Warning List (up to 50 domains per report)", status: "proposal" },
     {
       recipient: "K",
       name: RECIPIENTS.K,
       action: hasFinancialOffer
-        ? "informacja o podmiocie oferującym usługi inwestycyjne bez zezwolenia — rozważenie zawiadomienia i wpisu na listę ostrzeżeń publicznych"
-        : "informacja (jeśli oferta dotyczy usług finansowych)",
-      status: "propozycja",
+        ? "information about an entity offering investment services without a licence — consider a notification and an entry on the public warning list"
+        : "information (if the offer concerns financial services)",
+      status: "proposal",
     },
-    { recipient: "U", name: RECIPIENTS.U, action: "załącznik do skargi osoby, której wizerunek użyto (żądanie zakazu przetwarzania; sugestia środka z art. 66 RODO)", status: "propozycja" },
-    { recipient: "P", name: RECIPIENTS.P, action: "zawiadomienie o możliwości popełnienia przestępstwa z pełną paczką dowodów", status: "propozycja" },
-    { recipient: "S", name: RECIPIENTS.S, action: "skarga, jeśli platforma nie zareagowała na zgłoszenie (dołącz prior_reports)", status: "propozycja" },
-    { recipient: "E", name: RECIPIENTS.E, action: "zabezpieczenie danych u platformy (konto reklamowe, płatnik, logi) i u rejestratora domen", status: "propozycja" },
+    { recipient: "U", name: RECIPIENTS.U, action: "attachment to the complaint of the person whose image was used (request to stop the processing; suggested measure under Art. 66 GDPR)", status: "proposal" },
+    { recipient: "P", name: RECIPIENTS.P, action: "notification of a possible offence with the full evidence pack", status: "proposal" },
+    { recipient: "S", name: RECIPIENTS.S, action: "complaint if the platform did not act on the report (attach prior_reports)", status: "proposal" },
+    { recipient: "E", name: RECIPIENTS.E, action: "preserve the data held by the platform (ad account, payer, logs) and by the domain registrar", status: "proposal" },
   ];
 }
 
@@ -164,7 +164,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const config = opts.config ?? DEFAULT_LINK_CONFIG;
   const discounter = new Discounter(config);
   const campaign = opts.campaigns.campaigns.find((c) => c.id === opts.campaignId);
-  if (!campaign) throw new Error(`Nie ma kampanii ${opts.campaignId} w campaigns.json`);
+  if (!campaign) throw new Error(`No campaign ${opts.campaignId} in campaigns.json`);
   const outDir = opts.outDir;
   mkdirSync(path.join(outDir, "files"), { recursive: true });
 
@@ -172,13 +172,13 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const itemsById = new Map(opts.enriched.items.map((it) => [it.id, it]));
   const members: Item[] = campaign.members.map((id) => itemsById.get(id)).filter((x): x is Item => !!x);
   const missing = campaign.members.filter((id) => !itemsById.has(id));
-  if (missing.length) throw new Error(`enriched.json nie zawiera reklam: ${missing.join(", ")} (uruchom enrich na tym samym zbiorze)`);
+  if (missing.length) throw new Error(`enriched.json does not contain the ads: ${missing.join(", ")} (run enrich on the same dataset)`);
 
   const certList = opts.certList ?? null;
   const certListNote = opts.certListNote ?? null;
   /** Status of one domain on the CERT list from the local copy, as written to the pack (a plain "not checked" without a copy). */
   const certStatusRecord = (domain: string) => {
-    if (!certList) return { checked: false, status: "unchecked", note: `niesprawdzone: ${certListNote ?? "brak lokalnej kopii listy"}; sprawdź https://hole.cert.pl/domains/v2/domains.json i zapisz RegisterPositionId oraz InsertDate` };
+    if (!certList) return { checked: false, status: "unchecked", note: `not checked: ${certListNote ?? "no local copy of the list"}; check https://hole.cert.pl/domains/v2/domains.json and record RegisterPositionId and InsertDate` };
     const st = certStatus(certList, domain, now);
     return {
       checked: true,
@@ -188,7 +188,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       delete_date: st.deleteDate,
       matched_entry: st.matched,
       list_copy_utc: st.copyUtc,
-      source: "lokalna kopia listy, bez zapytań online",
+      source: "local copy of the list, no online queries",
     };
   };
 
@@ -211,7 +211,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       // the redacted text is the pack's file; the original stays with the analyst and is identified by its hash
       writeFileSync(destAbs, redact(readFileSync(abs, "utf8")));
       derived.derived_from_sha256 = sha256File(abs);
-      derived.redaction = "zredagowana kopia: bez ciasteczek, nagłówków i danych odwiedzającego analityka oraz z zamaskowanymi tokenami";
+      derived.redaction = "redacted copy: no cookies, headers or data of the visiting analyst, and tokens masked";
     } else copyFileSync(abs, destAbs);
     manifest.push({ file: target, sha256: sha256File(destAbs), size: statSync(destAbs).size, mime: mimeOf(destAbs), acquired_utc: acquired, source: sourceLabel, ...derived });
     copied.set(abs, target);
@@ -234,8 +234,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       size: statSync(destAbs).size,
       mime: "application/warc",
       acquired_utc: now.toISOString(),
-      source: `WARC (ISO 28500) z zredagowanego HAR ${harInPack}: ${warc.records} rekordów`,
-      ...(originalSha ? { derived_from_sha256: originalSha, redaction: "zredagowana kopia HAR przeniesiona do WARC" } : {}),
+      source: `WARC (ISO 28500) from the redacted HAR ${harInPack}: ${warc.records} ${warc.records === 1 ? "record" : "records"}`,
+      ...(originalSha ? { derived_from_sha256: originalSha, redaction: "redacted copy of the HAR carried into WARC" } : {}),
     });
     warcOfHar.set(harInPack, dest);
     for (const t of warc.targets) {
@@ -243,7 +243,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       if (host && !warcOfHost.has(host)) warcOfHost.set(host, dest);
     }
   };
-  // path.resolve: import ze spraw zapisuje ścieżki bezwzględne, których path.join skleiłby z katalogiem zbioru
+  // path.resolve: the case import writes absolute paths, which path.join would glue onto the dataset folder
   const datasetDir = path.resolve(root, opts.enriched.baseDir);
 
   // ---------------------------------------------------------------- ads (facts)
@@ -259,13 +259,13 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     const shown = data.displayedDomainMismatch as { displayed: string; landing: string; source: string; confidence: string } | undefined;
     const creatives: Array<{ file: string; sha256: string | null; source: string }> = [];
     if (item.imagePath) {
-      const dest = addFile(path.resolve(datasetDir, item.imagePath), `files/creatives/${path.basename(item.imagePath)}`, null, `plik kreacji reklamy ${item.id}`);
+      const dest = addFile(path.resolve(datasetDir, item.imagePath), `files/creatives/${path.basename(item.imagePath)}`, null, `creative file of ad ${item.id}`);
       if (dest) creatives.push({ file: dest, sha256: manifest.find((m) => m.file === dest)?.sha256 ?? null, source: item.imagePath });
     } else if (item.imageUrl) {
-      creatives.push({ file: item.imageUrl, sha256: null, source: "URL obrazu (plik nie został zachowany przez starter)" });
+      creatives.push({ file: item.imageUrl, sha256: null, source: "image URL (the file was not kept by the starter)" });
     }
     if (item.videoPath) {
-      const dest = addFile(path.resolve(datasetDir, item.videoPath), `files/media/${path.basename(item.videoPath)}`, null, `nagranie reklamy ${item.id}`);
+      const dest = addFile(path.resolve(datasetDir, item.videoPath), `files/media/${path.basename(item.videoPath)}`, null, `recording of ad ${item.id}`);
       if (dest) creatives.push({ file: dest, sha256: manifest.find((m) => m.file === dest)?.sha256 ?? null, source: item.videoPath });
     }
     const adUrlColumns = Object.entries(item.extra).filter(([k]) => /url|link|permalink|snapshot/i.test(k));
@@ -278,7 +278,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       let inPack: string | null = null;
       let copyError: string | null = null;
       try {
-        inPack = dir && f.sha256 ? addFile(f.path, `${dir}/${path.basename(f.path)}`, f.modifiedUtc, `plik wejściowy sprawy: ${SOURCE_FILE_LABEL[f.role]}`, REDACTORS[f.role]) : null;
+        inPack = dir && f.sha256 ? addFile(f.path, `${dir}/${path.basename(f.path)}`, f.modifiedUtc, `input file of the case: ${SOURCE_FILE_LABEL[f.role]}`, REDACTORS[f.role]) : null;
       } catch (e) {
         // a file that cannot be redacted (e.g. a HAR that is not JSON) must not be copied as it is
         copyError = (e as Error).message;
@@ -287,7 +287,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         try {
           addWarc(inPack, f.sha256);
         } catch (e) {
-          copyError = `HAR skopiowany zredagowany, ale bez WARC: ${(e as Error).message}`;
+          copyError = `HAR copied redacted, but without WARC: ${(e as Error).message}`;
         }
       }
       const entry = inPack ? manifest.find((m) => m.file === inPack) : undefined;
@@ -302,26 +302,26 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         imported_utc: inputs.importedAt,
         in_pack: inPack,
         note: f.error
-          ? `plik nieczytelny przy imporcie: ${f.error}`
+          ? `file unreadable at import: ${f.error}`
           : copyError
-            ? `plik nie został skopiowany, bo nie dało się go zredagować: ${copyError}`
+            ? `file not copied because it could not be redacted: ${copyError}`
             : !inPack
-              ? "plik nie został znaleziony przy eksporcie paczki"
+              ? "file not found when the pack was exported"
               : packSha !== f.sha256
-                ? "suma pliku w paczce różni się od sumy z importu: plik zmieniono po imporcie"
+                ? "the checksum of the file in the pack differs from the one taken at import: the file was changed after import"
                 : entry?.derived_from_sha256
-                  ? "w paczce zredagowana kopia (bez danych analityka); sha256 dotyczy oryginału"
+                  ? "the pack holds a redacted copy (without the analyst's data); sha256 refers to the original"
                   : null,
       };
     });
     return {
       item_id: item.id,
       platform: item.platform,
-      service: item.platform ? `reklama w serwisie ${item.platform}` : null,
+      service: item.platform ? `ad on ${item.platform}` : null,
       ad_urls: [...new Set([...adUrlColumns.map(([, v]) => v), ...library.urls])],
       ad_ids: { ad_id: item.id, ...Object.fromEntries(Object.entries(item.extra).filter(([k]) => /(^|_)id$|_id_/i.test(k))), ...(library.ids.length ? { ad_library_id: library.ids[0] } : {}) },
       advertiser_displayed: item.advertiser,
-      advertiser_note: nodeById.get(`item:${item.id}`)?.data.advertiserMismatch === true ? "konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)" : null,
+      advertiser_note: nodeById.get(`item:${item.id}`)?.data.advertiserMismatch === true ? "ad account probably hijacked (the name does not match the content)" : null,
       payer_displayed: library.payer ?? item.extra.ad_payers ?? null,
       beneficiary_displayed: library.beneficiary,
       // a hint from the look of the declared names, not a fact about who paid: the advertiser types them in and the platform does not verify them
@@ -353,7 +353,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       page_techniques: ((data.techniques as string[] | undefined) ?? []).map((t) => ({
         technique: t,
         label: TECHNIQUE_LABEL[t] ?? t,
-        source: page ? `kod strony docelowej ${defangUrl(page.fetch.finalUrl)}, pobrany ${utc(page.fetch.fetchedAt)}` : "kod strony docelowej",
+        source: page ? `code of the landing page ${defangUrl(page.fetch.finalUrl)}, fetched ${utc(page.fetch.fetchedAt)}` : "code of the landing page",
       })),
       // ClickFix: kind and SHA-256 of the copied command only; the command is a malware payload and is never written
       clickfix_command: (data.clickfix as { kind: string; sha256: string } | undefined) ?? null,
@@ -402,7 +402,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     const offerDomain = registrableDomain(page?.fetch.finalUrl ?? item.landingUrl ?? "");
     if (topic && offerDomain && !domainOffer.has(offerDomain)) {
       const text = [item.text, page?.extract?.title, page?.extract?.description, page?.extract?.visibleText].filter(Boolean).join("\n");
-      domainOffer.set(offerDomain, `„${topicQuote(text, topic.id) ?? topic.terms.join(", ")}” (wniosek z narracji materiału: ${topic.id})`);
+      domainOffer.set(offerDomain, `“${topicQuote(text, topic.id) ?? topic.terms.join(", ")}” (conclusion from the narrative of the sample: ${topic.id})`);
     }
     const urls = page ? [...page.fetch.redirectChain.map((h) => h.url), page.fetch.finalUrl] : item.landingUrl ? [item.landingUrl] : [];
     for (const u of urls) {
@@ -433,7 +433,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         return { ip, asn: a?.asn ?? null, as_name: a?.asName ?? null, prefix: a?.prefix ?? null };
       });
       const pages = (domainPages.get(domain) ?? []).map((p) => {
-        const archived = p.archiveFile ? addFile(p.archiveFile, `files/html/${path.basename(p.archiveFile)}`, utc(p.fetch.fetchedAt), `zdekodowany HTML strony ${p.fetch.finalUrl} (pobrano ${formatUtc(utc(p.fetch.fetchedAt))})`) : null;
+        const archived = p.archiveFile ? addFile(p.archiveFile, `files/html/${path.basename(p.archiveFile)}`, utc(p.fetch.fetchedAt), `decoded HTML of the page ${p.fetch.finalUrl} (fetched ${formatUtc(utc(p.fetch.fetchedAt))})`) : null;
         return {
           url: p.fetch.finalUrl,
           requested_url: p.requestedUrl,
@@ -441,8 +441,8 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           status: p.fetch.status,
           user_agent: p.fetch.userAgent,
           content_source: p.cloaking?.suspected
-            ? `pobranie narzędzia z User-Agent „${p.fetch.userAgent}”; podejrzenie cloakingu (${p.cloaking.reasons.join("; ")}): treść widziana przez ofiarę może się różnić`
-            : `pobranie narzędzia z User-Agent „${p.fetch.userAgent}”`,
+            ? `fetched by the tool with User-Agent “${p.fetch.userAgent}”; suspected cloaking (${p.cloaking.reasons.join("; ")}): the content the victim saw may differ`
+            : `fetched by the tool with User-Agent “${p.fetch.userAgent}”`,
           body_sha256_raw: p.fetch.bodySha256,
           archive_file: archived,
           title: p.extract?.title ?? null,
@@ -457,7 +457,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
         hosts: [...hosts].sort(),
         excluded_from_cert_list: platform ? platform.reason : null,
         primary_purpose_evidence: {
-          note: "fakty z kodu i treści strony; ocena „podstawowego celu” należy do człowieka",
+          note: "facts from the code and content of the page; judging the “primary purpose” is up to a human",
           form_backends: [...new Set(kitPages.flatMap((p) => p.kit?.endpoints.map((e) => (e.sameOrigin ? `${new URL(p.fetch.finalUrl).host}${e.pathTemplate}` : `${e.host}${e.pathTemplate}`)) ?? []))],
           hidden_fields: [...new Set(kitPages.flatMap((p) => p.kit?.hiddenFields ?? []))],
           contact_points: [...new Set(kitPages.flatMap((p) => [...(p.extract?.emails ?? []), ...(p.extract?.phones ?? []), ...(p.extract?.telegram ?? []), ...(p.extract?.whatsapp ?? [])]))],
@@ -471,7 +471,7 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
           registrar_iana_id: di?.rdap?.registrarIanaId ?? null,
           abuse_email: di?.rdap?.abuseEmail ?? null,
           rdap_source: di?.rdap?.source ?? null,
-          rdap_query_note: di?.rdap ? "czas zapytania RDAP nie jest zapisywany przez enrich; odpowiedź pochodzi z cache do tygodnia (CACHE_TTL.rdap)" : "brak odpowiedzi RDAP",
+          rdap_query_note: di?.rdap ? "enrich does not record the time of the RDAP query; the answer comes from a cache of up to a week (CACHE_TTL.rdap)" : "no RDAP answer",
           created_utc: utc(di?.rdap?.created),
           expires_utc: utc(di?.rdap?.expires),
           status: di?.rdap?.status ?? [],
@@ -512,12 +512,12 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       const cur = personaMap.get(p.id) ?? { name: p.name, role: p.role, bases: new Set<string>(), items: new Set<string>() };
       cur.bases.add(
         p.source === "ingest"
-          ? "wskazanie w danych wejściowych (kolumna persona, np. DROZD)"
+          ? "named in the input data (persona column, e.g. DROZD)"
           : p.source === "ner"
-            ? "NER modelu językowego (wynik modelu — wskazówka)"
+            ? "NER of a language model (model output — a hint)"
             : p.fuzzy
-              ? "nazwisko w tekście z OCR/ASR (dopasowanie przybliżone — wskazówka)"
-              : "nazwisko w tekście reklamy lub strony (lista obserwowanych osób)",
+              ? "name in the OCR/ASR text (approximate match — a hint)"
+              : "name in the text of the ad or page (watchlist of people)",
       );
       cur.items.add(item.id);
       personaMap.set(p.id, cur);
@@ -528,12 +528,12 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     persona_id: id,
     impersonated_person: p.name,
     public_role: p.role,
-    consent_status: "nieustalone — oświadczenie o braku zgody dołącza osoba lub pełnomocnik, nie narzędzie",
+    consent_status: "not established — a statement of no consent is attached by the person or their representative, not by the tool",
     match_basis: [...p.bases],
     ads: [...p.items].sort(),
-    biometric_data: "brak — paczka nie zawiera wzorców biometrycznych twarzy ani głosu",
+    biometric_data: "none — the pack holds no biometric templates of the face or voice",
     synthetic_media_assessment: deepfakeScores.length
-      ? { kind: "wynik modelu (wskazówka, nie dowód)", source: "kolumna wyniku deepfake w danych wejściowych (np. DROZD)", scores: deepfakeScores.filter((s) => p.items.has(s.item_id)) }
+      ? { kind: "model output (a hint, not proof)", source: "deepfake score column in the input data (e.g. DROZD)", scores: deepfakeScores.filter((s) => p.items.has(s.item_id)) }
       : null,
   }));
 
@@ -561,19 +561,19 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
   const edgeTypes = [...new Set(internal.flatMap((l) => l.evidence.filter((e) => e.kind === "similarity" && e.edgeType).map((e) => e.edgeType as string)))];
   const firstSeen = campaign.firstSeen ? campaign.firstSeen.slice(0, 10) : "?";
   const lastSeen = campaign.lastSeen ? campaign.lastSeen.slice(0, 10) : "?";
-  const platforms = [...new Set(members.map((m) => m.platform).filter(Boolean))].join(", ") || "brak danych";
-  const personaNames = impersonated.map((p) => p.impersonated_person).join(", ") || "brak wskazań";
+  const platforms = [...new Set(members.map((m) => m.platform).filter(Boolean))].join(", ") || "no data";
+  const personaNames = impersonated.map((p) => p.impersonated_person).join(", ") || "none named";
   const priorReports = (opts.priorReports ?? []).filter((r) => !r.campaign_id || r.campaign_id === campaign.id);
   const summaryFacts =
-    `W okresie ${firstSeen} – ${lastSeen} zarejestrowano ${members.length} reklam (platformy: ${platforms}) ` +
-    `kierujących do ${domains.length} domen (${domains.map((d) => d.domain_fqdn).join(", ") || "brak"}). ` +
-    `W treści reklam lub danych wejściowych wskazano osoby: ${personaNames}. ` +
-    `Reklamy łączą wspólne identyfikatory: ${sharedIdentifiers.slice(0, 5).map((s) => `${traceTypeName(s.type).toLowerCase()} ${s.value}`).join("; ") || "brak"}.`;
+    `Between ${firstSeen} and ${lastSeen}, ${members.length} ${members.length === 1 ? "ad was" : "ads were"} recorded (platforms: ${platforms}) ` +
+    `leading to ${domains.length} ${domains.length === 1 ? "domain" : "domains"} (${domains.map((d) => d.domain_fqdn).join(", ") || "none"}). ` +
+    `The ad text or the input data names these people: ${personaNames}. ` +
+    `The ads share these identifiers: ${sharedIdentifiers.slice(0, 5).map((s) => `${traceTypeNameInText(s.type)} ${s.value}`).join("; ") || "none"}.`;
   const hasFinancialOffer = domainOffer.size > 0;
 
   const summary = opts.summaries?.[campaign.id];
   const analysis = {
-    note: "wyniki modeli i heurystyk — wskazówki do oceny przez człowieka, nie dowód tożsamości ani rozstrzygnięcie",
+    note: "outputs of models and heuristics — hints for a human to assess, not proof of identity and not a ruling",
     campaign_assignment: {
       campaign_id: campaign.id,
       method: opts.campaigns.method,
@@ -583,63 +583,63 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     link_scores: internal.slice(0, 200).map((l) => ({ a: l.a, b: l.b, score: l.score, strong: l.strong, evidence: l.evidence.slice(0, 4).map((e) => e.evidence) })),
     similarity_methods: methodsWithPremises(
       {
-        image: `dHash 64 bit, próg Hamminga ${config.similarity.imageHamming}`,
-        text: `${opts.graph.textMethod}, próg ${opts.graph.textMethod === "embedding" ? config.similarity.text.embeddingThreshold : config.similarity.text.tfidfThreshold}`,
-        dom: `simhash struktury DOM, próg ${config.similarity.dom.hamming}`,
-        audio: `Chromaprint, próg ${config.similarity.audio.minSimilarity}`,
+        image: `dHash 64 bit, Hamming threshold ${config.similarity.imageHamming}`,
+        text: `${opts.graph.textMethod}, threshold ${opts.graph.textMethod === "embedding" ? config.similarity.text.embeddingThreshold : config.similarity.text.tfidfThreshold}`,
+        dom: `simhash of the DOM structure, threshold ${config.similarity.dom.hamming}`,
+        audio: `Chromaprint, threshold ${config.similarity.audio.minSimilarity}`,
       },
       edgeTypes,
     ),
-    persona_ner: [...personaMap.values()].some((p) => [...p.bases].some((b) => b.startsWith("NER"))) ? "użyto NER modelu językowego (patrz match_basis)" : "nie użyto",
+    persona_ner: [...personaMap.values()].some((p) => [...p.bases].some((b) => b.startsWith("NER"))) ? "NER of a language model was used (see match_basis)" : "not used",
     deepfake_scores: deepfakeScores,
     llm_summary: summary ? { model: summary.model, generated_utc: summary.generatedAt, persona: summary.persona, narrative: summary.narrative, infrastructure: summary.infrastructure } : null,
   };
 
   const record: Record<string, unknown> = {
     package_id: opts.packageId ?? randomUUID(),
-    version: "starter-evidence/1.0 (wg sekcji 5 raportu „Prawo i dowody”)",
+    version: "starter-evidence/1.0 (per section 5 of the report “Law and evidence”)",
     created_utc: now.toISOString(),
     tool_version: { ...toolVersion, link_config: { strongThreshold: config.strongThreshold, minLinkScore: config.minLinkScore, louvain: config.louvain } },
     submitter: {
-      name: opts.submitter?.name ?? TODO("imię i nazwisko / nazwa zgłaszającego"),
-      email: opts.submitter?.email ?? TODO("e-mail zgłaszającego"),
-      address: opts.submitter?.address ?? TODO("adres (wymagany m.in. w skardze do UODO)"),
-      role: opts.submitter?.role ?? TODO("rola: operator narzędzia / pełnomocnik / osoba, której dane dotyczą"),
+      name: opts.submitter?.name ?? TODO("full name / name of the submitter"),
+      email: opts.submitter?.email ?? TODO("e-mail of the submitter"),
+      address: opts.submitter?.address ?? TODO("address (required e.g. in a complaint to UODO)"),
+      role: opts.submitter?.role ?? TODO("role: tool operator / representative / data subject"),
     },
     good_faith_statement: GOOD_FAITH_STATEMENT,
     tlp: opts.tlp ?? "TLP:AMBER",
     pap: "PAP:AMBER",
     summary_facts: summaryFacts,
     legal_assessment: {
-      note: "(wniosek) propozycje podstaw do weryfikacji przez prawnika — narzędzie nie rozstrzyga o nielegalności ani o winie",
+      note: "(conclusion) proposed legal bases for a lawyer to verify — the tool does not rule on illegality or guilt",
       candidates: [
-        "art. 286 k.k. (oszustwo)",
-        "art. 190a § 2 k.k. (podszywanie się pod inną osobę)",
-        "art. 81 ustawy o prawie autorskim i prawach pokrewnych (rozpowszechnianie wizerunku bez zgody)",
-        "art. 23–24 k.c. (dobra osobiste)",
-        "art. 7 pkt 4 ustawy o przeciwdziałaniu nieuczciwym praktykom rynkowym",
-        ...(hasFinancialOffer ? ["art. 178 ustawy o obrocie instrumentami finansowymi / art. 171 prawa bankowego (działalność bez zezwolenia) — jeśli oferta dotyczy usług finansowych"] : []),
-        ...(deepfakeScores.length ? ["art. 50 ust. 4 AI Act (oznaczanie treści deepfake) — jeśli materiał jest syntetyczny"] : []),
+        "Art. 286 of the Criminal Code (fraud)",
+        "Art. 190a § 2 of the Criminal Code (impersonating another person)",
+        "Art. 81 of the Act on Copyright and Related Rights (distributing a person's image without consent)",
+        "Art. 23–24 of the Civil Code (personal rights)",
+        "Art. 7(4) of the Act on Counteracting Unfair Market Practices",
+        ...(hasFinancialOffer ? ["Art. 178 of the Act on Trading in Financial Instruments / Art. 171 of the Banking Law (activity without a licence) — if the offer concerns financial services"] : []),
+        ...(deepfakeScores.length ? ["Art. 50(4) of the AI Act (labelling deepfake content) — if the sample is synthetic"] : []),
       ],
     },
     requested_action: requestedActions(hasFinancialOffer),
     prior_reports: priorReports,
     reports_register: {
-      note: "dziennik zgłoszeń (--prior): odbiorca, data, kategoria, wynik; lista „czeka na reakcję” dla ponowienia zgłoszenia",
+      note: "register of reports (--prior): recipient, date, category, outcome; the “awaiting reaction” list for repeating a report",
       wait_days: REPORT_WAIT_DAYS,
       waiting: pendingReports(priorReports, now).map((p) => ({ recipient: p.entry.recipient, reported_utc: p.entry.reported_utc, days_waiting: p.days })),
     },
     harm_and_victims: {
-      note: "szkoda i pokrzywdzeni: dane od osób i instytucji, nie z narzędzia",
-      victims_reported: TODO("liczba zgłoszeń od pokrzywdzonych i ich źródło"),
-      harm_to_impersonated: TODO("szkoda osoby, której wizerunek użyto"),
+      note: "harm and victims: data from people and institutions, not from the tool",
+      victims_reported: TODO("number of reports from victims and their source"),
+      harm_to_impersonated: TODO("harm to the person whose image was used"),
       continuation_after_notice: continuationAfterNotice(priorReports, ads),
     },
     impersonated_person: impersonated,
     observations: {
-      note: "fakty: co zarejestrowano, gdzie i kiedy (UTC)",
+      note: "facts: what was recorded, where and when (UTC)",
       shared_identifiers: sharedIdentifiers,
-      shared_context_not_linking: { note: "ślady wspólne dla wielu niezależnych stron (np. serwery nazw i adresy IP Cloudflare, duży rejestrator): wagi je obniżyły, nie łączą reklam w kampanię", traces: sharedContext },
+      shared_context_not_linking: { note: "traces shared by many independent sites (e.g. Cloudflare name servers and IP addresses, a large registrar): the weights discounted them, they do not link the ads into a campaign", traces: sharedContext },
       ads_to_listed_domains: certPlan.adsToListed,
       ads: ads.map((a) => ({ ...a, why_in_campaign: whyByAd.get(a.item_id) ?? null })),
       domains,
@@ -716,13 +716,13 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
     tlp: String(record.tlp),
     urls: ads.flatMap((a) => [a.landing_url, ...a.landing_chain.filter((h) => h.kind === "final").map((h) => h.url)]).filter((u): u is string => !!u),
     imageHashes: members.map((m) => opts.enriched.perItem[m.id]?.image?.dhash).filter((h): h is string => !!h),
-    modelNotes: deepfakeScores.map((s) => `reklama ${s.item_id}: wynik deepfake ${s.score} (wynik modelu, wskazówka)`),
+    modelNotes: deepfakeScores.map((s) => `ad ${s.item_id}: deepfake score ${s.score} (model output, a hint)`),
     certRegisterIds: Object.fromEntries(domains.filter((d) => d.cert_warning_list_status.status === "active" && d.cert_warning_list_status.register_position_id != null).map((d) => [d.domain_fqdn, String(d.cert_warning_list_status.register_position_id)])),
   });
   write("stix-bundle.json", `${JSON.stringify(stix, null, 2)}\n`);
   for (const f of [...files]) {
     const abs = path.join(outDir, f);
-    manifest.push({ file: f, sha256: sha256File(abs), size: statSync(abs).size, mime: mimeOf(abs), acquired_utc: now.toISOString(), source: "wygenerowane przez starter" });
+    manifest.push({ file: f, sha256: sha256File(abs), size: statSync(abs).size, mime: mimeOf(abs), acquired_utc: now.toISOString(), source: "generated by the starter" });
   }
   manifest.sort((a, b) => a.file.localeCompare(b.file));
   const manifestText = manifest.map((m) => `${m.sha256}  ${m.file}`).join("\n") + "\n";
@@ -753,21 +753,21 @@ export function exportEvidencePack(opts: EvidenceOptions): EvidenceResult {
       },
     }),
     personal_data_inventory: [
-      { category: "imię i nazwisko osoby publicznej, której wizerunek użyto", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
-      { category: "nazwy kont reklamodawców", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
-      { category: "dane kontaktowe i portfele widoczne w reklamach i na stronach", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
-      { category: "dane rejestracyjne domen (publiczny RDAP)", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: `${retention.caseMaterial}; ${retention.network}` },
-      { category: "osoby z komentarzy pod reklamą, transkrypcje i tekst z OCR, jeśli są w materiale", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
-      { category: "zapis ruchu przeglądarki (HAR) i zapisane strony: tylko zredagowane kopie, bez ciasteczek i danych odwiedzającego", basis: "art. 6 ust. 1 lit. f RODO (wniosek)", retention: retention.caseMaterial },
-      { category: "wektory głosu i obrazu (nie trafiają do paczki)", basis: "poza paczką", retention: retention.models },
+      { category: "full name of the public figure whose image was used", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: retention.caseMaterial },
+      { category: "names of advertiser accounts", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: retention.caseMaterial },
+      { category: "contact details and wallets visible in the ads and on the pages", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: retention.caseMaterial },
+      { category: "domain registration data (public RDAP)", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: `${retention.caseMaterial}; ${retention.network}` },
+      { category: "people in the comments under the ad, transcripts and OCR text, if the sample has them", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: retention.caseMaterial },
+      { category: "browser traffic record (HAR) and saved pages: redacted copies only, without cookies or the visitor's data", basis: "Art. 6(1)(f) GDPR (conclusion)", retention: retention.caseMaterial },
+      { category: "voice and image vectors (not in the pack)", basis: "outside the pack", retention: retention.models },
     ],
     excluded_from_cert_list: excluded,
     limitations: [
-      "archiwum stron to zdekodowany HTML (UTF-8) i SHA-256 surowej odpowiedzi; WARC (ISO 28500) powstaje tylko z HAR dostarczonego przez sprawę (files/warc, po redakcji danych analityka), bez własnej archiwizacji stron; zrzuty ekranu tylko te, które dostarczyła sprawa (files/screenshots)",
+      "the page archive is decoded HTML (UTF-8) and the SHA-256 of the raw response; a WARC (ISO 28500) is made only from a HAR supplied with the case (files/warc, after redacting the analyst's data), with no page archiving of its own; screenshots only those the case supplied (files/screenshots)",
       ads.some((a) => a.repository_record)
-        ? "rekordy z biblioteki reklam (art. 39 DSA) są tylko dla reklam z identyfikatorem biblioteki i pobraniem --ad-library; dla pozostałych pobierz je przed zgłoszeniem"
-        : "rekordy z biblioteki reklam (art. 39 DSA) nie zostały pobrane: uruchom enrich z --ad-library (potrzebny identyfikator biblioteki ze zrzutu) przed zgłoszeniem",
-      certList ? `status na Liście Ostrzeżeń CERT z lokalnej kopii z ${certList.copyUtc ?? "nieznanej daty"} (bez zapytań online): może być nieaktualny` : `status na Liście Ostrzeżeń CERT niesprawdzony: ${certListNote ?? "brak lokalnej kopii listy"}`,
+        ? "ad library records (Art. 39 DSA) exist only for ads with a library ID fetched with --ad-library; fetch them for the others before reporting"
+        : "ad library records (Art. 39 DSA) were not fetched: run enrich with --ad-library (needs the library ID from the screenshot) before reporting",
+      certList ? `status on the CERT Warning List from a local copy of ${certList.copyUtc ?? "an unknown date"} (no online queries): may be out of date` : `status on the CERT Warning List not checked: ${certListNote ?? "no local copy of the list"}`,
     ],
   };
   writeFileSync(path.join(outDir, "evidence.json"), maskTokens(`${JSON.stringify(record, null, 2)}\n`), "utf8");
@@ -805,33 +805,33 @@ function libraryAccount(ads: Item[]): LibraryAccount | null {
 function signalsLine(ad: Record<string, unknown>): string | null {
   const parts: string[] = [];
   const techniques = ad.page_techniques as Array<{ label: string }>;
-  if (techniques.length) parts.push(`techniki strony: ${techniques.map((t) => t.label).join(", ")}`);
+  if (techniques.length) parts.push(`page techniques: ${techniques.map((t) => t.label).join(", ")}`);
   const click = ad.clickfix_command as { kind: string; sha256: string } | null;
-  if (click) parts.push(`polecenie ClickFix: rodzaj ${click.kind}, SHA-256 ${click.sha256}`);
+  if (click) parts.push(`ClickFix command: kind ${click.kind}, SHA-256 ${click.sha256}`);
   const stealer = ad.stealer_kit as { signals: string[]; c2_hosts: string[] } | null;
-  if (stealer) parts.push(`trojan w zestawie strony (${stealer.signals.join(", ")}), serwer C2: ${stealer.c2_hosts.join(", ")}`);
+  if (stealer) parts.push(`trojan in the page kit (${stealer.signals.join(", ")}), C2 server: ${stealer.c2_hosts.join(", ")}`);
   const shown = ad.displayed_domain_mismatch as { displayed: string; landing: string; brand_domain: boolean } | null;
-  if (shown) parts.push(`w reklamie pokazano domenę ${shown.displayed}${shown.brand_domain ? " (znana marka)" : ""}, a link prowadzi do ${shown.landing}`);
+  if (shown) parts.push(`the ad shows the domain ${shown.displayed}${shown.brand_domain ? " (a known brand)" : ""}, but the link leads to ${shown.landing}`);
   const lookAlike = ad.look_alike_host as { looks_like: string; char: string } | null;
-  if (lookAlike) parts.push(`adres udaje inny (znak ${lookAlike.char}): wygląda jak ${lookAlike.looks_like}`);
+  if (lookAlike) parts.push(`the address imitates another (character ${lookAlike.char}): it looks like ${lookAlike.looks_like}`);
   const lines = ad.phone_lines as Array<{ phone: string; line_type: string; country: string | null }>;
-  if (lines.length) parts.push(`numery: ${lines.map((l) => `${l.phone} (${l.line_type}${l.country ? `, ${l.country}` : ""})`).join(", ")}`);
+  if (lines.length) parts.push(`numbers: ${lines.map((l) => `${l.phone} (${l.line_type}${l.country ? `, ${l.country}` : ""})`).join(", ")}`);
   const flags = ad.phone_flags as { country_mismatch: boolean; toll_free_on_alert: boolean };
-  if (flags.country_mismatch) parts.push("kraj numeru różni się od rynku reklamy");
-  if (flags.toll_free_on_alert) parts.push("numer bezpłatny na stronie z fałszywym alarmem");
-  return parts.length ? `- reklama ${ad.item_id}: ${parts.join("; ")}` : null;
+  if (flags.country_mismatch) parts.push("the country of the number differs from the market of the ad");
+  if (flags.toll_free_on_alert) parts.push("toll-free number on a page with a fake alert");
+  return parts.length ? `- ad ${ad.item_id}: ${parts.join("; ")}` : null;
 }
 
 /** Names of the kinds of declared payer, for the reader of evidence.md. */
-const PAYER_KIND_NAME_PL: Record<string, string> = {
-  placeholder: "zaślepka",
-  gibberish: "bełkot z klawiatury",
-  person_foreign_script: "imię i nazwisko w obcym alfabecie",
-  person: "osoba prywatna",
-  generic_corp: "ogólna nazwa firmowa",
-  matches_page: "równy nazwie strony reklamodawcy",
-  registered_form: "nazwa z formą prawną",
-  other: "inny",
+const PAYER_KIND_NAME: Record<string, string> = {
+  placeholder: "placeholder",
+  gibberish: "keyboard gibberish",
+  person_foreign_script: "full name in a foreign script",
+  person: "private person",
+  generic_corp: "generic company name",
+  matches_page: "same as the advertiser's page name",
+  registered_form: "name with a legal form",
+  other: "other",
 };
 
 /**
@@ -845,17 +845,17 @@ function renderAdIdentity(ads: Array<Record<string, unknown>>): string {
     const kinds = a.payer_kinds as string[] | null;
     if (kinds?.length) {
       const notes = (a.payer_notes as string[] | undefined) ?? [];
-      lines.push(`- ${a.item_id}: płatnik zadeklarowany w repozytorium reklam: ${kinds.map((k) => PAYER_KIND_NAME_PL[k] ?? k).join(", ")}; ${a.payer_equals_beneficiary ? "płatnik równy beneficjentowi" : "beneficjent inny niż płatnik albo niepodany"}${a.payer_suspicious ? "; nazwa wygląda na wymyśloną" : ""}. To deklaracja reklamodawcy, nie dowód, kto płacił.${notes.length ? ` ${notes.join(" ")}` : ""}`);
+      lines.push(`- ${a.item_id}: payer declared in the ad repository: ${kinds.map((k) => PAYER_KIND_NAME[k] ?? k).join(", ")}; ${a.payer_equals_beneficiary ? "payer same as beneficiary" : "beneficiary other than the payer or not given"}${a.payer_suspicious ? "; the name looks made up" : ""}. This is the advertiser's declaration, not proof of who paid.${notes.length ? ` ${notes.join(" ")}` : ""}`);
     }
     const ids = (a.company_identifiers as Array<{ kind: string; value: string; checksum_valid: boolean; check: string; source: string }> | undefined) ?? [];
     for (const c of ids) {
-      lines.push(`- ${a.item_id}: ${c.kind.toUpperCase()} ${c.value} (źródło: ${c.source}; ${c.check === "checksum" ? `suma kontrolna ${c.checksum_valid ? "poprawna" : "błędna: numer zmyślony albo przepisany z błędem"}` : `format ${c.checksum_valid ? "poprawny" : "błędny"}, bez sumy kontrolnej`})`);
+      lines.push(`- ${a.item_id}: ${c.kind.toUpperCase()} ${c.value} (source: ${c.source}; ${c.check === "checksum" ? `checksum ${c.checksum_valid ? "valid" : "invalid: the number is made up or copied with an error"}` : `format ${c.checksum_valid ? "valid" : "invalid"}, no checksum`})`);
     }
   }
-  return lines.length ? `#### Płatnik i dane firmy (wskazówki)\n\n${lines.join("\n")}\n\nIdentyfikatory firm i rachunki tylko wspierają powiązanie: dane firmy da się skopiować z cudzej strony.\n\n` : "";
+  return lines.length ? `#### Payer and company data (hints)\n\n${lines.join("\n")}\n\nCompany identifiers and accounts only support a link: company data can be copied from someone else's page.\n\n` : "";
 }
 
-/** evidence.md: the record in tables for a reader, in plain Polish names, with dates as `YYYY-MM-DD HH:MM UTC` and addresses defanged (raw only in evidence.json and the DSA notices). */
+/** evidence.md: the record in tables for a reader, in plain names, with dates as `YYYY-MM-DD HH:MM UTC` and addresses defanged (raw only in evidence.json and the DSA notices). */
 function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): string {
   const obs = record.observations as {
     shared_identifiers: Array<{ type: string; value: string; ads_with_identifier: number }>;
@@ -877,58 +877,58 @@ function renderMarkdown(record: Record<string, unknown>, campaign: Campaign): st
   const actions = record.requested_action as Array<{ recipient: string; name: string; action: string }>;
   const submitter = record.submitter as Submitter;
   const cell = (v: unknown) => String(v ?? "—").replace(/\|/g, "\\|").replace(/\n/g, " ");
-  const md = `# Paczka dowodów — kampania ${campaign.id}
+  const md = `# Evidence pack — campaign ${campaign.id}
 
-| Pole | Wartość |
+| Field | Value |
 |---|---|
 | package_id | \`${String(record.package_id)}\` |
-| utworzono (UTC) | ${formatUtc(String(record.created_utc))} |
-| narzędzie | ${cell((record.tool_version as { name: string; version: string }).name)} ${cell((record.tool_version as { version: string }).version)} |
-| zgłaszający | ${cell(submitter.name)}, ${cell(submitter.email)} |
+| created (UTC) | ${formatUtc(String(record.created_utc))} |
+| tool | ${cell((record.tool_version as { name: string; version: string }).name)} ${cell((record.tool_version as { version: string }).version)} |
+| submitter | ${cell(submitter.name)}, ${cell(submitter.email)} |
 | TLP / PAP | ${cell(record.tlp)} / ${cell(record.pap)} |
-| sha256 manifestu | \`${integrity.manifest_sha256}\` |
+| manifest sha256 | \`${integrity.manifest_sha256}\` |
 
-> Fakty (obserwacje) są oddzielone od wyników modeli (analiza). Narzędzie proponuje działania; decyzję o zgłoszeniu podejmuje człowiek.
+> Facts (observations) are kept apart from model outputs (analysis). The tool proposes actions; a human decides whether to report.
 
-## Streszczenie faktów
+## Summary of facts
 
 ${String(record.summary_facts)}
 
-## Osoba, której wizerunek użyto
+## Person whose image was used
 
-Paczka nie zawiera wzorców biometrycznych.
+The pack holds no biometric templates.
 
-${personas.map((p) => `- **${p.impersonated_person}**${p.public_role ? ` (${p.public_role})` : ""} — podstawa: ${p.match_basis.join("; ")}. Zgoda: ${p.consent_status}.`).join("\n") || "- brak wskazań"}
+${personas.map((p) => `- **${p.impersonated_person}**${p.public_role ? ` (${p.public_role})` : ""} — basis: ${p.match_basis.join("; ")}. Consent: ${p.consent_status}.`).join("\n") || "- none named"}
 
-## Obserwacje (fakty)
+## Observations (facts)
 
-### Wspólne identyfikatory
+### Shared identifiers
 
-| Rodzaj śladu | Wartość | Reklamy |
+| Kind of trace | Value | Ads |
 |---|---|---|
 ${obs.shared_identifiers.map((s) => `| ${cell(traceTypeName(s.type))} | ${cell(s.value)} | ${s.ads_with_identifier} |`).join("\n")}
 
-#### Ślady wspólne dla wielu niezależnych stron (nie łączą reklam)
+#### Traces shared by many independent sites (they do not link the ads)
 
-${obs.shared_context_not_linking.traces.map((t) => `- ${traceTypeName(t.type)}: ${t.value} (${t.ads_with_identifier} reklam; ${t.discount_reasons.join(", ") || "wspólne dla wielu niezależnych stron"})`).join("\n") || "- brak"}
+${obs.shared_context_not_linking.traces.map((t) => `- ${traceTypeName(t.type)}: ${t.value} (${t.ads_with_identifier} ${t.ads_with_identifier === 1 ? "ad" : "ads"}; ${t.discount_reasons.join(", ") || "shared by many independent sites"})`).join("\n") || "- none"}
 
-### Reklamy
+### Ads
 
-| ID | Platforma | Reklamodawca | Pierwsza / ostatnia obserwacja (UTC) | Link docelowy | Dlaczego w kampanii |
+| ID | Platform | Advertiser | First / last seen (UTC) | Landing link | Why in the campaign |
 |---|---|---|---|---|---|
 ${obs.ads.map((a) => `| ${cell(a.item_id)} | ${cell(a.platform)} | ${cell(a.advertiser_displayed)} | ${cell(formatUtc(a.first_seen_utc as string | null))} / ${cell(formatUtc(a.last_seen_utc as string | null))} | ${cell(a.landing_url)} | ${cell(a.why_in_campaign)} |`).join("\n")}
 
-#### Tekst reklam
+#### Ad text
 
-${obs.ads.map((a) => `- ${a.item_id}: ${a.ad_text ? `„${cell(String(a.ad_text).slice(0, 300))}”` : "brak tekstu"}`).join("\n")}
+${obs.ads.map((a) => `- ${a.item_id}: ${a.ad_text ? `“${cell(String(a.ad_text).slice(0, 300))}”` : "no text"}`).join("\n")}
 
-${renderAdIdentity(obs.ads)}${renderShopSignals(obs.ads)}### Sygnały materiałów (atrybuty, nie dowody powiązania)
+${renderAdIdentity(obs.ads)}${renderShopSignals(obs.ads)}### Signals of the samples (attributes, not evidence of a link)
 
-${obs.ads.map((a) => signalsLine(a)).filter((l) => l !== null).join("\n") || "- brak"}
+${obs.ads.map((a) => signalsLine(a)).filter((l) => l !== null).join("\n") || "- none"}
 
-### Domeny
+### Domains
 
-| Domena | Rejestrator | Utworzona (UTC) | NS | IP (ASN) |
+| Domain | Registrar | Created (UTC) | NS | IP (ASN) |
 |---|---|---|---|---|
 ${obs.domains
   .map((d) => {
@@ -937,49 +937,49 @@ ${obs.domains
       const note = sharedInfrastructureNote(name);
       return note ? ` *(${note})*` : "";
     };
-    return `| ${cell(defangHost(String(d.domain_fqdn)))}${d.excluded_from_cert_list ? " *(poza listą CERT)*" : ""} | ${cell(reg.registrar)} | ${cell(formatUtc(reg.created_utc))} | ${cell(reg.nameservers.map((n) => `${n}${mark(n)}`).join(", "))} | ${cell(reg.ips.map((i) => `${i.ip}${i.asn ? ` (AS${i.asn})` : ""}${mark(i.as_name ?? "")}`).join(", "))} |`;
+    return `| ${cell(defangHost(String(d.domain_fqdn)))}${d.excluded_from_cert_list ? " *(left off the CERT list)*" : ""} | ${cell(reg.registrar)} | ${cell(formatUtc(reg.created_utc))} | ${cell(reg.nameservers.map((n) => `${n}${mark(n)}`).join(", "))} | ${cell(reg.ips.map((i) => `${i.ip}${i.asn ? ` (AS${i.asn})` : ""}${mark(i.as_name ?? "")}`).join(", "))} |`;
   })
   .join("\n")}
 
-### Konta reklamodawców
+### Advertiser accounts
 
-${obs.accounts.map((a) => `- „${a.advertiser_displayed}”: ${a.ads.join(", ")}${a.library_account ? `; konto w bibliotece reklam (${a.library_account.platform}): ${a.library_account.advertiser_id}${a.library_account.legal_name ? `, nazwa prawna „${a.library_account.legal_name}”` : ""}${a.library_account.location ? `, kraj ${a.library_account.location}` : ""}${a.library_account.verified === null ? "" : a.library_account.verified ? ", zweryfikowany" : ", niezweryfikowany"}` : ""}`).join("\n") || "- brak"}
+${obs.accounts.map((a) => `- “${a.advertiser_displayed}”: ${a.ads.join(", ")}${a.library_account ? `; ad library account (${a.library_account.platform}): ${a.library_account.advertiser_id}${a.library_account.legal_name ? `, legal name “${a.library_account.legal_name}”` : ""}${a.library_account.location ? `, country ${a.library_account.location}` : ""}${a.library_account.verified === null ? "" : a.library_account.verified ? ", verified" : ", not verified"}` : ""}`).join("\n") || "- none"}
 
-## Analiza (wyniki modeli i heurystyk — wskazówki)
+## Analysis (outputs of models and heuristics — hints)
 
-- przypisanie do kampanii: union-find + Louvain; spójność ${analysis.campaign_assignment.cohesion}, składowe silnych dowodów: ${analysis.campaign_assignment.strong_components}
-- metody podobieństwa, które dały przesłanki: ${Object.values(analysis.similarity_methods).join("; ") || "żadna (kampanię łączą wspólne ślady, nie podobieństwo)"}
-- wyniki deepfake z danych wejściowych: ${analysis.deepfake_scores.map((s) => `${s.item_id}=${s.score}`).join(", ") || "brak"}
-- streszczenie (wygenerowane przez model ${analysis.llm_summary?.model ?? "—"}, niezweryfikowane): ${analysis.llm_summary ? `${analysis.llm_summary.narrative}${analysis.llm_summary.infrastructure ? ` Infrastruktura: ${analysis.llm_summary.infrastructure}` : ""}` : "brak"}
+- assignment to the campaign: union-find + Louvain; cohesion ${analysis.campaign_assignment.cohesion}, components of strong evidence: ${analysis.campaign_assignment.strong_components}
+- similarity methods that gave evidence: ${Object.values(analysis.similarity_methods).join("; ") || "none (the campaign is linked by shared traces, not by similarity)"}
+- deepfake scores from the input data: ${analysis.deepfake_scores.map((s) => `${s.item_id}=${s.score}`).join(", ") || "none"}
+- summary (generated by model ${analysis.llm_summary?.model ?? "—"}, not verified): ${analysis.llm_summary ? `${analysis.llm_summary.narrative}${analysis.llm_summary.infrastructure ? ` Infrastructure: ${analysis.llm_summary.infrastructure}` : ""}` : "none"}
 
-## Proponowane działania (do decyzji człowieka)
+## Proposed actions (for a human to decide)
 
-| Odbiorca | Działanie |
+| Recipient | Action |
 |---|---|
 ${actions.map((a) => `| ${a.recipient} — ${cell(a.name)} | ${cell(a.action)} |`).join("\n")}
 
-## Pliki i integralność
+## Files and integrity
 
-Weryfikacja: \`shasum -a 256 -c manifest.sha256\`
+Verification: \`shasum -a 256 -c manifest.sha256\`
 
-| Plik | Opis | SHA-256 | Rozmiar | Pozyskano (UTC) |
+| File | Description | SHA-256 | Size | Acquired (UTC) |
 |---|---|---|---|---|
-${integrity.manifest.map((m) => `| ${cell(m.file)} | ${cell(m.source)}${m.derived_from_sha256 ? ` (kopia zredagowana; sha256 oryginału \`${m.derived_from_sha256}\`)` : ""} | \`${m.sha256}\` | ${m.size} | ${cell(formatUtc(m.acquired_utc))} |`).join("\n")}
+${integrity.manifest.map((m) => `| ${cell(m.file)} | ${cell(m.source)}${m.derived_from_sha256 ? ` (redacted copy; sha256 of the original \`${m.derived_from_sha256}\`)` : ""} | \`${m.sha256}\` | ${m.size} | ${cell(formatUtc(m.acquired_utc))} |`).join("\n")}
 
-## Dane osobowe w paczce
+## Personal data in the pack
 
-| Kategoria | Podstawa | Retencja |
+| Category | Basis | Retention |
 |---|---|---|
 ${integrity.personal_data_inventory.map((i) => `| ${cell(i.category)} | ${cell(i.basis)} | ${cell(i.retention)} |`).join("\n")}
 
-## Łańcuch przechowywania
+## Chain of custody
 
 ${integrity.custody_log.map((c) => `- ${formatUtc(c.utc)}: ${c.actor} — ${c.action}`).join("\n")}
 
-Domeny wyłączone z listy CERT (platformy, skracacze, serwisy publiczne): ${integrity.excluded_from_cert_list.map((e) => `${e.domain} (${e.reason})`).join("; ") || "brak"}.
+Domains left off the CERT list (platforms, shorteners, public services): ${integrity.excluded_from_cert_list.map((e) => `${e.domain} (${e.reason})`).join("; ") || "none"}.
 
-Ograniczenia: ${integrity.limitations.join("; ")}.
+Limitations: ${integrity.limitations.join("; ")}.
 `;
-  // adresy rozbrojone: surowe zostają tylko w evidence.json i zgłoszeniach DSA
+  // defanged addresses: the raw ones stay only in evidence.json and the DSA notices
   return defangText(md);
 }

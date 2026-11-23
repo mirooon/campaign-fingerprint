@@ -61,8 +61,8 @@ describe("analyzeMaterial: archive step", () => {
     const res = await analyzeMaterial({ url: DEAD }, ctx("a2", { sources: [source([])] }));
     const [it] = res.items;
     expect(it.verdict).toBe("insufficient");
-    expect(it.verdictText).toMatch(/brak strony i brak kopii archiwalnej/);
-    expect(it.missing?.join(" ")).toMatch(/archiw/);
+    expect(it.verdictText).toMatch(/no page and no archived copy/);
+    expect(it.missing?.join(" ")).toMatch(/archive/);
     expect(it.bodySource).toBeUndefined();
     expect(step(res)).toMatchObject({ status: "skipped", detail: "no archived copy (wayback)" });
   });

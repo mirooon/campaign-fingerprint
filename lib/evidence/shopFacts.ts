@@ -60,14 +60,14 @@ export function renderShopSignals(ads: Array<Record<string, unknown>>): string {
     const f = a.shop_signals as ShopFacts | null | undefined;
     if (!f) continue;
     const lines = [`**${String(a.item_id)}**`];
-    lines.push(...(f.flags.length ? f.flags.map((x) => `- ${x.name}: ${x.detail}`) : ["- żadna z cech sklepu nie wystąpiła"]));
-    if (f.techniques.length) lines.push(`- chwyty sprzedażowe: ${f.techniques.map((t) => TECHNIQUE_LABEL[t] ?? t).join(", ")}`);
-    if (f.payment_methods.length) lines.push(`- metody płatności: ${f.payment_methods.join(", ")}`);
-    lines.push(`- adres na stronie: ${ADDRESS_COMPLETENESS_LABEL[f.address.completeness] ?? f.address.completeness}${f.address.quote ? ` („${f.address.quote}”)` : ""}`);
-    if (f.email_domains.length) lines.push(`- domeny adresów e-mail: ${f.email_domains.map((e) => `${e.domain} (${EMAIL_DOMAIN_KIND_LABEL[e.kind] ?? e.kind})`).join(", ")}`);
+    lines.push(...(f.flags.length ? f.flags.map((x) => `- ${x.name}: ${x.detail}`) : ["- none of the shop features occurred"]));
+    if (f.techniques.length) lines.push(`- sales tricks: ${f.techniques.map((t) => TECHNIQUE_LABEL[t] ?? t).join(", ")}`);
+    if (f.payment_methods.length) lines.push(`- payment methods: ${f.payment_methods.join(", ")}`);
+    lines.push(`- address on the page: ${ADDRESS_COMPLETENESS_LABEL[f.address.completeness] ?? f.address.completeness}${f.address.quote ? ` (“${f.address.quote}”)` : ""}`);
+    if (f.email_domains.length) lines.push(`- domains of e-mail addresses: ${f.email_domains.map((e) => `${e.domain} (${EMAIL_DOMAIN_KIND_LABEL[e.kind] ?? e.kind})`).join(", ")}`);
     blocks.push(lines.join("\n"));
   }
   return blocks.length
-    ? `#### Sygnały sklepu (wyjaśnienia)\n\n${blocks.join("\n\n")}\n\nTe cechy wyjaśniają, dlaczego strona wygląda jak fałszywy sklep. Uczciwe sklepy też bywają bez najniższej ceny z 30 dni, z jedną metodą płatności albo z samymi opiniami 5/5, więc nie łączą reklam w kampanię i nie są dowodem. Adres siedziby tylko wspiera powiązanie: da się go skopiować z cudzej strony.\n\n`
+    ? `#### Shop signals (explanations)\n\n${blocks.join("\n\n")}\n\nThese features explain why the page looks like a fake shop. Honest shops also lack the lowest price of the last 30 days, take one payment method or show only 5/5 reviews, so they do not link the ads into a campaign and are not proof. The registered address only supports a link: it can be copied from someone else\'s page.\n\n`
     : "";
 }

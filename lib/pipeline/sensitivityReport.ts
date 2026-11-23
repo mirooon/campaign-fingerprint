@@ -127,18 +127,18 @@ export function impactRows(runs: ShiftRun[]): { ranked: ShiftRun[]; noImpact: st
   return { ranked, noImpact };
 }
 
-/** Score with 4 decimals and a decimal comma ("0,8434"). */
-const f4 = (x: number) => x.toFixed(4).replace(".", ",");
-/** Factor or weight value without trailing zeros and with a decimal comma ("0,7"). */
-const fx = (x: number) => String(Number(x.toFixed(4))).replace(".", ",");
+/** Score with 4 decimals ("0.8434"). */
+const f4 = (x: number) => x.toFixed(4);
+/** Factor or weight value without trailing zeros ("0.7"). */
+const fx = (x: number) => String(Number(x.toFixed(4)));
 /** "min / median / max" cell of table A. */
 const triple = (r: Range) => `${f4(r.min)} / ${f4(r.median)} / ${f4(r.max)}`;
 
-/** Markdown table of one-at-a-time runs (B or C); paths without effect go to one closing row. `what` names the first column ("waga", "próg"). */
+/** Markdown table of one-at-a-time runs (B or C); paths without effect go to one closing row. `what` names the first column ("weight", "threshold"). */
 function shiftTable(runs: ShiftRun[], what: string, noEffectNote: string): string[] {
-  if (!runs.length) return ["Brak wartości do zbadania w tej konfiguracji."];
+  if (!runs.length) return ["No values to examine in this configuration."];
   const { ranked, noImpact } = impactRows(runs);
-  const lines = [`| ${what} | wartość | ΔF1 | zmienione pary | nowe sklejenia etykiet |`, "|---|---|---|---|---|"];
+  const lines = [`| ${what} | value | ΔF1 | changed pairs | new label merges |`, "|---|---|---|---|---|"];
   for (const r of ranked) {
     const sign = r.deltaF1 > 0 ? "+" : "";
     lines.push(`| ${r.path} (×${fx(r.factor)}) | ${fx(r.from)} → ${fx(r.to)} | ${sign}${f4(r.deltaF1)} | ${r.distance} | ${r.newMerges.length} |`);
@@ -151,27 +151,27 @@ function shiftTable(runs: ShiftRun[], what: string, noEffectNote: string): strin
 export function formatSensitivityMarkdown(r: SensitivityResult): string {
   const { meta } = r;
   const out = [
-    "# Wrażliwość wag",
+    "# Weight sensitivity",
     "",
     `- commit: ${meta.commit}`,
-    `- data: ${meta.date}`,
-    `- materiałów: ${meta.items} (z etykietą: ${meta.labeled})`,
-    `- czas: ${meta.seconds.toFixed(1)} s`,
-    `- ziarno: ${meta.seed}, przebiegów na rozrzut: ${meta.runs}`,
+    `- date: ${meta.date}`,
+    `- samples: ${meta.items} (labelled: ${meta.labeled})`,
+    `- time: ${meta.seconds.toFixed(1)} s`,
+    `- seed: ${meta.seed}, runs per spread: ${meta.runs}`,
     "",
-    `Przebieg bazowy: precyzja par ${f4(r.base.precision)}, czułość ${f4(r.base.recall)}, F1 ${f4(r.base.f1)}, B-cubed F1 ${f4(r.base.bcubedF1)}, ARI ${f4(r.base.ari)}, kampanii ${r.base.clusters}.`,
+    `Base run: pair precision ${f4(r.base.precision)}, recall ${f4(r.base.recall)}, F1 ${f4(r.base.f1)}, B-cubed F1 ${f4(r.base.bcubedF1)}, ARI ${f4(r.base.ari)}, campaigns ${r.base.clusters}.`,
     "",
-    "## A. Losowe zaburzenie wszystkich wag naraz",
+    "## A. Random perturbation of all weights at once",
     "",
-    "Każda waga × czynnik z [1 − s, 1 + s] (obcięcie do [0, 1]). Komórki: min / mediana / maks.",
+    "Each weight × a factor from [1 − s, 1 + s] (clipped to [0, 1]). Cells: min / median / max.",
     "",
-    "| rozrzut | przebiegi | precyzja par | czułość par | F1 par | B-cubed F1 | ARI | podział jak bazowy | maks. zmienionych par | przebiegi z nowym sklejeniem |",
+    "| spread | runs | pair precision | pair recall | pair F1 | B-cubed F1 | ARI | partition as in base | max. changed pairs | runs with a new merge |",
     "|---|---|---|---|---|---|---|---|---|---|",
   ];
   for (const s of summarizeRandom(r.random)) {
-    out.push(`| ±${fx(s.spread)} | ${s.runs} | ${triple(s.precision)} | ${triple(s.recall)} | ${triple(s.f1)} | ${triple(s.bcubedF1)} | ${triple(s.ari)} | ${s.identical} z ${s.runs} | ${s.maxDistance} | ${s.runsWithNewMerge} z ${s.runs} |`);
+    out.push(`| ±${fx(s.spread)} | ${s.runs} | ${triple(s.precision)} | ${triple(s.recall)} | ${triple(s.f1)} | ${triple(s.bcubedF1)} | ${triple(s.ari)} | ${s.identical} of ${s.runs} | ${s.maxDistance} | ${s.runsWithNewMerge} of ${s.runs} |`);
   }
-  out.push("", "## B. Jedna waga naraz", "", `Czynniki: ${meta.factors.map((f) => `×${fx(f)}`).join(", ")}. Posortowane po wpływie (zmienione pary, potem |ΔF1|).`, "", ...shiftTable(r.oneAtATime, "waga", "wagi bez wpływu"));
-  out.push("", "## C. Progi osobno", "", `Czynniki: ${meta.thresholdFactors.map((f) => `×${fx(f)}`).join(", ") || "—"}.`, "", ...shiftTable(r.thresholds, "próg", "progi bez wpływu"), "");
+  out.push("", "## B. One weight at a time", "", `Factors: ${meta.factors.map((f) => `×${fx(f)}`).join(", ")}. Sorted by impact (changed pairs, then |ΔF1|).`, "", ...shiftTable(r.oneAtATime, "weight", "weights without effect"));
+  out.push("", "## C. Thresholds one at a time", "", `Factors: ${meta.thresholdFactors.map((f) => `×${fx(f)}`).join(", ") || "—"}.`, "", ...shiftTable(r.thresholds, "threshold", "thresholds without effect"), "");
   return out.join("\n");
 }

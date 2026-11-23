@@ -30,18 +30,18 @@ const args = cli(
     offline: { type: "boolean" },
     "dry-run": { type: "boolean" },
   } as const,
-  `Użycie: bun run ct:backfill [--pattern 'zwrot%,finance%.sbs'] [--since 7] [--campaigns data/campaigns.json]
+  `Usage: bun run ct:backfill [--pattern 'zwrot%,finance%.sbs'] [--since 7] [--campaigns data/campaigns.json]
   [--lexicon data/sample/ct-lexicon.json] [--threshold 0.6] [--feed data/ct-watch.jsonl] [--include-expired]
   [--no-enrich] [--fetch-page] [--offline] [--dry-run]
-Wzorce crt.sh: litery, cyfry, ".", "-" i "%" (dowolny ciąg); bez --pattern wzorce powstają z szablonów nazw kampanii.
-crt.sh bywa wolny: zakotwicz wzorzec prefiksem lub sufiksem.`,
+crt.sh patterns: letters, digits, ".", "-" and "%" (any string); without --pattern the patterns come from the name templates of the campaigns.
+crt.sh can be slow: anchor the pattern with a prefix or a suffix.`,
 );
 
 void main(async () => {
   const set = loadFingerprints(args);
   printFingerprints(set);
   const patterns = args.pattern ? args.pattern.split(",").map((p) => p.trim()).filter(Boolean) : backfillPatterns(set);
-  if (!patterns.length) throw new Error("brak wzorców: podaj --pattern albo zbuduj kampanie z domenami o wspólnym szablonie nazw");
+  if (!patterns.length) throw new Error("no patterns: give --pattern or build campaigns with domains that share a name template");
   const sinceDays = Number(args.since ?? 7);
   const feedFile = args["dry-run"] ? null : (args.feed ?? process.env.CT_FEED_FILE ?? DEFAULT_FEED_FILE);
   const sources = args.offline ? fixtureSources(DEFAULTS.fixtures) : liveSources();
@@ -54,7 +54,7 @@ void main(async () => {
     enrich: args["no-enrich"] ? null : { sources, fetchPage: Boolean(args["fetch-page"]) },
     log: (m) => console.log(m),
   });
-  console.log(`[ct] backfill z crt.sh: ${patterns.join(", ")} (ostatnie ${sinceDays} dni)`);
+  console.log(`[ct] backfill from crt.sh: ${patterns.join(", ")} (last ${sinceDays} ${sinceDays === 1 ? "day" : "days"})`);
   const res = await runBackfill({
     watcher,
     patterns,
@@ -63,8 +63,8 @@ void main(async () => {
     log: (m) => console.log(m),
   });
   for (const p of res.patterns) {
-    console.log(`  ${p.pattern}: ${p.status}${p.status === "ok" ? `, certyfikaty ${p.certificates}, z ostatnich ${sinceDays} dni ${p.recent}` : p.error ? ` (${p.error})` : ""}`);
+    console.log(`  ${p.pattern}: ${p.status}${p.status === "ok" ? `, certificates ${p.certificates}, from the last ${sinceDays} ${sinceDays === 1 ? "day" : "days"} ${p.recent}` : p.error ? ` (${p.error})` : ""}`);
   }
-  console.log(`[ct] nowe domeny ${watcher.stats.domains}, kandydaci ${res.candidates}; feed: ${feedFile ?? "(dry run — nic nie zapisano)"}`);
+  console.log(`[ct] new domains ${watcher.stats.domains}, candidates ${res.candidates}; feed: ${feedFile ?? "(dry run — nothing written)"}`);
   if (res.patterns.every((p) => p.status !== "ok")) process.exitCode = 2;
 });

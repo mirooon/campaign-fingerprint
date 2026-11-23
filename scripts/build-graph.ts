@@ -13,12 +13,12 @@ const args = cli(
     text: { type: "string" },
     corrections: { type: "string" },
   } as const,
-  `Użycie: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--near-misses near-misses.json; domyślnie obok campaigns] [--config linking.json; domyślnie wagi wbudowane, dla danych próbki data/sample/linking.json] [--text tfidf|embedding|none] [--corrections corrections.json; domyślnie obok campaigns, korekty analityka]`,
+  `Usage: bun run build-graph -- [--enriched ...] [--graph data/graph.json] [--campaigns data/campaigns.json] [--near-misses near-misses.json; default next to campaigns] [--config linking.json; default the built-in weights, for the sample data data/sample/linking.json] [--text tfidf|embedding|none] [--corrections corrections.json; default next to campaigns, analyst corrections]`,
 );
 
 void main(async () => {
   const text = (args.text ?? process.env.TEXT_SIMILARITY ?? "tfidf") as "tfidf" | "embedding" | "none";
-  if (!["tfidf", "embedding", "none"].includes(text)) throw new Error(`--text: nieznana metoda ${text}`);
+  if (!["tfidf", "embedding", "none"].includes(text)) throw new Error(`--text: unknown method ${text}`);
   const enriched = args.enriched ?? DEFAULTS.enriched;
   await runBuildGraph({
     enriched,

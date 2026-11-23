@@ -81,7 +81,7 @@ describe("persona from a face", () => {
     });
     expect(skipped.ds.perItem[FACE_ITEM].faces).toBeUndefined();
     expect(skipped.ds.perItem[FACE_ITEM].personas.some((p) => p.source === "face")).toBe(false);
-    expect(lines.some((m) => m.startsWith("twarze pominięte: brak adaptera"))).toBe(true);
+    expect(lines.some((m) => m.startsWith("faces skipped: brak adaptera"))).toBe(true);
   });
 });
 
@@ -120,7 +120,7 @@ describe("persona from a voice", () => {
 
     // two merged windows give one span with the persona; the quiet window is not part of the result
     expect(ds.perItem[FACE_ITEM].voices).toEqual([{ start: 0, end: 6, persona: PERSONA, similarity: 0.65 }]);
-    expect(ds.perItem[FACE_ITEM].personas.find((p) => p.id === PERSONA)).toMatchObject({ source: "voice", matched: "głos", similarity: 0.65 });
+    expect(ds.perItem[FACE_ITEM].personas.find((p) => p.id === PERSONA)).toMatchObject({ source: "voice", matched: "voice", similarity: 0.65 });
     const edge = graph.edges.find((e) => e.type === "mentions_persona" && e.source === `item:${FACE_ITEM}` && e.target === `persona:${PERSONA}`);
     expect(edge?.evidence).toContain("from a voice");
 
@@ -145,7 +145,7 @@ describe("persona from a voice", () => {
     const noGallery = await runSample({ only: [TEXT_ITEM, FACE_ITEM], enrich: { speaker: true, voicesAdapter: voiceWindows, voiceIndex: null, log: (m) => lines.push(m) }, prepare: withVideo });
     expect(noGallery.ds.perItem[FACE_ITEM].voices).toBeUndefined();
     expect(noGallery.ds.perItem[FACE_ITEM].personas.some((p) => p.source === "voice")).toBe(false);
-    expect(lines.some((m) => m.startsWith("głos mówcy pominięty: brak galerii"))).toBe(true);
+    expect(lines.some((m) => m.startsWith("speaker voice skipped: no voice gallery"))).toBe(true);
 
     const unreadable = await runSample({ only: [TEXT_ITEM, FACE_ITEM], enrich: { speaker: true, voicesAdapter: () => Promise.resolve({}), voiceIndex: VOICE_INDEX }, prepare: withVideo });
     expect(unreadable.ds.perItem[FACE_ITEM].voices).toBeUndefined();

@@ -168,13 +168,13 @@ function dedupePersonas(list: PersonaMatch[]): PersonaMatch[] {
  * Names of the closed list of public figures (data/osoby-publiczne.json) by person id, to give a
  * persona found by a face or a voice its name and role. An unreadable list is logged and gives an
  * empty map (the persona then carries the id as its name).
- * @param trait what the persona comes from ("twarzy", "głosu"), for the log line
+ * @param trait what the persona comes from ("face", "voice"), for the log line
  */
 function loadPublicPeople(trait: string, log: (message: string) => void): Map<string, { name: string; role: string | null; category: string | null }> {
   try {
     return new Map(loadWatchlist(path.join(process.cwd(), PUBLIC_PERSONS_FILE)).map((e) => [e.id ?? personaSlug(e.name), { name: e.name, role: e.role ?? null, category: e.category ?? null }]));
   } catch (e) {
-    log(`lista osób publicznych nieczytelna (${errMsg(e)}): persona z ${trait} pod identyfikatorem`);
+    log(`list of public figures unreadable (${errMsg(e)}): persona from the ${trait} kept under its ID`);
     return new Map();
   }
 }
@@ -185,7 +185,7 @@ function loadPublicPeople(trait: string, log: (message: string) => void): Map<st
  * a person on the closed list (data/osoby-publiczne.json) also adds a persona with source "face"
  * (similarity kept, the vector never): a trait of a group of similar campaigns, to be reviewed by a
  * person. One adapter call for the whole batch; when the adapter is missing the reason is logged
- * ("twarze pominięte: ...") and nothing is set.
+ * ("faces skipped: ...") and nothing is set.
  * @param perItem enrichments by item id, changed in place
  */
 async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment>, opts: EnrichOptions, log: (message: string) => void): Promise<void> {
@@ -214,7 +214,7 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
         }
         for (const v of videosOf(it)) {
           const frames = await extractFrames(abs(v));
-          for (const [i, frame] of frames.entries()) await addBytes(it.id, `${v}#kadr${i + 1}`, frame);
+          for (const [i, frame] of frames.entries()) await addBytes(it.id, `${v}#frame${i + 1}`, frame);
         }
       } catch (e) {
         enr.errors.push(`faces: ${errMsg(e)}`);
@@ -223,10 +223,10 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
     if (!jobs.size) return;
     const found = await (opts.facesAdapter ?? detectFaces)([...jobs.keys()], { only: opts.facesOnly });
     if (!Array.isArray(found)) {
-      log(`twarze pominięte: ${found.skipped}`);
+      log(`faces skipped: ${found.skipped}`);
       return;
     }
-    const people = loadPublicPeople("twarzy", log);
+    const people = loadPublicPeople("face", log);
     const byItem = new Map<string, FaceHit[]>();
     for (const owners of jobs.values()) for (const { itemId } of owners) byItem.set(itemId, []);
     for (const hit of found) for (const job of jobs.get(hit.image) ?? []) byItem.get(job.itemId)?.push({ ...hit, image: job.label });
@@ -237,11 +237,11 @@ async function enrichFaces(items: Item[], perItem: Record<string, ItemEnrichment
       for (const h of hits) if (h.persona && h.similarity !== undefined) best.set(h.persona, Math.max(best.get(h.persona) ?? 0, h.similarity));
       for (const [id, similarity] of best) {
         const who = people.get(id);
-        perItem[itemId].personas.push({ id, name: who?.name ?? id, matched: "twarz", source: "face", role: who?.role ?? null, category: who?.category ?? null, similarity });
+        perItem[itemId].personas.push({ id, name: who?.name ?? id, matched: "face", source: "face", role: who?.role ?? null, category: who?.category ?? null, similarity });
         similar++;
       }
     }
-    log(`twarze: ${found.length} wykrytych, ${similar} podobnych do osób z listy`);
+    log(`faces: ${found.length} detected, ${similar} similar to people on the list`);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -277,7 +277,7 @@ function recordHosts(enr: ItemEnrichment, page: PageInfo | undefined): Set<strin
  * `voices` (spans of speech; a span with a voice similar to a person carries the persona id and the
  * cosine) and adds a persona with source "voice" (cosine kept, never a vector): a trait of a group
  * of similar campaigns, to be reviewed by a person. One adapter call for the whole batch; when the
- * gallery, the venv or the model is missing the reason is logged ("głos mówcy pominięty: ...") and
+ * gallery, the venv or the model is missing the reason is logged ("speaker voice skipped: ...") and
  * nothing is set.
  * @param perItem enrichments by item id, changed in place
  */
@@ -291,20 +291,20 @@ async function enrichVoices(items: Item[], perItem: Record<string, ItemEnrichmen
     if (!st.available) return;
     python = st.python ?? undefined;
     modelDir = st.modelDir;
-    if (!(await nonEmptyFile(path.join(speakerVadDir(), "hyperparams.yaml")))) return log(`głos mówcy pominięty: brak modelu detekcji mowy w ${speakerVadDir()} (scripts/py/setup-speaker.sh)`);
+    if (!(await nonEmptyFile(path.join(speakerVadDir(), "hyperparams.yaml")))) return log(`speaker voice skipped: no speech detection model in ${speakerVadDir()} (scripts/py/setup-speaker.sh)`);
   }
   const index = opts.voiceIndex === undefined ? loadVoiceIndex() : opts.voiceIndex;
-  if (!index) return log("głos mówcy pominięty: brak galerii głosów (data/voices/index.json)");
+  if (!index) return log("speaker voice skipped: no voice gallery (data/voices/index.json)");
   const abs = (p: string) => (path.isAbsolute(p) ? p : path.join(opts.baseDir, p));
   const withVideo = items.filter((it) => videosOf(it).length && perItem[it.id]);
   if (!withVideo.length) return;
   const windows = await adapter([...new Set(withVideo.flatMap((it) => videosOf(it).map(abs)))], { python, modelDir });
-  const people = loadPublicPeople("głosu", log);
+  const people = loadPublicPeople("voice", log);
   let similar = 0;
   for (const it of withVideo) {
     const found = videosOf(it).map((v) => windows[abs(v)]).filter((w) => !!w);
     if (!found.length) {
-      perItem[it.id].errors.push("speaker: nie odczytano ścieżki dźwiękowej albo jest krótsza niż jedno okno");
+      perItem[it.id].errors.push("speaker: the audio track could not be read or is shorter than one window");
       continue;
     }
     const spans = found.flatMap((w) => matchVoiceWindows(w, index));
@@ -313,11 +313,11 @@ async function enrichVoices(items: Item[], perItem: Record<string, ItemEnrichmen
     for (const sp of spans) if (sp.persona && sp.similarity !== undefined) best.set(sp.persona, Math.max(best.get(sp.persona) ?? 0, sp.similarity));
     for (const [id, similarity] of best) {
       const who = people.get(id);
-      perItem[it.id].personas.push({ id, name: who?.name ?? id, matched: "głos", source: "voice", role: who?.role ?? null, category: who?.category ?? null, similarity });
+      perItem[it.id].personas.push({ id, name: who?.name ?? id, matched: "voice", source: "voice", role: who?.role ?? null, category: who?.category ?? null, similarity });
       similar++;
     }
   }
-  log(`głos z galerii: ${withVideo.length} nagrań, ${similar} podobnych do osób z listy`);
+  log(`voice gallery: ${withVideo.length} ${withVideo.length === 1 ? "recording" : "recordings"}, ${similar} similar to people on the list`);
 }
 
 export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<EnrichedDataset> {
@@ -347,24 +347,24 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   if (opts.ocr) {
     const st = await detectOcr();
     ocrOn = st.available;
-    log(ocrOn ? `OCR: tesseract ${st.version ?? ""} (pol)` : `OCR pominięty: ${st.reason ?? "tesseract niedostępny"}`);
+    log(ocrOn ? `OCR: tesseract ${st.version ?? ""} (pol)` : `OCR skipped: ${st.reason ?? "tesseract unavailable"}`);
   }
   if (opts.asr) {
     const st = await detectAsr();
     asrOn = st.available;
-    log(asrOn ? `ASR: ${st.tool} (${st.model ?? "model domyślny"})${st.vadModel ? `, VAD ${st.vadModel}` : st.vadReason ? `, ${st.vadReason}` : ""}` : `ASR pominięty: ${st.reason ?? "brak narzędzia"}`);
+    log(asrOn ? `ASR: ${st.tool} (${st.model ?? "default model"})${st.vadModel ? `, VAD ${st.vadModel}` : st.vadReason ? `, ${st.vadReason}` : ""}` : `ASR skipped: ${st.reason ?? "no tool"}`);
   }
   let clipOn = false;
   const clipCache = opts.clip ? createCache({ namespace: "clip", defaultTtlMs: CACHE_TTL.clip }) : null;
   if (opts.clip) {
     const st = await detectClip();
     clipOn = st.available;
-    log(clipOn ? `CLIP: ${st.model}` : `CLIP pominięty: ${st.reason ?? "model niedostępny"}`);
+    log(clipOn ? `CLIP: ${st.model}` : `CLIP skipped: ${st.reason ?? "model unavailable"}`);
   }
   if (opts.audio) {
     const st = await detectFpcalc();
     audioOn = st.available;
-    log(audioOn ? `odcisk audio: fpcalc ${st.version ?? ""}` : "odcisk audio pominięty: fpcalc niedostępny");
+    log(audioOn ? `audio fingerprint: fpcalc ${st.version ?? ""}` : "audio fingerprint skipped: fpcalc unavailable");
   }
 
   const pages: Record<string, PageInfo> = {};
@@ -419,7 +419,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
     const skipped = (detail: string) => ({ status: { status: "skipped" as const, detail }, copy: null, rejected: null });
     if (a.skipReason) return skipped(a.skipReason);
     // an address the fetcher refused (local, not http) has no public copy to look for
-    if (res.errorCode === "blocked" || res.errorCode === "invalid-url") return skipped(`adres nie do sprawdzenia w archiwum: ${res.error ?? res.errorCode}`);
+    if (res.errorCode === "blocked" || res.errorCode === "invalid-url") return skipped(`URL cannot be checked in the archive: ${res.error ?? res.errorCode}`);
     const domain = registrableDomain(url);
     const notes: string[] = [];
     let domainCreated: string | null = null;
@@ -428,7 +428,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       try {
         domainCreated = ((await sources.rdap(domain)) ?? (await a.rdap?.(domain)))?.created ?? null;
       } catch (e) {
-        notes.push(`epoka domeny: RDAP niedostępny (${errMsg(e)})`);
+        notes.push(`domain epoch: RDAP unavailable (${errMsg(e)})`);
       }
     }
     if (domain && !domainCreated && !skip.ct) {
@@ -436,10 +436,10 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         const certs = (await sources.ct(domain))?.certs ?? [];
         oldestCert = certs.map((c) => c.notBefore).filter((t): t is string => !!t).sort()[0] ?? null;
       } catch (e) {
-        notes.push(`epoka domeny: CT niedostępny (${errMsg(e)})`);
+        notes.push(`domain epoch: CT unavailable (${errMsg(e)})`);
       }
     }
-    if (!domainCreated && !oldestCert) notes.push("epoka domeny nie sprawdzona: brak daty rejestracji i certyfikatów");
+    if (!domainCreated && !oldestCert) notes.push("domain epoch not checked: no registration date and no certificates");
     const found = await findArchivedCopy(url, { sources: a.sources, config: a.config, firstSeen, domainCreated, oldestCert });
     if (found.reRegistered && domain) reRegistered.add(domain);
     const copy = found.copy ? { ...found.copy, notes: [...(found.copy.notes ?? []), ...notes] } : null;
@@ -470,7 +470,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         const data = await sources.fetchBinary(url);
         if (data && data.length <= TEXT_CONFIG.kitStrings.maxScriptBytes) foreignScripts.push({ url, body: data.toString("utf8") });
       } catch (e) {
-        log(`skrypt zewnętrzny niedostępny (${url}): ${errMsg(e)}`);
+        log(`external script unavailable (${url}): ${errMsg(e)}`);
       }
     }
     for (const url of urls) {
@@ -479,7 +479,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         if (data && data.length <= TEXT_CONFIG.kitStrings.maxScriptBytes) scripts.push({ url, body: data.toString("utf8") });
         else missing++;
       } catch (e) {
-        log(`skrypt strony niedostępny (${url}): ${errMsg(e)}`);
+        log(`page script unavailable (${url}): ${errMsg(e)}`);
         missing++;
       }
     }
@@ -846,7 +846,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   // 1b. Speaker embeddings (SpeechBrain, one batch so the model loads once)
   if (opts.speaker) {
     const st = await detectSpeaker();
-    if (!st.available) log(`głos mówcy pominięty: ${st.reason ?? "brak SpeechBrain"}`);
+    if (!st.available) log(`speaker voice skipped: ${st.reason ?? "no SpeechBrain"}`);
     else {
       const speakerCache = createCache({ namespace: "speaker", defaultTtlMs: CACHE_TTL.speaker });
       // one embedding per record: of its own video, else of the landing page's video
@@ -870,7 +870,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         }
       }
       if (todo.length) {
-        log(`głos mówcy: SpeechBrain ECAPA, ${todo.length} nagrań${todo.length === withVideo.length ? "" : " (reszta z cache)"}`);
+        log(`speaker voice: SpeechBrain ECAPA, ${todo.length} ${todo.length === 1 ? "recording" : "recordings"}${todo.length === withVideo.length ? "" : " (the rest from cache)"}`);
         const emb = await embedSpeakers(todo, { python: st.python!, modelDir: st.modelDir });
         for (const it of withVideo) {
           const v = emb[fileOf(it)];
@@ -902,11 +902,11 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
       ];
     };
     const allIds = [...new Set(items.flatMap(idsOf))];
-    if (sources.mode === "offline") log("biblioteka reklam pominięta: tryb offline");
-    else if (!allIds.length) log("biblioteka reklam: brak identyfikatorów biblioteki w materiałach");
+    if (sources.mode === "offline") log("ad library skipped: offline mode");
+    else if (!allIds.length) log("ad library: no library IDs in the samples");
     else {
       const st = await detectAdLibrary();
-      if (!st.available) log(`biblioteka reklam pominięta: ${st.reason ?? "brak MetaAdsCollector"}`);
+      if (!st.available) log(`ad library skipped: ${st.reason ?? "no MetaAdsCollector"}`);
       else {
         const libCache = createCache({ namespace: "adlibrary", defaultTtlMs: CACHE_TTL.adlibrary });
         const info: Record<string, AdLibraryInfo> = {};
@@ -917,7 +917,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
           else todo.push(id);
         }
         if (todo.length) {
-          log(`biblioteka reklam: MetaAdsCollector, ${todo.length} identyfikatorów`);
+          log(`ad library: MetaAdsCollector, ${todo.length} ${todo.length === 1 ? "ID" : "IDs"}`);
           const fresh = await lookupAdLibrary(todo, { python: st.python! });
           for (const [id, rec] of Object.entries(fresh)) {
             // creative of the ad (text, picture, start time) from the library page; the DSA record stays when yt-dlp is missing
@@ -925,7 +925,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
             if (got) {
               rec.creative = got.creative;
               rec.creativeNote = got.error;
-              if (got.error) log(`kreacja z biblioteki reklam pominięta (${id}): ${got.error}`);
+              if (got.error) log(`ad library creative skipped (${id}): ${got.error}`);
             }
             info[id] = rec;
             if (!rec.error) await libCache.set(id, rec);
@@ -1095,7 +1095,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
   // 3b. Company registers (opt-in): VAT white list by NIP, KRS extract by number, for the identifiers of each landing page
   if (opts.companyRegistry) {
     const regOpts: RegistryLookupOptions = typeof opts.companyRegistry === "object" ? opts.companyRegistry : {};
-    if (sources.mode === "offline") log("rejestry firm pominięte: tryb offline");
+    if (sources.mode === "offline") log("company registers skipped: offline mode");
     else {
       const cfg = DEFAULT_COMPANY_REGISTRY_CONFIG;
       const today = new Date().toISOString().slice(0, 10);
@@ -1113,7 +1113,7 @@ export async function enrichItems(items: Item[], opts: EnrichOptions): Promise<E
         enr.companyRegistry = await Promise.all(wanted.map((w) => ask(w.kind, w.id)));
         for (const r of enr.companyRegistry) if (r.error) enr.errors.push(`company-registry ${r.source} ${r.id}: ${r.error}`);
       }
-      log(`rejestry firm: ${byId.size} numerów`);
+      log(`company registers: ${byId.size} ${byId.size === 1 ? "number" : "numbers"}`);
     }
   }
 

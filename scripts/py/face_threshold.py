@@ -1,4 +1,4 @@
-"""Measures the match threshold of the face adapter (docs/TECHNICAL.md, "Próg twarzy").
+"""Measures the match threshold of the face adapter (docs/TECHNICAL.md, section on the face threshold).
 
 Usage: python face_threshold.py --index data/faces/index.json --strangers <dir with photos of OTHER people> [--model-dir DIR]
   Same person (leave-one-out): each reference photo is compared with the other photos of the same person
@@ -56,7 +56,7 @@ def main() -> int:
     for name in names:
         faces = faces_in(os.path.join(args.strangers, name), detector, recognizer)
         if not faces:
-            print(f"{name}: brak twarzy", file=sys.stderr)
+            print(f"{name}: no face", file=sys.stderr)
             continue
         f = max(faces, key=lambda r: r["w"] * r["h"])
         if min(f["w"], f["h"]) < MIN_SIDE:
@@ -66,8 +66,8 @@ def main() -> int:
         impostor.append(best * quality(f))
         top.append((best * quality(f), name, who))
 
-    print(f"pary tej samej osoby (leave-one-out): {len(genuine)}; twarze obcych: {len(impostor)} ze zdjęć: {len(names)}")
-    print("próg   trafienia tej samej osoby   fałszywe trafienia obcych")
+    print(f"pairs of the same person (leave-one-out): {len(genuine)}; faces of strangers: {len(impostor)} from photos: {len(names)}")
+    print("thr    hits of the same person     false hits of strangers")
     chosen = None
     for t in [x / 100 for x in range(20, 71, 2)]:
         tar = sum(1 for s, top in genuine if s >= t and top) / max(1, len(genuine))
@@ -75,11 +75,11 @@ def main() -> int:
         print(f"{t:.2f}   {tar:6.1%}                     {far:6.1%}")
         if chosen is None and far <= args.max_far:
             chosen = (t, tar, far)
-    print("najwyższe wyniki obcych (do ręcznego sprawdzenia, czy to na pewno obca osoba):")
+    print("highest scores of strangers (check by hand that it really is a stranger):")
     for score, name, who in sorted(top, reverse=True)[:6]:
         print(f"  {score:.2f}  {name}  ~ {who}")
     if chosen:
-        print(f"najniższy próg z fałszywymi trafieniami <= {args.max_far:.0%}: {chosen[0]:.2f} (trafienia {chosen[1]:.1%}, fałszywe {chosen[2]:.1%})")
+        print(f"lowest threshold with false hits <= {args.max_far:.0%}: {chosen[0]:.2f} (hits {chosen[1]:.1%}, false {chosen[2]:.1%})")
     return 0
 
 

@@ -1,8 +1,8 @@
 /**
- * bun run watch -- --data <baza> [--every 30m] [--sources ct,adlibrary,urlscan,certlist] [--recipes przepisy.json] [--once]
- *   [--replay plik.jsonl] [--offline] [--file data/watch.jsonl] [--add-to-base [--add-verdicts known_campaign]]
- * Harmonogram skanów: co cykl pyta publiczne źródła o nowe adresy, każdy przepuszcza przez analizę względem bazy
- * i dopisuje wiersz do data/watch.jsonl. Źródło bez sieci albo klucza jest pomijane z powodem.
+ * bun run watch -- --data <base> [--every 30m] [--sources ct,adlibrary,urlscan,certlist] [--recipes recipes.json] [--once]
+ *   [--replay file.jsonl] [--offline] [--file data/watch.jsonl] [--add-to-base [--add-verdicts known_campaign]]
+ * Scan schedule: every cycle asks public sources for new addresses, runs each through the analysis against the base
+ * and appends a row to data/watch.jsonl. A source without a network or a key is skipped with the reason.
  */
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
@@ -42,24 +42,24 @@ const args = cli(
     url: { type: "string" },
     "seed-recipes": { type: "string" },
   } as const,
-  `Użycie: bun run watch -- --data <baza> [--every ${WATCH_CONFIG.defaultEvery}] [--sources ${WATCH_CONFIG.sources.join(",")}] [--recipes przepisy.json] [--once]
-  [--replay plik.jsonl] [--offline] [--file ${WATCH_CONFIG.file}] [--add-to-base [--add-verdicts ${WATCH_CONFIG.addVerdicts.join(",")}]]
-Co cykl pyta źródła (logi CT, biblioteki reklam, urlscan, Lista Ostrzeżeń CERT) o nowe adresy; każdy trafia do analizy względem bazy (--data),
-a wynik { ts, source, url, verdict, campaign } do pliku JSONL (tylko dopisywanie; ten sam adres nie jest analizowany drugi raz).
---recipes: przepisy wyszukiwania (JSON; także WATCH_RECIPES); format i przykład: data/examples/watch-przepisy.example.json.
---replay: odtwarza zapisane wiadomości CertStream zamiast strumienia (demo offline; implikuje --offline: pozostałe źródła są pomijane).
---offline: bez sieci (także ANALYZE_OFFLINE=1): źródła sieciowe są pomijane z powodem, analiza tylko z materiału.
---seed-recipes <plik>: zamiast skanować zapisuje przepisy zrobione z bazy (silne cechy każdej kampanii: adres IP spoza CDN, plik, identyfikator ścieżki); plik zawiera wartości prawdziwych kampanii, więc zapisz go poza repozytorium.
---once: jeden cykl i koniec (kod 0, także gdy źródła zostały pominięte).
---add-to-base: trafienia z werdyktem z --add-verdicts (domyślnie ${WATCH_CONFIG.addVerdicts.join(",")}) są dopisywane do bazy (kampanie zachowują numery; kopia poprzednich plików w <baza>/historia/).
-Klucz urlscan (opcjonalny, daje DOM): URLSCAN_API_KEY. Strumień CT: --url albo CT_STREAM_URL (domyślnie lokalny certstream-server-go, potem publiczny).`,
+  `Usage: bun run watch -- --data <base> [--every ${WATCH_CONFIG.defaultEvery}] [--sources ${WATCH_CONFIG.sources.join(",")}] [--recipes recipes.json] [--once]
+  [--replay file.jsonl] [--offline] [--file ${WATCH_CONFIG.file}] [--add-to-base [--add-verdicts ${WATCH_CONFIG.addVerdicts.join(",")}]]
+Every cycle asks the sources (CT logs, ad libraries, urlscan, CERT Warning List) for new addresses; each goes to the analysis against the base (--data),
+and the result { ts, source, url, verdict, campaign } to a JSONL file (append only; the same address is not analyzed twice).
+--recipes: search recipes (JSON; also WATCH_RECIPES); format and example: data/examples/watch-przepisy.example.json.
+--replay: replays saved CertStream messages instead of the stream (offline demo; implies --offline: the other sources are skipped).
+--offline: no network (also ANALYZE_OFFLINE=1): network sources are skipped with the reason, the analysis uses only the sample.
+--seed-recipes <file>: instead of scanning, writes recipes made from the base (strong features of each campaign: an IP address outside a CDN, a file, a path ID); the file holds values of real campaigns, so save it outside the repository.
+--once: one cycle and stop (exit code 0, also when sources were skipped).
+--add-to-base: hits with a verdict from --add-verdicts (default ${WATCH_CONFIG.addVerdicts.join(",")}) are added to the base (campaigns keep their numbers; a copy of the earlier files in <base>/historia/).
+urlscan key (optional, gives the DOM): URLSCAN_API_KEY. CT stream: --url or CT_STREAM_URL (default the local certstream-server-go, then the public one).`,
 );
 
 /** Names from `--sources`, validated against the sources the scheduler knows. */
 function sourceNames(text: string | undefined): WatchSourceName[] {
   const names = (text ?? WATCH_CONFIG.sources.join(",")).split(",").map((s) => s.trim()).filter(Boolean);
   const bad = names.filter((n) => !(WATCH_CONFIG.sources as readonly string[]).includes(n));
-  if (bad.length) throw new Error(`nieznane źródło: ${bad.join(", ")} (są: ${WATCH_CONFIG.sources.join(", ")})`);
+  if (bad.length) throw new Error(`unknown source: ${bad.join(", ")} (known: ${WATCH_CONFIG.sources.join(", ")})`);
   return names as WatchSourceName[];
 }
 
@@ -68,7 +68,7 @@ function addVerdicts(text: string | undefined): MaterialVerdict[] {
   if (!text) return WATCH_CONFIG.addVerdicts;
   const list = text.split(",").map((s) => s.trim()).filter(Boolean);
   const bad = list.filter((v) => !(VERDICTS as string[]).includes(v));
-  if (bad.length) throw new Error(`nieznany werdykt: ${bad.join(", ")} (są: ${VERDICTS.join(", ")})`);
+  if (bad.length) throw new Error(`unknown verdict: ${bad.join(", ")} (known: ${VERDICTS.join(", ")})`);
   return list as MaterialVerdict[];
 }
 
@@ -81,7 +81,7 @@ void main(async () => {
   if (args["seed-recipes"]) {
     const recipes = seedRecipes(readJson<EvidenceGraph>(path.join(dataDir, "graph.json")), readJson<CampaignsFile>(path.join(dataDir, "campaigns.json")));
     writeJson(args["seed-recipes"], { version: 1, recipes });
-    console.log(`[watch] przepisy z bazy: ${recipes.length} → ${args["seed-recipes"]}`);
+    console.log(`[watch] recipes from the base: ${recipes.length} → ${args["seed-recipes"]}`);
     return;
   }
   const recipesFile = args.recipes ?? process.env.WATCH_RECIPES;
@@ -93,7 +93,7 @@ void main(async () => {
   const log = (m: string) => console.log(m);
   const baseConfigFile = path.join(dataDir, "linking.json");
   const live = offline ? null : liveSources({ skipCt: true });
-  const offReason = "tryb offline: bez zapytań sieciowych";
+  const offReason = "offline mode: no network queries";
 
   /** The source of the given name, wired to the real network parts (or switched off in the offline mode). */
   const build = (name: WatchSourceName): WatchSource => {
@@ -114,7 +114,7 @@ void main(async () => {
           }
           if (offline) return { events, skipped: offReason };
           const res = await runCtStream({ urls, onEvent: (e) => events.push(e), durationMs: WATCH_CONFIG.ctWindowSeconds * 1000 });
-          if (res.status === "unavailable") return { events, skipped: `żaden strumień CT nie odpowiada (${res.attempts.map((a) => `${a.url}: ${a.outcome}`).join("; ")}); uruchom: docker compose --profile ct up -d certstream` };
+          if (res.status === "unavailable") return { events, skipped: `no CT stream responds (${res.attempts.map((a) => `${a.url}: ${a.outcome}`).join("; ")}); run: docker compose --profile ct up -d certstream` };
           return { events };
         },
       });
@@ -127,10 +127,10 @@ void main(async () => {
       fetchList: async () => {
         try {
           const res = await fetch(WATCH_CONFIG.certlistUrl, { signal: AbortSignal.timeout(WATCH_CONFIG.certlistTimeoutMs) });
-          if (!res.ok) return { error: `Lista Ostrzeżeń CERT: HTTP ${res.status}` };
+          if (!res.ok) return { error: `CERT Warning List: HTTP ${res.status}` };
           return { domains: parseCertlist(await res.text()) };
         } catch (e) {
-          return { error: `Lista Ostrzeżeń CERT niedostępna (${(e as Error).message})` };
+          return { error: `CERT Warning List unavailable (${(e as Error).message})` };
         }
       },
       snapshot: {
@@ -184,10 +184,10 @@ void main(async () => {
 
   const ac = new AbortController();
   process.once("SIGINT", () => {
-    log("\n[watch] zatrzymywanie po bieżącym trafieniu…");
+    log("\n[watch] stopping after the current hit…");
     ac.abort();
   });
-  log(`[watch] baza ${dataDir}; wiersze: ${file}; źródła: ${sources.map((s) => s.name).join(", ")}; przepisy: ${recipes.length}${args.once ? " · jeden cykl" : ` · co ${args.every ?? WATCH_CONFIG.defaultEvery}`}${args["add-to-base"] ? ` · dopisywanie do bazy: ${verdicts.join(", ")}` : ""}`);
+  log(`[watch] base ${dataDir}; rows: ${file}; sources: ${sources.map((s) => s.name).join(", ")}; recipes: ${recipes.length}${args.once ? " · one cycle" : ` · every ${args.every ?? WATCH_CONFIG.defaultEvery}`}${args["add-to-base"] ? ` · adding to the base: ${verdicts.join(", ")}` : ""}`);
   try {
     const res = await runWatch({
       sources,
@@ -202,10 +202,10 @@ void main(async () => {
       onAnalyzed: async (_hit, analysis) => {
         if (!args["add-to-base"] || !last || analysis.verdict === "error") return;
         const added = await addToBase(dataDir, last, { source: "watch", verdicts, log });
-        for (const a of added.added) log(`[watch] dodano do bazy: ${a.id} (${a.verdict}${a.campaign ? `, kampania ${a.campaign}` : ""})`);
+        for (const a of added.added) log(`[watch] added to the base: ${a.id} (${a.verdict}${a.campaign ? `, campaign ${a.campaign}` : ""})`);
       },
     });
-    for (const r of res.report) log(`[watch] ${r.source}: ${r.status}${r.reason ? ` (${r.reason})` : ""}, nowe trafienia: ${r.hits}`);
+    for (const r of res.report) log(`[watch] ${r.source}: ${r.status}${r.reason ? ` (${r.reason})` : ""}, new hits: ${r.hits}`);
   } finally {
     rmSync(scratchRoot, { recursive: true, force: true });
   }

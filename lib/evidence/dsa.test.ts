@@ -30,7 +30,7 @@ describe("platformSlug", () => {
   it("makes a file-safe lower-case name and names a missing platform", () => {
     expect(platformSlug("Facebook")).toBe("facebook");
     expect(platformSlug("YouTube Shorts")).toBe("youtube-shorts");
-    expect(platformSlug(null)).toBe("nieznana-platforma");
+    expect(platformSlug(null)).toBe("unknown-platform");
   });
 });
 
@@ -63,11 +63,11 @@ describe("renderDsaNotices", () => {
 
   it("starts with the impersonation category and puts the platform location before the landing pages", () => {
     const fb = notices[0].content;
-    expect(fb.split("\n").slice(0, 6).join("\n")).toMatch(/Kategoria zgłoszenia: podszywanie się/);
+    expect(fb.split("\n").slice(0, 6).join("\n")).toMatch(/Notice category: impersonation/);
     const b = fb.split("## (b)")[1];
     const libraryAt = b.indexOf("id=1000000000000101");
     expect(libraryAt).toBeGreaterThan(-1);
-    expect(libraryAt).toBeLessThan(b.indexOf("Strony docelowe"));
+    expect(libraryAt).toBeLessThan(b.indexOf("Landing pages"));
     expect(b).toContain("https://www.facebook.com/5550001");
     expect(b).toContain("https://www.facebook.com/permalink/abc");
   });
@@ -75,29 +75,29 @@ describe("renderDsaNotices", () => {
   it("lists landing pages per ad without copies that differ only by tracking parameters", () => {
     const b = notices[0].content.split("## (b)")[1];
     expect(b.match(/cel\.example\/start/g)).toHaveLength(2); // once per ad
-    expect(b).toMatch(/reklama a1[\s\S]*cel\.example[\s\S]*reklama a2/);
+    expect(b).toMatch(/ad a1[\s\S]*cel\.example[\s\S]*ad a2/);
   });
 
   it("falls back to the fraud category without a person", () => {
     const [n] = renderDsaNotices({ ...base, personas: [], ads: [ads[2]] });
-    expect(n.content).toMatch(/Kategoria zgłoszenia: oszustwo/);
+    expect(n.content).toMatch(/Notice category: fraud/);
   });
 
   it("composes the justification from the facts instead of leaving a placeholder", () => {
     const a = notices[0].content.split("## (b)")[0];
-    expect(a).not.toContain("[UZUPEŁNIJ");
+    expect(a).not.toContain("[FILL IN");
     expect(a).toMatch(/Adam Testowy/);
-    expect(a).toMatch(/usługi finansowe/);
-    expect(a).toMatch(/Liście Ostrzeżeń CERT od 2026-10-10/);
-    expect(a).toMatch(/zarejestrowan\w* 2026-08-20/);
-    expect(a).toMatch(/do weryfikacji/);
+    expect(a).toMatch(/financial services/);
+    expect(a).toMatch(/CERT Warning List since 2026-10-10/);
+    expect(a).toMatch(/registered 2026-08-20/);
+    expect(a).toMatch(/to verify/);
   });
 
   it("names deepfake or a financial offer only when the facts say so", () => {
     const [plain] = renderDsaNotices({ ...base, personas: [], financialOffer: false, deepfake: false, ads: [ads[2]] });
     const a = plain.content.split("## (b)")[0];
-    expect(a).not.toMatch(/finansow|syntetyczn|deepfake/i);
+    expect(a).not.toMatch(/financial|synthetic|deepfake/i);
     const [fake] = renderDsaNotices({ ...base, deepfake: true, ads: [ads[2]] });
-    expect(fake.content.split("## (b)")[0]).toMatch(/syntetyczn/);
+    expect(fake.content.split("## (b)")[0]).toMatch(/synthetic/);
   });
 });

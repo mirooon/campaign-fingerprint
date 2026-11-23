@@ -179,7 +179,7 @@ export interface MaterialItemResult {
   similarCampaigns: string[];
   /**
    * Known campaigns the record came close to but did not join (I20), strongest first: the rule that held
-   * it back and the reason in Polish. Empty when there is none; the campaign it joined is not listed.
+   * it back and the reason. Empty when there is none; the campaign it joined is not listed.
    */
   nearMisses?: MaterialNearMiss[];
   /** Why the record is not in those campaigns (different accounts, one kind of evidence). */
@@ -204,9 +204,9 @@ export interface MaterialItemResult {
   bodySource?: "urlscan" | "wayback";
   /** Archive step for the landing page: only when the step was on and the page was dead or blocked. */
   archive?: MaterialArchive;
-  /** Faces found in the record's pictures (opt-in `faces`): box, and for a face similar to a public figure of the closed list the persona id and the similarity ("podobna twarz do X (0,xx)", for review). */
+  /** Faces found in the record's pictures (opt-in `faces`): box, and for a face similar to a public figure of the closed list the persona id and the similarity ("face similar to X (0.xx)", for review). */
   faces?: FaceHit[];
-  /** Stretches of speech in the record's video (opt-in `speaker`, needs the gallery data/voices): seconds from the start, and for a voice similar to a public figure of the closed list the persona id and the cosine ("głos podobny do X (0,xx)", for review, never "this is X's voice"). */
+  /** Stretches of speech in the record's video (opt-in `speaker`, needs the gallery data/voices): seconds from the start, and for a voice similar to a public figure of the closed list the persona id and the cosine ("voice similar to X (0.xx)", for review, never "this is X's voice"). */
   voices?: VoiceSpan[];
   links: MaterialLink[];
   /** Traits of the record read from the material (graph node data). */
@@ -292,7 +292,7 @@ export function mergeDatasets(base: EnrichedDataset, extra: EnrichedDataset): En
 }
 
 function bareRecord(input: MaterialInput): Item {
-  return { id: "nowa-reklama", platform: null, advertiser: null, text: input.text?.trim() || null, imageUrl: null, imagePath: null, landingUrl: input.url?.trim() || null, firstSeen: null, lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: null, extra: {} };
+  return { id: "new-ad", platform: null, advertiser: null, text: input.text?.trim() || null, imageUrl: null, imagePath: null, landingUrl: input.url?.trim() || null, firstSeen: null, lastSeen: null, label: null, persona: null, deepfakeScore: null, videoPath: null, extra: {} };
 }
 
 /** Folder the image paths of a dataset are relative to: absolute, or relative to the working directory or the run folder. */
@@ -313,7 +313,7 @@ const FEATURE_KEYS = [
 /** Sentence for the reason of a skipped case: the image formats in its folder that the importer does not read; "" for none or no folder. */
 function unreadFormatsHint(caseDir: string | undefined): string {
   const formats = caseDir ? unreadImageFormats(caseDir) : [];
-  return formats.length ? `; obrazy w formacie ${formats.join(", ")} nie są czytane, zapisz je jako PNG, JPEG albo WEBP` : "";
+  return formats.length ? `; images in ${formats.join(", ")} format are not read, save them as PNG, JPEG or WEBP` : "";
 }
 
 /**
@@ -326,7 +326,7 @@ function unreadFormatsHint(caseDir: string | undefined): string {
 export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext): Promise<MaterialResult> {
   const toolNotes = new Map<string, string>();
   const log = (m: string) => {
-    const off = /^(OCR|ASR|CLIP|odcisk audio|twarze|głos mówcy) pomini[ęe]t[ye]: (.*)$/.exec(m);
+    const off = /^(OCR|ASR|CLIP|audio fingerprint|faces|speaker voice) skipped: (.*)$/.exec(m);
     if (off) toolNotes.set(off[1], off[2]);
     ctx.log?.(m);
   };
@@ -342,7 +342,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
   };
   const config = ctx.config ?? DEFAULT_LINK_CONFIG;
   const enrichedFile = findEnriched(ctx.dataDir);
-  if (!enrichedFile) throw new Error(`brak enriched.json w ${ctx.dataDir} (ani w work/)`);
+  if (!enrichedFile) throw new Error(`no enriched.json in ${ctx.dataDir} (nor in work/)`);
   const base = readJson<EnrichedDataset>(enrichedFile);
   const oldCampaigns = readJson<CampaignsFile>(path.join(ctx.dataDir, "campaigns.json"));
   const oldGraph = existsSync(path.join(ctx.dataDir, "graph.json")) ? readJson<EvidenceGraph>(path.join(ctx.dataDir, "graph.json")) : null;
@@ -381,7 +381,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       // what still throws concerns the whole batch, e.g. the import output cannot be written
       res = await importCases({ casesDir, outDir: importDir, log: (m) => notes.push(m) });
     } catch (e) {
-      const message = `import partii przerwany (błąd wspólny dla wszystkich spraw): ${(e as Error).message}`;
+      const message = `batch import stopped (an error common to all cases): ${(e as Error).message}`;
       for (const n of names) progress(n, "import", "error", message);
       throw new Error(message, { cause: e });
     }
@@ -400,12 +400,12 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       const reasons = [...new Set(skipped.filter((x) => x.id === n || x.id.startsWith(`${n}/`)).map((x) => x.reason))];
       if (imported.has(n)) {
         const count = records.filter((r) => String(r.case ?? r.id) === n).length;
-        progress(n, "import", "done", `${count} rekord(y)${reasons.length ? `; pominięte: ${reasons.join("; ")}` : ""}`);
+        progress(n, "import", "done", `${count} ${count === 1 ? "record" : "records"}${reasons.length ? `; skipped: ${reasons.join("; ")}` : ""}`);
         continue;
       }
       // A case the importer passed over without a word (only files it does not read) joins `skipped`
       // too: the batch CSV then carries an `insufficient` row for it instead of losing it silently.
-      const reason = reasons.length ? reasons.join("; ") : `brak strony, zrzutu ani wideo w katalogu${unreadFormatsHint(caseDirOf.get(n))}`;
+      const reason = reasons.length ? reasons.join("; ") : `no page, screenshot or video in the folder${unreadFormatsHint(caseDirOf.get(n))}`;
       if (!reasons.length) {
         skipped.push({ id: n, reason });
         noMaterial.add(n);
@@ -420,18 +420,18 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     try {
       mapping = loadMapping(input.datasetMapping);
     } catch (e) {
-      throw new Error(`nie udało się odczytać mapowania kolumn ${input.datasetMapping}: ${(e as Error).message}`, { cause: e });
+      throw new Error(`could not read the column mapping ${input.datasetMapping}: ${(e as Error).message}`, { cause: e });
     }
     let loaded: ReturnType<typeof loadRecordsLenient>;
     try {
       loaded = loadRecordsLenient(file, { idColumn: mapping?.id });
     } catch (e) {
-      throw new Error(`nie udało się odczytać pliku zbioru ${name}: ${(e as Error).message}`, { cause: e });
+      throw new Error(`could not read the dataset file ${name}: ${(e as Error).message}`, { cause: e });
     }
     // a damaged row is skipped with the reason (an `insufficient` row in the batch CSV); the other rows go on
     for (const bad of loaded.bad) {
       const id = bad.id ?? `${name}:${bad.row}`;
-      const reason = `nie udało się odczytać wiersza ${bad.row} pliku ${name}: ${bad.reason}`;
+      const reason = `could not read row ${bad.row} of file ${name}: ${bad.reason}`;
       skipped.push({ id, reason });
       progress(id, "import", "skipped", reason);
     }
@@ -446,7 +446,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       if (it.extraVideoPaths) it.extraVideoPaths = it.extraVideoPaths.map((p) => local(p) ?? p);
       caseOf.set(it.id, it.extra.case || it.id);
     }
-    notes.push(`plik zbioru: ${rows.length} rekordów z ${name}${loaded.bad.length ? `, pominięte wiersze: ${loaded.bad.length}` : ""}`);
+    notes.push(`dataset file: ${rows.length} ${rows.length === 1 ? "record" : "records"} from ${name}${loaded.bad.length ? `, skipped rows: ${loaded.bad.length}` : ""}`);
     items.push(...rows);
   }
   if (!items.length && (input.url || input.text)) items = [bareRecord(input)];
@@ -454,8 +454,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     // a batch whose every case (or row) was skipped still has a result: the CSV keeps an insufficient row for each
     if (skipped.length && (caseDirs.length > 1 || input.datasetFile)) return { mode: ctx.live ? "hybrid" : "offline", items: [], newCampaigns: [], skipped, steps, notes };
     const failures = skipped.filter((x) => !noMaterial.has(x.id));
-    if (failures.length) throw new Error(`nie udało się zaimportować materiału: ${failures.map((x) => x.reason).join("; ")}`);
-    throw new Error(`materiał nie zawiera ani strony, ani zrzutu, ani wideo, ani linku czy tekstu${[...caseDirOf.values()].map(unreadFormatsHint).join("")}`);
+    if (failures.length) throw new Error(`could not import the sample: ${failures.map((x) => x.reason).join("; ")}`);
+    throw new Error(`the sample has no page, screenshot, video, link or text${[...caseDirOf.values()].map(unreadFormatsHint).join("")}`);
   }
   const existingIds = new Set(base.items.map((i) => i.id));
   const taken = new Set<string>();
@@ -469,7 +469,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     caseOf.set(id, caseId);
   }
   const newIds = new Set(items.map((i) => i.id));
-  log(`nowe rekordy: ${[...newIds].join(", ")}`);
+  log(`new records: ${[...newIds].join(", ")}`);
 
   // 2. Enrich only the new records
   const fixtureDir = path.join(importDir, "fixtures");
@@ -568,7 +568,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
         delete nodeData.weightParts;
         if (node.type === "domain" && !nodeData.created) nodeData.created = merged.domains[node.key]?.rdap?.created ?? null;
         const reasons = node.discounts.map((d) => `${d.reason} (×${d.factor})`);
-        if (f.relation < 1) reasons.push(`relacja pośrednia ×${Math.round(f.relation * 100) / 100}: ${f.how}`);
+        if (f.relation < 1) reasons.push(`indirect relation ×${Math.round(f.relation * 100) / 100}: ${f.how}`);
         return {
           id: node.id,
           type: node.type,
@@ -625,14 +625,14 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     const verdict: MaterialVerdict = known ? "known_campaign" : similar.length ? "similar_campaigns" : "new_campaign";
     const verdictText =
       verdict === "known_campaign" && variant
-        ? `Należy do kampanii ${known} jako wariant: kreacja prawie identyczna z materiałem ${variant.like} (${variant.evidence}); materiał nie ma własnych śladów infrastruktury, więc przypisanie opiera się tylko na kreacji i jest mniej pewne.`
+        ? `Belongs to campaign ${known} as a variant: the creative is nearly identical to sample ${variant.like} (${variant.evidence}); the sample has no infrastructure traces of its own, so the assignment rests on the creative alone and is less certain.`
         : verdict === "known_campaign"
-          ? `Należy do kampanii ${known}${strongest ? ` (${strongest.strong ? "silny dowód" : "dowody kilku rodzajów"}: ${strongest.evidence[0]?.evidence ?? ""})` : ""}.`
+          ? `Belongs to campaign ${known}${strongest ? ` (${strongest.strong ? "strong evidence" : "evidence of several kinds"}: ${strongest.evidence[0]?.evidence ?? ""})` : ""}.`
           : verdict === "similar_campaigns"
-            ? `Nowa kampania, podobna do ${similar.join(", ")} (grupa podobnych kampanii${fam?.apart.length ? `; osobno, bo: ${fam.apart.join("; ")}` : ""}).`
+            ? `New campaign, similar to ${similar.join(", ")} (group of similar campaigns${fam?.apart.length ? `; kept apart because: ${fam.apart.join("; ")}` : ""}).`
             : links.length
-              ? "Nowa kampania: powiązania ze znanymi kampaniami są za słabe albo jednego rodzaju."
-              : "Nowa kampania: brak wspólnych śladów ze znanymi kampaniami.";
+              ? "New campaign: links to known campaigns are too weak or of one kind only."
+              : "New campaign: no shared traces with known campaigns.";
     const data = nodeData.get(id) ?? {};
     const features = Object.fromEntries(FEATURE_KEYS.filter((k) => data[k] !== undefined && data[k] !== null && data[k] !== "").map((k) => [k, data[k]]));
     // features of the page come from an archived copy: say so next to them (the data completeness list reads it)
@@ -648,7 +648,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       id,
       caseId: caseOf.get(id) ?? id,
       verdict,
-      verdictText: withNew.length && verdict !== "known_campaign" ? `${verdictText} Razem z: ${withNew.join(", ")}.` : verdictText,
+      verdictText: withNew.length && verdict !== "known_campaign" ? `${verdictText} Together with: ${withNew.join(", ")}.` : verdictText,
       campaign: known,
       ...(variant ? { campaignBasis: "content_variant" as const } : {}),
       similarCampaigns: similar,
@@ -710,7 +710,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
     [...newIds].map(traitsOf),
     base.items.map((it) => traitsOf(it.id)),
   );
-  if (unresolvedImages.size) notes.push(`porównanie obrazów pominięte dla ${unresolvedImages.size} rekordów (${[...unresolvedImages.values()][0]})`);
+  if (unresolvedImages.size) notes.push(`image comparison skipped for ${unresolvedImages.size} ${unresolvedImages.size === 1 ? "record" : "records"} (${[...unresolvedImages.values()][0]})`);
   const byId = new Map(results.map((r) => [r.id, r]));
   // a case whose every file is in an earlier case of the batch (the order the records are compared in)
   const filesOf = caseIds.filter((c) => caseDirOf.has(c)).map((c) => readCaseFiles(c, caseDirOf.get(c)!, notes));
@@ -721,7 +721,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       const page = traitsOf(r.id).pageSha256;
       const match = origRecords.find((o) => page && traitsOf(o.id).pageSha256 === page) ?? origRecords[0];
       if (!match) continue;
-      dups.set(r.id, { id: dups.get(match.id)?.id ?? match.id, reason: `wszystkie pliki sprawy (${orig.files}) są w sprawie ${orig.caseId} z tym samym SHA-256` });
+      dups.set(r.id, { id: dups.get(match.id)?.id ?? match.id, reason: `all files of the case (${orig.files}) are in case ${orig.caseId} with the same SHA-256` });
     }
   }
   for (const r of results) {
@@ -739,7 +739,7 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       r.similarCampaigns = orig.similarCampaigns;
       r.newCampaign = orig.newCampaign ?? r.newCampaign;
     }
-    r.verdictText = `Duplikat materiału ${d.id}: ${d.reason}.${campaign ? ` Kampania ${campaign}.` : r.newCampaign ? ` Nowa kampania ${r.newCampaign}.` : ""}`;
+    r.verdictText = `Duplicate of sample ${d.id}: ${d.reason}.${campaign ? ` Campaign ${campaign}.` : r.newCampaign ? ` New campaign ${r.newCampaign}.` : ""}`;
   }
 
   // 6. Not enough to compare: no address, no identifier, (almost) no text, and no link over the thresholds
@@ -771,8 +771,8 @@ export async function analyzeMaterial(input: MaterialInput, ctx: MaterialContext
       r.verdict = "insufficient";
       r.missing = missingData(s);
       r.verdictText = s.archiveNone
-        ? `Za mało danych do porównania: brak strony i brak kopii archiwalnej (krok archiwum: ${r.archive?.detail}), brak identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`
-        : `Za mało danych do porównania: brak adresu strony, identyfikatorów i treści (${words} słów po usunięciu elementów interfejsu). Dorzuć: ${r.missing.join("; ")}.`;
+        ? `Insufficient data to compare: no page and no archived copy (archive step: ${r.archive?.detail}), no identifiers and no content (${words} ${words === 1 ? "word" : "words"} after removing interface elements). Add: ${r.missing.join("; ")}.`
+        : `Insufficient data to compare: no page URL, no identifiers and no content (${words} ${words === 1 ? "word" : "words"} after removing interface elements). Add: ${r.missing.join("; ")}.`;
     } else if (r.verdict === "new_campaign" || r.verdict === "similar_campaigns") {
       const m = missingData(s);
       if (m.length) r.missing = m;
@@ -797,7 +797,7 @@ function readCaseFiles(caseId: string, dir: string, notes: string[]): CaseFiles 
     try {
       files.push({ name: f.rel, sha256: createHash("sha256").update(readFileSync(path.join(dir, f.rel))).digest("hex") });
     } catch (e) {
-      notes.push(`[${caseId}] plik ${f.rel} nieczytelny, pominięty przy porównaniu plików spraw: ${(e as Error).message}`);
+      notes.push(`[${caseId}] file ${f.rel} is unreadable, left out of the comparison of case files: ${(e as Error).message}`);
     }
   }
   return { caseId, files };
@@ -833,13 +833,13 @@ function reportMediaSteps(
       if (err && !done) return progress(c, step, "error", err);
       progress(c, step, "done", done ? undefined : doneWhy);
     };
-    report("ocr", media.ocr, "OCR wyłączony", img, "brak obrazu", "OCR", enr.some((e) => !!(e.ocrText || e.extraOcrText)), "nie odczytano tekstu", /ocr|tesseract/i);
-    report("address_bar", media.ocr, "wymaga OCR", img || vid, "brak zrzutu i wideo", "OCR", enr.some((e) => (e.observedUrls?.length ?? 0) > 0), "brak paska adresu na zrzutach", /pasek|address/i);
-    report("asr", media.asr, "transkrypcja wyłączona", vid, "brak wideo", "ASR", enr.some((e) => !!e.asrText), "brak mowy", /asr|whisper|transkry/i);
-    report("audio", media.audio, "odcisk audio wyłączony", vid, "brak wideo", "odcisk audio", enr.some((e) => (e.audioFp?.fingerprint.length ?? 0) > 0), "brak ścieżki dźwiękowej", /fpcalc|audio/i);
-    report("clip", media.clip, "CLIP wyłączony", img || vid, "brak obrazu i wideo", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "brak osadzenia", /clip/i);
-    report("voice", media.voice, "głos wyłączony", vid, "brak wideo", "głos mówcy", enr.some((e) => e.voices !== undefined), "adapter nie zwrócił wyniku", /speaker|głos/i);
-    report("faces", media.faces, "twarze wyłączone", img || vid, "brak obrazu i wideo", "twarze", enr.some((e) => e.faces !== undefined), "adapter nie zwrócił wyniku", /faces/i);
+    report("ocr", media.ocr, "OCR turned off", img, "no image", "OCR", enr.some((e) => !!(e.ocrText || e.extraOcrText)), "no text read", /ocr|tesseract/i);
+    report("address_bar", media.ocr, "needs OCR", img || vid, "no screenshot or video", "OCR", enr.some((e) => (e.observedUrls?.length ?? 0) > 0), "no address bar in the screenshots", /pasek|address/i);
+    report("asr", media.asr, "transcription turned off", vid, "no video", "ASR", enr.some((e) => !!e.asrText), "no speech", /asr|whisper|transkry|transcri/i);
+    report("audio", media.audio, "audio fingerprint turned off", vid, "no video", "audio fingerprint", enr.some((e) => (e.audioFp?.fingerprint.length ?? 0) > 0), "no audio track", /fpcalc|audio/i);
+    report("clip", media.clip, "CLIP turned off", img || vid, "no image or video", "CLIP", enr.some((e) => !!(e.imageEmbedding?.length || e.videoEmbedding?.length)), "no embedding", /clip/i);
+    report("voice", media.voice, "voice turned off", vid, "no video", "speaker voice", enr.some((e) => e.voices !== undefined), "the adapter returned no result", /speaker|głos|voice/i);
+    report("faces", media.faces, "faces turned off", img || vid, "no image or video", "faces", enr.some((e) => e.faces !== undefined), "the adapter returned no result", /faces/i);
     const lookups = lookupsOutcome(enr.map((e) => e.lookups), lookupsOff);
     progress(c, "lookups", lookups.status, lookups.detail);
   }
@@ -857,7 +857,7 @@ function reportArchiveStep(
 ): void {
   for (const c of caseIds) {
     const outcomes = itemsOf(c).map((it) => extra.perItem[it.id]?.archive).filter((a): a is NonNullable<typeof a> => !!a);
-    if (!outcomes.length) progress(c, "archive", "skipped", "archiwum niepotrzebne: strona pobrana albo brak adresu strony");
+    if (!outcomes.length) progress(c, "archive", "skipped", "archive not needed: the page was fetched or there is no page URL");
     else {
       const used = outcomes.find((a) => a.status === "used");
       progress(c, "archive", used ? "done" : "skipped", (used ?? outcomes[0]).detail);

@@ -59,9 +59,9 @@ const stamp = (d: Date) => `${d.toISOString().slice(0, 19).replace(/:/g, "-")}Z`
 
 /** Why a verdict is not added, or null when it is. */
 function refusal(verdict: MaterialVerdict, o: AddToBaseOptions): string | null {
-  if (verdict === "duplicate") return "duplikat materiału już w bazie";
-  if (verdict === "insufficient" && !o.force) return "za mało danych do porównania (dodaj z --force, jeśli materiał ma wejść mimo to)";
-  if (o.verdicts && !o.verdicts.includes(verdict)) return `werdykt ${verdict} poza listą dopisywanych (${o.verdicts.join(", ")})`;
+  if (verdict === "duplicate") return "duplicate of a sample already in the base";
+  if (verdict === "insufficient" && !o.force) return "insufficient data to compare (add with --force if the sample should go in anyway)";
+  if (o.verdicts && !o.verdicts.includes(verdict)) return `verdict ${verdict} is not on the list of verdicts to add (${o.verdicts.join(", ")})`;
   return null;
 }
 
@@ -77,7 +77,7 @@ function adoptMedia(item: Item, importDir: string, baseDir: string, dataDir: str
     if (!p) return null;
     const from = path.isAbsolute(p) ? p : path.join(importDir, p);
     if (!existsSync(from)) {
-      notes.push(`${item.id}: plik ${path.basename(p)} nie istnieje, pominięty`);
+      notes.push(`${item.id}: file ${path.basename(p)} does not exist, skipped`);
       return null;
     }
     mkdirSync(dest, { recursive: true });
@@ -126,13 +126,13 @@ export async function addToBase(dataDir: string, analyzed: { result: MaterialRes
   const out: AddToBaseResult = { added: [], skipped: [], createdCampaigns: [], historyDir: null };
   const { result, captured } = analyzed;
   const enrichedFile = findEnriched(dataDir);
-  if (!enrichedFile) throw new Error(`brak enriched.json w ${dataDir} (ani w work/): to nie jest baza`);
+  if (!enrichedFile) throw new Error(`no enriched.json in ${dataDir} (nor in work/): this is not a base`);
   const base = readJson<EnrichedDataset>(enrichedFile);
   const known = new Set(base.items.map((i) => i.id));
   const items = new Map(captured.items.map((i) => [i.id, i]));
 
   for (const r of result.items) {
-    const why = refusal(r.verdict, opts) ?? (known.has(r.id) ? "rekord o tym id jest już w bazie" : !items.has(r.id) ? "brak danych rekordu z analizy" : null);
+    const why = refusal(r.verdict, opts) ?? (known.has(r.id) ? "a record with this ID is already in the base" : !items.has(r.id) ? "no record data from the analysis" : null);
     if (why) out.skipped.push({ id: r.id, reason: why, ...(r.duplicateOf ? { duplicateOf: r.duplicateOf.id } : {}) });
     else out.added.push({ id: r.id, verdict: r.verdict, campaign: r.campaign });
   }

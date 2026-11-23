@@ -12,18 +12,18 @@ const args = cli(
     labels: { type: "string" },
     config: { type: "string" },
   } as const,
-  `Użycie: bun run base -- --cases <katalog spraw> [--out <katalog bazy>] [--offline | --lookups] [--labels etykiety.json] [--config linking.json]
-Buduje bazę znanych kampanii ze spraw (podkatalogi z zapisaną stroną, HAR-em, zrzutem albo wideo): import-cases -> ingest -> enrich -> build-graph.
---out: domyślnie VIEWER_DATA_DIR (tam czyta GUI i analyze-material --data), a bez niego data/.
---offline: bez zapytań o DNS, RDAP i ASN; tylko to, co jest w zapisanych materiałach. Domyślnie włączone, gdy ANALYZE_OFFLINE=1 (kontener).
---lookups: wymusza pasywne zapytania o DNS, RDAP i ASN domen stron (sieć), także przy ANALYZE_OFFLINE=1.
---labels: opcjonalne etykiety referencyjne {"<kampania>": ["<id sprawy>", ...]} (tylko dla evaluate; baza ich nie wymaga).
---config: wagi łączenia; bez niego wagi wbudowane (nie konfiguracja próbki).
-Brakujące narzędzia i modele (OCR, ASR, odcisk audio, CLIP) dają krok "skipped" z powodem w <out>/base.json.`,
+  `Usage: bun run base -- --cases <folder of cases> [--out <base folder>] [--offline | --lookups] [--labels labels.json] [--config linking.json]
+Builds a base of known campaigns from cases (subfolders with a saved page, a HAR, a screenshot or a video): import-cases -> ingest -> enrich -> build-graph.
+--out: default VIEWER_DATA_DIR (where the GUI and analyze-material --data read from), and without it data/.
+--offline: no DNS, RDAP or ASN queries; only what the saved samples hold. On by default when ANALYZE_OFFLINE=1 (container).
+--lookups: forces passive DNS, RDAP and ASN queries for the domains of the pages (network), also with ANALYZE_OFFLINE=1.
+--labels: optional reference labels {"<campaign>": ["<case id>", ...]} (only for evaluate; the base does not need them).
+--config: linking weights; without it the built-in weights (not the sample configuration).
+Missing tools and models (OCR, ASR, audio fingerprint, CLIP) give a "skipped" step with the reason in <out>/base.json.`,
 );
 
 void main(async () => {
-  if (!args.cases) throw new Error("wymagane: --cases (zob. --help)");
+  if (!args.cases) throw new Error("required: --cases (see --help)");
   await runBase({
     casesDir: path.resolve(args.cases),
     outDir: path.resolve(args.out ?? process.env.VIEWER_DATA_DIR ?? "data"),

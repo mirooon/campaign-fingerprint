@@ -27,22 +27,22 @@ export interface CustodyInput {
 /** Entries of the chain in time order: import (or a note that there is no provenance), enrichment, export. */
 export function buildCustodyLog(i: CustodyInput): CustodyEntry[] {
   const importedAt = i.imports.map((c) => c.importedUtc).filter((t): t is string => !!t).sort()[0] ?? i.enrich.generatedUtc;
-  const files = i.imports.flatMap((c) => c.files.map((f) => `${c.id}/${f.name} [${f.role}] sha256 ${f.sha256 ?? "nieczytelny"}`));
+  const files = i.imports.flatMap((c) => c.files.map((f) => `${c.id}/${f.name} [${f.role}] sha256 ${f.sha256 ?? "unreadable"}`));
   const importEntry: CustodyEntry = {
     utc: importedAt,
-    actor: "starter (import spraw)",
-    action: files.length ? `import plików sprawy, sumy SHA-256 oryginałów przed jakąkolwiek obróbką: ${files.join("; ")}` : "brak provenance.json: import bez sum plików wejściowych (zbiór nie pochodzi z importu spraw)",
+    actor: "starter (case import)",
+    action: files.length ? `import of the case files, SHA-256 checksums of the originals before any processing: ${files.join("; ")}` : "no provenance.json: import without checksums of the input files (the dataset does not come from the case import)",
   };
-  const fetched = i.enrich.fetchedFirstUtc ? `; zapytania sieciowe ${i.enrich.fetchedFirstUtc} – ${i.enrich.fetchedLastUtc ?? i.enrich.fetchedFirstUtc}` : "";
+  const fetched = i.enrich.fetchedFirstUtc ? `; network queries ${i.enrich.fetchedFirstUtc} – ${i.enrich.fetchedLastUtc ?? i.enrich.fetchedFirstUtc}` : "";
   const enrichEntry: CustodyEntry = {
     utc: i.enrich.generatedUtc,
-    actor: "starter (wzbogacanie)",
-    action: `wzbogacenie danych w trybie ${i.enrich.mode}${fetched}; User-Agent: ${i.enrich.userAgents.join(", ") || "brak"}`,
+    actor: "starter (enrichment)",
+    action: `data enrichment in ${i.enrich.mode} mode${fetched}; User-Agent: ${i.enrich.userAgents.join(", ") || "none"}`,
   };
   const exportEntry: CustodyEntry = {
     utc: i.exportUtc,
-    actor: "starter (eksport paczki)",
-    action: `eksport paczki dla kampanii ${i.campaignId}`,
+    actor: "starter (pack export)",
+    action: `pack export for campaign ${i.campaignId}`,
     tool_version: i.tool,
     sha256_after: i.manifestSha256,
   };
@@ -59,6 +59,6 @@ export interface TimestampToken {
 
 /** `timestamp_token` and `timestamp_note` of the pack: the token when there is one, otherwise null with the reason (`why`). */
 export function timestampFields(token: TimestampToken | null, why: string | null): { timestamp_token: TimestampToken | null; timestamp_note: string } {
-  if (token) return { timestamp_token: token, timestamp_note: "znacznik czasu RFC 3161 na sumie manifestu; dla pełnej mocy dowodowej użyj dostawcy kwalifikowanego (art. 41 eIDAS)" };
-  return { timestamp_token: null, timestamp_note: `brak znacznika czasu RFC 3161 (${why ?? "nie podano --tsa"}); dla kluczowych paczek dodaj go u kwalifikowanego dostawcy (art. 41 eIDAS): bun run evidence -- --tsa <url>` };
+  if (token) return { timestamp_token: token, timestamp_note: "RFC 3161 timestamp on the manifest checksum; for full evidential weight use a qualified provider (Art. 41 eIDAS)" };
+  return { timestamp_token: null, timestamp_note: `no RFC 3161 timestamp (${why ?? "--tsa not given"}); for key packs add one from a qualified provider (Art. 41 eIDAS): bun run evidence -- --tsa <url>` };
 }

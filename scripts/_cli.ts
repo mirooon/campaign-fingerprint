@@ -19,9 +19,9 @@ export async function main(fn: () => Promise<void> | void): Promise<void> {
   const started = Date.now();
   try {
     await fn();
-    console.log(`(gotowe w ${((Date.now() - started) / 1000).toFixed(1)} s)`);
+    console.log(`(done in ${((Date.now() - started) / 1000).toFixed(1)} s)`);
   } catch (e) {
-    console.error(`BŁĄD: ${(e as Error)?.stack ?? String(e)}`);
+    console.error(`ERROR: ${(e as Error)?.stack ?? String(e)}`);
     process.exit(1);
   }
 }

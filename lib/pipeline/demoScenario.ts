@@ -18,18 +18,18 @@ import { detectOcr } from "../media/ocr";
 
 /** Sample ads whose cases make up the demo base (two or more per campaign, so that campaigns exist). */
 export const DEMO_BASE_CASES: SampleCaseSpec[] = [
-  { name: "baza-c1-a", itemId: "c1-01" },
-  { name: "baza-c1-b", itemId: "c1-02" },
-  { name: "baza-c1-c", itemId: "c1-04" },
-  { name: "baza-c1-d", itemId: "c1-07" },
-  { name: "baza-c2-a", itemId: "c2-01" },
-  { name: "baza-c2-b", itemId: "c2-04" },
-  { name: "baza-c2-c", itemId: "c2-05" },
-  { name: "baza-c3-a", itemId: "c3-01" },
-  { name: "baza-c3-b", itemId: "c3-03" },
-  { name: "baza-c3-c", itemId: "c3-05" },
-  { name: "baza-c4-a", itemId: "c4-01" },
-  { name: "baza-c4-b", itemId: "c4-02" },
+  { name: "base-c1-a", itemId: "c1-01" },
+  { name: "base-c1-b", itemId: "c1-02" },
+  { name: "base-c1-c", itemId: "c1-04" },
+  { name: "base-c1-d", itemId: "c1-07" },
+  { name: "base-c2-a", itemId: "c2-01" },
+  { name: "base-c2-b", itemId: "c2-04" },
+  { name: "base-c2-c", itemId: "c2-05" },
+  { name: "base-c3-a", itemId: "c3-01" },
+  { name: "base-c3-b", itemId: "c3-03" },
+  { name: "base-c3-c", itemId: "c3-05" },
+  { name: "base-c4-a", itemId: "c4-01" },
+  { name: "base-c4-b", itemId: "c4-02" },
 ];
 
 /** Address of the dead page of the demo (the same as in `data/sample/demo/zrzut-martwa-strona.png`). */
@@ -46,9 +46,9 @@ const EVOLUTION = {
 
 /** The three pages of the evolving campaign: another domain and another face each time, the same back end. */
 const EVOLUTION_STEPS = [
-  { name: "ewolucja-1", host: "zdrowy-sekret.test", persona: "Adam Testowy", pid: 40111, counter: 1200, day: "2026-09-02", title: "Lekarz ujawnia domowy sposób" },
-  { name: "ewolucja-2", host: "dieta-cud-tydzien.test", persona: "Zofia Wymyślona", pid: 40377, counter: 8841, day: "2026-09-19", title: "Dietetyczka zdradza prosty trik" },
-  { name: "ewolucja-3", host: "vitalis-oferta.test", persona: "Kamil Demonstracyjny", pid: 40590, counter: 15320, day: "2026-10-07", title: "Znany youtuber poleca suplement" },
+  { name: "evolution-1", host: "zdrowy-sekret.test", persona: "Adam Testowy", pid: 40111, counter: 1200, day: "2026-09-02", title: "Lekarz ujawnia domowy sposób" },
+  { name: "evolution-2", host: "dieta-cud-tydzien.test", persona: "Zofia Wymyślona", pid: 40377, counter: 8841, day: "2026-09-19", title: "Dietetyczka zdradza prosty trik" },
+  { name: "evolution-3", host: "vitalis-oferta.test", persona: "Kamil Demonstracyjny", pid: 40590, counter: 15320, day: "2026-10-07", title: "Znany youtuber poleca suplement" },
 ] as const;
 
 /** HTML of one page of the evolving campaign (a saved page with the back end in its scripts and form). */
@@ -118,17 +118,17 @@ export function buildDemoInputs(sampleDir: string, outDir: string): DemoPaths {
   for (const dir of [p.baseCases, p.batch]) rmSync(dir, { recursive: true, force: true });
   writeSampleCases(sampleDir, p.baseCases, DEMO_BASE_CASES);
   writeSampleCases(sampleDir, p.batch, [
-    { name: "1-znana-kampania", itemId: "c1-03" },
-    { name: "2-podobne-kampanie", itemId: "c4-05" },
+    { name: "1-known-campaign", itemId: "c1-03" },
+    { name: "2-similar-campaigns", itemId: "c4-05" },
   ]);
   // a copy of a case of the base: the same page and the same picture
-  cpSync(path.join(p.baseCases, "baza-c2-a"), path.join(p.batch, "3-duplikat"), { recursive: true });
+  cpSync(path.join(p.baseCases, "base-c2-a"), path.join(p.batch, "3-duplicate"), { recursive: true });
   // too little data: a bare picture of an ad, no address, no page
-  mkdirSync(path.join(p.batch, "4-za-malo-danych"), { recursive: true });
-  copyFileSync(path.join(sampleDir, "images", "n4.png"), path.join(p.batch, "4-za-malo-danych", "zrzut.png"));
+  mkdirSync(path.join(p.batch, "4-insufficient-data"), { recursive: true });
+  copyFileSync(path.join(sampleDir, "images", "n4.png"), path.join(p.batch, "4-insufficient-data", "zrzut.png"));
   // dead page: no HTML, only the screenshot with the address in the bar
-  mkdirSync(path.join(p.batch, "5-martwa-strona"), { recursive: true });
-  copyFileSync(path.join(sampleDir, "demo", "zrzut-martwa-strona.png"), path.join(p.batch, "5-martwa-strona", "zrzut.png"));
+  mkdirSync(path.join(p.batch, "5-dead-page"), { recursive: true });
+  copyFileSync(path.join(sampleDir, "demo", "zrzut-martwa-strona.png"), path.join(p.batch, "5-dead-page", "zrzut.png"));
   for (const step of EVOLUTION_STEPS) {
     const dir = path.join(p.batch, `6-${step.name}`);
     mkdirSync(dir, { recursive: true });
@@ -141,7 +141,7 @@ export function buildDemoInputs(sampleDir: string, outDir: string): DemoPaths {
 /** Media of the demo: OCR when tesseract is there; ASR, audio and CLIP are off (no models in the demo), with the reason. */
 async function demoMedia(): Promise<MediaAvailability> {
   const ocr = await detectOcr();
-  const off = { available: false, reason: "wyłączone w demo (brak modeli w obrazie)" };
+  const off = { available: false, reason: "turned off in the demo (no models in the container image)" };
   return { ocr: { available: ocr.available, reason: ocr.reason }, asr: off, audio: off, clip: off };
 }
 

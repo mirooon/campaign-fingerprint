@@ -47,19 +47,19 @@ describe("periodReport", () => {
         { id: "b", reportedAt: "2026-11-15T00:00:00Z", reaction: "ad removed" },
       ],
     });
-    for (const heading of ["## Nowe kampanie", "## Osoby", "## Domeny z CT", "## Zdjęte reklamy", "## Zgłoszenia bez reakcji"]) expect(md).toContain(heading);
+    for (const heading of ["## New campaigns", "## People", "## Domains from CT", "## Taken-down ads", "## Reports without reaction"]) expect(md).toContain(heading);
     expect(md).toContain("Jan Testowy");
     expect(md).not.toContain("Ewa Fikcyjna");
     expect(md).toContain("swieza-domena.test");
     expect(md).not.toContain("dawna-domena.test");
-    expect(md).toMatch(/1 z 2 \(50%\)/);
-    expect(md).toMatch(/Zgłoszenia bez reakcji[\s\S]*\ba\b/);
+    expect(md).toMatch(/1 of 2 \(50%\)/);
+    expect(md).toMatch(/Reports without reaction[\s\S]*\ba\b/);
   });
 
   it("says so when there is no data for a section instead of dropping it", () => {
     const { graph, campaigns } = run();
     const md = periodReport({ graph, campaigns, since: parseSince("7d", NOW), until: NOW, ctRecords: [], reports: null });
-    expect(md).toContain("brak danych o zgłoszeniach");
-    expect(md).toContain("## Domeny z CT");
+    expect(md).toContain("no data on reports");
+    expect(md).toContain("## Domains from CT");
   });
 });

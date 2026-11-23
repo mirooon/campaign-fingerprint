@@ -104,7 +104,7 @@ describe("dodawanie materiału do bazy", () => {
     expect(again.result.items[0].verdict).toBe("duplicate");
     const res = await addToBase(baza, again, { source: "cli" });
     expect(res.added).toEqual([]);
-    expect(res.skipped[0]).toMatchObject({ reason: expect.stringContaining("duplikat"), duplicateOf: again.result.items[0].duplicateOf?.id });
+    expect(res.skipped[0]).toMatchObject({ reason: expect.stringContaining("duplicate"), duplicateOf: again.result.items[0].duplicateOf?.id });
   }, 60_000);
 
   it("za mało danych nie jest dopisywane bez force, z force tak", async () => {
@@ -115,7 +115,7 @@ describe("dodawanie materiału do bazy", () => {
     expect(lone.result.items[0].verdict).toBe("insufficient");
     const refused = await addToBase(baza, lone, { source: "cli" });
     expect(refused.added).toEqual([]);
-    expect(refused.skipped[0].reason).toMatch(/za mało danych/);
+    expect(refused.skipped[0].reason).toMatch(/insufficient data/);
     expect((await addToBase(baza, lone, { source: "cli", force: true })).added).toHaveLength(1);
   }, 60_000);
 

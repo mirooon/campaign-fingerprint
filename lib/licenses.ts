@@ -21,9 +21,9 @@ export interface LicenseRow {
 }
 
 /** Text shown in place of a license when `package.json` has none: the table must never hide the gap. */
-const NO_LICENSE = "BRAK POLA license";
+const NO_LICENSE = "NO license FIELD";
 /** Text shown for a dependency that `node_modules` does not contain (e.g. a platform binary of another OS). */
-const NOT_INSTALLED = "NIE ZAINSTALOWANY";
+const NOT_INSTALLED = "NOT INSTALLED";
 
 /**
  * Reads the license of a package from its `package.json`: the `license` field (string or `{type}`) or
@@ -66,8 +66,8 @@ export function resolveProductionPackages(direct: string[], read: (name: string)
 
 /** Markdown table of the packages (columns as in the other tables of LICENCJE.md). */
 export function renderLicenseTable(rows: LicenseRow[]): string {
-  const head = ["| Składnik | Wersja | Licencja | Rola | Sposób użycia | Źródło |", "|---|---|---|---|---|---|"];
-  const body = rows.map((r) => `| ${r.name} | ${r.version} | ${r.license} | ${r.direct ? "bezpośrednia" : "przechodnia"} | biblioteka w procesie | npm |`);
+  const head = ["| Component | Version | License | Role | How it is used | Source |", "|---|---|---|---|---|---|"];
+  const body = rows.map((r) => `| ${r.name} | ${r.version} | ${r.license} | ${r.direct ? "direct" : "transitive"} | in-process library | npm |`);
   return [...head, ...body].join("\n");
 }
 
@@ -80,6 +80,6 @@ export function replaceBetweenMarkers(text: string, id: string, replacement: str
   const end = `<!-- ${id}:end -->`;
   const a = text.indexOf(start);
   const b = text.indexOf(end);
-  if (a < 0 || b < a) throw new Error(`brak znaczników ${start} / ${end}`);
+  if (a < 0 || b < a) throw new Error(`markers missing: ${start} / ${end}`);
   return `${text.slice(0, a + start.length)}\n${replacement}\n${text.slice(b)}`;
 }

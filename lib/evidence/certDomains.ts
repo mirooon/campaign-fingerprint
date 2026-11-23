@@ -41,20 +41,20 @@ export function planCertDomains(domains: CertDomainInput[], snapshot: CertListSn
   const plan: CertDomainPlan = { report: [], alreadyListed: [], adsToListed: 0 };
   for (const d of domains) {
     if (d.excludedReason) continue;
-    const role = d.landing ? "strona docelowa" : "pośrednik w łańcuchu przekierowań";
+    const role = d.landing ? "landing page" : "hop in the redirect chain";
     for (const name of [d.domain, ...d.hosts.filter((h) => h !== d.domain)]) {
       const st = certStatus(snapshot, name, now);
       if (st.status === "active") {
-        plan.alreadyListed.push({ name, reason: `już na liście od ${day(st.insertDate)} (RegisterPositionId ${st.registerPositionId ?? "?"}, kopia z ${day(st.copyUtc)}): nie zgłaszać ponownie` });
+        plan.alreadyListed.push({ name, reason: `already on the list since ${day(st.insertDate)} (RegisterPositionId ${st.registerPositionId ?? "?"}, copy of ${day(st.copyUtc)}): do not report again` });
         continue;
       }
       const listState =
         st.status === "removed"
-          ? `wpis wygasł ${day(st.deleteDate)}, można zgłosić ponownie`
+          ? `entry expired ${day(st.deleteDate)}, can be reported again`
           : st.status === "absent"
-            ? `brak wpisu w kopii listy z ${day(st.copyUtc)}`
-            : `lista niesprawdzona (${note ?? "brak kopii"})`;
-      plan.report.push({ name, reason: `${role}, ${d.ads} ${d.ads === 1 ? "reklama" : "reklam(y)"} kampanii; ${listState}` });
+            ? `no entry in the copy of the list of ${day(st.copyUtc)}`
+            : `list not checked (${note ?? "no copy"})`;
+      plan.report.push({ name, reason: `${role}, ${d.ads} ${d.ads === 1 ? "ad" : "ads"} of the campaign; ${listState}` });
     }
     if (certStatus(snapshot, d.domain, now).status === "active") plan.adsToListed += d.ads;
   }
@@ -63,16 +63,16 @@ export function planCertDomains(domains: CertDomainInput[], snapshot: CertListSn
 
 /** Markdown with the reason for every domain, next to the plain cert-domains.txt (the form takes plain names only). */
 export function renderCertReasons(plan: CertDomainPlan, campaignId: string): string {
-  const lines = (list: CertDomainLine[]) => list.map((l) => `- \`${l.name}\` — ${l.reason}`).join("\n") || "- brak";
-  return `# Domeny do zgłoszenia na Listę Ostrzeżeń CERT — kampania ${campaignId}
+  const lines = (list: CertDomainLine[]) => list.map((l) => `- \`${l.name}\` — ${l.reason}`).join("\n") || "- none";
+  return `# Domains to report to the CERT Warning List — campaign ${campaignId}
 
-Uzasadnienia do pliku \`cert-domains.txt\` (formularz przyjmuje do 50 domen na zgłoszenie). Status z lokalnej kopii listy, bez zapytań online.
+Reasons for the file \`cert-domains.txt\` (the form takes up to 50 domains per report). Status from a local copy of the list, no online queries.
 
-## Do zgłoszenia
+## To report
 
 ${lines(plan.report)}
 
-## Pominięte: już na liście
+## Left out: already on the list
 
 ${lines(plan.alreadyListed)}
 `;

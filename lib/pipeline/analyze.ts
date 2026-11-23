@@ -1,5 +1,5 @@
 /**
- * "Do której kampanii należy ta reklama?" — enrich ONE new ad (live passive lookups or
+ * "Which campaign does this ad belong to?" — enrich ONE new ad (live passive lookups or
  * recorded fixtures) and match it against the existing evidence graph: shared pivots
  * (same entity ids, weighted as in the graph) plus image (dHash) and text (TF-IDF)
  * similarity to existing ads. Nearest-neighbour linkage per campaign.
@@ -93,7 +93,7 @@ export async function analyzeAd(
   ctx: { graph: EvidenceGraph; campaigns: CampaignsFile; sources: EnrichmentSources; config?: LinkConfig },
 ): Promise<AnalyzeResult> {
   const config = ctx.config ?? DEFAULT_LINK_CONFIG;
-  const id = "nowa-reklama";
+  const id = "new-ad";
   const item: Item = {
     id,
     platform: null,
@@ -131,7 +131,7 @@ export async function analyzeAd(
     if (!stored || stored.type === "item") continue;
     const weight = (stored.weight ?? 0) * p.relation;
     if (weight <= 0) continue;
-    const discountText = stored.discounts.length ? ` — zdyskontowane: ${stored.discounts.map((d) => d.reason).join("; ")}` : "";
+    const discountText = stored.discounts.length ? ` — discounted: ${stored.discounts.map((d) => d.reason).join("; ")}` : "";
     for (const other of holders(p.pivot)) {
       push(other, { key: p.pivot, evidence: `${p.how}${discountText}`, weight, strong: stored.strong && p.relation >= 1, discounted: stored.discounts.length > 0 });
     }
@@ -144,7 +144,7 @@ export async function analyzeAd(
       const d = hammingDistance(dhash, n.data.dhash);
       if (d > config.similarity.imageHamming) continue;
       const weight = config.similarity.imageWeight * (1 - (0.5 * d) / Math.max(1, config.similarity.imageHamming));
-      push(n.key, { key: "similar_image", evidence: `prawie identyczna kreacja (dHash, odległość ${d}/64)`, weight, strong: false, discounted: false });
+      push(n.key, { key: "similar_image", evidence: `nearly identical creative (dHash, distance ${d}/64)`, weight, strong: false, discounted: false });
     }
   }
   // Text similarity (TF-IDF fitted on existing ad texts + the new one)
@@ -157,7 +157,7 @@ export async function analyzeAd(
       const c = cosineSparse(v, model.transform(n.data.text as string));
       if (c < thr) continue;
       const weight = config.similarity.text.weight * (0.5 + (0.5 * (c - thr)) / (1 - thr));
-      push(n.key, { key: "similar_text", evidence: `podobna treść (cosinus ${c.toFixed(2)})`, weight, strong: false, discounted: false });
+      push(n.key, { key: "similar_text", evidence: `similar content (cosine ${c.toFixed(2)})`, weight, strong: false, discounted: false });
     }
   }
 
@@ -198,9 +198,9 @@ export async function analyzeAd(
 
   const verdict = best
     ? best.strong
-      ? `Reklama należy do kampanii ${best.campaignId} (silny dowód: ${best.evidence.find((e) => e.strong)?.evidence ?? best.evidence[0]?.evidence}).`
-      : `Reklama najprawdopodobniej należy do kampanii ${best.campaignId} (wynik ${best.score.toFixed(2)}, dowody średniej siły — wymaga weryfikacji).`
-    : "Brak wystarczających dowodów łączących reklamę z istniejącymi kampaniami (nowa kampania albo za mało danych).";
+      ? `The ad belongs to campaign ${best.campaignId} (strong evidence: ${best.evidence.find((e) => e.strong)?.evidence ?? best.evidence[0]?.evidence}).`
+      : `The ad most likely belongs to campaign ${best.campaignId} (score ${best.score.toFixed(2)}, evidence of medium strength — needs verification).`
+    : "Not enough evidence linking the ad to existing campaigns (a new campaign or insufficient data).";
 
   return {
     input,

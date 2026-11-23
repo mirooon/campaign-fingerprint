@@ -6,10 +6,10 @@ import { cli, main } from "./_cli";
 
 const args = cli(
   { write: { type: "string" } } as const,
-  `Użycie: bun run licenses [-- --write LICENCJE.md]
-Czyta pole license z node_modules/<pakiet>/package.json dla pakietów produkcyjnych (dependencies z package.json i ich zależności).
-Bez --write wypisuje tabelę Markdown. Z --write podmienia treść między znacznikami <!-- npm:start --> i <!-- npm:end --> w podanym pliku.
-Wymaga zainstalowanych zależności (bun install).`,
+  `Usage: bun run licenses [-- --write LICENCJE.md]
+Reads the license field of node_modules/<package>/package.json for the production packages (dependencies of package.json and their dependencies).
+Without --write prints a Markdown table. With --write replaces the content between the <!-- npm:start --> and <!-- npm:end --> markers in the given file.
+Needs the dependencies installed (bun install).`,
 );
 
 /** Reads the installed package.json of a package from the flat node_modules, null when it is not installed. */
@@ -28,5 +28,5 @@ void main(() => {
     return;
   }
   fs.writeFileSync(args.write, replaceBetweenMarkers(fs.readFileSync(args.write, "utf8"), "npm", table));
-  console.log(`[licenses] ${rows.length} pakietów -> ${args.write}`);
+  console.log(`[licenses] ${rows.length} ${rows.length === 1 ? "package" : "packages"} -> ${args.write}`);
 });

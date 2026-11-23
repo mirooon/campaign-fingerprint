@@ -58,11 +58,11 @@ describe("unreadMaterials", () => {
   const res = {
     items: [item("m1", { caseId: "sprawa-1" })],
     skipped: [
-      { id: "sprawa-2/strona.html", reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" },
-      { id: "sprawa-2/stara.har", reason: "HAR bez treści dokumentu i brak zapisanej strony" },
-      { id: "sprawa-2/druga.html", reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" },
-      { id: "sprawa-1/kopia.html", reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" },
-      { id: "sprawa-3", reason: "brak strony, zrzutu ani wideo w katalogu" },
+      { id: "sprawa-2/strona.html", reason: "no page URL (no “saved from url” comment and no document in a HAR)" },
+      { id: "sprawa-2/stara.har", reason: "HAR without document content and no saved page" },
+      { id: "sprawa-2/druga.html", reason: "no page URL (no “saved from url” comment and no document in a HAR)" },
+      { id: "sprawa-1/kopia.html", reason: "no page URL (no “saved from url” comment and no document in a HAR)" },
+      { id: "sprawa-3", reason: "no page, screenshot or video in the folder" },
     ],
   };
   it("one entry per case without a record, with reasons without repeats and advice on what to add", () => {
@@ -79,9 +79,9 @@ describe("unreadMaterials", () => {
     expect(rows[1].confidence).toBe("uncertain");
   });
   it("the advice for a missing page URL mentions a HAR; a reason without advice gives no empty lines", () => {
-    expect(unreadHints(["brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)"]).join(" ")).toMatch(/add a HAR/i);
+    expect(unreadHints(["no page URL (no “saved from url” comment and no document in a HAR)"]).join(" ")).toMatch(/add a HAR/i);
     expect(unreadHints(["something else"])).toEqual([]);
-    expect(unreadHints(["brak adresu strony", "brak adresu strony"])).toHaveLength(2);
+    expect(unreadHints(["no page URL", "no page URL"])).toHaveLength(2);
   });
   it("rows of unread cases show for “all” and “insufficient data”", () => {
     expect(unreadVisible("all")).toBe(true);
@@ -120,7 +120,7 @@ describe("variantNote", () => {
 describe("resultRows", () => {
   it("export rows have their columns in a fixed order", () => {
     const rows = resultRows(result);
-    expect(Object.keys(rows[0])).toEqual(["material_id", "case", "verdict", "campaign_id", "similar_campaigns", "new_campaign_id", "duplicate_of", "confidence", "score", "top_premise", "missing_data", "blisko_bez_polaczenia"]);
+    expect(Object.keys(rows[0])).toEqual(["material_id", "case", "verdict", "campaign_id", "similar_campaigns", "new_campaign_id", "duplicate_of", "confidence", "score", "top_premise", "missing_data", "near_misses"]);
     expect(rows[3].duplicate_of).toBe("a");
   });
 });

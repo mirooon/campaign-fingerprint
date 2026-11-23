@@ -200,7 +200,7 @@ describe("enrichItems: archive step", () => {
     expect(off.perItem.m1.archive).toEqual({ status: "skipped", detail: "tryb offline: bez zapytań sieciowych" });
     const refused = await enrichItems([deadItem], { sources: deadLive({ errorCode: "blocked" }), baseDir: ".", archive: { sources: [src] } });
     expect(refused.perItem.m1.archive?.status).toBe("skipped");
-    expect(refused.perItem.m1.archive?.detail).toMatch(/adres/);
+    expect(refused.perItem.m1.archive?.detail).toMatch(/URL/);
     expect(calls).toEqual([]);
   });
 
@@ -279,13 +279,13 @@ describe("enrichItems: RDAP and DNS without an answer", () => {
     const out = await enrichItems([item], { sources: failing(), baseDir: "." });
     const enr = out.perItem[item.id];
     expect(enr.errors).toEqual([
-      "RDAP nie odpowiedział dla formularz.test: brak połączenia z siecią",
-      "DNS nie odpowiedział dla formularz.test: brak połączenia z siecią",
-      "DNS nie odpowiedział dla www.sklep.example: A, AAAA: brak odpowiedzi w limicie czasu",
+      "RDAP did not answer for formularz.test: no network connection",
+      "DNS did not answer for formularz.test: no network connection",
+      "DNS did not answer for www.sklep.example: A, AAAA: no answer within the time limit",
     ]);
     expect(enr.lookups).toEqual({ domains: ["formularz.test", "sklep.example"], failed: ["dns:formularz.test", "dns:sklep.example", "rdap:formularz.test"] });
     // a registry without a record (null) is data, not a failure; the run goes on past a DNS query that throws
-    expect(enr.errors.some((e) => e.includes("RDAP nie odpowiedział dla sklep.example"))).toBe(false);
+    expect(enr.errors.some((e) => e.includes("RDAP did not answer for sklep.example"))).toBe(false);
     expect(out.domains["formularz.test"].rdap).toBeNull();
   });
 

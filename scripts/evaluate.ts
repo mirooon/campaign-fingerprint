@@ -1,6 +1,6 @@
 /**
  * bun run evaluate -- [--graph data/graph.json] [--campaigns data/campaigns.json] [--json]
- * bun run evaluate -- --csv <partia.csv> --labels <etykiety.json> [--json]
+ * bun run evaluate -- --csv <batch.csv> --labels <labels.json> [--json]
  */
 import { readFileSync } from "node:fs";
 import { formatEval } from "../lib/graph/eval";
@@ -17,18 +17,18 @@ const args = cli(
     labels: { type: "string" },
     json: { type: "boolean" },
   } as const,
-  `Użycie: bun run evaluate -- [--graph data/graph.json] [--campaigns data/campaigns.json] [--json]
-       bun run evaluate -- --csv <partia.csv> --labels <etykiety.json> [--json]
-Bez --csv etykiety prawdy pochodzą z kolumny label (zmapowanej przy ingest).
-Z --csv oceniana jest partia analyze-material; plik etykiet to {"etykieta": ["sprawa", …]} albo {"sprawa": "etykieta"}
-(sprawa = kolumna case, a gdy jej brak w etykietach, material_id). Rekord trafia do campaign_id, new_campaign_id
-albo grupy rekordu z duplicate_of; „podobne kampanie” nie przypisują (rekord zostaje sam).`,
+  `Usage: bun run evaluate -- [--graph data/graph.json] [--campaigns data/campaigns.json] [--json]
+       bun run evaluate -- --csv <batch.csv> --labels <labels.json> [--json]
+Without --csv the truth labels come from the label column (mapped at ingest).
+With --csv a batch of analyze-material is scored; the labels file is {"label": ["case", …]} or {"case": "label"}
+(case = the case column, and when the labels lack it, material_id). A record goes to campaign_id, new_campaign_id
+or the group of the record in duplicate_of; “similar campaigns” do not assign (the record stays alone).`,
 );
 
 /** Batch CSV + labels file → scores, or null when only one of the two flags is given. */
 function evaluateBatch(): ReturnType<typeof evaluateMaterialRows> | null {
   if (!args.csv && !args.labels) return null;
-  if (!args.csv || !args.labels) throw new Error("--csv i --labels podaje się razem");
+  if (!args.csv || !args.labels) throw new Error("--csv and --labels go together");
   const rows = parseCsv(readFileSync(args.csv, "utf8"), ",");
   return evaluateMaterialRows(rows, truthFromLabels(JSON.parse(readFileSync(args.labels, "utf8"))));
 }
@@ -36,13 +36,13 @@ function evaluateBatch(): ReturnType<typeof evaluateMaterialRows> | null {
 void main(() => {
   const batch = evaluateBatch();
   if (batch && !batch.result.n) {
-    console.log(`[evaluate] żaden rekord partii nie ma etykiety (bez etykiety: ${batch.unlabeled.length}) — nie ma czego ocenić.`);
+    console.log(`[evaluate] no record of the batch has a label (without a label: ${batch.unlabeled.length}) — nothing to score.`);
     return;
   }
-  if (batch?.unlabeled.length) console.error(`[evaluate] rekordy bez etykiety (pominięte): ${batch.unlabeled.length}`);
+  if (batch?.unlabeled.length) console.error(`[evaluate] records without a label (skipped): ${batch.unlabeled.length}`);
   const { result, breakdown } = batch ?? runEvaluate({ graph: args.graph ?? DEFAULTS.graph, campaigns: args.campaigns ?? DEFAULTS.campaigns });
   if (!result) {
-    console.log("[evaluate] brak etykiet prawdy (kolumna label) — nie ma czego ocenić.");
+    console.log("[evaluate] no truth labels (label column) — nothing to score.");
     return;
   }
   if (args.json) {
@@ -50,7 +50,7 @@ void main(() => {
     return;
   }
   console.log(formatEval(result));
-  console.log("\nPrawdziwa kampania -> przewidziane kampanie (liczba reklam):");
+  console.log("\nTrue campaign -> predicted campaigns (number of ads):");
   for (const b of breakdown) {
     const parts = Object.entries(b.predicted)
       .sort((x, y) => y[1] - x[1])

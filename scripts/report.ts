@@ -1,4 +1,4 @@
-/** bun run report -- [--since 7d] [--data <katalog przebiegu>] [--ct-feed <plik>] [--reports <plik.json>] [--out raport.md] */
+/** bun run report -- [--since 7d] [--data <run folder>] [--ct-feed <file>] [--reports <file.json>] [--out report.md] */
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { DEFAULT_FEED_FILE, readFeedTail } from "../lib/ct/feed";
@@ -15,11 +15,11 @@ const args = cli(
     reports: { type: "string" },
     out: { type: "string" },
   } as const,
-  `Użycie: bun run report -- [--since 7d] [--data <katalog przebiegu>] [--ct-feed <plik>] [--reports <plik.json>] [--out raport.md]
-Raport okresowy dla instytucji (Markdown): nowe kampanie, osoby, domeny z CT, odsetek zdjętych reklam, zgłoszenia bez reakcji.
---since: okres wstecz od teraz (7d, 36h). --data: katalog z graph.json i campaigns.json (domyślnie VIEWER_DATA_DIR albo data/).
---ct-feed: plik JSONL watchera CT (domyślnie ${DEFAULT_FEED_FILE}). --reports: JSON [{"id","reportedAt","reaction"}] ze zgłoszeniami instytucji (narzędzie nie prowadzi ich rejestru).
---out: plik wyniku (domyślnie standardowe wyjście).`,
+  `Usage: bun run report -- [--since 7d] [--data <run folder>] [--ct-feed <file>] [--reports <file.json>] [--out report.md]
+Period report for an institution (Markdown): new campaigns, people, domains from CT, share of taken-down ads, reports without reaction.
+--since: period back from now (7d, 36h). --data: folder with graph.json and campaigns.json (default VIEWER_DATA_DIR or data/).
+--ct-feed: JSONL file of the CT watcher (default ${DEFAULT_FEED_FILE}). --reports: JSON [{"id","reportedAt","reaction"}] with the institution's reports (the tool keeps no register of them).
+--out: result file (default standard output).`,
 );
 
 void main(() => {

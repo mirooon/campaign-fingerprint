@@ -166,7 +166,7 @@ export interface ItemEnrichment {
    * list: a possible fake profile of that person. An attribute, not evidence of a campaign.
    */
   advertiserImpersonates?: { id: string; name: string };
-  /** Burned-in on-screen text of the video creative: unique lines from frames sampled every 2 s (opt-in OCR; "z napisów w wideo"). */
+  /** Burned-in on-screen text of the video creative: unique lines from frames sampled every 2 s (opt-in OCR; "from video captions"). */
   videoOcrText?: string | null;
   /** Transcript of the video/audio creative (opt-in ASR). */
   asrText: string | null;

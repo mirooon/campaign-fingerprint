@@ -26,9 +26,9 @@ export interface RecheckProbes {
   adLibrary: ((id: string) => Promise<{ takenDown: boolean | null; error: string | null }>) | null;
 }
 
-const ACTOR = "starter (ponowne sprawdzenie)";
-/** "tak" / "nie" / "nieznane" for a value the library may not give. */
-const yesNo = (v: boolean | null): string => (v === null ? "nieznane" : v ? "tak" : "nie");
+const ACTOR = "starter (re-check)";
+/** "yes" / "no" / "unknown" for a value the library may not give. */
+const yesNo = (v: boolean | null): string => (v === null ? "unknown" : v ? "yes" : "no");
 
 /** Chain-of-custody entries of one re-check, in the order domains, ad-library records, summary. */
 export async function recheckEntries(record: RecheckRecord, probes: RecheckProbes, now: () => Date = () => new Date()): Promise<CustodyEntry[]> {
@@ -42,28 +42,28 @@ export async function recheckEntries(record: RecheckRecord, probes: RecheckProbe
     const cert = probes.certStatus?.(d.domain_fqdn);
     out.push(
       entry(
-        `domena ${d.domain_fqdn}: ${dns.error ? `nie rozwiązuje się (${dns.error}), offline lub zablokowana` : `rozwiązuje się: ${dns.addresses.join(", ")}`}; ` +
-          `${cert ? (cert.status === "active" ? `na Liście Ostrzeżeń CERT od ${cert.insertDate ?? "?"} (kopia z ${cert.copyUtc ?? "?"})` : `status na liście CERT: ${cert.status}`) : "lista CERT: brak lokalnej kopii, pominięto"}; ` +
-          `w chwili zgłoszenia: ${page ? `HTTP ${page.status ?? "?"}, pobrano ${page.fetched_utc ?? "?"}, sha256 treści ${page.body_sha256_raw ?? "?"}` : "brak pobrania strony w paczce"}`,
+        `domain ${d.domain_fqdn}: ${dns.error ? `does not resolve (${dns.error}), offline or blocked` : `resolves: ${dns.addresses.join(", ")}`}; ` +
+          `${cert ? (cert.status === "active" ? `on the CERT Warning List since ${cert.insertDate ?? "?"} (copy of ${cert.copyUtc ?? "?"})` : `status on the CERT list: ${cert.status}`) : "CERT list: no local copy, skipped"}; ` +
+          `at the time of the report: ${page ? `HTTP ${page.status ?? "?"}, fetched ${page.fetched_utc ?? "?"}, content sha256 ${page.body_sha256_raw ?? "?"}` : "no page fetch in the pack"}`,
       ),
     );
   }
   for (const ad of record.observations.ads) {
     for (const r of ad.repository_record ?? []) {
       if (!probes.adLibrary) {
-        out.push(entry(`biblioteka reklam, rekord ${r.id} (reklama ${ad.item_id}): pominięto, brak narzędzia do biblioteki reklam`));
+        out.push(entry(`ad library, record ${r.id} (ad ${ad.item_id}): skipped, no ad library tool`));
         continue;
       }
       const current = await probes.adLibrary(r.id);
       out.push(
         entry(
           current.error
-            ? `biblioteka reklam, rekord ${r.id} (reklama ${ad.item_id}): nie udało się sprawdzić (${current.error})`
-            : `biblioteka reklam, rekord ${r.id} (reklama ${ad.item_id}): usunięta: ${yesNo(current.takenDown)}; w chwili zgłoszenia: ${yesNo(r.taken_down)} (pobrano ${r.fetched_utc ?? "?"})`,
+            ? `ad library, record ${r.id} (ad ${ad.item_id}): could not check (${current.error})`
+            : `ad library, record ${r.id} (ad ${ad.item_id}): taken down: ${yesNo(current.takenDown)}; at the time of the report: ${yesNo(r.taken_down)} (fetched ${r.fetched_utc ?? "?"})`,
         ),
       );
     }
   }
-  out.push(entry("ponowne sprawdzenie pasywne (DNS, lokalna lista CERT, biblioteka reklam); nie przesądza o usunięciu treści ani o reakcji platformy"));
+  out.push(entry("passive re-check (DNS, local CERT list, ad library); it does not settle whether the content was removed or whether the platform reacted"));
   return out;
 }

@@ -35,7 +35,7 @@ class OverLimit(Exception):
     """The estimated bytes of a query exceed the configured limit."""
 
     def __init__(self, estimated: int, limit: int):
-        super().__init__(f"zapytanie przetworzyłoby {estimated / 1024 ** 3:.1f} GB, limit to {limit / 1024 ** 3:.1f} GB")
+        super().__init__(f"the query would process {estimated / 1024 ** 3:.1f} GB, the limit is {limit / 1024 ** 3:.1f} GB")
         self.estimated = estimated
         self.limit = limit
 
@@ -91,7 +91,7 @@ def build_query(a, columns: list[str]) -> tuple[str, list[tuple[str, str, str]]]
     elif a.regions:
         codes = [c for c in a.regions.split(",") if c]
         if not all(REGION_RE.match(c) for c in codes):
-            raise ValueError("nieprawidłowy kod regionu w --regions")
+            raise ValueError("invalid region code in --regions")
         region_conds.append("r.region_code IN (" + ", ".join(f"'{c}'" for c in codes) + ")")
     if a.start:
         region_conds.append("SAFE_CAST(r.last_shown AS DATE) >= @from_date")
@@ -214,7 +214,7 @@ def check(project: str | None, client_maker=make_client, which=shutil.which) -> 
         return {"ok": True, "backend": "client", "reason": None}
     if which("bq") and project:
         return {"ok": True, "backend": "bq", "reason": None}
-    why = "brak poświadczeń ADC dla google-cloud-bigquery" if which("bq") is None else "brak projektu (GOOGLE_CLOUD_PROJECT albo gcloud config set project)"
+    why = "no ADC credentials for google-cloud-bigquery" if which("bq") is None else "no project (GOOGLE_CLOUD_PROJECT or gcloud config set project)"
     return {"ok": False, "backend": None, "reason": why}
 
 
@@ -228,13 +228,13 @@ def search(a, client_maker=make_client, runner=subprocess.run) -> dict:
         elif a.backend != "client" and shutil.which("bq") and project:
             backend = BqCliBackend(project, runner)
         else:
-            raise NoAccess("brak poświadczeń ADC (klient) i brak CLI bq z projektem")
+            raise NoAccess("no ADC credentials (client) and no bq CLI with a project")
         level, sql, params, estimated = pick_tier(a, backend)
         return {"rows": backend.run(sql, params, a.max_bytes), "backend": backend.name, "bytesEstimated": estimated, "detail": level}
     except ValueError as e:
         return {"error": str(e), "kind": "failed"}
     except OverLimit as e:
-        return {"error": f"{e}. Zawęź zapytanie (kraj, daty, nazwa) albo podnieś ADLIB_BQ_MAX_BYTES.", "kind": "over_limit", "bytesEstimated": e.estimated}
+        return {"error": f"{e}. Narrow the query (country, dates, name) or raise ADLIB_BQ_MAX_BYTES.", "kind": "over_limit", "bytesEstimated": e.estimated}
     except NoAccess as e:
         return {"error": str(e), "kind": "no_access", "howToGetAccess": ACCESS_HINT}
     except Exception as e:  # upstream failure: report the reason to the caller instead of crashing

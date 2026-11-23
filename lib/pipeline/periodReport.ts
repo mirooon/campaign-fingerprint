@@ -29,7 +29,7 @@ const UNITS: Record<string, number> = { h: 3_600_000, d: 86_400_000 };
 /** Start of the period from "7d" or "36h" (days or hours back from `now`); throws on any other text. */
 export function parseSince(text: string, now: Date): Date {
   const m = /^(\d+)([dh])$/.exec(text.trim());
-  if (!m) throw new Error(`nieznany okres "${text}" (podaj np. 7d albo 36h)`);
+  if (!m) throw new Error(`unknown period "${text}" (give e.g. 7d or 36h)`);
   return new Date(now.getTime() - Number(m[1]) * UNITS[m[2]]);
 }
 
@@ -70,17 +70,18 @@ export function periodReport(input: PeriodReportInput): string {
 
   const silent = input.reports?.filter((r) => r.reaction === null && Date.parse(r.reportedAt) <= until.getTime()) ?? [];
 
-  const lines = [`# Raport okresowy ${day(since)} – ${day(until)}`, "", `Materiałów w bazie: ${items.length}; kampanii: ${campaigns.campaigns.length}.`, ""];
-  lines.push("## Nowe kampanie", "");
-  lines.push(...(fresh.length ? fresh.map((c) => `- ${c.id}: ${c.size} mat., od ${c.firstSeen?.slice(0, 10)}; ${c.topEvidence[0]?.label ?? "bez dowodu wspólnego"}`) : ["Brak nowych kampanii w okresie."]), "");
-  lines.push("## Osoby", "");
-  lines.push(...(persons.size ? [...persons].sort((a, b) => b[1].ads - a[1].ads).map(([p, r]) => `- ${p}: ${r.ads} mat. w ${r.campaigns.size} nowych kampaniach`) : ["Brak rozpoznanych osób w nowych kampaniach."]), "");
-  lines.push("## Domeny z CT", "");
-  lines.push(...(domains.length ? domains.map((d) => `- ${d}`) : ["Brak nowych domen z CT w okresie."]), "");
-  lines.push("## Zdjęte reklamy", "");
-  lines.push(withLibrary.length ? `${takenDown} z ${withLibrary.length} (${Math.round((100 * takenDown) / withLibrary.length)}%) materiałów z wpisem w bibliotece reklam zostało zdjętych.` : "Brak materiałów z wpisem w bibliotece reklam (krok --ad-library).", "");
-  lines.push("## Zgłoszenia bez reakcji", "");
-  if (input.reports === null) lines.push("Narzędzie nie prowadzi rejestru zgłoszeń: brak danych o zgłoszeniach (podaj plik --reports).");
-  else lines.push(...(silent.length ? silent.map((r) => `- ${r.id}: zgłoszono ${r.reportedAt.slice(0, 10)}, bez reakcji`) : ["Wszystkie zgłoszenia mają reakcję."]));
+  const samples = (n: number) => `${n} ${n === 1 ? "sample" : "samples"}`;
+  const lines = [`# Period report ${day(since)} – ${day(until)}`, "", `Samples in the base: ${items.length}; campaigns: ${campaigns.campaigns.length}.`, ""];
+  lines.push("## New campaigns", "");
+  lines.push(...(fresh.length ? fresh.map((c) => `- ${c.id}: ${samples(c.size)}, from ${c.firstSeen?.slice(0, 10)}; ${c.topEvidence[0]?.label ?? "no shared evidence"}`) : ["No new campaigns in the period."]), "");
+  lines.push("## People", "");
+  lines.push(...(persons.size ? [...persons].sort((a, b) => b[1].ads - a[1].ads).map(([p, r]) => `- ${p}: ${samples(r.ads)} in ${r.campaigns.size} new ${r.campaigns.size === 1 ? "campaign" : "campaigns"}`) : ["No recognized people in new campaigns."]), "");
+  lines.push("## Domains from CT", "");
+  lines.push(...(domains.length ? domains.map((d) => `- ${d}`) : ["No new domains from CT in the period."]), "");
+  lines.push("## Taken-down ads", "");
+  lines.push(withLibrary.length ? `${takenDown} of ${withLibrary.length} (${Math.round((100 * takenDown) / withLibrary.length)}%) samples with an ad-library record were taken down.` : "No samples with an ad-library record (the --ad-library step).", "");
+  lines.push("## Reports without reaction", "");
+  if (input.reports === null) lines.push("The tool keeps no register of reports: no data on reports (give a --reports file).");
+  else lines.push(...(silent.length ? silent.map((r) => `- ${r.id}: reported ${r.reportedAt.slice(0, 10)}, no reaction`) : ["All reports have a reaction."]));
   return `${lines.join("\n")}\n`;
 }

@@ -25,7 +25,7 @@ export interface StixExtras {
   urls: string[];
   /** dHash of the creatives (hex). */
   imageHashes: string[];
-  /** Model results as sentences ("wynik modelu, wskazówka"); they become one note. */
+  /** Model results as sentences ("model output, a hint"); they become one note. */
   modelNotes: string[];
   /** CERT register position id per domain, when the domain is on the list. */
   certRegisterIds: Record<string, string>;
@@ -53,8 +53,8 @@ export function buildStixBundle(f: CampaignFacts, x: StixExtras): { type: "bundl
 
   const campaign: StixObject = {
     ...base("campaign", f.campaignId),
-    name: `Kampania ${f.campaignId}`,
-    description: `Kampania ${f.campaignId}: ${f.ads.length} reklam, ${domains.length} domen (paczka dowodów ${f.packageId}). Powiązanie reklam to wskazówka narzędzia, do weryfikacji przez człowieka.`,
+    name: `Campaign ${f.campaignId}`,
+    description: `Campaign ${f.campaignId}: ${f.ads.length} ${f.ads.length === 1 ? "ad" : "ads"}, ${domains.length} ${domains.length === 1 ? "domain" : "domains"} (evidence pack ${f.packageId}). The link between the ads is a hint from the tool, for a human to verify.`,
     ...(f.firstSeenUtc ? { first_seen: f.firstSeenUtc } : {}),
     ...(f.lastSeenUtc ? { last_seen: f.lastSeenUtc } : {}),
   };
@@ -72,19 +72,19 @@ export function buildStixBundle(f: CampaignFacts, x: StixExtras): { type: "bundl
     const infra: StixObject = { ...base("infrastructure", d.domain), name: d.domain, infrastructure_types: ["phishing"] };
     objects.push(infra);
     relate("uses", campaign, infra);
-    indicator(`Domena ${d.domain}`, `[domain-name:value = ${lit(d.domain)}]`, x.certRegisterIds[d.domain] ? { x_cert_register_position_id: x.certRegisterIds[d.domain] } : {});
-    for (const ip of new Set(d.ips.map((i) => i.ip))) indicator(`Adres IP ${ip}`, `[${ip.includes(":") ? "ipv6-addr" : "ipv4-addr"}:value = ${lit(ip)}]`);
-    for (const p of d.payment_identifiers) indicator(`Portfel ${p}`, `[x-cryptocurrency-wallet:address = ${lit(p.slice(p.indexOf(":") + 1))}]`);
-    for (const c of d.contact_points.filter((c) => /^\+?[\d\s().-]{7,}$/.test(c))) indicator(`Numer ${c}`, `[x-phone-number:value = ${lit(c)}]`);
+    indicator(`Domain ${d.domain}`, `[domain-name:value = ${lit(d.domain)}]`, x.certRegisterIds[d.domain] ? { x_cert_register_position_id: x.certRegisterIds[d.domain] } : {});
+    for (const ip of new Set(d.ips.map((i) => i.ip))) indicator(`IP address ${ip}`, `[${ip.includes(":") ? "ipv6-addr" : "ipv4-addr"}:value = ${lit(ip)}]`);
+    for (const p of d.payment_identifiers) indicator(`Wallet ${p}`, `[x-cryptocurrency-wallet:address = ${lit(p.slice(p.indexOf(":") + 1))}]`);
+    for (const c of d.contact_points.filter((c) => /^\+?[\d\s().-]{7,}$/.test(c))) indicator(`Phone ${c}`, `[x-phone-number:value = ${lit(c)}]`);
   }
-  for (const u of new Set(x.urls)) indicator(`Adres ${u}`, `[url:value = ${lit(u)}]`);
-  for (const a of f.ads) if (a.ad_ids.ad_library_id) indicator(`Reklama w bibliotece ${a.ad_ids.ad_library_id}`, `[x-ad-library-record:id = ${lit(a.ad_ids.ad_library_id)}]`, { x_ad_library_id: a.ad_ids.ad_library_id });
-  for (const h of new Set(x.imageHashes)) indicator(`Obraz dHash ${h}`, `[x-image-dhash:value = ${lit(h)}]`);
+  for (const u of new Set(x.urls)) indicator(`URL ${u}`, `[url:value = ${lit(u)}]`);
+  for (const a of f.ads) if (a.ad_ids.ad_library_id) indicator(`Ad library ad ${a.ad_ids.ad_library_id}`, `[x-ad-library-record:id = ${lit(a.ad_ids.ad_library_id)}]`, { x_ad_library_id: a.ad_ids.ad_library_id });
+  for (const h of new Set(x.imageHashes)) indicator(`Image dHash ${h}`, `[x-image-dhash:value = ${lit(h)}]`);
   for (const p of f.personas) {
-    const person: StixObject = { ...base("identity", p), name: p, identity_class: "individual", description: "Osoba, której wizerunek lub nazwisko użyto w reklamach (cel podszycia)." };
+    const person: StixObject = { ...base("identity", p), name: p, identity_class: "individual", description: "Person whose image or name was used in the ads (target of the impersonation)." };
     objects.push(person);
     relate("targets", campaign, person);
   }
-  if (x.modelNotes.length) objects.push({ ...base("note", f.campaignId), abstract: "Wyniki modeli (wskazówki, nie dowód)", content: x.modelNotes.join("; "), object_refs: [campaign.id] });
+  if (x.modelNotes.length) objects.push({ ...base("note", f.campaignId), abstract: "Model outputs (hints, not proof)", content: x.modelNotes.join("; "), object_refs: [campaign.id] });
   return { type: "bundle", id: stixId("bundle", f.packageId), objects };
 }

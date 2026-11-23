@@ -653,13 +653,13 @@ describe("importCases: files that cannot be read or parsed", () => {
   it("imports the readable cases and skips each damaged one with its reason", () => {
     expect(result.cases.map((c) => c.id)).toEqual(["dobra", "har-i-zrzut", "zly-zasob"]);
     expect(result.skipped).toEqual([
-      { id: "har-i-zrzut/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
-      { id: "w-polowie", reason: expect.stringMatching(/^nie udało się zaimportować sprawy: ENOENT.*'b\/Strona_files'/) },
-      { id: "zly-har/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
+      { id: "har-i-zrzut/page.har", reason: expect.stringMatching(/^could not read the file page\.har \(damaged HAR\): /) },
+      { id: "w-polowie", reason: expect.stringMatching(/^could not import the case: ENOENT.*'b\/Strona_files'/) },
+      { id: "zly-har/page.har", reason: expect.stringMatching(/^could not read the file page\.har \(damaged HAR\): /) },
     ]);
     // no server paths in the reasons (they reach the GUI)
     for (const s of result.skipped) expect(s.reason).not.toContain(dir);
-    expect(lines.some((l) => l.startsWith("[zly-zasob] plik Strona_files/logo.png pominięty: EISDIR"))).toBe(true);
+    expect(lines.some((l) => l.startsWith("[zly-zasob] file Strona_files/logo.png skipped: EISDIR"))).toBe(true);
   });
 
   it("takes back everything a case added before it failed", () => {
@@ -682,7 +682,7 @@ describe("importCases: files that cannot be read or parsed", () => {
       writeFileSync(path.join(d, "cases", "czytelna", "Strona.html"), saved("https://czytelna.example/", "<p>y</p>"));
       const res = await importCases({ casesDir: path.join(d, "cases"), outDir: path.join(d, "out") });
       expect(res.cases.map((c) => c.id)).toEqual(["czytelna"]);
-      expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
+      expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "could not read the file Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
     } finally {
       rmSync(d, { recursive: true, force: true });
     }

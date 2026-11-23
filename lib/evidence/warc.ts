@@ -65,10 +65,10 @@ function bodyOf(e: HarEntry): Buffer {
 /** WARC of a (redacted) HAR text; throws when the text is not a HAR. */
 export function harToWarc(harText: string, opts: { now: Date; tool: string }): WarcResult {
   const har = JSON.parse(harText) as { log?: { entries?: HarEntry[] } };
-  if (!Array.isArray(har.log?.entries)) throw new Error("to nie jest HAR (brak log.entries)");
+  if (!Array.isArray(har.log?.entries)) throw new Error("not a HAR (no log.entries)");
   const id = () => `<urn:uuid:${randomUUID()}>`;
   const created = warcDate(undefined, opts.now);
-  const parts: Buffer[] = [record({ "WARC-Type": "warcinfo", "WARC-Date": created, "WARC-Record-ID": id(), "Content-Type": "application/warc-fields" }, Buffer.from(`software: ${opts.tool}\r\nformat: WARC File Format 1.0\r\ndescription: zapis ruchu przeglądarki (HAR) zredagowany z danych analityka\r\n`))];
+  const parts: Buffer[] = [record({ "WARC-Type": "warcinfo", "WARC-Date": created, "WARC-Record-ID": id(), "Content-Type": "application/warc-fields" }, Buffer.from(`software: ${opts.tool}\r\nformat: WARC File Format 1.0\r\ndescription: browser traffic record (HAR) redacted of the analyst's data\r\n`))];
   const targets: string[] = [];
   for (const e of har.log.entries) {
     const url = e.request?.url;

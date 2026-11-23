@@ -22,7 +22,7 @@ export type CasePathResult = { file: string; reason: null } | { file: null; reas
  * (CASES_DIR not set, or the file not found there) so the caller can skip the step instead of failing.
  */
 export function resolveCasePath(p: string, ctx: CasePathContext): CasePathResult {
-  if (path.isAbsolute(p)) return ctx.exists(p) ? { file: p, reason: null } : { file: null, reason: `plik nie istnieje: ${p}` };
+  if (path.isAbsolute(p)) return ctx.exists(p) ? { file: p, reason: null } : { file: null, reason: `file does not exist: ${p}` };
   const candidates = [path.join(ctx.baseDir, p)];
   if (ctx.casesDir) {
     const rest = p.split(/[\\/]/).slice(1).join(path.sep);
@@ -33,7 +33,7 @@ export function resolveCasePath(p: string, ctx: CasePathContext): CasePathResult
   return {
     file: null,
     reason: ctx.casesDir
-      ? `nie znaleziono ${p} w CASES_DIR (${ctx.casesDir}); wskaż katalog z własną kopią spraw`
-      : `ścieżka względna ${p} wymaga zmiennej CASES_DIR (katalog z własną kopią spraw)`,
+      ? `${p} not found in CASES_DIR (${ctx.casesDir}); point it at a folder with your own copy of the cases`
+      : `relative path ${p} needs the CASES_DIR variable (a folder with your own copy of the cases)`,
   };
 }

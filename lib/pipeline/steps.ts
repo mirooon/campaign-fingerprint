@@ -74,10 +74,10 @@ export function runIngest(o: IngestStepOptions): ItemsFile {
     warnings,
   };
   writeJson(o.out, file);
-  console.log(`[ingest] ${items.length} reklam z ${o.input} -> ${o.out}`);
-  console.log(`[ingest] mapowanie kolumn: ${JSON.stringify(mapping)}`);
-  for (const w of warnings.slice(0, 20)) console.warn(`[ingest] uwaga: ${w}`);
-  if (warnings.length > 20) console.warn(`[ingest] ... i ${warnings.length - 20} kolejnych uwag`);
+  console.log(`[ingest] ${items.length} ${items.length === 1 ? "ad" : "ads"} from ${o.input} -> ${o.out}`);
+  console.log(`[ingest] column mapping: ${JSON.stringify(mapping)}`);
+  for (const w of warnings.slice(0, 20)) console.warn(`[ingest] warning: ${w}`);
+  if (warnings.length > 20) console.warn(`[ingest] ... and ${warnings.length - 20} more warnings`);
   return file;
 }
 
@@ -123,13 +123,13 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
   const itemsFile = readJson<ItemsFile>(o.items);
   const sources = o.offline ? fixtureSources(o.fixtures ?? DEFAULTS.fixtures) : liveSources();
   const skip = Object.fromEntries((o.skip ?? []).map((s) => [s.trim(), true]));
-  console.log(`[enrich] tryb: ${o.offline ? `offline (fixtures: ${o.fixtures ?? DEFAULTS.fixtures})` : "live (pasywne zapytania, cache w .cache/)"}`);
+  console.log(`[enrich] mode: ${o.offline ? `offline (fixtures: ${o.fixtures ?? DEFAULTS.fixtures})` : "live (passive queries, cache in .cache/)"}`);
   const watchlist = o.personas && existsSync(o.personas) ? compileWatchlist(loadWatchlist(o.personas)) : null;
-  if (watchlist) console.log(`[enrich] lista obserwowanych osób: ${watchlist.entries.length} (${o.personas})`);
+  if (watchlist) console.log(`[enrich] watchlist of people: ${watchlist.entries.length} (${o.personas})`);
   const archiveStep = archiveStepOptions({ enabled: !!o.archiveLookup, offline: o.offline });
   const parking = new Discounter(DEFAULT_LINK_CONFIG);
-  const extras = [archiveStep && "archiwa stron (urlscan, Wayback)", o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "głos (SpeechBrain)", o.faces && "twarze (OpenCV)", o.adLibrary && "biblioteka reklam"].filter(Boolean);
-  if (extras.length) console.log(`[enrich] włączone opcje: ${extras.join(", ")}`);
+  const extras = [archiveStep && "page archives (urlscan, Wayback)", o.ner && "NER", o.cloaking && "cloaking", o.ocr && "OCR", o.asr && "ASR", o.audio && "audio", o.clip && "CLIP", o.speaker && "voice (SpeechBrain)", o.faces && "faces (OpenCV)", o.adLibrary && "ad library"].filter(Boolean);
+  if (extras.length) console.log(`[enrich] options on: ${extras.join(", ")}`);
   let lastLog = 0;
   const ds = await enrichItems(itemsFile.items, {
     sources,
@@ -164,12 +164,12 @@ export async function runEnrich(o: EnrichStepOptions): Promise<EnrichedDataset> 
   const pageErrors = pages.filter((p) => p.fetch.error).length;
   const itemErrors = Object.values(ds.perItem).filter((e) => e.errors.length).length;
   console.log(
-    `[enrich] strony: ${pages.length} (błędy: ${pageErrors}), hosty: ${Object.keys(ds.hosts).length}, domeny: ${Object.keys(ds.domains).length}, IP: ${Object.keys(ds.ips).length}, reklamy z błędami: ${itemErrors} -> ${o.out}`,
+    `[enrich] pages: ${pages.length} (errors: ${pageErrors}), hosts: ${Object.keys(ds.hosts).length}, domains: ${Object.keys(ds.domains).length}, IPs: ${Object.keys(ds.ips).length}, ads with errors: ${itemErrors} -> ${o.out}`,
   );
   const per = Object.values(ds.perItem);
   const cloaked = pages.filter((p) => p.cloaking?.suspected).length;
   console.log(
-    `[enrich] persony: ${per.filter((e) => e.personas.length).length} reklam, parametry kampanii: ${per.reduce((n, e) => n + e.campaignParams.length, 0)}, backendy formularzy: ${pages.reduce((n, p) => n + (p.kit?.endpoints.length ?? 0), 0)}${o.cloaking ? `, podejrzenie cloakingu: ${cloaked} stron` : ""}${o.ocr ? `, OCR: ${per.filter((e) => e.ocrText).length}` : ""}${o.asr ? `, ASR: ${per.filter((e) => e.asrText).length}` : ""}${o.audio ? `, odciski audio: ${per.filter((e) => e.audioFp).length}` : ""}${o.clip ? `, CLIP: ${per.filter((e) => e.imageEmbedding).length} obrazów, ${per.filter((e) => e.videoEmbedding).length} wideo` : ""}${o.speaker ? `, głos mówcy: ${per.filter((e) => e.speakerEmbedding).length}` : ""}${o.faces ? `, twarze: ${per.reduce((n, e) => n + (e.faces?.length ?? 0), 0)} (podobne do osób z listy: ${per.filter((e) => e.faces?.some((f) => f.persona)).length} reklam)` : ""}${o.adLibrary ? `, biblioteka reklam: ${per.filter((e) => e.adLibrary?.some((r) => !r.error)).length} reklam (zdjęte przez Metę: ${per.filter((e) => e.adLibrary?.some((r) => r.takenDown)).length})` : ""}`,
+    `[enrich] personas: ${per.filter((e) => e.personas.length).length} ads, campaign parameters: ${per.reduce((n, e) => n + e.campaignParams.length, 0)}, form backends: ${pages.reduce((n, p) => n + (p.kit?.endpoints.length ?? 0), 0)}${o.cloaking ? `, suspected cloaking: ${cloaked} ${cloaked === 1 ? "page" : "pages"}` : ""}${o.ocr ? `, OCR: ${per.filter((e) => e.ocrText).length}` : ""}${o.asr ? `, ASR: ${per.filter((e) => e.asrText).length}` : ""}${o.audio ? `, audio fingerprints: ${per.filter((e) => e.audioFp).length}` : ""}${o.clip ? `, CLIP: ${per.filter((e) => e.imageEmbedding).length} images, ${per.filter((e) => e.videoEmbedding).length} videos` : ""}${o.speaker ? `, speaker voice: ${per.filter((e) => e.speakerEmbedding).length}` : ""}${o.faces ? `, faces: ${per.reduce((n, e) => n + (e.faces?.length ?? 0), 0)} (similar to people on the list: ${per.filter((e) => e.faces?.some((f) => f.persona)).length} ads)` : ""}${o.adLibrary ? `, ad library: ${per.filter((e) => e.adLibrary?.some((r) => !r.error)).length} ads (taken down by Meta: ${per.filter((e) => e.adLibrary?.some((r) => r.takenDown)).length})` : ""}`,
   );
   return ds;
 }
@@ -240,9 +240,9 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
   if (textMethod === "embedding") {
     try {
       embeddings = (await computeEmbeddings(ds)) ?? undefined;
-      console.log(`[graph] embeddingi: ${Object.keys(embeddings ?? {}).length} tekstów`);
+      console.log(`[graph] embeddings: ${Object.keys(embeddings ?? {}).length} texts`);
     } catch (e) {
-      console.warn(`[graph] embeddingi niedostępne (${(e as Error).message}); używam TF-IDF`);
+      console.warn(`[graph] embeddings unavailable (${(e as Error).message}); using TF-IDF`);
       textMethod = "tfidf";
     }
   }
@@ -251,11 +251,11 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
   const correctionsPath = o.corrections ?? path.join(path.dirname(o.campaigns), "corrections.json");
   const corrections = loadCorrections(correctionsPath);
   if (!correctionsEmpty(corrections)) {
-    console.log(`[graph] korekty analityka (${correctionsPath}): połącz ${corrections.mustLink.length}, rozdziel ${corrections.cannotLink.length}, wyłączone ślady ${corrections.disabledPivots.length}`);
+    console.log(`[graph] analyst corrections (${correctionsPath}): link ${corrections.mustLink.length}, split ${corrections.cannotLink.length}, disabled traces ${corrections.disabledPivots.length}`);
   }
   const clustered = clusterWithCorrections(raw, corrections, { config });
   const dups = await markDuplicates(clustered.graph, ds, path.dirname(o.enriched));
-  if (dups) console.log(`[graph] duplikaty (ta sama reklama zebrana ponownie): ${dups}`);
+  if (dups) console.log(`[graph] duplicates (the same ad collected again): ${dups}`);
   const campaigns = clustered.campaigns;
   const labelOf = new Map(raw.nodes.map((n) => [n.id, n.label]));
   const firstSeen = Object.fromEntries(ds.items.map((it) => [it.id, it.firstSeen]));
@@ -268,18 +268,18 @@ export async function runBuildGraph(o: BuildGraphStepOptions): Promise<{ graph: 
   writeJson(nearMissesPath, clustered.nearMisses);
   const multi = campaigns.campaigns.filter((c) => c.size > 1);
   console.log(
-    `[graph] węzły: ${graph.stats.nodes}, krawędzie: ${graph.stats.edges}, powiązania reklam: ${graph.stats.links} (silne: ${graph.stats.strongLinks}), tekst: ${graph.textMethod}`,
+    `[graph] nodes: ${graph.stats.nodes}, edges: ${graph.stats.edges}, ad links: ${graph.stats.links} (strong: ${graph.stats.strongLinks}), text: ${graph.textMethod}`,
   );
-  console.log(`[graph] kampanie (≥2 reklamy): ${multi.length}, pojedyncze reklamy: ${campaigns.campaigns.length - multi.length}, modularność Louvain: ${campaigns.method.louvain.modularity ?? "—"}`);
+  console.log(`[graph] campaigns (≥2 ads): ${multi.length}, single ads: ${campaigns.campaigns.length - multi.length}, Louvain modularity: ${campaigns.method.louvain.modularity ?? "—"}`);
   for (const c of multi.slice(0, 15)) {
     const ev = c.topEvidence
       .slice(0, 3)
       .map((e) => `${e.type === "similar_image" || e.type === "similar_text" ? "" : `${e.type}: `}${e.label} (${e.count})`)
       .join("; ");
-    console.log(`  ${c.id}  ${String(c.size).padStart(3)} reklam  ${c.firstSeen?.slice(0, 10) ?? "?"} – ${c.lastSeen?.slice(0, 10) ?? "?"}  ${ev}`);
+    console.log(`  ${c.id}  ${String(c.size).padStart(3)} ads  ${c.firstSeen?.slice(0, 10) ?? "?"} – ${c.lastSeen?.slice(0, 10) ?? "?"}  ${ev}`);
   }
-  console.log(`[graph] bliskie pary bez połączenia: ${clustered.nearMisses.total} (na liście ${clustered.nearMisses.pairs.length})`);
-  console.log(`[graph] zapisano ${o.graph}, ${o.campaigns} i ${nearMissesPath}`);
+  console.log(`[graph] close pairs not linked: ${clustered.nearMisses.total} (listed: ${clustered.nearMisses.pairs.length})`);
+  console.log(`[graph] wrote ${o.graph}, ${o.campaigns} and ${nearMissesPath}`);
   return { graph, campaigns, nearMisses: clustered.nearMisses };
 }
 

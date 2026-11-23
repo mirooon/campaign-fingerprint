@@ -13,7 +13,7 @@ import { SAMPLE } from "./sampleRun";
 let root: string;
 let result: MaterialResult;
 const item = (id: string): MaterialItemResult => result.items.find((i) => i.id === id)!;
-const evolution = () => result.items.filter((i) => i.id.startsWith("6-ewolucja"));
+const evolution = () => result.items.filter((i) => i.id.startsWith("6-evolution"));
 
 beforeAll(async () => {
   root = mkdtempSync(path.join(os.tmpdir(), "demo-"));
@@ -25,23 +25,23 @@ afterAll(() => rmSync(root, { recursive: true, force: true }));
 describe("demo batch", () => {
   it("gives every verdict once, in a batch of 8", () => {
     expect(result.items).toHaveLength(8);
-    expect(item("1-znana-kampania").verdict).toBe("known_campaign");
-    expect(item("1-znana-kampania").campaign).toBeTruthy();
-    expect(item("2-podobne-kampanie").verdict).toBe("similar_campaigns");
-    expect(item("2-podobne-kampanie").similarCampaigns.length).toBeGreaterThanOrEqual(2);
-    expect(item("3-duplikat")).toMatchObject({ verdict: "duplicate", duplicateOf: { id: "baza-c2-a" } });
-    expect(item("4-za-malo-danych").verdict).toBe("insufficient");
-    expect(item("4-za-malo-danych").missing?.length).toBeGreaterThan(0);
-    expect(item("5-martwa-strona").verdict).toBe("new_campaign");
+    expect(item("1-known-campaign").verdict).toBe("known_campaign");
+    expect(item("1-known-campaign").campaign).toBeTruthy();
+    expect(item("2-similar-campaigns").verdict).toBe("similar_campaigns");
+    expect(item("2-similar-campaigns").similarCampaigns.length).toBeGreaterThanOrEqual(2);
+    expect(item("3-duplicate")).toMatchObject({ verdict: "duplicate", duplicateOf: { id: "base-c2-a" } });
+    expect(item("4-insufficient-data").verdict).toBe("insufficient");
+    expect(item("4-insufficient-data").missing?.length).toBeGreaterThan(0);
+    expect(item("5-dead-page").verdict).toBe("new_campaign");
   });
 
   it("dead page: no HTML, the address comes from the screenshot, RDAP, DNS and the host from recorded answers, and the result says what is missing", () => {
-    const dead = item("5-martwa-strona");
+    const dead = item("5-dead-page");
     expect(dead.features.observedUrls).toEqual(["martwa-oferta.example.com"]);
     const types = (dead.pivots ?? []).map((p) => p.type);
     expect(types).toEqual(expect.arrayContaining(["host", "ip", "registrar", "domain"]));
-    expect(dead.missing).toContain("plik HAR z wizyty na stronie");
-    const steps = result.steps.filter((s) => s.caseId === "5-martwa-strona");
+    expect(dead.missing).toContain("HAR file from a visit to the page");
+    const steps = result.steps.filter((s) => s.caseId === "5-dead-page");
     expect(steps.find((s) => s.step === "address_bar")?.status).toBe("done");
     expect(steps.find((s) => s.step === "lookups")?.status).toBe("done");
     expect(steps.find((s) => s.step === "asr")).toMatchObject({ status: "skipped" });

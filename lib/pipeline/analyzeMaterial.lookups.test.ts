@@ -69,23 +69,23 @@ describe("analyzeMaterial: RDAP and DNS without an answer", () => {
   it("puts the RDAP failure into the record's errors and failedLookups, counts it in the step, and the GUI list warns about it", async () => {
     const res = await analyzeMaterial(input, ctx("w-partial", live(["lp-b.example"])));
     const [it] = res.items;
-    expect(it.errors).toContain("RDAP nie odpowiedział dla lp-b.example: brak połączenia z siecią");
+    expect(it.errors).toContain("RDAP did not answer for lp-b.example: no network connection");
     expect(res.failedLookups).toEqual(["rdap:lp-b.example"]);
-    expect(lookupsStep(res)).toMatchObject({ status: "done", detail: "RDAP nie odpowiedział dla 1 z 2 domen: lp-b.example" });
+    expect(lookupsStep(res)).toMatchObject({ status: "done", detail: "RDAP did not answer for 1 of 2 domains: lp-b.example" });
     // what the result card builds (jobs.ts merges the failed lookups, completeness picks the ones of the material)
     const domains = (it.pivots ?? []).filter((p) => p.type === "domain").map((p) => p.label);
     const list = completeness({ features: it.features, errors: it.errors, failedLookups: jobFailedLookups(res, null), lookups: true, domains });
     const warn = list.items.filter((i) => i.status === "warn" && i.label.startsWith("Rejestr domen (RDAP) nie odpowiedział dla domeny lp-b.example"));
     expect(warn).toHaveLength(1);
-    expect(warn[0].effect).toMatch(/^Powód: brak połączenia z siecią\. Bez daty rejestracji/);
+    expect(warn[0].effect).toMatch(/^Powód: no network connection\. Bez daty rejestracji/);
     expect(list.complete).toBe(false);
   });
 
   it("is done without failures when every lookup answered", async () => {
     const res = await analyzeMaterial(input, ctx("w-ok", live()));
-    expect(res.items[0].errors.filter((e) => /nie odpowiedział/.test(e))).toEqual([]);
+    expect(res.items[0].errors.filter((e) => /did not answer/.test(e))).toEqual([]);
     expect(res.failedLookups).toEqual([]);
-    expect(lookupsStep(res)).toMatchObject({ status: "done", detail: "RDAP i DNS odpowiedziały dla 2 z 2 domen" });
+    expect(lookupsStep(res)).toMatchObject({ status: "done", detail: "RDAP and DNS answered for 2 of 2 domains" });
   });
 
   it("skips the step with the reason in an offline run (the container default), without any lookup error", async () => {
@@ -93,6 +93,6 @@ describe("analyzeMaterial: RDAP and DNS without an answer", () => {
     const res = await analyzeMaterial(input, ctx("w-offline", null));
     expect(lookupsStep(res)).toMatchObject({ status: "skipped", detail: lookupsOffReason({ ANALYZE_OFFLINE: "1" }) });
     expect(res.failedLookups).toEqual([]);
-    expect(res.items[0].errors.filter((e) => /nie odpowiedział/.test(e))).toEqual([]);
+    expect(res.items[0].errors.filter((e) => /did not answer/.test(e))).toEqual([]);
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Passive lookups (RDAP, DNS) of the domains of a material that got no answer, in one format for every
- * place that shows them: the record's error line ("RDAP nie odpowiedział dla <domena>: <powód>"), the
+ * place that shows them: the record's error line ("RDAP did not answer for <domain>: <reason>"), the
  * failed-lookup entry ("rdap:<domena>", "dns:<domena>", as the import's `failedLookups`) and the outcome
  * of the `lookups` step of the analysis. No Node imports: the viewer reads it as well.
  */
@@ -23,14 +23,17 @@ export interface LookupsOutcome {
 
 const LABEL: Record<LookupKind, string> = { rdap: "RDAP", dns: "DNS" };
 
-/** Error line of a record for a lookup that got no answer, e.g. "RDAP nie odpowiedział dla example.test: brak połączenia z siecią". */
+/** Error line of a record for a lookup that got no answer, e.g. "RDAP did not answer for example.test: no network connection". */
 export function lookupErrorLine(kind: LookupKind, name: string, reason: string): string {
-  return `${LABEL[kind]} nie odpowiedział dla ${name}${reason ? `: ${reason}` : ""}`;
+  return `${LABEL[kind]} did not answer for ${name}${reason ? `: ${reason}` : ""}`;
 }
 
-/** Kind, name (host or domain, lower case) and reason of an error line written by `lookupErrorLine`; null for any other error. */
+/**
+ * Kind, name (host or domain, lower case) and reason of an error line written by `lookupErrorLine`; null for any other error.
+ * The Polish wording of bases built before the English output ("nie odpowiedział dla") is still read.
+ */
 export function parseLookupErrorLine(line: string): { kind: LookupKind; name: string; reason: string } | null {
-  const m = /^(RDAP|DNS) nie odpowiedział dla ([^\s:]+)(?::\s*(.*))?$/.exec(line);
+  const m = /^(RDAP|DNS) (?:did not answer for|nie odpowiedział dla) ([^\s:]+)(?::\s*(.*))?$/.exec(line);
   return m ? { kind: m[1] === "RDAP" ? "rdap" : "dns", name: m[2].toLowerCase(), reason: (m[3] ?? "").trim() } : null;
 }
 
@@ -41,7 +44,7 @@ export function belongsToDomain(name: string, domain: string): boolean {
   return n === d || n.endsWith(`.${d}`);
 }
 
-/** Polish reason of a lookup that threw: no answer in time, no network, an HTTP status, else the message itself. */
+/** Reason of a lookup that threw: no answer in time, no network, an HTTP status, else the message itself. */
 export function lookupReason(e: unknown): string {
   const msg = e instanceof Error ? e.message : String(e);
   const name = e instanceof Error ? e.name : "";
@@ -49,18 +52,18 @@ export function lookupReason(e: unknown): string {
   // fetch puts the system error (ENOTFOUND, a connect timeout) in `cause`
   const text = `${msg} ${String(err?.code ?? "")} ${String(err?.cause?.code ?? "")}`;
   const http = /\bHTTP (\d{3})\b/.exec(msg);
-  if (http) return `odpowiedź HTTP ${http[1]}`;
-  if (name === "TimeoutError" || name === "AbortError" || /timed? ?out/i.test(text)) return "brak odpowiedzi w limicie czasu";
-  if (/fetch failed|network|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ENETUNREACH|EHOSTUNREACH/i.test(text)) return "brak połączenia z siecią";
+  if (http) return `HTTP ${http[1]} response`;
+  if (name === "TimeoutError" || name === "AbortError" || /timed? ?out/i.test(text)) return "no answer within the time limit";
+  if (/fetch failed|network|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ECONNRESET|ENETUNREACH|EHOSTUNREACH/i.test(text)) return "no network connection";
   return msg;
 }
 
-/** Polish reason from the error codes of a DNS answer (`DnsRecords.errors`), e.g. "A, AAAA: brak odpowiedzi w limicie czasu"; "" when there is none. */
+/** Reason from the error codes of a DNS answer (`DnsRecords.errors`), e.g. "A, AAAA: no answer within the time limit"; "" when there is none. */
 export function dnsErrorReason(errors: Partial<Record<string, string>> | null | undefined): string {
   const byCode = new Map<string, string[]>();
   for (const [type, code] of Object.entries(errors ?? {})) {
     if (!code) continue;
-    const text = code === "timeout" ? "brak odpowiedzi w limicie czasu" : code;
+    const text = code === "timeout" ? "no answer within the time limit" : code;
     byCode.set(text, [...(byCode.get(text) ?? []), type]);
   }
   return [...byCode].map(([text, types]) => `${types.join(", ")}: ${text}`).join("; ");
@@ -72,37 +75,37 @@ export function dnsErrorReason(errors: Partial<Record<string, string>> | null | 
  */
 export function lookupsOffReason(env: Record<string, string | undefined>): string {
   return env.ANALYZE_OFFLINE === "1"
-    ? "tryb offline (ANALYZE_OFFLINE=1, domyślnie w kontenerze): bez zapytań o DNS i RDAP, tylko strony z materiału"
-    : "tryb offline: bez zapytań o DNS i RDAP (nie włączono --live ani „Dociągnij publiczne dane o domenach”), tylko strony z materiału";
+    ? "offline mode (ANALYZE_OFFLINE=1, the container default): no DNS or RDAP queries, only the pages in the sample"
+    : "offline mode: no DNS or RDAP queries (neither --live nor “Fetch public domain data (DNS, domain registry)” was turned on), only the pages in the sample";
 }
 
-/** "z 1 domeny", "z 5 domen". */
+/** "of 1 domain", "of 5 domains". */
 function ofDomains(n: number): string {
-  return `z ${n} ${n === 1 ? "domeny" : "domen"}`;
+  return `of ${n} ${n === 1 ? "domain" : "domains"}`;
 }
 
 /** Up to three names, then how many more. */
 function someNames(names: string[]): string {
-  return names.length > 3 ? `${names.slice(0, 3).join(", ")} i ${names.length - 3} innych` : names.join(", ");
+  return names.length > 3 ? `${names.slice(0, 3).join(", ")} and ${names.length - 3} more` : names.join(", ");
 }
 
 /**
  * Outcome of the `lookups` step for the records of one case. `offReason` set: "skipped" with it (no live
  * lookups in this run). No domain to look up: "skipped" with that reason. Otherwise "done", with how
- * many domains RDAP and DNS answered for ("RDAP nie odpowiedział dla 2 z 5 domen: …"), and "error" only
+ * many domains RDAP and DNS answered for ("RDAP did not answer for 2 of 5 domains: …"), and "error" only
  * when neither RDAP nor DNS answered for any of them (no network).
  */
 export function lookupsOutcome(records: Array<RecordLookups | undefined>, offReason: string | null): LookupsOutcome {
   if (offReason) return { status: "skipped", detail: offReason };
   const domains = [...new Set(records.flatMap((r) => r?.domains ?? []))].sort();
-  if (!domains.length) return { status: "skipped", detail: "brak domeny do sprawdzenia: materiał nie wskazuje adresu strony" };
+  if (!domains.length) return { status: "skipped", detail: "no domain to look up: the sample points to no page URL" };
   const failed = new Set(records.flatMap((r) => r?.failed ?? []));
   const failedOf = (kind: LookupKind) => domains.filter((d) => failed.has(`${kind}:${d}`));
   const rdap = failedOf("rdap");
   const dns = failedOf("dns");
   const n = domains.length;
-  if (!rdap.length && !dns.length) return { status: "done", detail: `RDAP i DNS odpowiedziały dla ${n} ${ofDomains(n)}` };
-  const part = (kind: LookupKind, list: string[]) => (list.length ? `${LABEL[kind]} nie odpowiedział dla ${list.length} ${ofDomains(n)}: ${someNames(list)}` : null);
+  if (!rdap.length && !dns.length) return { status: "done", detail: `RDAP and DNS answered for ${n} ${ofDomains(n)}` };
+  const part = (kind: LookupKind, list: string[]) => (list.length ? `${LABEL[kind]} did not answer for ${list.length} ${ofDomains(n)}: ${someNames(list)}` : null);
   const detail = [part("rdap", rdap), part("dns", dns)].filter((p): p is string => !!p).join("; ");
   return { status: rdap.length === n && dns.length === n ? "error" : "done", detail };
 }

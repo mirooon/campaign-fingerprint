@@ -121,7 +121,7 @@ describe("analyzeMaterial: a variant without infrastructure", () => {
       expect(it.campaign, id).toBe(K());
       expect(it.campaignBasis, id).toBe("content_variant");
       expect(it.duplicateOf, id).toBeUndefined();
-      expect(it.verdictText, id).toContain("jako wariant");
+      expect(it.verdictText, id).toContain("as a variant");
       expect(it.verdictText, id).toContain("k-1");
       const variant = it.links.find((l) => l.variant);
       expect(variant?.other, id).toBe("k-1");

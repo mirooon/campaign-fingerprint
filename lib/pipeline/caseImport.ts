@@ -224,7 +224,7 @@ function write(file: string, data: Buffer | string): void {
     mkdirSync(path.dirname(file), { recursive: true });
     writeFileSync(file, data);
   } catch (e) {
-    throw new ImportOutputError(`nie udało się zapisać wyniku importu (${file}): ${(e as Error).message}`, { cause: e });
+    throw new ImportOutputError(`could not write the import output (${file}): ${(e as Error).message}`, { cause: e });
   }
 }
 
@@ -493,7 +493,7 @@ interface CaseScan {
   /** "was_live" or "is_live" from the yt-dlp description (a recorded or running live stream), else null (B-301). */
   liveStatus: string | null;
   notes: string[];
-  /** Material files and folders of the case that could not be read or parsed, with the reason in Polish ("" = the case folder). */
+  /** Material files and folders of the case that could not be read or parsed, with the reason ("" = the case folder). */
   unreadable: Array<{ rel: string; reason: string }>;
   collected: Collected | null;
 }
@@ -503,7 +503,7 @@ function readJsonNote(file: string, rel: string, notes: string[]): unknown {
   try {
     return JSON.parse(readFileSync(file, "utf8"));
   } catch (e) {
-    notes.push(`${rel}: nieczytelny plik (${(e as Error).message})`);
+    notes.push(`${rel}: unreadable file (${(e as Error).message})`);
     return null;
   }
 }
@@ -517,7 +517,7 @@ function readCollected(files: CaseFile[], abs: (f: CaseFile) => string, notes: s
   const src = root(COLLECTED_SOURCE_FILE);
   if (!src) return null;
   const { target, sources } = readCollectedSource(readJsonNote(abs(src), src.rel, notes));
-  if (!target) notes.push(`${src.rel}: brak adresu docelowego (pole cel)`);
+  if (!target) notes.push(`${src.rel}: no target URL (field cel)`);
   const rec = root("urlscan_rekord.json");
   const look = root("rdap_dns.json");
   return {
@@ -537,14 +537,14 @@ function scanCase(casesDir: string, id: string): CaseScan {
   const dir = path.resolve(casesDir, id); // absolute: media paths in input.json must not depend on the working directory
   const notes: string[] = [];
   const unreadable: CaseScan["unreadable"] = [];
-  const files = walkCase(dir, (d, e) => unreadable.push({ rel: d, reason: `nie udało się odczytać katalogu ${d || "sprawy"}: ${errorText(e, dir)}` }));
+  const files = walkCase(dir, (d, e) => unreadable.push({ rel: d, reason: `could not read the folder ${d || "of the case"}: ${errorText(e, dir)}` }));
   const abs = (f: CaseFile) => path.join(dir, ...f.rel.split("/"));
   /** Text of a material file, or null when it cannot be read (then listed in `unreadable`). */
   const readText = (f: CaseFile): string | null => {
     try {
       return readFileSync(abs(f), "utf8");
     } catch (e) {
-      unreadable.push({ rel: f.rel, reason: `nie udało się odczytać pliku ${f.rel}: ${errorText(e, dir)}` });
+      unreadable.push({ rel: f.rel, reason: `could not read the file ${f.rel}: ${errorText(e, dir)}` });
       return null;
     }
   };
@@ -559,7 +559,7 @@ function scanCase(casesDir: string, id: string): CaseScan {
       const j = JSON.parse(redactHar(text).text) as { log?: { entries?: HarEntry[]; pages?: Array<{ title?: string }> } };
       hars.push({ file: abs(f), caseId: id, dir: f.dir, entries: j.log?.entries ?? [], pageUrl: j.log?.pages?.[0]?.title ?? null });
     } catch (e) {
-      unreadable.push({ rel: f.rel, reason: `nie udało się odczytać pliku ${f.rel} (uszkodzony HAR): ${errorText(e, dir)}` });
+      unreadable.push({ rel: f.rel, reason: `could not read the file ${f.rel} (damaged HAR): ${errorText(e, dir)}` });
     }
   }
   const used = new Set<Har>();
@@ -628,14 +628,14 @@ function scanCase(casesDir: string, id: string): CaseScan {
     if (!best) continue;
     c.landingUrl = `https://${best[0]}/`;
     c.inferred = true;
-    notes.push(`${c.htmlName}: strona zapisana bez adresu, host ${best[0]} wzięty z jej odnośników (${best[1]}) i z innych zapisów tej sprawy`);
+    notes.push(`${c.htmlName}: page saved without a URL, host ${best[0]} taken from its links (${best[1]}) and from other captures of this case`);
   }
 
   const rootMedia = files.filter((f) => f.dir === "");
   const shots = rootMedia.filter((f) => SCREENSHOT_EXT.test(f.name));
   const isAd = (f: CaseFile) => !collected || collectedImageRole(f.name) === "ad";
   const videos = rootMedia.filter((f) => VIDEO_EXT.test(f.name));
-  if (videos.length > 1) notes.push(`kilka plików wideo, użyty pierwszy: ${videos[0].name}`);
+  if (videos.length > 1) notes.push(`several video files, the first one used: ${videos[0].name}`);
   let advertiser: string | null = null;
   let adLibraryId: string | null = null;
   let adPageId: string | null = null;
@@ -654,7 +654,7 @@ function scanCase(casesDir: string, id: string): CaseScan {
       liveStatus = j.is_live === true || j.live_status === "is_live" ? "is_live" : j.was_live === true || j.live_status === "was_live" ? "was_live" : null;
       infoTime = typeof j.epoch === "number" ? new Date(j.epoch * 1000).toISOString() : null;
     } catch {
-      notes.push(`${info.name}: nieczytelny plik opisu`);
+      notes.push(`${info.name}: unreadable description file`);
     }
   }
   let adRecord: AdRecord | null = null;
@@ -662,7 +662,7 @@ function scanCase(casesDir: string, id: string): CaseScan {
   if (adFile) {
     const parsed = parseAdRecord(readJsonNote(abs(adFile), adFile.name, notes));
     adRecord = parsed.record;
-    if (parsed.error) notes.push(`${AD_RECORD_FILE}: pominięty (${parsed.error})`);
+    if (parsed.error) notes.push(`${AD_RECORD_FILE}: skipped (${parsed.error})`);
   }
   return {
     id,
@@ -729,7 +729,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     try {
       if (statSync(dir).isDirectory()) scans.push(scanCase(o.casesDir, id));
     } catch (e) {
-      skipCase(id, `nie udało się odczytać sprawy: ${errorText(e, dir)}`);
+      skipCase(id, `could not read the case: ${errorText(e, dir)}`);
     }
   }
 
@@ -742,7 +742,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       if (!har) continue;
       c.har = har;
       c.main = mainDocument(har.entries, c.savedFrom);
-      s.notes.push(`HAR ${path.basename(har.file)} z katalogu sprawy ${har.caseId} zawiera dokładnie adres tej strony, więc został użyty tutaj`);
+      s.notes.push(`HAR ${path.basename(har.file)} from the folder of case ${har.caseId} holds exactly the URL of this page, so it was used here`);
     }
   }
 
@@ -754,17 +754,17 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     const id = s.id;
     for (const n of s.notes) log(`[${id}] ${n}`);
     for (const h of s.spareHars) {
-      if (!scans.some((x) => x.captures.some((c) => c.har === h))) log(`[${id}] HAR ${path.basename(h.file)} nie pasuje do żadnej strony tej sprawy, pominięty`);
+      if (!scans.some((x) => x.captures.some((c) => c.har === h))) log(`[${id}] HAR ${path.basename(h.file)} matches no page of this case, skipped`);
     }
     // a page's video saved as an HLS stream: stitched into one file; it is the case's video when there is no other
     const stitched = s.streams.flatMap((st, k) => {
       const from = path.relative(s.dir, st.dir) || ".";
       try {
         const out = stitchSegments(st.segments, path.join(o.outDir, "media", `${safeFileName(id)}-wideo-strony${k ? `-${k + 1}` : ""}.ts`));
-        log(`[${id}] wideo strony z HLS: ${st.segments.length} fragmentów z ${from} sklejone w ${path.basename(out)}`);
+        log(`[${id}] page video from HLS: ${st.segments.length} ${st.segments.length === 1 ? "segment" : "segments"} from ${from} stitched into ${path.basename(out)}`);
         return [out];
       } catch (e) {
-        log(`[${id}] wideo strony z HLS z ${from} pominięte: ${errorText(e, s.dir)}`);
+        log(`[${id}] page video from HLS in ${from} skipped: ${errorText(e, s.dir)}`);
         return [];
       }
     });
@@ -773,7 +773,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       try {
         return statSync(file).size > maxBytes ? null : readFileSync(file);
       } catch (e) {
-        log(`[${id}] plik ${path.relative(s.dir, file)} pominięty: ${errorText(e, s.dir)}`);
+        log(`[${id}] file ${path.relative(s.dir, file)} skipped: ${errorText(e, s.dir)}`);
         return null;
       }
     };
@@ -816,11 +816,11 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
     for (const c of s.captures) {
       const norm = c.landingUrl ? normalizeUrl(c.landingUrl) : null;
       if (!c.landingUrl || !norm) {
-        skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" });
+        skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "no page URL (no “saved from url” comment and no document in a HAR)" });
         continue;
       }
       if (!c.main && !c.saved && !c.requestsOnly) {
-        skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "HAR bez treści dokumentu i brak zapisanej strony" });
+        skipped.push({ id: c.name ? `${id}/${c.name}` : id, reason: "HAR without document content and no saved page" });
         continue;
       }
       const body = c.main ? harBody(c.main)! : c.saved !== null ? Buffer.from(c.saved.replace(DOWNLOAD_SUFFIX, ""), "utf8") : Buffer.alloc(0);
@@ -865,7 +865,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       const targetHost = target ? normalizeUrl(target)?.host : null;
       if (targetHost) landingHosts.add(targetHost);
       push({ id, caseId: id, capture: "", landingUrl: target, landingInferred: false, pageKey: null, bodySource: "none", har: null, harFromCase: null, savedHtml: null, ...media, files: filesOfCapture(null), importedAt, firstSeen: mediaTime ?? s.infoTime });
-      log(`[${id}] bez strony docelowej | zrzuty: ${s.screenshots.length} | wideo: ${media.video ? "tak" : "nie"}${media.adLibraryId ? ` | biblioteka reklam: ${media.adLibraryId}` : ""}`);
+      log(`[${id}] no landing page | screenshots: ${s.screenshots.length} | video: ${media.video ? "yes" : "no"}${media.adLibraryId ? ` | ad library: ${media.adLibraryId}` : ""}`);
       return;
     }
 
@@ -1010,7 +1010,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
         firstSeen: c.archivedAt ?? earliestHar(c) ?? mediaTime ?? s.infoTime,
       });
       log(
-        `[${itemId}] ${norm.host} | treść: ${c.requestsOnly ? `tylko żądania z HAR (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `kopia z archiwum (${c.archivedAt})` : "zapisana strona"} | obrazy z HAR: ${n} | skrypty własne: ${scriptCount} | zrzuty: ${s.screenshots.length}${media.video ? " | wideo" : ""}${c.inferred ? " | adres wywnioskowany" : ""}${pageKey.includes("#capture=") ? " | ten sam adres, inna treść" : ""}`,
+        `[${itemId}] ${norm.host} | content: ${c.requestsOnly ? `HAR requests only (${requests.length})` : bodySource === "har" ? "HAR" : bodySource === "wayback" ? `archived copy (${c.archivedAt})` : "saved page"} | images from HAR: ${n} | own scripts: ${scriptCount} | screenshots: ${s.screenshots.length}${media.video ? " | video" : ""}${c.inferred ? " | URL inferred" : ""}${pageKey.includes("#capture=") ? " | same URL, different content" : ""}`,
       );
     }
   };
@@ -1031,7 +1031,7 @@ export async function importCases(o: CaseImportOptions): Promise<CaseImportResul
       for (const k of [...bodyAt.keys()].slice(mark.bodies)) bodyAt.delete(k);
       for (const h of [...landingHosts].slice(mark.hosts)) landingHosts.delete(h);
       for (const h of [...hostIps.keys()].slice(mark.ips)) hostIps.delete(h);
-      skipCase(s.id, `nie udało się zaimportować sprawy: ${errorText(e, s.dir)}`);
+      skipCase(s.id, `could not import the case: ${errorText(e, s.dir)}`);
     }
   }
 

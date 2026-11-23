@@ -13,7 +13,7 @@ import { importCases } from "../lib/pipeline/caseImport";
 import { compileWatchlist, loadWatchlist } from "../lib/text/persona";
 import { runSample, SAMPLE } from "./sampleRun";
 
-const HAR_MISSING = "plik HAR z wizyty na stronie";
+const HAR_MISSING = "HAR file from a visit to the page";
 const LANDING = "https://sklad-sprawy.example/oferta";
 let root: string;
 let run: Awaited<ReturnType<typeof runSample>>;
@@ -97,7 +97,7 @@ describe("case composition", () => {
   it("full case: page, HAR and screenshot leave nothing to add about the files", async () => {
     const [it] = (await analyse("pelna")).items;
     expect(it.missing ?? []).not.toContain(HAR_MISSING);
-    expect(it.missing ?? []).not.toContain("zrzut ekranu reklamy");
+    expect(it.missing ?? []).not.toContain("screenshot of the ad");
   }, 60_000);
 
   it("case without a HAR: asks for it, although the page was saved", async () => {
@@ -109,8 +109,8 @@ describe("case composition", () => {
   it("screenshots only: not enough to compare; asks for a link and the HAR, not for a screenshot", async () => {
     const [it] = (await analyse("same-zrzuty")).items;
     expect(it.verdict).toBe("insufficient");
-    expect(it.missing).toEqual(expect.arrayContaining(["link do reklamy albo strony docelowej", HAR_MISSING]));
-    expect(it.missing).not.toContain("zrzut ekranu reklamy");
+    expect(it.missing).toEqual(expect.arrayContaining(["link to the ad or the landing page", HAR_MISSING]));
+    expect(it.missing).not.toContain("screenshot of the ad");
   }, 60_000);
 
   it("a link and a text, the page not captured: asks for the HAR, although the address is known", async () => {
@@ -120,7 +120,7 @@ describe("case composition", () => {
     );
     const [it] = res.items;
     expect(it.verdict).toBe("new_campaign");
-    expect(it.missing).toEqual([HAR_MISSING, "zrzut ekranu reklamy"]);
+    expect(it.missing).toEqual([HAR_MISSING, "screenshot of the ad"]);
   }, 60_000);
 
   it("a case of phone photos in HEIC: skipped with the format named, the other cases of the batch go on", async () => {
@@ -136,8 +136,8 @@ describe("case composition", () => {
     const res = await analyse("samo-wideo");
     const [it] = res.items;
     expect(it.verdict).toBe("insufficient");
-    expect(it.missing).toEqual(expect.arrayContaining(["link do reklamy albo strony docelowej", HAR_MISSING]));
-    expect(it.missing).not.toContain("zrzut ekranu reklamy");
+    expect(it.missing).toEqual(expect.arrayContaining(["link to the ad or the landing page", HAR_MISSING]));
+    expect(it.missing).not.toContain("screenshot of the ad");
     expect(res.steps.find((s) => s.step === "asr")).toMatchObject({ status: "skipped" });
   }, 60_000);
 });

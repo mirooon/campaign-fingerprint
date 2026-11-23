@@ -68,14 +68,14 @@ export interface UnreadMaterial {
 /** Advice for one reason of the import, keyed by the start of the reason the importer writes. */
 const UNREAD_HINTS: Array<{ test: RegExp; hints: string[] }> = [
   {
-    test: /^brak adresu strony/,
+    test: /^no page URL/,
     hints: [
       "Dołącz HAR z wizyty na tej stronie w tej samej sprawie (np. podział „jedna sprawa”): adres strony odczytamy z HAR.",
       "Albo zapisz stronę jako MHTML albo z komentarzem „saved from url” na początku pliku: z nich też odczytamy adres.",
     ],
   },
-  { test: /^HAR bez treści dokumentu/, hints: ["Dołącz zapisaną stronę (HTML) albo nagraj HAR z otwartą stroną, tak żeby zawierał jej treść."] },
-  { test: /^brak strony, zrzutu ani wideo/, hints: ["Dołącz zrzut reklamy, zapisaną stronę, HAR albo wideo: pliki innego rodzaju analiza pomija."] },
+  { test: /^HAR without document content/, hints: ["Dołącz zapisaną stronę (HTML) albo nagraj HAR z otwartą stroną, tak żeby zawierał jej treść."] },
+  { test: /^no page, screenshot or video/, hints: ["Dołącz zrzut reklamy, zapisaną stronę, HAR albo wideo: pliki innego rodzaju analiza pomija."] },
 ];
 
 /** What to add for the reasons of an unread case, without repeats; empty when no reason has advice. */

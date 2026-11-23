@@ -22,7 +22,7 @@ describe("DuplicateFinder (no picture files: only an identical dHash counts)", (
 
   it("takes an identical picture, and adds the page address when it matches too", async () => {
     const m = await f.compare(t("a", { dhash: H }, "https://oferta.example/lp?utm_source=x"), t("b", { dhash: H }, "https://oferta.example/lp"));
-    expect(m?.reasons).toEqual(["identyczny obraz", "ten sam adres strony"]);
+    expect(m?.reasons).toEqual(["identical image", "the same page URL"]);
   });
 
   it("does not take a near picture without the pixel check, nor an ad-library view or a blank picture", async () => {
@@ -37,12 +37,12 @@ describe("DuplicateFinder (no picture files: only an identical dHash counts)", (
   });
 
   it("takes the same ad ID, and the same page only with an identical DOM simhash", async () => {
-    expect((await f.compare(t("a", { metaAdId: "120200000000000001" }), t("b", { metaAdId: "120200000000000001" })))?.reasons).toEqual(["ta sama reklama w Mecie (identyfikator z fbclid)"]);
-    expect((await f.compare(t("a", { adLibraryIds: ["1234567890123"] }), t("b", { adLibraryIds: ["1234567890123"] })))?.reasons).toEqual(["ten sam identyfikator w bibliotece reklam"]);
+    expect((await f.compare(t("a", { metaAdId: "120200000000000001" }), t("b", { metaAdId: "120200000000000001" })))?.reasons).toEqual(["the same Meta ad (ID from fbclid)"]);
+    expect((await f.compare(t("a", { adLibraryIds: ["1234567890123"] }), t("b", { adLibraryIds: ["1234567890123"] })))?.reasons).toEqual(["the same ID in the ad library"]);
     const page = "https://oferta.example/lp";
     expect(await f.compare(t("a", { domSimhash: "ffff000000000000" }, page), t("b", { domSimhash: "ffff000000000001" }, page))).toBeNull();
     expect((await f.compare(t("a", { domSimhash: "ffff000000000000" }, page), t("b", { domSimhash: "ffff000000000000" }, page)))?.reasons).toEqual([
-      "ten sam adres strony z identyczną strukturą (simhash DOM)",
+      "the same page URL with an identical structure (DOM simhash)",
     ]);
   });
 
@@ -51,7 +51,7 @@ describe("DuplicateFinder (no picture files: only an identical dHash counts)", (
     const dom = { domSimhash: "ffff000000000000" };
     expect(await f.compare(t("a", { ...dom, dhash: H }, page), t("b", { ...dom, dhash: "7f7b53e5e1f35e5b" }, page))).toBeNull();
     // a picture on one side only says nothing against it
-    expect((await f.compare(t("a", { ...dom, dhash: H }, page), t("b", dom, page)))?.reasons).toEqual(["ten sam adres strony z identyczną strukturą (simhash DOM)"]);
+    expect((await f.compare(t("a", { ...dom, dhash: H }, page), t("b", dom, page)))?.reasons).toEqual(["the same page URL with an identical structure (DOM simhash)"]);
   });
 
   it("points a copy of a copy at the first original and prefers records of the run", async () => {
@@ -71,7 +71,7 @@ describe("DuplicateFinder: identical page content", () => {
 
   it("takes the same page body (SHA-256) even without a DOM simhash", async () => {
     const m = await f.compare(t("a", {}, "https://oferta.example/lp", { pageSha256: SHA_A }), t("b", {}, "https://oferta.example/lp", { pageSha256: SHA_A }));
-    expect(m?.reasons).toEqual(["identyczna treść strony (SHA-256)", "ten sam adres strony"]);
+    expect(m?.reasons).toEqual(["identical page content (SHA-256)", "the same page URL"]);
     expect(f.candidate(t("a", {}, null, { pageSha256: SHA_A }), t("b", {}, null, { pageSha256: SHA_A }))).toBe(true);
   });
 
@@ -88,7 +88,7 @@ describe("DuplicateFinder: video", () => {
 
   it("takes the same video file (SHA-256)", async () => {
     const m = await f.compare(t("a", {}, null, { videoSha256: SHA_A }), t("b", {}, null, { videoSha256: SHA_A }));
-    expect(m?.reasons).toEqual(["ten sam plik wideo (SHA-256)"]);
+    expect(m?.reasons).toEqual(["the same video file (SHA-256)"]);
     expect(await f.compare(t("a", {}, null, { videoSha256: SHA_A }), t("b", {}, null, { videoSha256: SHA_B }))).toBeNull();
   });
 
@@ -96,7 +96,7 @@ describe("DuplicateFinder: video", () => {
     const a = t("a", {}, null, { videoSha256: SHA_A, videoEmbedding: vec(0), audioFingerprint: audio, audioDuration: 30 });
     const b = t("b", {}, null, { videoSha256: SHA_B, videoEmbedding: vec(0.1), audioFingerprint: [...audio], audioDuration: 30.2 });
     expect(f.candidate(a, b)).toBe(true);
-    expect((await f.compare(a, b))?.reasons).toEqual(["to samo wideo (klatki CLIP 0,995, ten sam odcisk audio)"]);
+    expect((await f.compare(a, b))?.reasons).toEqual(["the same video (CLIP frames 0.995, the same audio fingerprint)"]);
   });
 
   it("does not take the same video with another intro (a variant), nor near frames without the audio", async () => {
@@ -182,31 +182,31 @@ describe("insufficient", () => {
     expect(isInsufficient({ ...dead, hasPage: true })).toBe(false);
     expect(isInsufficient({ ...dead, contentWords: 5 })).toBe(false);
     expect(isInsufficient({ ...dead, hasIdentifier: true })).toBe(false);
-    expect(missingData(dead)).toContain("zapisana strona (plik HTML albo HAR): adres nie odpowiada na żywo i nie ma kopii w archiwach");
+    expect(missingData(dead)).toContain("saved page (HTML file or HAR): the URL does not respond live and has no copy in the archives");
   });
   it("says what to add", () => {
     expect(missingData(empty)).toEqual([
-      "link do reklamy albo strony docelowej",
-      "zrzut z widocznym paskiem adresu",
-      "plik HAR z wizyty na stronie",
-      "zrzut ekranu reklamy",
-      "pełna treść reklamy (tekst posta albo czytelny zrzut)",
+      "link to the ad or the landing page",
+      "screenshot with the address bar visible",
+      "HAR file from a visit to the page",
+      "screenshot of the ad",
+      "full ad content (post text or a readable screenshot)",
     ]);
     expect(missingData({ ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9 })).toEqual([]);
   });
   it("asks for the HAR when the page was saved without one, but not when it is not known whether one came", () => {
     const withPage: Sufficiency = { ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9 };
-    expect(missingData({ ...withPage, hasHar: false })).toEqual(["plik HAR z wizyty na stronie"]);
+    expect(missingData({ ...withPage, hasHar: false })).toEqual(["HAR file from a visit to the page"]);
     expect(missingData({ ...withPage, hasHar: true })).toEqual([]);
     expect(missingData(withPage)).toEqual([]);
     // without the page the HAR is asked for once, whatever is known about the case files
-    expect(missingData({ ...withPage, hasPage: false, hasHar: false }).filter((m) => m.includes("HAR"))).toEqual(["plik HAR z wizyty na stronie"]);
+    expect(missingData({ ...withPage, hasPage: false, hasHar: false }).filter((m) => m.includes("HAR"))).toEqual(["HAR file from a visit to the page"]);
   });
   it("asks a platform lead form without a landing page for the ad-library ID or a screenshot of the form", () => {
     const m = missingData({ ...empty, hasImage: true, leadAd: true });
-    expect(m[0]).toBe("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy");
-    expect(m).toContain("zrzut formularza reklamy");
-    expect(m).not.toContain("plik HAR z wizyty na stronie");
+    expect(m[0]).toBe("ad library ID (from the Ad Library) or a link to the advertiser's page");
+    expect(m).toContain("screenshot of the ad form");
+    expect(m).not.toContain("HAR file from a visit to the page");
     // with an address the form is not the problem
     expect(missingData({ ...empty, hasAddress: true, hasPage: true, hasImage: true, contentWords: 9, leadAd: true })).toEqual([]);
   });

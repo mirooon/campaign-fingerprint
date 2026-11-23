@@ -98,7 +98,7 @@ export type DuplicateMedia = Partial<Pick<DuplicateTraits, "pageSha256" | "video
 
 export interface DuplicateOf {
   id: string;
-  /** Polish sentence, e.g. "identyczny obraz i ten sam adres strony". */
+  /** Sentence, e.g. "identical image and the same page URL". */
   reason: string;
 }
 
@@ -154,8 +154,8 @@ function trivialHash(h: string): boolean {
 
 const disjoint = (a: string[], b: string[]) => a.length > 0 && b.length > 0 && !a.some((x) => b.includes(x));
 
-function joinPl(parts: string[]): string {
-  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} i ${parts[parts.length - 1]}`;
+function joinAnd(parts: string[]): string {
+  return parts.length <= 1 ? (parts[0] ?? "") : `${parts.slice(0, -1).join(", ")} and ${parts[parts.length - 1]}`;
 }
 
 export class DuplicateFinder {
@@ -199,13 +199,13 @@ export class DuplicateFinder {
    * are there and verifiably different (two files, nothing proving the same recording).
    */
   videoRelation(a: DuplicateTraits, b: DuplicateTraits): { same: true; reason: string } | { same: false; known: boolean } {
-    if (a.videoSha256 && a.videoSha256 === b.videoSha256) return { same: true, reason: "ten sam plik wideo (SHA-256)" };
+    if (a.videoSha256 && a.videoSha256 === b.videoSha256) return { same: true, reason: "the same video file (SHA-256)" };
     const r = this.rules;
     if (a.videoEmbedding && b.videoEmbedding && a.audioFingerprint && b.audioFingerprint && a.audioDuration !== null && b.audioDuration !== null) {
       const frames = cosine(a.videoEmbedding, b.videoEmbedding);
       const sameLength = Math.abs(a.audioDuration - b.audioDuration) <= r.audioDurationTolerance;
       if (frames >= r.videoClipMinCosine && sameLength && fingerprintSimilarity(a.audioFingerprint, b.audioFingerprint, { maxOffset: r.audioMaxOffset }) >= r.audioMinSimilarity) {
-        return { same: true, reason: `to samo wideo (klatki CLIP ${frames.toFixed(3).replace(".", ",")}, ten sam odcisk audio)` };
+        return { same: true, reason: `the same video (CLIP frames ${frames.toFixed(3)}, the same audio fingerprint)` };
       }
     }
     return { same: false, known: !!a.videoSha256 && !!b.videoSha256 };
@@ -230,20 +230,20 @@ export class DuplicateFinder {
     let distance = 99;
     if (img.same && !adIdsConflict && !pathConflict) {
       distance = img.distance;
-      reasons.push(img.distance === 0 ? "identyczny obraz" : `identyczny obraz (dHash różni się o ${img.distance} b., np. po ponownej kompresji)`);
+      reasons.push(img.distance === 0 ? "identical image" : `identical image (dHash differs by ${img.distance} ${img.distance === 1 ? "bit" : "bits"}, e.g. after recompression)`);
     }
     const video = this.videoRelation(a, b);
     if (video.same && !adIdsConflict && !pathConflict) reasons.push(video.reason);
-    if (a.metaAdIds.some((x) => b.metaAdIds.includes(x))) reasons.push("ta sama reklama w Mecie (identyfikator z fbclid)");
-    if (a.adLibraryIds.some((x) => b.adLibraryIds.includes(x))) reasons.push("ten sam identyfikator w bibliotece reklam");
+    if (a.metaAdIds.some((x) => b.metaAdIds.includes(x))) reasons.push("the same Meta ad (ID from fbclid)");
+    if (a.adLibraryIds.some((x) => b.adLibraryIds.includes(x))) reasons.push("the same ID in the ad library");
     const samePage = !!a.pageUrl && a.pageUrl === b.pageUrl;
     // two different creatives on one page are two ads of a campaign, not one ad collected twice
     const creativesDiffer = (!img.same && img.known) || (!video.same && video.known);
-    if (samePage && !adIdsConflict && !creativesDiffer && a.domSimhash && a.domSimhash === b.domSimhash) reasons.push("ten sam adres strony z identyczną strukturą (simhash DOM)");
+    if (samePage && !adIdsConflict && !creativesDiffer && a.domSimhash && a.domSimhash === b.domSimhash) reasons.push("the same page URL with an identical structure (DOM simhash)");
     // the same body under two different addresses is a mirror of the lander (a campaign trait), not a re-collection
-    if (a.pageSha256 && a.pageSha256 === b.pageSha256 && !adIdsConflict && !creativesDiffer && !pathConflict) reasons.push("identyczna treść strony (SHA-256)");
+    if (a.pageSha256 && a.pageSha256 === b.pageSha256 && !adIdsConflict && !creativesDiffer && !pathConflict) reasons.push("identical page content (SHA-256)");
     if (!reasons.length) return null;
-    if (samePage && !reasons.some((r) => r.startsWith("ten sam adres strony"))) reasons.push("ten sam adres strony");
+    if (samePage && !reasons.some((r) => r.startsWith("the same page URL"))) reasons.push("the same page URL");
     return { reasons, distance };
   }
 
@@ -270,7 +270,7 @@ export class DuplicateFinder {
       }
       if (best) {
         const root = out.get(best.id)?.id ?? best.id;
-        out.set(a.id, { id: root, reason: joinPl(best.reasons) });
+        out.set(a.id, { id: root, reason: joinAnd(best.reasons) });
       }
       seen.push(a);
     }
@@ -341,7 +341,7 @@ export function caseFileDuplicates(cases: CaseFiles[]): Map<string, { caseId: st
 }
 
 /**
- * What to add to the material so that it can be compared (Polish, most useful first). A lead-form ad
+ * What to add to the material so that it can be compared (most useful first). A lead-form ad
  * without an address has no landing page to link or record, so it is asked for the ad-library ID (it
  * names the ad and its advertiser) or the advertiser's page, and a screenshot of the form. The HAR is
  * asked for when no page was captured, and also when the page came without one (`hasHar` false): a
@@ -351,12 +351,12 @@ export function caseFileDuplicates(cases: CaseFiles[]): Map<string, { caseId: st
 export function missingData(s: Sufficiency): string[] {
   const out: string[] = [];
   const leadForm = !!s.leadAd && !s.hasAddress;
-  if (leadForm) out.push("identyfikator biblioteki reklam (ID z Biblioteki Reklam) albo link do strony reklamodawcy", "zrzut formularza reklamy");
-  else if (!s.hasAddress) out.push("link do reklamy albo strony docelowej", "zrzut z widocznym paskiem adresu");
-  if (s.archiveNone && !s.hasPage) out.push("zapisana strona (plik HTML albo HAR): adres nie odpowiada na żywo i nie ma kopii w archiwach");
-  if ((!s.hasPage || s.hasHar === false) && !leadForm) out.push("plik HAR z wizyty na stronie");
-  if (!s.hasImage && !s.hasVideo) out.push("zrzut ekranu reklamy");
-  if (s.contentWords < MIN_CONTENT_WORDS) out.push("pełna treść reklamy (tekst posta albo czytelny zrzut)");
+  if (leadForm) out.push("ad library ID (from the Ad Library) or a link to the advertiser's page", "screenshot of the ad form");
+  else if (!s.hasAddress) out.push("link to the ad or the landing page", "screenshot with the address bar visible");
+  if (s.archiveNone && !s.hasPage) out.push("saved page (HTML file or HAR): the URL does not respond live and has no copy in the archives");
+  if ((!s.hasPage || s.hasHar === false) && !leadForm) out.push("HAR file from a visit to the page");
+  if (!s.hasImage && !s.hasVideo) out.push("screenshot of the ad");
+  if (s.contentWords < MIN_CONTENT_WORDS) out.push("full ad content (post text or a readable screenshot)");
   return out;
 }
 

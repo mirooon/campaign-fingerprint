@@ -65,7 +65,7 @@ export function writeSampleCases(sampleDir: string, outDir: string, specs: Sampl
   const fixtures = path.join(sampleDir, "fixtures");
   return specs.map(({ name, itemId }) => {
     const ad = ads.get(itemId);
-    if (!ad) throw new Error(`próbka nie ma reklamy ${itemId}`);
+    if (!ad) throw new Error(`the sample has no ad ${itemId}`);
     const dir = path.join(outDir, name);
     mkdirSync(dir, { recursive: true });
     const page = ad.landingUrl ? recordedPage(fixtures, ad.landingUrl) : null;
@@ -81,7 +81,7 @@ export function writeSampleFiles(sampleDir: string, outDir: string, specs: Sampl
   mkdirSync(outDir, { recursive: true });
   return specs.map(({ name, itemId }) => {
     const ad = ads.get(itemId);
-    if (!ad?.imagePath) throw new Error(`próbka nie ma obrazu reklamy ${itemId}`);
+    if (!ad?.imagePath) throw new Error(`the sample has no image for ad ${itemId}`);
     const file = path.join(outDir, `${name}${path.extname(ad.imagePath)}`);
     copyFileSync(path.join(sampleDir, ad.imagePath), file);
     return file;

@@ -37,12 +37,12 @@ export interface SensitivityOptions {
   outDir: string;
 }
 
-/** Current short commit of the repository the process runs in, or "nieznany" when git is not available. */
+/** Current short commit of the repository the process runs in, or "unknown" when git is not available. */
 function currentCommit(): string {
   try {
     return execSync("git rev-parse --short HEAD", { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
   } catch (e) {
-    return `nieznany (${(e as Error).message.split("\n")[0]})`;
+    return `unknown (${(e as Error).message.split("\n")[0]})`;
   }
 }
 

@@ -73,7 +73,7 @@ export async function detectMedia(): Promise<MediaAvailability> {
   return {
     ocr: { available: ocr.available, reason: ocr.reason },
     asr: { available: asr.available, reason: asr.reason },
-    audio: { available: fpcalc.available, reason: fpcalc.available ? null : "fpcalc (chromaprint) niedostępny" },
+    audio: { available: fpcalc.available, reason: fpcalc.available ? null : "fpcalc (chromaprint) unavailable" },
     clip: { available: clip.available, reason: clip.reason },
   };
 }
@@ -84,7 +84,7 @@ export async function detectMedia(): Promise<MediaAvailability> {
  */
 export function mediaPlan(av: MediaAvailability): { enrich: { ocr: boolean; asr: boolean; audio: boolean; clip: boolean }; steps: BaseStep[] } {
   const names = ["ocr", "asr", "audio", "clip"] as const;
-  const steps = names.map((step): BaseStep => (av[step].available ? { step, status: "ok" } : { step, status: "skipped", reason: av[step].reason ?? "narzędzie niedostępne" }));
+  const steps = names.map((step): BaseStep => (av[step].available ? { step, status: "ok" } : { step, status: "skipped", reason: av[step].reason ?? "tool unavailable" }));
   return { enrich: { ocr: av.ocr.available, asr: av.asr.available, audio: av.audio.available, clip: av.clip.available }, steps };
 }
 
@@ -109,12 +109,12 @@ export async function runBase(o: BaseOptions): Promise<BaseResult> {
   const steps: BaseStep[] = [];
 
   const imp = await importCases({ casesDir: o.casesDir, outDir: out, lookups: o.offline ? undefined : liveLookups(false), log });
-  if (!imp.cases.length) throw new Error(`brak spraw w ${o.casesDir} (każda sprawa to podkatalog z zapisaną stroną, HAR-em, zrzutem albo wideo)`);
-  steps.push({ step: "import-cases", status: "ok", detail: `spraw: ${imp.cases.length}, pominiętych: ${imp.skipped.length}` });
+  if (!imp.cases.length) throw new Error(`no cases in ${o.casesDir} (each case is a subfolder with a saved page, a HAR, a screenshot or a video)`);
+  steps.push({ step: "import-cases", status: "ok", detail: `cases: ${imp.cases.length}, skipped: ${imp.skipped.length}` });
   steps.push(
     o.offline
-      ? { step: "lookups", status: "skipped", reason: "tryb offline: bez zapytań o DNS, RDAP i ASN (tylko to, co jest w zapisanych materiałach)" }
-      : { step: "lookups", status: "ok", detail: imp.failedLookups.length ? `bez odpowiedzi: ${imp.failedLookups.join(", ")}` : "wszystkie odpowiedzi" },
+      ? { step: "lookups", status: "skipped", reason: "offline mode: no DNS, RDAP or ASN queries (only what the saved samples hold)" }
+      : { step: "lookups", status: "ok", detail: imp.failedLookups.length ? `no answer: ${imp.failedLookups.join(", ")}` : "all answered" },
   );
 
   let input = p("input.json");
@@ -131,17 +131,17 @@ export async function runBase(o: BaseOptions): Promise<BaseResult> {
 
   const plan = mediaPlan(await (o.detect ?? detectMedia)());
   await runEnrich({ items: p("items.json"), out: p("enriched.json"), offline: true, fixtures: p("fixtures"), archive: p("archive"), ...plan.enrich });
-  steps.push({ step: "enrich", status: "ok", detail: "z zapisanych odpowiedzi (fixtures)" }, ...plan.steps);
+  steps.push({ step: "enrich", status: "ok", detail: "from recorded responses (fixtures)" }, ...plan.steps);
 
   const configFile = o.config ?? (process.env.LINK_CONFIG || null);
   await runBuildGraph({ enriched: p("enriched.json"), graph: p("graph.json"), campaigns: p("campaigns.json"), config: configFile ?? undefined, text: "tfidf" });
   // The analysis of new material reads `<base>/linking.json`, so it uses the weights the base was built with.
   if (configFile && existsSync(configFile) && path.resolve(configFile) !== p("linking.json")) copyFileSync(configFile, p("linking.json"));
-  steps.push({ step: "build-graph", status: "ok", detail: configFile ? `wagi: ${configFile}` : "wagi wbudowane (DEFAULT_LINK_CONFIG)" });
+  steps.push({ step: "build-graph", status: "ok", detail: configFile ? `weights: ${configFile}` : "built-in weights (DEFAULT_LINK_CONFIG)" });
   // The CT watchers (ct:watch, ct:backfill, watch) read the brands of this base from <base>/ct-lexicon.json.
   const brands = lexiconFromGraph(readJson<EvidenceGraph>(p("graph.json"))).brands;
   writeJson(p("ct-lexicon.json"), ctLexiconFile(brands, new Date()));
-  steps.push({ step: "ct-lexicon", status: "ok", detail: `marki i nazwy landerów z bazy: ${brands.length}` });
+  steps.push({ step: "ct-lexicon", status: "ok", detail: `brands and lander names from the base: ${brands.length}` });
 
   const result: BaseResult = { version: 1, generatedAt: new Date().toISOString(), offline: !!o.offline, cases: imp.cases.length, steps, configFile, skippedCases: imp.skipped };
   writeJson(p("base.json"), result);

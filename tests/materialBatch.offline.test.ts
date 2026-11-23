@@ -108,7 +108,7 @@ describe("analyzeMaterial: duplicates", () => {
     const it = item("kopia-jpeg");
     expect(it.verdict).toBe("duplicate");
     expect(it.duplicateOf?.id).toBe(originalId);
-    expect(it.duplicateOf?.reason).toContain("identyczny obraz");
+    expect(it.duplicateOf?.reason).toContain("identical image");
     expect(it.campaign).toBe(originalCampaign);
     expect(it.verdictText).toContain(originalId);
   });
@@ -165,7 +165,7 @@ describe("analyzeMaterial: batch of cases", () => {
     const res = await analyzeMaterial({ caseDirs: [caseWith("zapis-a", { "Strona.html": html }), caseWith("zapis-b", { "Strona.html": html })] }, ctx("w-same-page"));
     const b = res.items.find((i) => i.id === "zapis-b")!;
     expect(b.verdict).toBe("duplicate");
-    expect(b.duplicateOf).toEqual({ id: "zapis-a", reason: "ten sam adres strony z identyczną strukturą (simhash DOM) i identyczna treść strony (SHA-256)" });
+    expect(b.duplicateOf).toEqual({ id: "zapis-a", reason: "the same page URL with an identical structure (DOM simhash) and identical page content (SHA-256)" });
     expect(b.newCampaign).toBe("N1");
   }, 60_000);
 
@@ -176,7 +176,7 @@ describe("analyzeMaterial: batch of cases", () => {
     const b = res.items.find((i) => i.id === "tresc-b")!;
     expect(b.verdict).toBe("duplicate");
     expect(b.duplicateOf?.id).toBe("tresc-a");
-    expect(b.duplicateOf?.reason).toContain("identyczna treść strony (SHA-256)");
+    expect(b.duplicateOf?.reason).toContain("identical page content (SHA-256)");
   }, 60_000);
 
   it("takes the same report submitted 47 times as one material and 46 duplicates, and the funnel adds up", async () => {
@@ -209,7 +209,7 @@ describe("analyzeMaterial: batch of cases", () => {
     const b = res.items.find((i) => i.id === "wideo-b")!;
     expect(b.verdict).toBe("duplicate");
     expect(b.duplicateOf?.id).toBe("wideo-a");
-    expect(b.duplicateOf?.reason).toContain("ten sam plik wideo (SHA-256)");
+    expect(b.duplicateOf?.reason).toContain("the same video file (SHA-256)");
   }, 60_000);
 });
 
@@ -225,11 +225,11 @@ describe("analyzeMaterial: case the importer cannot read", () => {
       ctx("w-unreadable"),
     );
     expect(res.items.map((i) => i.id)).toEqual(["czytelna"]);
-    expect(res.skipped).toEqual([{ id: "tylko-notatka", reason: expect.stringContaining("brak strony, zrzutu ani wideo") }]);
+    expect(res.skipped).toEqual([{ id: "tylko-notatka", reason: expect.stringContaining("no page, screenshot or video") }]);
     const rows = materialCsv(res).trim().split("\n");
     expect(rows).toHaveLength(3);
     expect(rows[2].startsWith("tylko-notatka,tylko-notatka,insufficient,,,,,uncertain,,,")).toBe(true);
-    expect(rows[2]).toContain("brak strony, zrzutu ani wideo"); // the reason sits quoted in missing_data
+    expect(rows[2]).toContain("no page, screenshot or video"); // the reason sits quoted in missing_data
   }, 60_000);
 
   it("counts a saved page without its address, uploaded as its own material, in the GUI summary with what to add", async () => {
@@ -249,7 +249,7 @@ describe("analyzeMaterial: case the importer cannot read", () => {
     expect(s.withErrors).toBe(1);
     const [unread] = unreadMaterials(res);
     expect(unread.id).toBe("bez-adresu");
-    expect(unread.reasons[0]).toMatch(/^brak adresu strony/);
+    expect(unread.reasons[0]).toMatch(/^no page URL/);
     expect(unread.hints.join(" ")).toMatch(/HAR/);
   }, 60_000);
 });
@@ -267,13 +267,13 @@ describe("analyzeMaterial: a damaged file in one case of the batch", () => {
 
     expect(res.items.map((i) => [i.id, i.verdict])).toEqual([["dobra-sprawa", "new_campaign"]]);
     expect(res.skipped).toEqual([
-      { id: "uszkodzony-har/page.har", reason: expect.stringMatching(/^nie udało się odczytać pliku page\.har \(uszkodzony HAR\): /) },
-      { id: "zepsute-zasoby", reason: expect.stringMatching(/^nie udało się zaimportować sprawy: ENOENT/) },
+      { id: "uszkodzony-har/page.har", reason: expect.stringMatching(/^could not read the file page\.har \(damaged HAR\): /) },
+      { id: "zepsute-zasoby", reason: expect.stringMatching(/^could not import the case: ENOENT/) },
     ]);
     const rows = materialCsv(res).trim().split("\n");
     expect(rows).toHaveLength(4);
-    expect(rows.find((r) => r.startsWith("uszkodzony-har,uszkodzony-har,insufficient,,,,,uncertain,,,"))).toContain("uszkodzony HAR");
-    expect(rows.find((r) => r.startsWith("zepsute-zasoby,zepsute-zasoby,insufficient,,,,,uncertain,,,"))).toContain("nie udało się zaimportować sprawy");
+    expect(rows.find((r) => r.startsWith("uszkodzony-har,uszkodzony-har,insufficient,,,,,uncertain,,,"))).toContain("damaged HAR");
+    expect(rows.find((r) => r.startsWith("zepsute-zasoby,zepsute-zasoby,insufficient,,,,,uncertain,,,"))).toContain("could not import the case");
 
     // GUI job state from the same progress events: the error sits at the damaged cases only
     expect(events.some((e) => e.status === "error")).toBe(false);
@@ -284,7 +284,7 @@ describe("analyzeMaterial: a damaged file in one case of the batch", () => {
       ["uszkodzony-har", "error"],
       ["zepsute-zasoby", "error"],
     ]);
-    expect(job.cases[1].detail).toContain("nie udało się odczytać pliku page.har");
+    expect(job.cases[1].detail).toContain("could not read the file page.har");
   }, 60_000);
 
   // the permission bits do not stop root, so the page cannot be made unreadable there
@@ -294,10 +294,10 @@ describe("analyzeMaterial: a damaged file in one case of the batch", () => {
     chmodSync(path.join(locked, "Strona.html"), 0o000);
     const res = await analyzeMaterial({ caseDirs: [good, locked] }, ctx("w-eacces"));
     expect(res.items.map((i) => [i.id, i.verdict])).toEqual([["czytelna-2", "new_campaign"]]);
-    expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
+    expect(res.skipped).toEqual([{ id: "bez-dostepu/Strona.html", reason: "could not read the file Strona.html: EACCES: permission denied, open 'Strona.html'" }]);
     const rows = materialCsv(res).trim().split("\n");
     expect(rows).toHaveLength(3);
-    expect(rows[2]).toBe("bez-dostepu,bez-dostepu,insufficient,,,,,uncertain,,,\"nie udało się odczytać pliku Strona.html: EACCES: permission denied, open 'Strona.html'\",");
+    expect(rows[2]).toBe("bez-dostepu,bez-dostepu,insufficient,,,,,uncertain,,,\"could not read the file Strona.html: EACCES: permission denied, open 'Strona.html'\",");
   }, 60_000);
 
   it("returns a result with a row per case when every case of the batch is damaged, and names the reason for a single case", async () => {
@@ -305,7 +305,7 @@ describe("analyzeMaterial: a damaged file in one case of the batch", () => {
     expect(res.items).toEqual([]);
     expect(res.skipped.map((s) => s.id)).toEqual(["har-1/page.har", "har-2/page.har"]);
     expect(materialCsv(res).trim().split("\n")).toHaveLength(3);
-    await expect(analyzeMaterial({ caseDir: caseWith("har-3", { "page.har": "{" }) }, ctx("w-one-damaged"))).rejects.toThrow(/^nie udało się zaimportować materiału: nie udało się odczytać pliku page\.har/);
+    await expect(analyzeMaterial({ caseDir: caseWith("har-3", { "page.har": "{" }) }, ctx("w-one-damaged"))).rejects.toThrow(/^could not import the sample: could not read the file page\.har/);
   }, 60_000);
 });
 
@@ -315,8 +315,8 @@ describe("analyzeMaterial: not enough to compare", () => {
     const [it] = res.items;
     expect(it.verdict).toBe("insufficient");
     expect(it.campaign).toBeNull();
-    expect(it.missing).toEqual(expect.arrayContaining(["link do reklamy albo strony docelowej", "zrzut z widocznym paskiem adresu"]));
-    expect(it.verdictText).toContain("Za mało danych");
+    expect(it.missing).toEqual(expect.arrayContaining(["link to the ad or the landing page", "screenshot with the address bar visible"]));
+    expect(it.verdictText).toContain("Insufficient data");
   });
 
   it("asks a lead-form ad without a landing page for the ad-library ID", async () => {
@@ -324,7 +324,7 @@ describe("analyzeMaterial: not enough to compare", () => {
     const [it] = res.items;
     expect(it.verdict).toBe("insufficient");
     expect(it.features.leadAd).toBe(true);
-    expect(it.missing?.join("; ")).toContain("identyfikator biblioteki reklam");
+    expect(it.missing?.join("; ")).toContain("ad library ID");
   });
 
   it("lets a link over the threshold decide even for a material without an address", async () => {
@@ -402,11 +402,11 @@ describe("analyzeMaterial: dataset file", () => {
       ["j1", "new_campaign"],
       ["j3", "insufficient"],
     ]);
-    expect(res.skipped).toEqual([{ id: "j2", reason: expect.stringMatching(/^nie udało się odczytać wiersza 2 pliku zgloszenia\.jsonl: niepoprawny JSON/) }]);
+    expect(res.skipped).toEqual([{ id: "j2", reason: expect.stringMatching(/^could not read row 2 of file zgloszenia\.jsonl: invalid JSON/) }]);
     const rows = materialCsv(res).trim().split("\n");
     expect(rows).toHaveLength(4);
     expect(rows[3].startsWith("j2,j2,insufficient,,,,,uncertain,,,")).toBe(true);
-    expect(rows[3]).toContain("wiersza 2 pliku zgloszenia.jsonl");
+    expect(rows[3]).toContain("row 2 of file zgloszenia.jsonl");
   }, 60_000);
 });
 
@@ -424,10 +424,10 @@ describe("analyzeMaterial: progress", () => {
       { ...ctx("w-progress"), media: { ocr: false }, onProgress: (e) => events.push(e) },
     );
     const of = (c: string, step: string) => events.filter((e) => e.caseId === c && e.step === step).map((e) => e.status + (e.detail ? `: ${e.detail}` : ""));
-    expect(of("postep-obraz", "import")).toEqual(["start", "done: 1 rekord(y)"]);
+    expect(of("postep-obraz", "import")).toEqual(["start", "done: 1 record"]);
     expect(of("postep-pusta", "import")[1]).toMatch(/^skipped: /);
-    expect(of("postep-obraz", "ocr")).toEqual(["skipped: OCR wyłączony"]);
-    expect(of("postep-strona", "asr")).toEqual(["skipped: transkrypcja wyłączona"]);
+    expect(of("postep-obraz", "ocr")).toEqual(["skipped: OCR turned off"]);
+    expect(of("postep-strona", "asr")).toEqual(["skipped: transcription turned off"]);
     // offline is the default of the container: the step is skipped with the reason, never shown as a failure
     expect(of("postep-strona", "lookups")).toEqual([`skipped: ${lookupsOffReason(process.env)}`]);
     for (const step of ["features", "compare"]) expect(of("postep-strona", step)).toEqual(["start", "done"]);
@@ -441,8 +441,8 @@ describe("analyzeMaterial: progress", () => {
     const events: MaterialProgress[] = [];
     await analyzeMaterial({ text: "Jan Przykładowy poleca lokatę 9% rocznie w Banku Testowym, zapisz się dziś." }, { ...ctx("w-progress-2"), media: { ocr: true, asr: true }, onProgress: (e) => events.push(e) });
     const st = (step: string) => events.filter((e) => e.step === step).map((e) => `${e.status}${e.detail ? `: ${e.detail}` : ""}`);
-    expect(st("ocr")).toEqual(["skipped: brak obrazu"]);
-    expect(st("asr")).toEqual(["skipped: brak wideo"]);
-    expect(events.every((e) => e.caseId === "nowa-reklama")).toBe(true);
+    expect(st("ocr")).toEqual(["skipped: no image"]);
+    expect(st("asr")).toEqual(["skipped: no video"]);
+    expect(events.every((e) => e.caseId === "new-ad")).toBe(true);
   }, 60_000);
 });

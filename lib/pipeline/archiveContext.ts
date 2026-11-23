@@ -25,6 +25,6 @@ export function archiveStepOptions(o: { enabled: boolean; offline?: boolean; env
   const { names, error } = archiveSourceNames(env.ARCHIVE_SOURCES);
   if (error) throw new Error(error);
   if (!o.enabled && !names.length) return null;
-  if (o.offline || env.ANALYZE_OFFLINE === "1") return { sources: [], skipReason: "tryb offline: bez zapytań sieciowych do archiwów" };
+  if (o.offline || env.ANALYZE_OFFLINE === "1") return { sources: [], skipReason: "offline mode: no network queries to the archives" };
   return { sources: createArchiveSources(names.length ? names : ["urlscan", "wayback"], { screenshotDir: o.screenshotDir }), rdap: (domain) => lookupRdap(domain) };
 }

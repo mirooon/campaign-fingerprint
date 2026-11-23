@@ -28,7 +28,7 @@ export interface ShellProps {
   /** Rules computed on the server for materials left alone whose pair `near-misses.json` cut (key: the material). */
   singleRules?: Record<string, SingleRule>;
   summaries: Record<string, CampaignSummary>;
-  /** The comparison base is the bundled sample: every result screen carries the "dane syntetyczne" label. */
+  /** The comparison base is the bundled sample: every result screen carries the "synthetic data" label. */
   synthetic: boolean;
   /** The server runs with ANALYZE_OFFLINE=1: the analysis never looks domains up, so the form locks that option off. */
   serverOffline: boolean;
@@ -37,18 +37,18 @@ export interface ShellProps {
 type Tab = "analyze" | "campaigns" | "graph" | "compare" | "apart" | "how" | "ct" | "people" | "quality" | "expert";
 
 const TABS: Array<{ id: Tab; label: string }> = [
-  { id: "analyze", label: "Analizuj materiał" },
-  { id: "campaigns", label: "Kampanie" },
-  { id: "graph", label: "Graf powiązań" },
-  { id: "compare", label: "Porównaj" },
-  { id: "apart", label: "Celowo nie połączone" },
-  { id: "how", label: "Jak to działa" },
-  { id: "ct", label: "Nowe domeny" },
-  { id: "people", label: "Kogo rozpoznajemy" },
-  { id: "quality", label: "Jakość danych" },
+  { id: "analyze", label: "Analyze sample" },
+  { id: "campaigns", label: "Campaigns" },
+  { id: "graph", label: "Link graph" },
+  { id: "compare", label: "Compare" },
+  { id: "apart", label: "Deliberately not linked" },
+  { id: "how", label: "How it works" },
+  { id: "ct", label: "New domains" },
+  { id: "people", label: "Recognized people" },
+  { id: "quality", label: "Data quality" },
 ];
 
-/** Tab of the address: `?tab=`, or the one an old link implies (?a=&b= → Porównaj, ?k= → Kampanie, ?panel=ct → Nowe domeny, ?n= / ?p= → graf). */
+/** Tab of the address: `?tab=`, or the one an old link implies (?a=&b= → Compare, ?k= → Campaigns, ?panel=ct → New domains, ?n= / ?p= → graph). */
 function tabFromParams(p: URLSearchParams): Tab {
   const t = p.get("tab");
   if (t && [...TABS.map((x) => x.id), "expert"].includes(t)) return t as Tab;
@@ -135,23 +135,23 @@ export default function Shell({ graph, campaigns, nearMisses, singleRules, summa
     <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <header className="border-b border-slate-200 bg-white px-4 py-2.5">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <h1 className="text-lg font-semibold">Analiza kampanii</h1>
+          <h1 className="text-lg font-semibold">Campaign analysis</h1>
           <p className="text-sm text-slate-600">
-            Baza porównawcza<Help term="baza" />: {count(itemCount, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · <span title={`Materiał niedołączony do żadnej kampanii ma własny numer K, dlatego numery K sięgają dalej niż liczba kampanii. W ramkach grup podobnych: ${counts.singlesInFamilies}, w zwiniętej sekcji zakładki Kampanie: ${counts.singles - counts.singlesInFamilies}.`}>{count(counts.singles, SINGLE_MATERIAL)}</span> · {count(counts.families, GROUP)} · {graph.mode === "offline" ? "offline" : "online"} · dane z {fmtDate(campaigns.generatedAt)}
+            Reference base<Help term="baza" />: {count(itemCount, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · <span title={`A sample not linked to any campaign gets its own K number, so K numbers go higher than the number of campaigns. Inside similar-campaign group frames: ${counts.singlesInFamilies}; in the collapsed section of the Campaigns tab: ${counts.singles - counts.singlesInFamilies}.`}>{count(counts.singles, SINGLE_MATERIAL)}</span> · {count(counts.families, GROUP)} · {graph.mode === "offline" ? "offline" : "online"} · data from {fmtDate(campaigns.generatedAt)}
           </p>
           {synthetic && <SyntheticBadge />}
-          <nav className="ml-auto flex gap-3 text-sm" aria-label="Pomoc i tryb eksperta">
-            <button type="button" className="underline" onClick={() => go({ tab: "how" })}>Słowniczek</button>
-            <span className="inline-flex items-center gap-1" role="group" aria-label="Widok">
-              Widok:
-              <button type="button" aria-pressed={viewMode === "simple"} className={`rounded px-1.5 ${viewMode === "simple" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("simple")}>prosty</button>
+          <nav className="ml-auto flex gap-3 text-sm" aria-label="Help and expert mode">
+            <button type="button" className="underline" onClick={() => go({ tab: "how" })}>Glossary</button>
+            <span className="inline-flex items-center gap-1" role="group" aria-label="View">
+              View:
+              <button type="button" aria-pressed={viewMode === "simple"} className={`rounded px-1.5 ${viewMode === "simple" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("simple")}>simple</button>
               <span aria-hidden>/</span>
-              <button type="button" aria-pressed={viewMode === "expert"} className={`rounded px-1.5 ${viewMode === "expert" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("expert")}>ekspercki</button>
+              <button type="button" aria-pressed={viewMode === "expert"} className={`rounded px-1.5 ${viewMode === "expert" ? "bg-slate-900 text-white" : "underline"}`} onClick={() => setViewMode("expert")}>expert</button>
             </span>
-            {viewMode === "expert" && <button type="button" className={`underline ${tab === "expert" ? "font-semibold" : ""}`} onClick={() => go({ tab: "expert" })}>Tryb eksperta</button>}
+            {viewMode === "expert" && <button type="button" className={`underline ${tab === "expert" ? "font-semibold" : ""}`} onClick={() => go({ tab: "expert" })}>Expert mode</button>}
           </nav>
         </div>
-        <div className="mt-1.5 flex flex-wrap gap-1" role="tablist" aria-label="Widoki">
+        <div className="mt-1.5 flex flex-wrap gap-1" role="tablist" aria-label="Views">
           {visibleTabs.map((t) => (
             <button
               key={t.id}
@@ -187,8 +187,8 @@ export default function Shell({ graph, campaigns, nearMisses, singleRules, summa
         )}
         {tab === "compare" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">
-            <h2 className="text-xl font-semibold">Co łączy te dwa materiały?</h2>
-            {!a && !b && <Empty>Wybierz dwa materiały z list poniżej albo użyj „Porównaj” w karcie kampanii.</Empty>}
+            <h2 className="text-xl font-semibold">What links these two samples?</h2>
+            {!a && !b && <Empty>Choose two samples from the lists below or use “Compare” on a campaign card.</Empty>}
             <StrengthLegend />
             <ComparePanel
               graph={graph}
@@ -207,8 +207,8 @@ export default function Shell({ graph, campaigns, nearMisses, singleRules, summa
         {tab === "how" && <HowItWorks rules={campaigns.method.rules ?? []} method={campaigns.method} />}
         {tab === "ct" && (
           <div className="mx-auto max-w-3xl space-y-3 p-4">
-            <h2 className="text-xl font-semibold">Jakie nowe domeny pasują do znanych kampanii?</h2>
-            <p className="text-sm text-slate-700">Każdy certyfikat HTTPS trafia do publicznego rejestru. Wyłapujemy domeny pasujące do wzorców znanych kampanii, często zanim ruszy reklama.</p>
+            <h2 className="text-xl font-semibold">Which new domains match known campaigns?</h2>
+            <p className="text-sm text-slate-700">Every HTTPS certificate goes into a public log. We catch domains that match the patterns of known campaigns, often before the ad goes live.</p>
             <CtFeedPanel state={ctFeed} campaignIds={new Set(campaigns.campaigns.map((c) => c.id))} onSelectCampaign={(id) => go({ tab: "campaigns", k: id })} />
           </div>
         )}

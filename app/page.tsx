@@ -12,7 +12,7 @@ async function ViewerWithData() {
   if (!graph || !campaigns) {
     return (
       <main className="mx-auto max-w-xl p-10">
-        <h1 className="text-lg font-semibold">Graf kampanii</h1>
+        <h1 className="text-lg font-semibold">Campaign graph</h1>
         <p className="mt-2 text-sm text-slate-600">{error}</p>
       </main>
     );
@@ -22,7 +22,7 @@ async function ViewerWithData() {
 
 export default function Home() {
   return (
-    <Suspense fallback={<p className="p-6 text-sm text-slate-500">Wczytywanie grafu…</p>}>
+    <Suspense fallback={<p className="p-6 text-sm text-slate-500">Loading the graph…</p>}>
       <ViewerWithData />
     </Suspense>
   );

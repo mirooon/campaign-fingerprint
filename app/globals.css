@@ -10,7 +10,7 @@ body {
   font-family: var(--font-sans);
 }
 
-/* Wydruk karty kampanii (PrintButton): tylko karta, A4, tabele i wiersze nie są przecinane. */
+/* Printing a campaign card (PrintButton): the card only, A4, tables and rows are not split across pages. */
 @media print {
   @page {
     size: A4;

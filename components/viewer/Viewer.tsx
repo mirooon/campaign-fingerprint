@@ -31,11 +31,11 @@ export interface ViewerProps {
 type Panel = "details" | "compare" | "analyze" | "ct" | "thresholds";
 
 const PANELS: Array<{ id: Panel; label: string }> = [
-  { id: "details", label: "Szczegóły" },
-  { id: "compare", label: "Porównaj reklamy" },
-  { id: "analyze", label: "Nowa reklama" },
-  { id: "ct", label: "Nowe domeny" },
-  { id: "thresholds", label: "Progi" },
+  { id: "details", label: "Details" },
+  { id: "compare", label: "Compare ads" },
+  { id: "analyze", label: "New ad" },
+  { id: "ct", label: "New domains" },
+  { id: "thresholds", label: "Thresholds" },
 ];
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -178,51 +178,51 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
     <div className="flex min-h-screen flex-col md:h-screen">
       <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 bg-white px-4 py-2.5">
         <div>
-          <h1 className="text-base font-semibold text-slate-900">Graf kampanii</h1>
+          <h1 className="text-base font-semibold text-slate-900">Campaign graph</h1>
           <p className="text-xs text-slate-500">
-            {count(graph.stats.items, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · {count(counts.singles, SINGLE_MATERIAL)} · {graph.stats.nodes - graph.stats.items} encji · tryb {graph.mode === "offline" ? "offline (fixtures)" : "live"} · podobieństwo tekstu: {graph.textMethod === "embedding" ? "embeddingi" : graph.textMethod === "tfidf" ? "TF-IDF" : "wyłączone"}
+            {count(graph.stats.items, MATERIAL)} · {count(counts.campaigns, CAMPAIGN)} · {count(counts.singles, SINGLE_MATERIAL)} · {graph.stats.nodes - graph.stats.items} {graph.stats.nodes - graph.stats.items === 1 ? "entity" : "entities"} · {graph.mode === "offline" ? "offline mode (fixtures)" : "live mode"} · text similarity: {graph.textMethod === "embedding" ? "embeddings" : graph.textMethod === "tfidf" ? "TF-IDF" : "off"}
           </p>
           <div className="max-w-xl"><ReadHow id="graph" /></div>
         </div>
         {evaluation && (
-          <div className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900" title="Porównanie z kolumną etykiet (label) w danych">
-            Ewaluacja na etykietach: F1 par <b>{evaluation.pairwise.f1.toFixed(3)}</b> · B³ F1 <b>{evaluation.bcubed.f1.toFixed(3)}</b> · ARI <b>{evaluation.ari.toFixed(3)}</b>
+          <div className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs text-emerald-900" title="Comparison with the label column in the data">
+            Evaluation on labels: pairwise F1 <b>{evaluation.pairwise.f1.toFixed(3)}</b> · B³ F1 <b>{evaluation.bcubed.f1.toFixed(3)}</b> · ARI <b>{evaluation.ari.toFixed(3)}</b>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-3 md:ml-auto">
-          <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label="Kolorowanie">
+          <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label="Colour by">
             <button type="button" onClick={() => setColorBy("campaign")} className={`px-2 py-1 ${colorBy === "campaign" ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
-              wg kampanii
+              by campaign
             </button>
             <button type="button" onClick={() => setColorBy("type")} className={`px-2 py-1 ${colorBy === "type" ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
-              wg typu encji
+              by entity type
             </button>
           </div>
-          <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label="Widok grafu">
+          <div className="flex overflow-hidden rounded-md border border-slate-300 text-xs" role="group" aria-label="Graph view">
             <button type="button" aria-pressed={reduced} onClick={() => setReduced(true)} className={`px-2 py-1 ${reduced ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
-              zredukowany
+              reduced
             </button>
             <button type="button" aria-pressed={!reduced} onClick={() => setReduced(false)} className={`px-2 py-1 ${!reduced ? "bg-slate-900 text-white" : "bg-white text-slate-700"}`}>
-              pełny
+              full
             </button>
           </div>
           {reduced ? (
             <>
               {selected?.startsWith("item:") && seed !== idx.nodeById.get(selected)?.key && (
                 <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs" onClick={() => { setSeed(idx.nodeById.get(selected)?.key ?? null); setExpanded(new Set()); }}>
-                  rozwijaj graf od materiału {idx.nodeById.get(selected)?.key}
+                  expand the graph from sample {idx.nodeById.get(selected)?.key}
                 </button>
               )}
               {(seed || expanded.size > 0) && (
                 <button type="button" className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs" onClick={() => { setSeed(null); setExpanded(new Set()); }}>
-                  pokaż wszystkie kampanie
+                  show all campaigns
                 </button>
               )}
             </>
           ) : (
             <>
-              <Toggle checked={sharedOnly} onChange={setSharedOnly} label="tylko współdzielone encje" />
-              <Toggle checked={hideSingletons} onChange={setHideSingletons} label="ukryj niepowiązane reklamy" />
+              <Toggle checked={sharedOnly} onChange={setSharedOnly} label="shared entities only" />
+              <Toggle checked={hideSingletons} onChange={setHideSingletons} label="hide unlinked ads" />
             </>
           )}
         </div>
@@ -250,30 +250,30 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
                 {ENTITY_LABELS_PL[t]}
               </span>
             ))}
-            <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-teal-600" /> podobny obraz</span>
-            <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-indigo-500" /> podobny tekst</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-teal-600" /> similar image</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-indigo-500" /> similar text</span>
             {similarityShown.has("similar_dom") && (
-              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-amber-600" /> ten sam szablon strony</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dashed border-amber-600" /> same page template</span>
             )}
             {similarityShown.has("similar_audio") && (
-              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dotted border-fuchsia-600" /> ten sam podkład audio</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dotted border-fuchsia-600" /> same audio track</span>
             )}
             {similarityShown.has("similar_voice") && (
-              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dotted border-teal-600" /> ten sam głos mówcy</span>
+              <span className="flex items-center gap-1"><span className="inline-block w-4 border-t-2 border-dotted border-teal-600" /> same speaker voice</span>
             )}
             {markedIds.length > 0 && (
-              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm border-2 border-violet-600" /> porównywane reklamy</span>
+              <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm border-2 border-violet-600" /> ads being compared</span>
             )}
           </div>
           <div className="absolute right-2 top-2 rounded bg-white/90 px-2 py-0.5 text-[11px] text-slate-500 shadow-sm">
             {reducedView
-              ? `Widok zredukowany${seed ? ` od materiału ${seed}` : ""} · ${reducedView.nodes.length} węzłów · kliknij kampanię albo ślad, żeby rozwinąć`
-              : `${campaignId ? `Kampania ${campaignId}` : personaName ? `Kampanie z personą ${personaName}` : "Wszystkie kampanie"} · ${visible.size} węzłów`}
+              ? `Reduced view${seed ? ` from sample ${seed}` : ""} · ${reducedView.nodes.length} ${reducedView.nodes.length === 1 ? "node" : "nodes"} · click a campaign or a trace to expand`
+              : `${campaignId ? `Campaign ${campaignId}` : personaName ? `Campaigns with persona ${personaName}` : "All campaigns"} · ${visible.size} ${visible.size === 1 ? "node" : "nodes"}`}
           </div>
         </main>
 
         <aside className="w-full overflow-y-auto border-t border-slate-200 bg-white md:w-96 md:shrink-0 md:border-l md:border-t-0">
-          <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-white text-xs" role="tablist" aria-label="Panel boczny">
+          <div className="sticky top-0 z-10 flex border-b border-slate-200 bg-white text-xs" role="tablist" aria-label="Side panel">
             {PANELS.map((p) => (
               <button
                 key={p.id}
@@ -285,7 +285,7 @@ export default function Viewer({ graph, campaigns, summaries, initialReduced = f
               >
                 {p.label}
                 {p.id === "ct" && ctFeed.records.length > 0 && (
-                  <span className="ml-1 rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white" aria-label={`${ctFeed.records.length} kandydatów`}>
+                  <span className="ml-1 rounded-full bg-rose-600 px-1.5 text-[10px] font-semibold text-white" aria-label={`${ctFeed.records.length} ${ctFeed.records.length === 1 ? "candidate" : "candidates"}`}>
                     {ctFeed.records.length}
                   </span>
                 )}

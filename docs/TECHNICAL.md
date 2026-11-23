@@ -1820,14 +1820,14 @@ Narzędzia zewnętrzne są opcjonalne, uruchamiane jako osobne procesy (albo kon
 
 #### Usługi wymagające autoryzacji
 
-Aktualna lista usług z kluczami, sposób uzyskania dostępu i działanie bez nich: [README.md, „Usługi z kluczami”](../README.md#usługi-z-kluczami).
+Aktualna lista usług z kluczami, sposób uzyskania dostępu i działanie bez nich: [README.md, „Usługi z kluczami”](JURY.md#usługi-z-kluczami).
 
 ### 17.7 Pochodzenie danych
 
 | Dane | Źródło | Gdzie są | Do czego |
 |---|---|---|---|
 | Próbka `data/sample/`, testy, fixtures | wygenerowane (`scripts/gen-sample.ts`), w całości syntetyczne (szczegóły w [Dane przykładowe i testowe](#172-dane-przykładowe-i-testowe)) | w repozytorium | demo offline, testy, `bun run evaluate` |
-| Materiały organizatora (sprawy z zapowiedzi zadania i paczka od jury) | organizator zadania | wyłącznie lokalnie, poza repozytorium i jego historią git | rozwój importera, dobór wag i progów, demo. Materiałów organizatora nie wolno rozpowszechniać, dlatego wartości z nich w testach zastąpiłem syntetycznymi (sekcja [Pochodzenie kodu](../README.md#pochodzenie-kodu)) |
+| Materiały organizatora (sprawy z zapowiedzi zadania i paczka od jury) | organizator zadania | wyłącznie lokalnie, poza repozytorium i jego historią git | rozwój importera, dobór wag i progów, demo. Materiałów organizatora nie wolno rozpowszechniać, dlatego wartości z nich w testach zastąpiłem syntetycznymi (sekcja [Pochodzenie kodu](JURY.md#pochodzenie-kodu)) |
 | Zbiór walidacyjny: 212 materiałów spoza próbki (z 298 kandydatów) | **urlscan.io** (publiczne wyniki wyszukiwania: zrzut strony, lista żądań odtworzona jako HAR z hashami zasobów, strona wyniku), **Lista Ostrzeżeń CERT Polska** (`hole.cert.pl/domains/v2/domains.json`) i **RDAP** (serie rejestracji), zrzuty z artykułu **Demagog**, kopia z **Internet Archive (Wayback Machine)**. Bez wyników sprawdzone: crt.sh, OpenPhish, URLhaus, ostrzeżenia KNF, Google Ads Transparency Center | poza repozytorium (treści oszukańczych stron); każdy materiał ma `zrodlo.json` z adresem źródła i datą dostępu (21.11.2026) | walidacja na danych spoza próbki: warianty znanych kampanii jako pozytywy, strony tej samej platformy albo narracji od innych operatorów jako trudne negatywy |
 | Lista Ostrzeżeń CERT Polska 2024–2026 z logiem zmian API v2 | `hole.cert.pl` (publiczne API) | poza repozytorium | pilot wczesnego ostrzegania: o ile wcześniej domena pojawia się w logach CT niż na Liście |
 | Przykład wzorca nazw domen `finance23-voluptas94.sbs` | publiczny komunikat CSIRT KNF | w testach | test wzorców nazw domen |

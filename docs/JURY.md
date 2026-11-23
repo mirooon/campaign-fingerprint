@@ -1,5 +1,7 @@
 # Odcisk kampanii
 
+> To jest instrukcja uruchomienia dla jury HackNation 2026 w stanie z 22.11.2026 i dotyczy wersji z tagiem [`hacknation-2026`](https://github.com/mirooon/odcisk-kampanii/tree/hacknation-2026) (polski interfejs); aktualny opis projektu po angielsku jest w [README.md](../README.md), po polsku w [README.pl.md](../README.pl.md). Paczka `odcisk-kampanii-sample-data-2026-11-22.zip` z bazą wyliczoną z danych organizatora nie jest publiczna, więc kroki z nią działają tylko dla jury.
+
 Narzędzie łączy pojedyncze materiały o oszukańczych reklamach (zrzuty ekranu, zapisane strony, pliki HAR, nagrania, linki) w kampanie i grupy podobnych kampanii. Nowy materiał ocenia względem bazy znanych kampanii i przy każdym powiązaniu pokazuje przesłanki. Analiza działa bez internetu i bez kluczy (sprawdzone w kontenerze z `--network none`); internet jest potrzebny tylko przy pierwszej budowie obrazu.
 
 Projekt powstał na HackNation 2026 (21–22.11.2026), zadanie „Kolekcjoner fejków”. Repozytorium nie zawiera materiałów organizatora; dane przykładowe i testowe są syntetyczne ([Pochodzenie danych](#pochodzenie-danych)).
@@ -36,7 +38,7 @@ Skrypt wypisuje w terminalu cztery kroki (`== 1/4` … `== 4/4`):
 
 Skrypt `start.sh` wypisuje przy wariantach „podobnych” liczbę mniejszą niż 11/78: `zbior-publiczny/sprawdz.py` w paczce dzieli listę kampanii po `|`, a CSV rozdziela je `;`, więc pomija wiersze z kilkoma podobnymi kampaniami. Poprawna liczba (11/78) jest w `zbior-publiczny/WALIDACJA.md` w paczce.
 
-Pozostałe warianty dostają werdykt „nowa kampania”, bo publicznym skanom brakuje śladów z linku reklamy. Narzędzie woli nie połączyć, niż połączyć błędnie. Etykiety 212 stron nadał zespół, częściowo po tych samych śladach, których używa narzędzie, dlatego najbardziej miarodajny jest wynik 134/134 ([walidacja](docs/METODYKA.md#walidacja-na-materiałach-spoza-próbki)).
+Pozostałe warianty dostają werdykt „nowa kampania”, bo publicznym skanom brakuje śladów z linku reklamy. Narzędzie woli nie połączyć, niż połączyć błędnie. Etykiety 212 stron nadał zespół, częściowo po tych samych śladach, których używa narzędzie, dlatego najbardziej miarodajny jest wynik 134/134 ([walidacja](METODYKA.md#walidacja-na-materiałach-spoza-próbki)).
 
 **Co zobaczysz w GUI.** W nagłówku „Analiza kampanii” stoi rozmiar bazy: 240 materiałów (28 rekordów z 25 spraw i 212 stron publicznych). Zacznij od tych zakładek:
 
@@ -45,7 +47,7 @@ Pozostałe warianty dostają werdykt „nowa kampania”, bo publicznym skanom b
 - **Porównaj**: dwa materiały obok siebie, ze wspólnymi śladami.
 - **Celowo nie połączone**: pary podobne, których metoda nie połączyła, z regułą i powodem.
 
-Pozostałe zakładki i przyciski: [docs/GUI.md](docs/GUI.md).
+Pozostałe zakładki i przyciski: [docs/GUI.md](GUI.md).
 
 Zatrzymanie GUI: `docker rm -f odcisk-gui`. Inny port: `PORT=3001 sh odcisk-kampanii-sample-data/start.sh odcisk-kampanii`. Logi kroków (`budowa.log`, `analiza.log`, `baza-gui.log`) leżą w katalogu paczki. Zrzuty spraw organizatora w GUI i skrypty pomiarów: `README.md` w paczce.
 
@@ -88,27 +90,27 @@ Bez Dockera: [Bez Dockera](#bez-dockera).
 
 Z każdego materiału narzędzie wyciąga ślady w pięciu rodzinach (tekst i osoby, wygląd, strona, infrastruktura, platforma i identyfikatory) i waży je ręcznie ustalonymi wagami, ze zniżką za infrastrukturę wspólną i za częstość w zbiorze; przesłanki jednej pary łączy wzorem noisy-OR. Kampanię (ten sam operator) tworzy silny dowód albo jeden rodzaj śladu operatora (np. konto platformy stron, serwer trackera, NS, kontakt), jeśli po zniżkach wynik pary przekracza próg; sam szablon strony, sama persona ani jeden rodzaj treści jej nie tworzą. Słabsze powiązania dają grupy podobnych kampanii (Louvain); każde połączenie ma jawną listę przesłanek. `confidence` i `score` w wyniku to siła przesłanek, nie prawdopodobieństwo.
 
-- Opis na pięć minut: [Skrót w metodyce](docs/METODYKA.md#skrót-jak-działa-łączenie); pełny: [docs/METODYKA.md](docs/METODYKA.md).
-- Katalog śladów i cech (generowany poleceniem `bun run features:catalog`): [docs/CECHY.md](docs/CECHY.md). Zaczyna się od [śladów, których nie dają typowe narzędzia](docs/CECHY.md#ślady-których-nie-dają-typowe-narzędzia), z wynikiem na próbce.
-- Wzorce kampanii: [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md). Źródła metadanych i ich wartość: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md).
-- Formaty, wagi, CLI, konfiguracja: [docs/TECHNICAL.md](docs/TECHNICAL.md). Kontrakt wejścia i wyjścia: [docs/INTEGRACJA.md](docs/INTEGRACJA.md). AI Act, RODO, DSA: [docs/ZGODNOSC.md](docs/ZGODNOSC.md).
+- Opis na pięć minut: [Skrót w metodyce](METODYKA.md#skrót-jak-działa-łączenie); pełny: [docs/METODYKA.md](METODYKA.md).
+- Katalog śladów i cech (generowany poleceniem `bun run features:catalog`): [docs/CECHY.md](CECHY.md). Zaczyna się od [śladów, których nie dają typowe narzędzia](CECHY.md#ślady-których-nie-dają-typowe-narzędzia), z wynikiem na próbce.
+- Wzorce kampanii: [docs/WZORCE-KAMPANII.md](WZORCE-KAMPANII.md). Źródła metadanych i ich wartość: [docs/ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md).
+- Formaty, wagi, CLI, konfiguracja: [docs/TECHNICAL.md](TECHNICAL.md). Kontrakt wejścia i wyjścia: [docs/INTEGRACJA.md](INTEGRACJA.md). AI Act, RODO, DSA: [docs/ZGODNOSC.md](ZGODNOSC.md).
 
 ## Kryteria oceny: gdzie to zobaczyć
 
 | Kryterium | Funkcja | Polecenie albo ekran |
 |---|---|---|
-| Metoda korelacji i grupowania | wagi, reguły kampanii, union-find, Louvain, wyjaśnienie każdej krawędzi | [docs/METODYKA.md](docs/METODYKA.md); `lib/graph/`; `bun run evaluate`; GUI: „Porównaj” |
-| Cechy i źródła danych | pięć rodzin cech, ekstrakcja ze strony, HAR, zrzutu, nagrania; źródła publiczne; ślady spoza typowych narzędzi (rekord panelu platformy stron, token Mety w kodzie, serwer kliknięć z identyfikatora xid, trojan w zestawie stron, odcisk montażu wideo) | [docs/CECHY.md](docs/CECHY.md), na początku [ślady, których nie dają typowe narzędzia](docs/CECHY.md#ślady-których-nie-dają-typowe-narzędzia); `bun run enrich -- --help`; [Pochodzenie danych](#pochodzenie-danych); `lib/osint/`, `lib/media/` |
+| Metoda korelacji i grupowania | wagi, reguły kampanii, union-find, Louvain, wyjaśnienie każdej krawędzi | [docs/METODYKA.md](METODYKA.md); `lib/graph/`; `bun run evaluate`; GUI: „Porównaj” |
+| Cechy i źródła danych | pięć rodzin cech, ekstrakcja ze strony, HAR, zrzutu, nagrania; źródła publiczne; ślady spoza typowych narzędzi (rekord panelu platformy stron, token Mety w kodzie, serwer kliknięć z identyfikatora xid, trojan w zestawie stron, odcisk montażu wideo) | [docs/CECHY.md](CECHY.md), na początku [ślady, których nie dają typowe narzędzia](CECHY.md#ślady-których-nie-dają-typowe-narzędzia); `bun run enrich -- --help`; [Pochodzenie danych](#pochodzenie-danych); `lib/osint/`, `lib/media/` |
 | Demonstrator end-to-end | baza → analiza nowego materiału → CSV i GUI | [Uruchomienie dla jury](#uruchomienie-dla-jury); GUI: „Analizuj materiał” (twarze, CLIP, audio, głosy i archiwum tylko z CLI) |
 | Czytelność powiązań | przesłanki prostym językiem, siła, pewność, powód rozdzielenia | GUI: karta wyniku, „Porównaj”, „Celowo nie połączone”, „Jak to działa”; kolumna `top_premise` |
 | Wdrożenie i przenośność | Docker bez sieci i kluczy, tryb lokalny, konfiguracja plikiem | [Instalacja i konfiguracja](#instalacja-i-konfiguracja); `docker-compose.yml`; `.env.example` |
-| Wiedza | metodyka, wzorce kampanii, ocena źródeł metadanych z liczbami, wzbogacony zbiór danych, licencje | [docs/METODYKA.md](docs/METODYKA.md), [docs/WZORCE-KAMPANII.md](docs/WZORCE-KAMPANII.md), [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md), `bun run export-dataset`, [LICENCJE.md](LICENCJE.md); w paczce: `wiedza/`, `zbior/`, `pomiary/` |
+| Wiedza | metodyka, wzorce kampanii, ocena źródeł metadanych z liczbami, wzbogacony zbiór danych, licencje | [docs/METODYKA.md](METODYKA.md), [docs/WZORCE-KAMPANII.md](WZORCE-KAMPANII.md), [docs/ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md), `bun run export-dataset`, [LICENCJE.md](../LICENCJE.md); w paczce: `wiedza/`, `zbior/`, `pomiary/` |
 
 ## Analiza własnych materiałów
 
 ### W przeglądarce
 
-W zakładce „Analizuj materiał” upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy, sprawdź podział na sprawy i kliknij „Analizuj”. Duże zbiory (wiele GB) też: pliki idą pojedynczo i strumieniowo na dysk (`./dane/praca`), bez limitu rozmiaru i liczby plików, z paskiem postępu. Wynik to lejek werdyktów, tabela i karta wyniku z przesłankami i trasą kliknięcia, z eksportem CSV i JSON. „Dodaj do bazy” działa tylko na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu. Z przeglądarki analiza robi OCR, odczyt paska adresu, strony i HAR oraz zapytania DNS/RDAP. Twarze, CLIP, odcisk dźwięku, galerię głosów, transkrypcję mowy i archiwum uruchamiasz z wiersza poleceń. Opis zakładek i przycisków: [docs/GUI.md](docs/GUI.md).
+W zakładce „Analizuj materiał” upuść pliki, folder albo zip (zrzut, zapisana strona, HAR, wideo) albo wklej link lub tekst reklamy, sprawdź podział na sprawy i kliknij „Analizuj”. Duże zbiory (wiele GB) też: pliki idą pojedynczo i strumieniowo na dysk (`./dane/praca`), bez limitu rozmiaru i liczby plików, z paskiem postępu. Wynik to lejek werdyktów, tabela i karta wyniku z przesłankami i trasą kliknięcia, z eksportem CSV i JSON. „Dodaj do bazy” działa tylko na własnej bazie z `VIEWER_DATA_DIR`; baza przykładowa jest tylko do odczytu. Z przeglądarki analiza robi OCR, odczyt paska adresu, strony i HAR oraz zapytania DNS/RDAP. Twarze, CLIP, odcisk dźwięku, galerię głosów, transkrypcję mowy i archiwum uruchamiasz z wiersza poleceń. Opis zakładek i przycisków: [docs/GUI.md](GUI.md).
 
 ### W wierszu poleceń
 
@@ -126,9 +128,9 @@ bun run analyze-material -- --text "Ewa Przykładowa poleca…"      # sam tekst
 
 Bazę znanych kampanii buduje `bun run base -- --cases <katalog spraw>` (opcje: `--out`, `--offline`, `--lookups`, `--labels`, `--config`). Najważniejsze opcje analizy: `--data <katalog bazy>` (domyślnie `VIEWER_DATA_DIR`), `--json wynik.json`, `--live` (pasywne DNS/RDAP/ASN i jedno pobranie strony), `--asr`, `--audio`, `--clip`, `--speaker`, `--faces`, `--ad-library`, `--add-to-base` (z `--force`). Pełna lista: `bun run analyze-material -- --help`. Sprawdzanie numerów firm w białej liście VAT i KRS (`--company-registry`, tylko `enrich` i `pipeline`, domyślnie wyłączone): docs/TECHNICAL.md §4.20.
 
-**Wynik CSV** ma wiersz na materiał i stałą kolejność kolumn; to samo zwraca eksport z GUI. Sprawa, z której import nie zrobił rekordu (także gdy jej pliku nie da się odczytać), też ma wiersz (`insufficient` z powodem w `missing_data`); jeden uszkodzony plik nie przerywa partii. Znaczenie kolumn: [docs/INTEGRACJA.md](docs/INTEGRACJA.md#wyjście).
+**Wynik CSV** ma wiersz na materiał i stałą kolejność kolumn; to samo zwraca eksport z GUI. Sprawa, z której import nie zrobił rekordu (także gdy jej pliku nie da się odczytać), też ma wiersz (`insufficient` z powodem w `missing_data`); jeden uszkodzony plik nie przerywa partii. Znaczenie kolumn: [docs/INTEGRACJA.md](INTEGRACJA.md#wyjście).
 
-**Martwe strony.** Z `--archive` narzędzie szuka publicznej kopii martwego adresu w urlscan.io i Internet Archive i dokłada ją do materiału ze źródłem, adresem kopii i datą. Krok jest pasywny; bez sieci albo przy `ANALYZE_OFFLINE=1` jest pomijany z powodem w wyniku. Kolejność źródeł i odrzucanie starych kopii: [docs/METODYKA.md](docs/METODYKA.md#strony-niedostępne); zmienne `ARCHIVE_SOURCES` i `URLSCAN_API_KEY`: [Usługi z kluczami](#usługi-z-kluczami).
+**Martwe strony.** Z `--archive` narzędzie szuka publicznej kopii martwego adresu w urlscan.io i Internet Archive i dokłada ją do materiału ze źródłem, adresem kopii i datą. Krok jest pasywny; bez sieci albo przy `ANALYZE_OFFLINE=1` jest pomijany z powodem w wyniku. Kolejność źródeł i odrzucanie starych kopii: [docs/METODYKA.md](METODYKA.md#strony-niedostępne); zmienne `ARCHIVE_SOURCES` i `URLSCAN_API_KEY`: [Usługi z kluczami](#usługi-z-kluczami).
 
 **Ocena na własnych etykietach** (plik `{"kampania": ["sprawa", …]}` albo `{"sprawa": "kampania"}`): F1 par i B-cubed jednym poleceniem.
 
@@ -136,7 +138,7 @@ Bazę znanych kampanii buduje `bun run base -- --cases <katalog spraw>` (opcje: 
 bun run evaluate -- --csv wynik.csv --labels etykiety.json        # --json: wynik jako JSON
 ```
 
-**Baza rośnie.** Z `--add-to-base` materiały po analizie wchodzą do bazy z `--data`, więc drugi materiał nowej kampanii znajduje pierwszy. Kampanie zachowują numery, duplikat nie jest dopisywany, a „za mało danych” tylko z `--force`. Szczegóły: [docs/METODYKA.md, punkt 9.1](docs/METODYKA.md#91-harmonogram-skanów-i-baza-rośnie).
+**Baza rośnie.** Z `--add-to-base` materiały po analizie wchodzą do bazy z `--data`, więc drugi materiał nowej kampanii znajduje pierwszy. Kampanie zachowują numery, duplikat nie jest dopisywany, a „za mało danych” tylko z `--force`. Szczegóły: [docs/METODYKA.md, punkt 9.1](METODYKA.md#91-harmonogram-skanów-i-baza-rośnie).
 
 ```bash
 bun run analyze-material -- --case sprawa/ --data dane/baza --add-to-base
@@ -152,7 +154,7 @@ bun run analyze-material -- --case sprawa/ --data dane/baza --add-to-base
 | nagranie | nagranie ekranu z dźwiękiem; opis `.info.json` (yt-dlp) | klatki, transkrypcja, odcisk dźwięku, reklamodawca |
 | reklama z biblioteki reklam | link do reklamy i zrzut z widocznym „Identyfikatorem biblioteki” | identyfikator biblioteki, płatnik (z `--ad-library`) |
 
-Podpowiedzi „Co dorzucić” w wyniku (`missing_data`) odpowiadają tym krokom: „link do reklamy albo strony docelowej” i „zrzut z widocznym paskiem adresu” (brak adresu), „plik HAR z wizyty na stronie” (brak zapisanej strony), „zrzut ekranu reklamy” (brak obrazu), „pełna treść reklamy” (mniej niż 5 słów). Zapisana strona (HTML albo HAR) zwykle wystarcza do przypisania do znanej kampanii, sam zrzut albo samo wideo zwykle nie ([pomiar](docs/METODYKA.md#odporność-na-niepełne-zgłoszenia)). Obrazy HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
+Podpowiedzi „Co dorzucić” w wyniku (`missing_data`) odpowiadają tym krokom: „link do reklamy albo strony docelowej” i „zrzut z widocznym paskiem adresu” (brak adresu), „plik HAR z wizyty na stronie” (brak zapisanej strony), „zrzut ekranu reklamy” (brak obrazu), „pełna treść reklamy” (mniej niż 5 słów). Zapisana strona (HTML albo HAR) zwykle wystarcza do przypisania do znanej kampanii, sam zrzut albo samo wideo zwykle nie ([pomiar](METODYKA.md#odporność-na-niepełne-zgłoszenia)). Obrazy HEIC import pomija i podaje to w powodzie: zapisz je jako PNG albo JPEG.
 
 ### Nowe materiały z bibliotek reklam i harmonogram skanów
 
@@ -166,7 +168,7 @@ bun run adlib -- expand --campaign K01 --data dane/baza --out dane/adlib        
 bun run analyze-material -- --cases dane/adlib --csv wynik.csv
 ```
 
-`expand` szuka po domenach kampanii tylko przez nieoficjalne RPC Google (`ADLIB_GOOGLE_RPC=1`, domyślnie wyłączone, ryzyko warunków serwisu: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)).
+`expand` szuka po domenach kampanii tylko przez nieoficjalne RPC Google (`ADLIB_GOOGLE_RPC=1`, domyślnie wyłączone, ryzyko warunków serwisu: [docs/ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md)).
 
 `bun run watch` co jakiś czas pyta publiczne źródła (logi CT, biblioteki reklam, urlscan, Lista Ostrzeżeń CERT) o nowe adresy, przepuszcza każdy przez analizę względem bazy i dopisuje wiersz `{ts, source, url, verdict, campaign}` do pliku wierszy (domyślnie `data/watch.jsonl`, widoczny w zakładce „Nowe domeny”). Źródło bez sieci albo klucza jest pomijane z powodem.
 
@@ -179,12 +181,12 @@ docker compose run --rm app bun run watch -- --data /dane/demo/baza --once --sou
 bun run watch -- --data dane/baza --every 30m --recipes przepisy.json --add-to-base
 ```
 
-Przepisy wyszukiwania (zapytanie, źródło, filtr potwierdzający, częstotliwość) to plik JSON z `--recipes` albo `WATCH_RECIPES`; format pokazuje `data/examples/watch-przepisy.example.json`. Przepisy z wartościami prawdziwych kampanii trzymaj poza repozytorium (`--seed-recipes plik.json` robi je z bazy). `--add-to-base` dopisuje do bazy tylko trafienia z werdyktem z `--add-verdicts` (domyślnie `known_campaign`). Szczegóły: [docs/TECHNICAL.md, punkt 18](docs/TECHNICAL.md#18-harmonogram-skanów-i-baza-rośnie-22112026-zadanie-i11).
+Przepisy wyszukiwania (zapytanie, źródło, filtr potwierdzający, częstotliwość) to plik JSON z `--recipes` albo `WATCH_RECIPES`; format pokazuje `data/examples/watch-przepisy.example.json`. Przepisy z wartościami prawdziwych kampanii trzymaj poza repozytorium (`--seed-recipes plik.json` robi je z bazy). `--add-to-base` dopisuje do bazy tylko trafienia z werdyktem z `--add-verdicts` (domyślnie `known_campaign`). Szczegóły: [docs/TECHNICAL.md, punkt 18](TECHNICAL.md#18-harmonogram-skanów-i-baza-rośnie-22112026-zadanie-i11).
 
 ### Wyniki dla instytucji
 
-- **Wzbogacony zbiór, graf dla Neo4j, raport okresowy, statystyki źródeł:** `bun run export-dataset`, `bun run report`, `bun run source-stats` ([docs/TECHNICAL.md, punkt 9.2](docs/TECHNICAL.md#92-wiedza-jako-wynik-zadanie-i9)).
-- **Paczka dowodów kampanii:** przycisk „Pobierz paczkę” w karcie kampanii (także dla nowej kampanii z wyniku analizy) albo `bun run evidence -- --campaign K01`. Zawiera fakty oddzielone od wyników modeli, listę domen dla CERT, zgłoszenia z art. 16 DSA, STIX 2.1 i sumy SHA-256. Narzędzie niczego nie wysyła; o zgłoszeniu decyduje człowiek ([docs/TECHNICAL.md, punkt 15](docs/TECHNICAL.md#15-paczka-dowodów)).
+- **Wzbogacony zbiór, graf dla Neo4j, raport okresowy, statystyki źródeł:** `bun run export-dataset`, `bun run report`, `bun run source-stats` ([docs/TECHNICAL.md, punkt 9.2](TECHNICAL.md#92-wiedza-jako-wynik-zadanie-i9)).
+- **Paczka dowodów kampanii:** przycisk „Pobierz paczkę” w karcie kampanii (także dla nowej kampanii z wyniku analizy) albo `bun run evidence -- --campaign K01`. Zawiera fakty oddzielone od wyników modeli, listę domen dla CERT, zgłoszenia z art. 16 DSA, STIX 2.1 i sumy SHA-256. Narzędzie niczego nie wysyła; o zgłoszeniu decyduje człowiek ([docs/TECHNICAL.md, punkt 15](TECHNICAL.md#15-paczka-dowodów)).
 
 ## Instalacja i konfiguracja
 
@@ -239,9 +241,9 @@ bun run test && bun run lint && bun run typecheck
 | model CLIP (`--clip`) | pobierany raz przy pierwszym użyciu (`Xenova/clip-vit-base-patch32`, ok. 350 MB) | to samo | krok `--clip` `skipped` (w Dockerze brak modelu) |
 | Ollama (streszczenia, NER, `--text embedding`) | `brew install ollama`, `ollama pull hf.co/mradermacher/PLLuM-12B-instruct-2512-GGUF:Q5_K_M`, `ollama pull bge-m3` | [ollama.com/download](https://ollama.com/download) | `summarize` i `--ner` kończą się błędem połączenia; graf działa bez LLM |
 
-`bun run media:smoke` sprawdza, które adaptery są dostępne. Zmienne środowiskowe (modele, ścieżki, limity): `.env.example` i [docs/TECHNICAL.md, punkt 10](docs/TECHNICAL.md#10-konfiguracja). Zależności bibliotek: `package.json`; licencje: [LICENCJE.md](LICENCJE.md).
+`bun run media:smoke` sprawdza, które adaptery są dostępne. Zmienne środowiskowe (modele, ścieżki, limity): `.env.example` i [docs/TECHNICAL.md, punkt 10](TECHNICAL.md#10-konfiguracja). Zależności bibliotek: `package.json`; licencje: [LICENCJE.md](../LICENCJE.md).
 
-**Twarze i głos.** `--faces` porównuje twarze z zamkniętą listą osób publicznych (127 wpisów w `data/osoby-publiczne.json`, 31 ze zdjęciami; źródła zdjęć w `data/faces/ZRODLA.md`), a `--speaker` dopasowuje głos do zamkniętej galerii 10 osób (w repozytorium tylko wektory `data/voices/index.json` i źródła nagrań `data/voices/ZRODLA.md`). Wynik to „podobna twarz do X (0,xx)” albo „głos podobny do X (0,xx)” do przeglądu przez człowieka, nigdy „to jest X”, i działa tylko jako cecha grupy podobnych kampanii. Wektory twarzy nie są zapisywane. Progi, zmienne i dodawanie osób: [docs/TECHNICAL.md, punkty 4.14 i 4.16](docs/TECHNICAL.md#414-persona-z-twarzy-libmediafacets-od-21112026-zadanie-i5).
+**Twarze i głos.** `--faces` porównuje twarze z zamkniętą listą osób publicznych (127 wpisów w `data/osoby-publiczne.json`, 31 ze zdjęciami; źródła zdjęć w `data/faces/ZRODLA.md`), a `--speaker` dopasowuje głos do zamkniętej galerii 10 osób (w repozytorium tylko wektory `data/voices/index.json` i źródła nagrań `data/voices/ZRODLA.md`). Wynik to „podobna twarz do X (0,xx)” albo „głos podobny do X (0,xx)” do przeglądu przez człowieka, nigdy „to jest X”, i działa tylko jako cecha grupy podobnych kampanii. Wektory twarzy nie są zapisywane. Progi, zmienne i dodawanie osób: [docs/TECHNICAL.md, punkty 4.14 i 4.16](TECHNICAL.md#414-persona-z-twarzy-libmediafacets-od-21112026-zadanie-i5).
 
 ## Usługi z kluczami
 
@@ -263,10 +265,10 @@ Publiczne biblioteki reklam (repozytoria wymagane przez DSA) dają identyfikator
 
 | Biblioteka | Jak uzyskać dostęp | Uwagi |
 |---|---|---|
-| **Meta Ad Library** | bez klucza: `uv tool install meta-ads-collector` (MetaAdsCollector, nieoficjalny publiczny endpoint, ryzyko opisane w [LICENCJE.md](LICENCJE.md)). Oficjalne Ad Library API (weryfikacja tożsamości na [facebook.com/id](https://www.facebook.com/id), aplikacja na [developers.facebook.com](https://developers.facebook.com), token) nie jest używane w kodzie | wyszukiwanie po frazie, stronie, kraju i dacie; `get` po identyfikatorze biblioteki |
-| **Google Ads Transparency Center** | konto Google i projekt z sandboxem BigQuery: `gcloud auth application-default login` i `gcloud config set project <projekt>`; bez ADC działa CLI `bq` (`gcloud auth login`) | publiczny zbiór BigQuery (EOG i Turcja), bez scrapingu; każde zapytanie ma limit `ADLIB_BQ_MAX_BYTES` (domyślnie 10 GiB); zbiór nie ma domeny docelowej ani tekstu reklamy. Koszt i rozmiary kolumn: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md) |
+| **Meta Ad Library** | bez klucza: `uv tool install meta-ads-collector` (MetaAdsCollector, nieoficjalny publiczny endpoint, ryzyko opisane w [LICENCJE.md](../LICENCJE.md)). Oficjalne Ad Library API (weryfikacja tożsamości na [facebook.com/id](https://www.facebook.com/id), aplikacja na [developers.facebook.com](https://developers.facebook.com), token) nie jest używane w kodzie | wyszukiwanie po frazie, stronie, kraju i dacie; `get` po identyfikatorze biblioteki |
+| **Google Ads Transparency Center** | konto Google i projekt z sandboxem BigQuery: `gcloud auth application-default login` i `gcloud config set project <projekt>`; bez ADC działa CLI `bq` (`gcloud auth login`) | publiczny zbiór BigQuery (EOG i Turcja), bez scrapingu; każde zapytanie ma limit `ADLIB_BQ_MAX_BYTES` (domyślnie 10 GiB); zbiór nie ma domeny docelowej ani tekstu reklamy. Koszt i rozmiary kolumn: [docs/ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md) |
 | **TikTok Commercial Content Library** | wniosek o dostęp do API (odpowiedź do 2 dni roboczych, możliwe tylko dla badaczy); potem `TIKTOK_CLIENT_KEY` i `TIKTOK_CLIENT_SECRET` w `.env` | adapter na syntetycznych odpowiedziach, nie sprawdzony na żywo |
-| **X (repozytorium reklam DSA)** | ręcznie pobierz eksport CSV z repozytorium reklam X (konto, kraj, zakres dat; opis: [docs/ZRODLA-METADANYCH.md](docs/ZRODLA-METADANYCH.md)) i podaj plik: `--x-file eksport.csv` albo `X_ADS_FILE` | program niczego nie pobiera z X; kolumn eksportu nie sprawdzono na prawdziwym pliku |
+| **X (repozytorium reklam DSA)** | ręcznie pobierz eksport CSV z repozytorium reklam X (konto, kraj, zakres dat; opis: [docs/ZRODLA-METADANYCH.md](ZRODLA-METADANYCH.md)) i podaj plik: `--x-file eksport.csv` albo `X_ADS_FILE` | program niczego nie pobiera z X; kolumn eksportu nie sprawdzono na prawdziwym pliku |
 
 ## Bezpieczeństwo i dane
 
@@ -282,7 +284,7 @@ Publiczne biblioteki reklam (repozytoria wymagane przez DSA) dają identyfikator
 - Przestrzega warunków korzystania ze źródeł (np. nieoficjalny endpoint biblioteki reklam jest opcją z opisanym ryzykiem).
 - Nie wydaje nakazów ani decyzji: proponuje powiązania, o zgłoszeniu decyduje człowiek.
 - Nie renderuje stron i nie wykonuje ich JavaScriptu.
-- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (31 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md, punkt 13](docs/METODYKA.md#13-czego-nie-robimy-i-dlaczego)).
+- Nie rozpoznaje twarzy ani głosu spoza zamkniętych list osób publicznych (31 dla twarzy, 10 dla głosu) i nie ocenia, czy twarz lub głos są prawdziwe; nie ocenia pojedynczej reklamy jako fałszywej ani nie wykrywa klonów głosu (uzasadnienie: [docs/METODYKA.md, punkt 13](METODYKA.md#13-czego-nie-robimy-i-dlaczego)).
 
 ## Pochodzenie danych
 
@@ -297,14 +299,14 @@ Publiczne biblioteki reklam (repozytoria wymagane przez DSA) dają identyfikator
 | **Biblioteki reklam** (Meta, `--ad-library`) | publiczna strona, przez MetaAdsCollector | nie (`.cache/`) |
 | Przykład wzorca nazw domen z publicznego komunikatu CSIRT KNF | publiczny komunikat | tak, w jednym teście |
 
-Każdy materiał zebrany z sieci przez narzędzia zbierające ma w `zrodlo.json` źródło (adres i datę dostępu), a import spraw zapisuje `provenance.json` obok wyniku. Lista obserwowanych osób nie jest dołączona (w próbce są tylko fikcyjne). Gotową bazę i wiedzę z danych poufnych opisuje [docs/DANE-NIEPUBLICZNE.md](docs/DANE-NIEPUBLICZNE.md). Walidacja na materiałach spoza próbki: [docs/METODYKA.md](docs/METODYKA.md#walidacja-na-materiałach-spoza-próbki).
+Każdy materiał zebrany z sieci przez narzędzia zbierające ma w `zrodlo.json` źródło (adres i datę dostępu), a import spraw zapisuje `provenance.json` obok wyniku. Lista obserwowanych osób nie jest dołączona (w próbce są tylko fikcyjne). Gotową bazę i wiedzę z danych poufnych opisuje [docs/DANE-NIEPUBLICZNE.md](DANE-NIEPUBLICZNE.md). Walidacja na materiałach spoza próbki: [docs/METODYKA.md](METODYKA.md#walidacja-na-materiałach-spoza-próbki).
 
 ## Licencje
 
-Kod: MIT ([LICENSE](LICENSE)). Licencje wszystkich bibliotek, modeli, narzędzi i usług, z kontrolą składników niekomercyjnych: [LICENCJE.md](LICENCJE.md).
+Kod: MIT ([LICENSE](../LICENSE)). Licencje wszystkich bibliotek, modeli, narzędzi i usług, z kontrolą składników niekomercyjnych: [LICENCJE.md](../LICENCJE.md).
 
 ## Pochodzenie kodu
 
-Szkielet narzędzi OSINT i grafowych autor przygotował przed wydarzeniem, 18–20.11.2026, w osobnym prywatnym repozytorium. W trakcie wydarzenia (od 21.11.2026, 11:00) prace trwały dalej. Kod trafił do tego repozytorium bez wcześniejszej historii git, bo lokalne commity z 21.11 miały w testach wartości z materiałów organizatora; tutaj zastąpiono je wartościami syntetycznymi o tej samej strukturze, więc testy sprawdzają to samo. Lista plików sprzed wydarzenia, zmian z 20–21.11 i funkcji z 21–22.11: [docs/POCHODZENIE-KODU.md](docs/POCHODZENIE-KODU.md).
+Szkielet narzędzi OSINT i grafowych autor przygotował przed wydarzeniem, 18–20.11.2026, w osobnym prywatnym repozytorium. W trakcie wydarzenia (od 21.11.2026, 11:00) prace trwały dalej. Kod trafił do tego repozytorium bez wcześniejszej historii git, bo lokalne commity z 21.11 miały w testach wartości z materiałów organizatora; tutaj zastąpiono je wartościami syntetycznymi o tej samej strukturze, więc testy sprawdzają to samo. Lista plików sprzed wydarzenia, zmian z 20–21.11 i funkcji z 21–22.11: [docs/POCHODZENIE-KODU.md](POCHODZENIE-KODU.md).
 
-Mapa katalogów i modułów: [docs/TECHNICAL.md, punkt 3](docs/TECHNICAL.md#3-moduły).
+Mapa katalogów i modułów: [docs/TECHNICAL.md, punkt 3](TECHNICAL.md#3-moduły).

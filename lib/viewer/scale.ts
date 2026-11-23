@@ -43,7 +43,7 @@ export function closestLink(item: MaterialItemResult): MaterialLink | null {
 
 /** Family threshold from the base's rule descriptions ("… ≥ 0.3"); the default when the base does not give it. */
 export function familyThresholdFromRules(rules: string[] | undefined | null): number {
-  const rule = (rules ?? []).find((r) => r.startsWith("grupa podobnych kampanii"));
+  const rule = (rules ?? []).find((r) => r.startsWith("group of similar campaigns"));
   const m = rule?.match(/≥\s*(\d+(?:[.,]\d+)?)\s*$/);
   return m ? Number(m[1].replace(",", ".")) : DEFAULT_FAMILY_MIN_SCORE;
 }

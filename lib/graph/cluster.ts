@@ -229,22 +229,22 @@ export function clusterCampaigns(
       version: 1,
       generatedAt,
       method: {
-        unionFind: `silne dowody (waga typu × lista ≥ ${config.strongThreshold})`,
+        unionFind: `strong evidence (type weight × list ≥ ${config.strongThreshold})`,
         louvain: { resolution: config.louvain.resolution, seed: config.louvain.seed, modularity },
         minLinkScore: config.minLinkScore,
         rules: [
-          `kampania: silny dowód albo wynik pary ≥ ${config.minLinkScore}; cechy zestawu stron i płatnik z biblioteki reklam (${config.campaignRules.notAloneKinds.join(", ")}) liczą się razem jako jeden rodzaj i nie łączą same, między sobą ani z treścią: potrzebny jest co najmniej jeden rodzaj dowodu spoza zestawu stron i treści; dowody zdyskontowane się nie liczą`,
-          `treść (${(config.campaignRules.contentKinds ?? []).join(", ")}): bez infrastruktury po obu stronach kampanię tworzą co najmniej ${config.campaignRules.minContentKinds ?? 2} różne rodzaje treści; gdy którakolwiek reklama ma infrastrukturę, treść jest jednym rodzajem dowodu i sama nie łączy; ten sam plik kreacji (SHA-256 albo klatki CLIP ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} z tym samym dźwiękiem) łączy sam`,
+          `campaign: strong evidence or a pair score ≥ ${config.minLinkScore}; page-kit features and the ad-library payer (${config.campaignRules.notAloneKinds.join(", ")}) count together as one kind and do not link alone, with each other or with content: at least one kind of evidence from outside the page kit and content is needed; discounted evidence does not count`,
+          `content (${(config.campaignRules.contentKinds ?? []).join(", ")}): without infrastructure on both sides, a campaign needs at least ${config.campaignRules.minContentKinds ?? 2} different kinds of content; when any ad has infrastructure, content is one kind of evidence and does not link alone; the same creative file (SHA-256, or CLIP frames ≥ ${config.campaignRules.sameCreative?.clipMinCosine ?? 0.97} with the same audio) links alone`,
           ...(config.campaignRules.contentVariant
-            ? [`wariant kreacji: kampania bez infrastruktury, łączona tylko treścią, dołącza do jedynej kampanii z infrastrukturą, której kreacje prawie powtarza (ten sam dHash albo plik, dHash w odległości ≤ ${config.campaignRules.contentVariant.imageHamming}, CLIP ≥ ${config.campaignRules.contentVariant.clipMinCosine}); kreacja bliska kilku kampaniom nie dołącza nigdzie, wariant nie scala kampanii, sam tekst nie dołącza`]
+            ? [`creative variant: a campaign without infrastructure, linked only by content, joins the only campaign with infrastructure whose creatives it nearly repeats (the same dHash or file, dHash within distance ≤ ${config.campaignRules.contentVariant.imageHamming}, CLIP ≥ ${config.campaignRules.contentVariant.clipMinCosine}); a creative close to several campaigns joins none, a variant does not merge campaigns, text alone does not join`]
             : []),
-          ...((config.campaignRules.familyOnlyKinds ?? []).length ? [`tylko grupa podobnych kampanii: ${(config.campaignRules.familyOnlyKinds ?? []).join(", ")}`] : []),
+          ...((config.campaignRules.familyOnlyKinds ?? []).length ? [`similar-campaign group only: ${(config.campaignRules.familyOnlyKinds ?? []).join(", ")}`] : []),
           ...(config.campaignRules.accountConflict
             ? [
-                `różne konta tej samej platformy stron nie łączą się w kampanię bez silnego dowodu${(config.campaignRules.accountConflictOverStrongKinds ?? []).length ? `; silny dowód samego rodzaju ${(config.campaignRules.accountConflictOverStrongKinds ?? []).join(", ")} też nie wystarcza` : ""}`,
+                `different accounts of the same page-builder platform do not join into a campaign without strong evidence${(config.campaignRules.accountConflictOverStrongKinds ?? []).length ? `; strong evidence of kind ${(config.campaignRules.accountConflictOverStrongKinds ?? []).join(", ")} alone is not enough either` : ""}`,
               ]
             : []),
-          `grupa podobnych kampanii: pozostałe powiązania między kampaniami o wyniku (bez dowodów zdyskontowanych) ≥ ${config.familyMinScore}`,
+          `group of similar campaigns: remaining links between campaigns with a score (without discounted evidence) ≥ ${config.familyMinScore}`,
         ],
       },
       campaigns,
@@ -611,8 +611,8 @@ function buildFamilies(
     const apart = new Set<string>();
     for (const l of own) {
       const v = verdicts.get(l);
-      if (v === "account_conflict") apart.add(`różne konta na platformie stron (${shortAccount(accountOf.get(l.a))}…, ${shortAccount(accountOf.get(l.b))}…)`);
-      else if (v === "single_kind") apart.add(contentOnly(l, config) ? "łączy je tylko treść" : "łączy je tylko jeden rodzaj dowodu");
+      if (v === "account_conflict") apart.add(`different page-builder accounts (${shortAccount(accountOf.get(l.a))}…, ${shortAccount(accountOf.get(l.b))}…)`);
+      else if (v === "single_kind") apart.add(contentOnly(l, config) ? "only the content links them" : "only one kind of evidence links them");
     }
     return { camps: camps.sort(), members, own, apart: [...apart].sort() };
   });
@@ -664,12 +664,12 @@ function topEvidence(internal: ItemLink[], nodeById: Map<string, GraphNode>, mem
 }
 
 const SIMILARITY_LABELS: Record<SimilarityEdgeType, string> = {
-  similar_image: "prawie identyczne kreacje (dHash)",
-  similar_image_semantic: "ten sam szablon kreacji (CLIP)",
-  similar_text: "podobna treść reklam",
-  similar_dom: "ta sama struktura strony (simhash DOM)",
-  similar_audio: "ta sama ścieżka dźwiękowa (Chromaprint)",
-  similar_voice: "ten sam głos mówcy (SpeechBrain)",
+  similar_image: "near-identical creatives (dHash)",
+  similar_image_semantic: "the same creative template (CLIP)",
+  similar_text: "similar ad text",
+  similar_dom: "the same page structure (simhash DOM)",
+  similar_audio: "the same audio track (Chromaprint)",
+  similar_voice: "the same speaker's voice (SpeechBrain)",
 };
 
 function scoreOf(e: CampaignEvidence, size: number): number {

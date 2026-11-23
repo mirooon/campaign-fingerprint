@@ -92,7 +92,7 @@ export function singleMaterialNote(nearest: NearestCampaign | null, minLinkScore
 }
 
 /** "Różne" entry the base stores for a link between campaigns refused as one kind of evidence (`buildFamilies`, cluster.ts). */
-export const ONE_KIND_APART = "łączy je tylko jeden rodzaj dowodu";
+export const ONE_KIND_APART = "only one kind of evidence links them";
 
 /** One stored "Osobno, bo" entry in plain words: the one-kind entry gets the kit clause, other entries stay as stored. */
 export function apartLine(entry: string): string {

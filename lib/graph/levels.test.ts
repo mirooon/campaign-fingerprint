@@ -54,7 +54,7 @@ describe("records of the landing-page platform (window.aio)", () => {
     const fam = res.campaigns.families!;
     expect(fam).toHaveLength(1);
     expect(fam[0].members).toEqual(["alfa", "beta"]);
-    expect(fam[0].apart[0]).toMatch(/różne konta na platformie stron/);
+    expect(fam[0].apart[0]).toMatch(/different page-builder accounts/);
     const alfaCampaign = res.campaigns.campaigns.find((c) => c.members.includes("alfa"))!;
     expect(alfaCampaign.familyId).toBe(fam[0].id);
     expect(res.campaigns.campaigns.find((c) => c.members.includes("other"))!.familyId).toBeNull();

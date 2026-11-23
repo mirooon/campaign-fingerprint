@@ -131,7 +131,7 @@ describe("urlscan source", () => {
     ]);
     const [copy] = await src.lookup("https://promo.example/offer/?clickid=synthetic1");
     expect(copy.requests).toBeUndefined();
-    expect(copy.notes?.join(" ")).toMatch(/brak: lista żądań .*429/);
+    expect(copy.notes?.join(" ")).toMatch(/missing: request list .*429/);
     expect((await src.available()).ok).toBe(false);
   });
 

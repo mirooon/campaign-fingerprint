@@ -49,14 +49,14 @@ export function decodeBody(buf: Buffer, maxBytes: number): Buffer {
   try {
     if (startsWith(buf, GZIP_MAGIC)) return zlib.gunzipSync(buf, limit);
     if (startsWith(buf, ZSTD_MAGIC)) {
-      if (!zstdDecompressSync) throw new Error("kopia skompresowana zstd, a ta wersja Node nie ma dekompresji zstd (potrzebny Node 22.15+)");
+      if (!zstdDecompressSync) throw new Error("the copy is zstd-compressed and this Node version has no zstd decompression (Node 22.15+ needed)");
       return zstdDecompressSync(buf, limit);
     }
   } catch (e) {
-    if ((e as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") throw new RangeError(`treść po dekompresji większa niż ${maxBytes} B`);
+    if ((e as NodeJS.ErrnoException).code === "ERR_BUFFER_TOO_LARGE") throw new RangeError(`decompressed body larger than ${maxBytes} B`);
     throw e;
   }
-  if (buf.length > maxBytes) throw new RangeError(`treść większa niż ${maxBytes} B`);
+  if (buf.length > maxBytes) throw new RangeError(`body larger than ${maxBytes} B`);
   return buf;
 }
 

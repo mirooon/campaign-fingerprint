@@ -73,7 +73,7 @@ describe("other kinds keep the pivot, but never alone", () => {
     ]);
     const node = payerPivots(res)[0];
     expect(node.data).toMatchObject({ payerKind: "person" });
-    expect(String(node.data.payerNote)).toMatch(/kradzie/);
+    expect(String(node.data.payerNote)).toMatch(/identity theft/);
     expect(res.graph.nodes.find((n) => n.id === "item:a")!.data).toMatchObject({ payerKinds: ["person"], payerSuspicious: false });
   });
 

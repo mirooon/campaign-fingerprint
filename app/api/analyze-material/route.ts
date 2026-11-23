@@ -1,9 +1,9 @@
 /**
  * POST /api/analyze-material (multipart/form-data)
- *   files: the material of one case (screenshots, saved page with its _files, HAR, video, yt-dlp .info.json, zip);
+ *   files: the sample of one case (screenshots, saved page with its _files, HAR, video, yt-dlp .info.json, zip);
  *          the file name may carry a relative path (folder upload)
  *   url, text: optional link and ad text
- *   live=1: passive lookups and one GET for a page the material does not hold; asr=1: transcribe videos
+ *   live=1: passive lookups and one GET for a page the sample does not hold; asr=1: transcribe videos
  * Runs `scripts/analyze-material.ts` in a child process (media tools and native models stay out of the
  * server bundle) against the run the viewer shows, and returns its result.
  */
@@ -44,19 +44,19 @@ async function flattenSingleTop(dir: string): Promise<void> {
 export async function POST(request: Request): Promise<Response> {
   const limited = rateLimitResponse(request);
   if (limited) return limited;
-  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `Wgrane pliki przekraczają limit ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
+  if (Number(request.headers.get("content-length")) > maxBytes()) return Response.json({ error: `The uploaded files exceed the limit of ${limitLabel(maxBytes())} (MATERIAL_MAX_MB)` }, { status: 413 });
   let form: FormData;
   try {
     form = await request.formData();
   } catch {
-    return Response.json({ error: "Oczekiwano multipart/form-data" }, { status: 400 });
+    return Response.json({ error: "Expected multipart/form-data" }, { status: 400 });
   }
   const files = form.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
   const url = String(form.get("url") ?? "").trim().slice(0, 2048);
   const text = String(form.get("text") ?? "").trim().slice(0, 5000);
-  if (!files.length && !url && !text) return Response.json({ error: "Dodaj pliki sprawy, link albo treść reklamy" }, { status: 400 });
-  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
-  if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "Brak przebiegu do porównania (campaigns.json)" }, { status: 503 });
+  if (!files.length && !url && !text) return Response.json({ error: "Add the case files, a link or the ad text" }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Too many files (max. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
+  if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "No run to compare with (campaigns.json)" }, { status: 503 });
 
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+/, "");
   const root = path.join(process.cwd(), ".cache", "uploads", `${stamp}-${Math.random().toString(36).slice(2, 8)}`);
@@ -72,7 +72,7 @@ export async function POST(request: Request): Promise<Response> {
       if (/\.zip$/i.test(rel)) {
         // unzip skips entries that would leave the target folder
         const r = await run("unzip", ["-qq", "-o", dest, "-d", path.dirname(dest)], 120_000);
-        if (r.code !== 0) return Response.json({ error: `Nie udało się rozpakować ${rel}` }, { status: 400 });
+        if (r.code !== 0) return Response.json({ error: `Could not unpack ${rel}` }, { status: 400 });
         await rm(dest, { force: true });
       }
     }
@@ -88,11 +88,11 @@ export async function POST(request: Request): Promise<Response> {
     if (existsSync(sample)) args.push("--fixtures", sample);
     const r = await run(process.env.BUN_BIN ?? "bun", args, 600_000);
     if (r.code !== 0 || !existsSync(out)) {
-      return Response.json({ error: `Analiza nie powiodła się: ${r.stderr.split("\n").filter(Boolean).slice(-3).join(" | ")}` }, { status: 500 });
+      return Response.json({ error: `The analysis failed: ${r.stderr.split("\n").filter(Boolean).slice(-3).join(" | ")}` }, { status: 500 });
     }
     const result = JSON.parse(await readFile(out, "utf8")) as MaterialResult;
     return Response.json(result);
   } catch (e) {
-    return Response.json({ error: `Analiza nie powiodła się: ${(e as Error).message}` }, { status: 500 });
+    return Response.json({ error: `The analysis failed: ${(e as Error).message}` }, { status: 500 });
   }
 }

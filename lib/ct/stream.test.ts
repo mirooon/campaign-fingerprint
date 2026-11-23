@@ -81,7 +81,7 @@ describe("CT stream client", () => {
   it("treats an open but silent stream as unavailable (e.g. a dead public endpoint)", async () => {
     const res = await runCtStream({ ...fast, urls: ["ws://silent"], onEvent: () => {}, factory: fakes({ "ws://silent": (ws) => ws.onopen?.({}) }) });
     expect(res.status).toBe("unavailable");
-    expect(res.attempts[0].outcome).toMatch(/brak danych/);
+    expect(res.attempts[0].outcome).toMatch(/no data/);
   });
 
   it("falls back to the next URL, delivers events and stops after the duration", async () => {
@@ -129,7 +129,7 @@ describe("CT stream client", () => {
     });
     expect(res.status).toBe("unavailable");
     expect(res.messages).toBe(1);
-    expect(res.attempts.map((a) => a.outcome)).toEqual(["zamknięte (1006)", "błąd połączenia"]);
+    expect(res.attempts.map((a) => a.outcome)).toEqual(["closed (1006)", "connection error"]);
   });
 
   it("stops cleanly on abort", async () => {

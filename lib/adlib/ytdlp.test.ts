@@ -36,6 +36,6 @@ describe("creative of a library ad through yt-dlp", () => {
     const failing: ToolRunner = async () => ({ code: 1, stdout: "", stderr: "ERROR: Unsupported URL\nERROR: blocked", timedOut: false });
     expect((await fetchAdCreative("1000000000000101", { run: failing, ytDlp: "/x/yt-dlp" })).error).toContain("blocked");
     const junk: ToolRunner = async () => ({ code: 0, stdout: "not json", stderr: "", timedOut: false });
-    expect((await fetchAdCreative("1000000000000101", { run: junk, ytDlp: "/x/yt-dlp" })).error).toContain("niepoprawna odpowiedź");
+    expect((await fetchAdCreative("1000000000000101", { run: junk, ytDlp: "/x/yt-dlp" })).error).toContain("invalid yt-dlp answer");
   });
 });

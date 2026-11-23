@@ -1,10 +1,10 @@
 /**
  * POST /api/material (multipart/form-data) — starts an analysis job, returns { jobId }.
- *   files:  files of the material (screenshots, saved pages with _files, HAR, video, .info.json, ZIP)
+ *   files:  files of the sample (screenshots, saved pages with _files, HAR, video, .info.json, ZIP)
  *   paths:  relative path of every file inside its case (one per file, same order; browsers cut names)
  *   cases:  case of every file (one per file, same order) — the split chosen in the preview
  *   url, text: optional link and ad text
- *   live=1: passive lookups (DNS, RDAP) for the domains of the material; asr=1: transcribe videos
+ *   live=1: passive lookups (DNS, RDAP) for the domains of the sample; asr=1: transcribe videos
  *   uploadId: instead of `files`, a session whose files were already streamed one by one with
  *          PUT /api/material/upload/<id> (the GUI does this, so batches of many GB never sit in memory)
  * The case split is computed in the browser (lib/viewer/caseDetect.ts). Files go to
@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     form = await request.formData();
   } catch {
-    return Response.json({ error: "Oczekiwano multipart/form-data" }, { status: 400 });
+    return Response.json({ error: "Expected multipart/form-data" }, { status: 400 });
   }
   const files = form.getAll("files").filter((f): f is File => typeof f !== "string" && f.size > 0);
   const paths = form.getAll("paths").map(String);
@@ -51,13 +51,13 @@ export async function POST(request: Request): Promise<Response> {
   const live = form.get("live") !== "0" && !serverOffline(process.env);
   const uploadId = String(form.get("uploadId") ?? "");
   const session = uploadId ? getUploadSession(uploadId) : undefined;
-  if (uploadId && !session) return Response.json({ error: "Nie ma takiej sesji wgrywania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
-  if (!files.length && !session?.files && !url && !text) return Response.json({ error: "Dodaj pliki, link albo tekst reklamy" }, { status: 400 });
-  if (files.length > maxFiles()) return Response.json({ error: `Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
+  if (uploadId && !session) return Response.json({ error: "No such upload session (the server may have been restarted)" }, { status: 404 });
+  if (!files.length && !session?.files && !url && !text) return Response.json({ error: "Add files, a link or the ad text" }, { status: 400 });
+  if (files.length > maxFiles()) return Response.json({ error: `Too many files (max. ${maxFiles()}, MATERIAL_MAX_FILES)` }, { status: 400 });
   const limit = maxBytes();
   const total = files.reduce((s, f) => s + f.size, 0);
-  if (total > limit) return Response.json({ error: `Pliki mają razem ${Math.round(total / 1024 / 1024)} MB, limit to ${limitLabel(limit)} (MATERIAL_MAX_MB)` }, { status: 413 });
-  if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "Brak bazy porównawczej (campaigns.json). Uruchom: bun run pipeline --offline" }, { status: 503 });
+  if (total > limit) return Response.json({ error: `The files total ${Math.round(total / 1024 / 1024)} MB, the limit is ${limitLabel(limit)} (MATERIAL_MAX_MB)` }, { status: 413 });
+  if (!existsSync(path.join(DATA_DIR, "campaigns.json"))) return Response.json({ error: "No reference base (campaigns.json). Run: bun run pipeline --offline" }, { status: 503 });
 
   const id = session?.id ?? newJobId();
   const dir = session?.dir ?? path.join(workRoot(), id);
@@ -123,6 +123,6 @@ export async function POST(request: Request): Promise<Response> {
   } catch (e) {
     await rm(dir, { recursive: true, force: true }).catch(() => undefined);
     const status = e instanceof UploadError ? 400 : 500;
-    return Response.json({ error: e instanceof UploadError ? e.message : `Nie udało się przyjąć plików: ${(e as Error).message}` }, { status });
+    return Response.json({ error: e instanceof UploadError ? e.message : `Could not accept the files: ${(e as Error).message}` }, { status });
   }
 }

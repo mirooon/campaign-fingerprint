@@ -1,8 +1,8 @@
 /**
  * POST /api/evidence  { campaign, jobId?, submitter? { name?, email?, address?, role? } }
  * Evidence pack of one campaign as a ZIP (evidence.json, evidence.md, cert-domains.txt,
- * dsa-art16-notice.md, manifest.sha256, files/). A campaign the analyst marked "odrzucone" or "do weryfikacji" (`/api/decisions`) is refused (409). `campaign` is a campaign of the run (K01...) or,
- * with `jobId`, a campaign of new materials of that analysis job (N1...). An unknown id answers
+ * dsa-art16-notice.md, manifest.sha256, files/). A campaign the analyst marked "rejected" or "to verify" (`/api/decisions`) is refused (409). `campaign` is a campaign of the run (K01...) or,
+ * with `jobId`, a campaign of new samples of that analysis job (N1...). An unknown id answers
  * with an error message (404), not a server error. Nothing is sent anywhere: the pack only prepares documents.
  */
 import path from "node:path";
@@ -16,7 +16,7 @@ import { rateLimitResponse } from "@/lib/viewer/rateLimit";
 
 const text = z.string().trim().max(300).optional();
 const Body = z.object({
-  campaign: z.string().trim().regex(/^[A-Za-z0-9_-]{1,32}$/, "Niepoprawny identyfikator kampanii"),
+  campaign: z.string().trim().regex(/^[A-Za-z0-9_-]{1,32}$/, "Invalid campaign ID"),
   jobId: z.string().trim().max(60).optional(),
   submitter: z.object({ name: text, email: text, address: text, role: text }).optional(),
 });
@@ -29,7 +29,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     json = await request.json();
   } catch {
-    return Response.json({ error: "Niepoprawny JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const parsed = Body.safeParse(json);
   if (!parsed.success) return Response.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
@@ -41,8 +41,8 @@ export async function POST(request: Request): Promise<Response> {
     if (blocked) return Response.json({ error: blocked }, { status: 409 });
   }
   const job = jobId ? getJob(jobId) : undefined;
-  if (jobId && !job) return Response.json({ error: "Nie ma takiego zadania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
-  if (job && job.status !== "done") return Response.json({ error: "Analiza tego zadania jeszcze się nie skończyła" }, { status: 409 });
+  if (jobId && !job) return Response.json({ error: "No such job (the server may have been restarted)" }, { status: 404 });
+  if (job && job.status !== "done") return Response.json({ error: "The analysis of this job has not finished yet" }, { status: 409 });
   const out = buildEvidenceZip({
     campaignId: campaign,
     dataDir: DATA_DIR,

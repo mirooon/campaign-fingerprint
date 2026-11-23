@@ -50,10 +50,10 @@ export function judgeCopy(c: ArchivedCopy, ctx: CopyContext): { reason: string; 
   const created = ms(ctx.domainCreated);
   const cert = created === null ? ms(ctx.oldestCert) : null;
   const registered = created ?? cert;
-  if (registered !== null && at < registered) return { reason: "kopia sprzed rejestracji domeny", reRegistered: created !== null };
+  if (registered !== null && at < registered) return { reason: "copy made before the domain was registered", reRegistered: created !== null };
   const seen = ms(ctx.firstSeen);
   if (seen !== null && seen - at > ctx.config.archiveMaxAgeDays * DAY_MS) {
-    return { reason: `kopia starsza od pierwszego wystąpienia materiału o więcej niż ${ctx.config.archiveMaxAgeDays} dni`, reRegistered: false };
+    return { reason: `copy older than the first sighting of the sample by more than ${ctx.config.archiveMaxAgeDays} days`, reRegistered: false };
   }
   return null;
 }
@@ -71,7 +71,7 @@ export function archiveSourceNames(value: string | undefined): { names: Array<Ar
   const wanted = (value ?? "").split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean);
   const unknown = wanted.filter((n) => !(ARCHIVE_SOURCE_NAMES as readonly string[]).includes(n));
   const names = ARCHIVE_SOURCE_NAMES.filter((n) => wanted.includes(n));
-  return unknown.length ? { names, error: `nieznane źródło archiwalne: ${unknown.join(", ")} (dozwolone: ${ARCHIVE_SOURCE_NAMES.join(", ")})` } : { names };
+  return unknown.length ? { names, error: `unknown archive source: ${unknown.join(", ")} (allowed: ${ARCHIVE_SOURCE_NAMES.join(", ")})` } : { names };
 }
 
 export interface FindOptions {
@@ -126,7 +126,7 @@ export async function findArchivedCopy(url: string, opts: FindOptions): Promise<
   for (const source of opts.sources) {
     const av = await source.available();
     if (!av.ok) {
-      tried.push({ source: source.name, status: "skipped", reason: av.reason ?? "źródło niedostępne" });
+      tried.push({ source: source.name, status: "skipped", reason: av.reason ?? "source unavailable" });
       continue;
     }
     try {
@@ -154,11 +154,11 @@ export async function findArchivedCopy(url: string, opts: FindOptions): Promise<
 
   chosen ??= withoutBody;
   let summary: string;
-  if (chosen) summary = `kopia z ${chosen.source} z ${day(chosen)}`;
-  else if (!opts.sources.length) summary = "brak źródeł archiwalnych (włącz urlscan lub wayback)";
-  else if (rejected.length) summary = `kopia z ${rejected[0].source} z ${day(rejected[0])} odrzucona: ${rejected[0].rejected!.reason}`;
-  else if (tried.every((t) => t.status === "none")) summary = `brak kopii archiwalnej (${tried.map((t) => t.source).join(", ")})`;
-  else summary = `archiwa nie sprawdzone do końca, kopii nie znaleziono (${tried.map((t) => `${t.source}: ${t.reason ?? "brak kopii"}`).join("; ")})`;
+  if (chosen) summary = `copy from ${chosen.source} of ${day(chosen)}`;
+  else if (!opts.sources.length) summary = "no archive sources (turn on urlscan or wayback)";
+  else if (rejected.length) summary = `copy from ${rejected[0].source} of ${day(rejected[0])} rejected: ${rejected[0].rejected!.reason}`;
+  else if (tried.every((t) => t.status === "none")) summary = `no archived copy (${tried.map((t) => t.source).join(", ")})`;
+  else summary = `archives not fully checked, no copy found (${tried.map((t) => `${t.source}: ${t.reason ?? "no copy"}`).join("; ")})`;
   return { copy: chosen, rejected, tried, reRegistered, summary };
 }
 

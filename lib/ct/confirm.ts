@@ -83,17 +83,17 @@ export function buildCampaignInfra(ds: EnrichedDataset, campaigns: CampaignsFile
  */
 export function confirmCandidate(e: CandidateEnrichment, infra: CampaignInfra): { confirmations: string[]; confirmed: boolean } {
   const confirmations: string[] = [];
-  if (e.dns?.ns.length && infra.nsPairs.includes(nsKey(e.dns.ns))) confirmations.push(`ta sama para serwerów nazw (${[...new Set(e.dns.ns.map(normNs))].sort().join(", ")})`);
-  if (e.rdap?.registrar && infra.registrars.includes(e.rdap.registrar)) confirmations.push(`ten sam rejestrator (${e.rdap.registrar})`);
+  if (e.dns?.ns.length && infra.nsPairs.includes(nsKey(e.dns.ns))) confirmations.push(`same name server pair (${[...new Set(e.dns.ns.map(normNs))].sort().join(", ")})`);
+  if (e.rdap?.registrar && infra.registrars.includes(e.rdap.registrar)) confirmations.push(`same registrar (${e.rdap.registrar})`);
   const created = e.rdap?.created ? Date.parse(e.rdap.created) : NaN;
   if (Number.isFinite(created) && infra.registrationHours) {
     const hour = new Date(created).getUTCHours();
     const lo = infra.registrationHours.from - CT_CONFIRM_CONFIG.hourMargin;
     const hi = infra.registrationHours.to + CT_CONFIRM_CONFIG.hourMargin;
-    if (hour >= lo && hour <= hi) confirmations.push(`rejestracja o godzinie ${hour}:00 UTC, w oknie godzin kampanii (${lo}–${hi})`);
+    if (hour >= lo && hour <= hi) confirmations.push(`registered at ${hour}:00 UTC, within the campaign hour window (${lo}–${hi})`);
   }
   const ip = e.dns?.a.find((a) => infra.ips.includes(a));
-  if (ip) confirmations.push(`ten sam adres IP (${ip})`);
-  if (e.page?.body_sha256 && infra.pageHashes.includes(e.page.body_sha256)) confirmations.push("ten sam skrót treści strony (SHA-256)");
+  if (ip) confirmations.push(`same IP address (${ip})`);
+  if (e.page?.body_sha256 && infra.pageHashes.includes(e.page.body_sha256)) confirmations.push("same page body hash (SHA-256)");
   return { confirmations, confirmed: confirmations.length >= CT_CONFIRM_CONFIG.minKinds };
 }

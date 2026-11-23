@@ -56,7 +56,7 @@ describe("parseGoogleOutput", () => {
     expect(records[0].advertiser).toMatchObject({ name: "AR0000000000000000001", id: "AR0000000000000000001", location: "PL" });
     expect(records[0].advertiser?.legalName).toBeUndefined();
     expect(records[0].advertiser?.verified).toBeNull();
-    expect(notes.join(" ")).toMatch(/nazw.*weryfikacj.*ADLIB_BQ_MAX_BYTES/);
+    expect(notes.join(" ")).toMatch(/name.*verification.*ADLIB_BQ_MAX_BYTES/);
   });
 
   it("turns a refused query into an error that says the estimate and what to do", () => {
@@ -64,7 +64,7 @@ describe("parseGoogleOutput", () => {
   });
 
   it("does not treat unreadable output as an empty result", () => {
-    expect(() => parseGoogleOutput("Traceback", NOW)).toThrow(/niepoprawny wynik/);
+    expect(() => parseGoogleOutput("Traceback", NOW)).toThrow(/invalid output/);
   });
 });
 

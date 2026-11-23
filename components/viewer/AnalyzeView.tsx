@@ -42,11 +42,11 @@ interface Picked {
 }
 
 const VERDICT_WORD: Record<string, string> = {
-  known_campaign: "znana kampania",
-  similar_campaigns: "nowa, podobna do znanych",
-  new_campaign: "nowa kampania",
-  duplicate: "duplikat",
-  insufficient: "za mało danych",
+  known_campaign: "known campaign",
+  similar_campaigns: "new, similar to known ones",
+  new_campaign: "new campaign",
+  duplicate: "duplicate",
+  insufficient: "insufficient data",
 };
 
 const EXAMPLE = {
@@ -135,7 +135,7 @@ function download(name: string, mime: string, content: string): void {
   URL.revokeObjectURL(url);
 }
 
-/** "Analizuj materiał": input (drop zone, link, text), case preview, run progress and the batch result. */
+/** "Analyze sample": input (drop zone, link, text), case preview, run progress and the batch result. */
 export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticBase, serverOffline, jobId, onJob, onShowCampaign, onCompare }: AnalyzeViewProps) {
   const [picked, setPicked] = useState<Picked[]>([]);
   const [url, setUrl] = useState("");
@@ -174,7 +174,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         const body = (await res.json()) as PublicJob & { error?: string };
         if (stop) return;
         if (!res.ok) {
-          setError(body.error ?? "Nie udało się pobrać stanu zadania");
+          setError(body.error ?? "Could not fetch the job status");
           setJob(null);
           return;
         }
@@ -182,7 +182,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         setNow(Date.now());
         if (body.status === "running") setTimeout(tick, 1000);
       } catch (e) {
-        if (!stop) setError(`Brak połączenia z serwerem: ${(e as Error).message}`);
+        if (!stop) setError(`No connection to the server: ${(e as Error).message}`);
       }
     };
     void tick();
@@ -230,7 +230,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         if (queue.length) form.append("uploadId", await uploadFiles(queue, setUpload));
         const res = await fetch("/api/material", { method: "POST", body: form });
         const body = (await res.json()) as { jobId?: string; error?: string };
-        if (!res.ok || !body.jobId) throw new Error(body.error ?? "Nie udało się rozpocząć analizy");
+        if (!res.ok || !body.jobId) throw new Error(body.error ?? "Could not start the analysis");
         setJob(null);
         setFilter("all");
         setOpen(null);
@@ -268,34 +268,34 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-4">
       <div>
-        <h2 className="text-xl font-semibold text-slate-900">Do której kampanii należy ten materiał?</h2>
+        <h2 className="text-xl font-semibold text-slate-900">Which campaign does this sample belong to?</h2>
         <p className="mt-1 text-sm text-slate-700">
-          Wgraj zrzut reklamy, zapisaną stronę, HAR<Help term="har" />, nagranie, link albo tekst. Porównamy je z bazą porównawczą<Help term="baza" /> i pokażemy, gdzie trafił i dlaczego.
+          Upload an ad screenshot, saved page, HAR<Help term="har" />, recording, link or text. We compare it with the reference base<Help term="baza" /> and show where it fits and why.
         </p>
       </div>
 
       {!jobId && (
-        <section className="space-y-3" aria-label="Wejście">
+        <section className="space-y-3" aria-label="Input">
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
             className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-400 bg-white p-8 text-center"
           >
             <Upload size={28} aria-hidden className="text-slate-600" />
-            <p className="text-base font-medium">Upuść tutaj pliki, folder albo ZIP</p>
+            <p className="text-base font-medium">Drop files, a folder or a ZIP here</p>
             <div className="flex flex-wrap justify-center gap-2 text-sm">
               <button type="button" className="inline-flex items-center gap-1.5 rounded-md bg-slate-900 px-3 py-1.5 text-white" onClick={() => dirInput.current?.click()}>
-                <FolderOpen size={15} aria-hidden />Wybierz folder
+                <FolderOpen size={15} aria-hidden />Choose folder
               </button>
-              <button type="button" className="rounded-md border border-slate-400 bg-white px-3 py-1.5" onClick={() => fileInput.current?.click()}>Wybierz pliki</button>
+              <button type="button" className="rounded-md border border-slate-400 bg-white px-3 py-1.5" onClick={() => fileInput.current?.click()}>Choose files</button>
             </div>
-            <input ref={dirInput} type="file" className="hidden" multiple {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={(e) => addFiles([...(e.target.files ?? [])].map((f) => ({ file: f, path: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name })))} aria-label="Wybierz folder" />
-            <input ref={fileInput} type="file" className="hidden" multiple onChange={(e) => addFiles([...(e.target.files ?? [])].map((f) => ({ file: f, path: f.name })))} aria-label="Wybierz pliki" />
+            <input ref={dirInput} type="file" className="hidden" multiple {...({ webkitdirectory: "", directory: "" } as Record<string, string>)} onChange={(e) => addFiles([...(e.target.files ?? [])].map((f) => ({ file: f, path: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name })))} aria-label="Choose folder" />
+            <input ref={fileInput} type="file" className="hidden" multiple onChange={(e) => addFiles([...(e.target.files ?? [])].map((f) => ({ file: f, path: f.name })))} aria-label="Choose files" />
             <ul className="max-w-2xl text-left text-xs text-slate-600">
-              <li>Zrzut: odczytamy z niego tekst i adres z paska przeglądarki.</li>
-              <li>HAR to zapis ruchu sieciowego z przeglądarki.</li>
-              <li>Zapisana strona: porównamy jej budowę, nie otwieramy jej.</li>
-              <li>Wideo: odczytamy tekst z klatek. Plik zbioru (CSV, JSON): na razie przeanalizuj poleceniem <code>bun run analyze-material -- --dataset &lt;plik&gt;</code>.</li>
+              <li>Screenshot: we read its text and the URL from the address bar.</li>
+              <li>HAR is a recording of the browser&apos;s network traffic.</li>
+              <li>Saved page: we compare its structure and never open it.</li>
+              <li>Video: we read the text from its frames. Dataset file (CSV, JSON): for now, analyze it with <code>bun run analyze-material -- --dataset &lt;file&gt;</code>.</li>
             </ul>
           </div>
 
@@ -305,7 +305,7 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
               <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" />
             </label>
             <label className="text-sm">
-              <span className="font-medium">Tekst reklamy albo nazwa produktu</span>
+              <span className="font-medium">Ad text or product name</span>
               <input value={text} onChange={(e) => setText(e.target.value)} className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5" />
             </label>
           </div>
@@ -313,10 +313,10 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
           <label className={`flex items-start gap-2 text-sm ${liveOption.disabled ? "text-slate-500" : ""}`}>
             <input type="checkbox" className="mt-1 accent-slate-900" checked={liveOption.checked} disabled={liveOption.disabled} onChange={(e) => setLiveChoice(e.target.checked)} />
             <span>
-              <b>Dociągnij publiczne dane o domenach (DNS, rejestr domen)</b>
+              <b>Fetch public domain data (DNS, domain registry)</b>
               <span className="block text-xs text-slate-600">
-                Pytamy publiczne rejestry o domeny z materiału. Strony oszustów nie otwieramy w Twojej przeglądarce.{" "}
-                {liveOption.note ? <span className="font-medium text-slate-800">{liveOption.note}</span> : "Wyłącz, jeśli pracujesz bez internetu."}
+                We ask public registries about the domains in the sample. We never open the scam pages in your browser.{" "}
+                {liveOption.note ? <span className="font-medium text-slate-800">{liveOption.note}</span> : "Turn this off if you work without internet access."}
               </span>
             </span>
           </label>
@@ -325,24 +325,24 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
             <div className="space-y-2 rounded-lg border border-slate-300 bg-white p-3">
               {split.question && mode === split.mode && <p className="rounded bg-amber-50 px-2 py-1.5 text-sm text-amber-900">{split.question}</p>}
               <div className="flex flex-wrap items-center gap-3 text-sm">
-                <span className="font-medium">Podział na sprawy:</span>
+                <span className="font-medium">Split into cases:</span>
                 {(Object.keys(SPLIT_LABEL) as SplitMode[]).map((m) => (
                   <label key={m} className="flex items-center gap-1.5">
                     <input type="radio" name="split" className="accent-slate-900" checked={mode === m} onChange={() => { setModeChoice(m); setOff(new Set()); }} />
                     {SPLIT_LABEL[m]}
                   </label>
                 ))}
-                <button type="button" className="ml-auto text-xs underline" onClick={reset}>Wyczyść</button>
+                <button type="button" className="ml-auto text-xs underline" onClick={reset}>Clear</button>
               </div>
-              <p className="text-xs text-slate-600">Wykryto {count(cases.length, CASE)} z {count(picked.length, FILE)}.</p>
+              <p className="text-xs text-slate-600">Found {count(cases.length, CASE)} in {count(picked.length, FILE)}.</p>
               <table className="w-full text-sm">
                 <thead className="text-left text-xs text-slate-600">
-                  <tr><th className="w-8" /><th>Sprawa</th><th>Pliki</th><th>Uwagi</th></tr>
+                  <tr><th className="w-8" /><th>Case</th><th>Files</th><th>Notes</th></tr>
                 </thead>
                 <tbody>
                   {cases.map((c) => (
                     <tr key={c.name} className="border-t border-slate-100 align-top">
-                      <td className="py-1.5"><input type="checkbox" className="accent-slate-900" aria-label={`Analizuj sprawę ${c.name}`} checked={!off.has(c.name) && c.analyzable} disabled={!c.analyzable} onChange={(e) => setOff((cur) => { const n = new Set(cur); if (e.target.checked) n.delete(c.name); else n.add(c.name); return n; })} /></td>
+                      <td className="py-1.5"><input type="checkbox" className="accent-slate-900" aria-label={`Analyze case ${c.name}`} checked={!off.has(c.name) && c.analyzable} disabled={!c.analyzable} onChange={(e) => setOff((cur) => { const n = new Set(cur); if (e.target.checked) n.delete(c.name); else n.add(c.name); return n; })} /></td>
                       <td className="break-all py-1.5 pr-2 font-mono text-xs">{c.name}</td>
                       <td className="py-1.5"><KindIcons counts={c.counts} /></td>
                       <td className="py-1.5 text-xs text-slate-600">{c.notes.join("; ")}</td>
@@ -356,14 +356,14 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" disabled={!canStart} onClick={() => void start()} className="inline-flex items-center gap-2 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:opacity-40">
               {busy && <Loader2 size={15} className="animate-spin" aria-hidden />}
-              {cases.length ? `Analizuj (${selectedCount})` : "Analizuj"}
+              {cases.length ? `Analyze (${selectedCount})` : "Analyze"}
             </button>
-            <button type="button" onClick={loadExample} disabled={busy} className="rounded-md border border-slate-400 bg-white px-3 py-2 text-sm">Wczytaj przykład</button>
-            <span className="text-xs text-slate-500">Przykład to wymyślona reklama, sprawdzana bez internetu.</span>
+            <button type="button" onClick={loadExample} disabled={busy} className="rounded-md border border-slate-400 bg-white px-3 py-2 text-sm">Load example</button>
+            <span className="text-xs text-slate-500">The example is a made-up ad, checked without internet access.</span>
           </div>
           {upload && (
             <div className="space-y-1" role="status" aria-live="polite">
-              <p className="text-sm text-slate-700">Wgrywanie: {upload.done} z {upload.total} plików ({fmtMb(upload.bytes)} z {fmtMb(upload.totalBytes)})</p>
+              <p className="text-sm text-slate-700">Uploading: {upload.done} of {upload.total} {upload.total === 1 ? "file" : "files"} ({fmtMb(upload.bytes)} of {fmtMb(upload.totalBytes)})</p>
               <div className="h-2 w-full max-w-md overflow-hidden rounded bg-slate-200">
                 <div className="h-full bg-slate-900 transition-all" style={{ width: `${upload.totalBytes ? Math.round((upload.bytes / upload.totalBytes) * 100) : 0}%` }} />
               </div>
@@ -373,11 +373,11 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
         </section>
       )}
 
-      {jobId && !job && !error && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 size={15} className="animate-spin" aria-hidden />Wczytywanie zadania…</p>}
+      {jobId && !job && !error && <p className="flex items-center gap-2 text-sm text-slate-600"><Loader2 size={15} className="animate-spin" aria-hidden />Loading the job…</p>}
       {jobId && error && !job && (
         <div className="space-y-2">
           <p role="alert" className="rounded border border-rose-300 bg-rose-50 px-3 py-2 text-sm text-rose-900">{error}</p>
-          <button type="button" className="rounded-md border border-slate-400 bg-white px-3 py-1.5 text-sm" onClick={reset}>Zacznij od nowa</button>
+          <button type="button" className="rounded-md border border-slate-400 bg-white px-3 py-1.5 text-sm" onClick={reset}>Start over</button>
         </div>
       )}
 
@@ -409,20 +409,20 @@ export default function AnalyzeView({ campaigns, minLinkScore, rules, syntheticB
   );
 }
 
-const STATUS_WORD = { waiting: "czeka", running: "w toku", done: "gotowe", error: "błąd" } as const;
+const STATUS_WORD = { waiting: "waiting", running: "running", done: "done", error: "error" } as const;
 
 /** Run progress: overall count and elapsed time, one row per case with its state, one sentence about what happens, a folded log. */
 function Progress({ job, now, onReset }: { job: PublicJob; now: number; onReset: () => void }) {
   const done = job.cases.filter((c) => c.status === "done" || c.status === "error").length;
   const elapsed = Math.max(0, (job.finishedAt ? Date.parse(job.finishedAt) : now) - Date.parse(job.startedAt ?? job.createdAt));
   return (
-    <section className="space-y-2 rounded-lg border border-slate-300 bg-white p-3" aria-label="Przebieg" aria-live="polite">
+    <section className="space-y-2 rounded-lg border border-slate-300 bg-white p-3" aria-label="Progress" aria-live="polite">
       <div className="flex flex-wrap items-center gap-3">
         <h3 className="text-sm font-semibold">
-          {job.status === "running" ? <><Loader2 size={14} className="mr-1 inline animate-spin" aria-hidden />Analiza trwa</> : job.status === "done" ? "Analiza zakończona" : "Analiza nie powiodła się"}
+          {job.status === "running" ? <><Loader2 size={14} className="mr-1 inline animate-spin" aria-hidden />Analysis running</> : job.status === "done" ? "Analysis finished" : "Analysis failed"}
         </h3>
-        <span className="text-sm text-slate-700">{done}/{job.cases.length} {job.cases.length === 1 ? "sprawa" : "spraw"} · {fmtElapsed(elapsed)}</span>
-        <button type="button" className="ml-auto rounded-md border border-slate-400 px-2.5 py-1 text-sm" onClick={onReset}>Nowa analiza</button>
+        <span className="text-sm text-slate-700">{done}/{job.cases.length} {job.cases.length === 1 ? "case" : "cases"} · {fmtElapsed(elapsed)}</span>
+        <button type="button" className="ml-auto rounded-md border border-slate-400 px-2.5 py-1 text-sm" onClick={onReset}>New analysis</button>
       </div>
       <ul className="grid gap-1 text-sm md:grid-cols-2">
         {job.cases.map((c) => (
@@ -432,11 +432,11 @@ function Progress({ job, now, onReset }: { job: PublicJob; now: number; onReset:
           </li>
         ))}
       </ul>
-      <p className="text-xs text-slate-600">Odczytujemy tekst ze zrzutów i nagrań, {job.live ? "zbieramy dane o domenach, " : ""}porównujemy z bazą i grupujemy.</p>
+      <p className="text-xs text-slate-600">We read the text from screenshots and recordings, {job.live ? "collect domain data, " : ""}compare with the base and group.</p>
       {job.error && <p role="alert" className="rounded border border-rose-300 bg-rose-50 px-2.5 py-1.5 text-sm text-rose-900">{job.error}</p>}
       {job.log.length > 0 && (
         <details className="text-xs text-slate-600">
-          <summary className="cursor-pointer">Dziennik techniczny</summary>
+          <summary className="cursor-pointer">Technical log</summary>
           <pre className="mt-1 max-h-48 overflow-auto rounded bg-slate-900 p-2 text-slate-100">{job.log.join("\n")}</pre>
         </details>
       )}
@@ -458,7 +458,7 @@ interface BatchResultProps {
   synthetic: boolean;
   /** The base is the bundled sample (read-only). */
   syntheticBase: boolean;
-  /** The result comes from "Wczytaj przykład". */
+  /** The result comes from "Load example". */
   example: boolean;
   onShowCampaign: (id: string) => void;
   onCompare: (a: string, b: string) => void;
@@ -490,35 +490,35 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
   // cases the import could not read have neither verdict nor confidence: last in both orders, as in the CSV
   const unreadRows = unreadVisible(filter) ? unread : [];
   const funnel: Array<{ label: string; n: number; f: ResultFilter | null; help?: boolean }> = [
-    { label: "Pliki", n: sum.files, f: null },
-    { label: "Materiały", n: sum.materials, f: "all" },
-    { label: "Duplikaty", n: sum.duplicates, f: "duplicate" },
-    { label: "Powiązania z bazą", n: sum.linkedToBase, f: null },
-    { label: "Znane kampanie", n: sum.known, f: "known" },
-    { label: "Nowe kampanie", n: sum.fresh, f: "fresh" },
-    { label: "Za mało danych", n: sum.insufficient, f: "insufficient" },
+    { label: "Files", n: sum.files, f: null },
+    { label: "Samples", n: sum.materials, f: "all" },
+    { label: "Duplicates", n: sum.duplicates, f: "duplicate" },
+    { label: "Links to the base", n: sum.linkedToBase, f: null },
+    { label: "Known campaigns", n: sum.known, f: "known" },
+    { label: "New campaigns", n: sum.fresh, f: "fresh" },
+    { label: "Insufficient data", n: sum.insufficient, f: "insufficient" },
   ];
   const bar: Array<{ n: number; text: string; f: ResultFilter }> = [
-    { n: sum.known, text: "do znanych kampanii", f: "known" },
-    { n: sum.similar, text: sum.similar === 1 ? "nowa podobna" : "nowe podobne", f: "similar" },
-    { n: sum.brandNew, text: sum.brandNew === 1 ? "nowa" : "nowe", f: "new" },
-    { n: sum.duplicates, text: sum.duplicates === 1 ? "duplikat" : "duplikaty", f: "duplicate" },
-    { n: sum.insufficient, text: "za mało danych", f: "insufficient" },
+    { n: sum.known, text: "to known campaigns", f: "known" },
+    { n: sum.similar, text: "new, similar", f: "similar" },
+    { n: sum.brandNew, text: "new", f: "new" },
+    { n: sum.duplicates, text: sum.duplicates === 1 ? "duplicate" : "duplicates", f: "duplicate" },
+    { n: sum.insufficient, text: "insufficient data", f: "insufficient" },
   ];
   return (
-    <section className="space-y-4" aria-label="Wynik">
+    <section className="space-y-4" aria-label="Result">
       <div className="flex flex-wrap items-center gap-2">
-        <h3 className="text-lg font-semibold">Wynik: {count(sum.materials, MATERIAL)}</h3>
+        <h3 className="text-lg font-semibold">Result: {count(sum.materials, MATERIAL)}</h3>
         {synthetic && <SyntheticBadge />}
-        <span className="ml-auto"><AddToBaseButton jobId={job.id} ids={result.items.filter((i) => i.verdict !== "duplicate" && i.verdict !== "insufficient").map((i) => i.id)} label="Dodaj materiały do bazy" disabledReason={ctx.addToBaseDisabled} /></span>
+        <span className="ml-auto"><AddToBaseButton jobId={job.id} ids={result.items.filter((i) => i.verdict !== "duplicate" && i.verdict !== "insufficient").map((i) => i.id)} label="Add samples to base" disabledReason={ctx.addToBaseDisabled} /></span>
       </div>
 
       {!job.together && sum.materials > 1 && (
-        <p className="rounded border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">Materiały z tej paczki nie są porównywane między sobą, tylko z bazą porównawczą.</p>
+        <p className="rounded border border-slate-300 bg-slate-50 px-3 py-2 text-sm text-slate-700">Samples in this batch are not compared with each other, only with the reference base.</p>
       )}
 
-      <ol className="flex flex-wrap items-stretch gap-1.5" aria-label="Lejek liczb">
-        <li className="self-center text-xs text-slate-600">Lejek<Help term="lejek" /></li>
+      <ol className="flex flex-wrap items-stretch gap-1.5" aria-label="Funnel">
+        <li className="self-center text-xs text-slate-600">Funnel<Help term="lejek" /></li>
         {funnel.map((s, i) => (
           <li key={s.label} className="flex items-center gap-1.5">
             {i > 0 && <span aria-hidden className="text-slate-400">→</span>}
@@ -545,28 +545,28 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
         {" · "}{count(sum.withErrors, ERROR)}
         {sum.unread > 0 && (
           <>
-            {" "}(w tym nieodczytane:{" "}
+            {" "}(of which unread:{" "}
             <button type="button" className="underline decoration-dotted" onClick={() => setFilter("insufficient")}>{sum.unread}</button>)
           </>
         )}
       </p>
 
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-slate-600">Sortuj:</span>
-        <button type="button" className={`rounded border px-2 py-0.5 ${sort === "verdict" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("verdict")}>po werdykcie</button>
-        <button type="button" className={`rounded border px-2 py-0.5 ${sort === "confidence" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("confidence")}>po pewności</button>
-        <button type="button" aria-pressed={filter === "uncertain"} className={`rounded border px-2 py-0.5 ${filter === "uncertain" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setFilter(filter === "uncertain" ? "all" : "uncertain")}>niepewne: do sprawdzenia ({filterItems(result.items, "uncertain").length})</button>
-        {filter !== "all" && <button type="button" className="underline" onClick={() => setFilter("all")}>pokaż wszystkie</button>}
+        <span className="text-slate-600">Sort:</span>
+        <button type="button" className={`rounded border px-2 py-0.5 ${sort === "verdict" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("verdict")}>by verdict</button>
+        <button type="button" className={`rounded border px-2 py-0.5 ${sort === "confidence" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setSort("confidence")}>by confidence</button>
+        <button type="button" aria-pressed={filter === "uncertain"} className={`rounded border px-2 py-0.5 ${filter === "uncertain" ? "border-slate-900 bg-slate-900 text-white" : "border-slate-300"}`} onClick={() => setFilter(filter === "uncertain" ? "all" : "uncertain")}>uncertain: to check ({filterItems(result.items, "uncertain").length})</button>
+        {filter !== "all" && <button type="button" className="underline" onClick={() => setFilter("all")}>show all</button>}
         <span className="ml-auto flex gap-2">
-          <button type="button" className="inline-flex items-center gap-1 rounded border border-slate-400 px-2 py-0.5" onClick={() => download("wynik.csv", "text/csv", materialCsv(result))}><Download size={14} aria-hidden />CSV</button>
-          <button type="button" className="inline-flex items-center gap-1 rounded border border-slate-400 px-2 py-0.5" onClick={() => download("wynik.json", "application/json", JSON.stringify(resultRows(result), null, 2))}><Download size={14} aria-hidden />JSON</button>
+          <button type="button" className="inline-flex items-center gap-1 rounded border border-slate-400 px-2 py-0.5" onClick={() => download("result.csv", "text/csv", materialCsv(result))}><Download size={14} aria-hidden />CSV</button>
+          <button type="button" className="inline-flex items-center gap-1 rounded border border-slate-400 px-2 py-0.5" onClick={() => download("result.json", "application/json", JSON.stringify(resultRows(result), null, 2))}><Download size={14} aria-hidden />JSON</button>
         </span>
       </div>
 
       {rows.length + unreadRows.length === 0 ? (
-        <Empty>Żaden materiał nie pasuje do tego filtru. Wybierz „pokaż wszystkie”.</Empty>
+        <Empty>No sample matches this filter. Choose “show all”.</Empty>
       ) : (
-        // Fixed column widths: a long material id or address wraps inside its cell instead of widening the table,
+        // Fixed column widths: a long sample id or address wraps inside its cell instead of widening the table,
         // and the expanded card gets the width of the table. Below the minimum width the table scrolls in its frame.
         <div className="overflow-x-auto rounded-lg border border-slate-300 bg-white">
           <table className="w-full min-w-[56rem] table-fixed text-sm">
@@ -582,7 +582,7 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
             </colgroup>
             <thead className="bg-slate-50 text-left text-xs text-slate-600">
               <tr>
-                <th className="px-2 py-1.5">Materiał</th><th className="px-2">Miniatura</th><th className="px-2">Werdykt</th><th className="px-2">Kampania</th><th className="px-2">Pewność<Help term="pewnosc" /></th><th className="px-2">Główna przesłanka</th><th className="px-2">Kompletność</th><th><span className="sr-only">Rozwiń</span></th>
+                <th className="px-2 py-1.5">Sample</th><th className="px-2">Thumbnail</th><th className="px-2">Verdict</th><th className="px-2">Campaign</th><th className="px-2">Confidence<Help term="pewnosc" /></th><th className="px-2">Main evidence</th><th className="px-2">Completeness</th><th><span className="sr-only">Expand</span></th>
               </tr>
             </thead>
             <tbody>
@@ -599,11 +599,11 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
                       <td className="break-all px-2 py-1.5 font-mono text-xs">{it.id}</td>
                       <td className="px-2 py-1.5">{shot ? <ThumbImg jobId={job.id} path={shot} /> : <span className="text-xs text-slate-400">—</span>}</td>
                       <td className="px-2 py-1.5">{VERDICT_WORD[it.verdict]}</td>
-                      <td className="px-2 py-1.5 wrap-anywhere">{it.campaign ?? (it.similarCampaigns.length ? `podobna: ${it.similarCampaigns.join(", ")}` : (it.newCampaign ?? "—"))}</td>
+                      <td className="px-2 py-1.5 wrap-anywhere">{it.campaign ?? (it.similarCampaigns.length ? `similar: ${it.similarCampaigns.join(", ")}` : (it.newCampaign ?? "—"))}</td>
                       <td className="px-2 py-1.5" title={conf ? CONFIDENCE_INFO[conf].help : undefined}>{conf ? CONFIDENCE_INFO[conf].short : "—"}</td>
                       <td className="px-2 py-1.5 text-xs wrap-anywhere">{top}</td>
-                      <td className="px-2 py-1.5 text-xs">{comp.complete ? "kompletne" : <span title={comp.summary}>dane niepełne</span>}</td>
-                      <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={isOpen} aria-label={`${isOpen ? "Zwiń" : "Rozwiń"} materiał ${it.id}`} onClick={() => !single && setOpen(isOpen ? null : it.id)}>{isOpen ? "▾" : "▸"}</button></td>
+                      <td className="px-2 py-1.5 text-xs">{comp.complete ? "complete" : <span title={comp.summary}>incomplete data</span>}</td>
+                      <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={isOpen} aria-label={`${isOpen ? "Collapse" : "Expand"} sample ${it.id}`} onClick={() => !single && setOpen(isOpen ? null : it.id)}>{isOpen ? "▾" : "▸"}</button></td>
                     </tr>
                     {isOpen && (
                       <tr className="border-t border-slate-100 bg-slate-50/50">
@@ -622,13 +622,13 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
       )}
 
       {(result.newCampaigns?.length ?? 0) > 0 && (
-        <section aria-label="Nowe kampanie z tej paczki" className="space-y-1.5">
-          <h4 className="text-sm font-semibold">Nowe kampanie z tej paczki<Help term="kampania" /></h4>
+        <section aria-label="New campaigns from this batch" className="space-y-1.5">
+          <h4 className="text-sm font-semibold">New campaigns from this batch<Help term="kampania" /></h4>
           <ul className="space-y-1.5 text-sm">
             {result.newCampaigns!.map((n) => (
               <li key={n.id} className="rounded border border-violet-300 bg-violet-50 px-3 py-1.5 wrap-anywhere">
                 <b>{n.id}</b>: {n.members.join(", ")}
-                {n.evidence[0] && <span className="block text-xs text-slate-700">Łączy je: {n.evidence[0]}</span>}
+                {n.evidence[0] && <span className="block text-xs text-slate-700">Linked by: {n.evidence[0]}</span>}
                 <span className="mt-1 block"><EvidenceButton campaignId={n.id} jobId={job.id} /></span>
               </li>
             ))}
@@ -636,14 +636,14 @@ function BatchResult({ job, campaigns, minLinkScore, familyMinScore, kitOnly, fi
         </section>
       )}
       {result.notes.length > 0 && (
-        <details className="text-xs text-slate-600"><summary className="cursor-pointer">Uwagi analizy ({result.notes.length})</summary><ul className="mt-1 list-disc pl-5 wrap-anywhere">{result.notes.map((n, i) => <li key={i}>{n}</li>)}</ul></details>
+        <details className="text-xs text-slate-600"><summary className="cursor-pointer">Analysis notes ({result.notes.length})</summary><ul className="mt-1 list-disc pl-5 wrap-anywhere">{result.notes.map((n, i) => <li key={i}>{n}</li>)}</ul></details>
       )}
     </section>
   );
 }
 
 /**
- * Row of a case the import could not read (e.g. a saved page without its address): "za mało danych" with the
+ * Row of a case the import could not read (e.g. a saved page without its address): "insufficient data" with the
  * reason in the premise column, and when expanded the card with what to add. The CSV has the same row.
  */
 function UnreadRow({ material, open, onToggle }: { material: UnreadMaterial; open: boolean; onToggle?: () => void }) {
@@ -652,12 +652,12 @@ function UnreadRow({ material, open, onToggle }: { material: UnreadMaterial; ope
       <tr className="border-t border-slate-100 align-top">
         <td className="break-all px-2 py-1.5 font-mono text-xs">{material.id}</td>
         <td className="px-2 py-1.5"><span className="text-xs text-slate-400">—</span></td>
-        <td className="px-2 py-1.5">{VERDICT_WORD.insufficient}<span className="block text-xs font-medium text-rose-800">nie odczytano</span></td>
+        <td className="px-2 py-1.5">{VERDICT_WORD.insufficient}<span className="block text-xs font-medium text-rose-800">not read</span></td>
         <td className="px-2 py-1.5">—</td>
         <td className="px-2 py-1.5">—</td>
         <td className="px-2 py-1.5 text-xs wrap-anywhere">{material.reasons.join("; ")}</td>
-        <td className="px-2 py-1.5 text-xs">dane niepełne</td>
-        <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={open} aria-label={`${open ? "Zwiń" : "Rozwiń"} materiał ${material.id}`} onClick={() => onToggle?.()}>{open ? "▾" : "▸"}</button></td>
+        <td className="px-2 py-1.5 text-xs">incomplete data</td>
+        <td className="py-1.5"><button type="button" className="px-1 text-lg leading-none" aria-expanded={open} aria-label={`${open ? "Collapse" : "Expand"} sample ${material.id}`} onClick={() => onToggle?.()}>{open ? "▾" : "▸"}</button></td>
       </tr>
       {open && (
         <tr className="border-t border-slate-100 bg-slate-50/50">
@@ -670,7 +670,7 @@ function UnreadRow({ material, open, onToggle }: { material: UnreadMaterial; ope
 
 /** Thumbnail of a screenshot served by the job API (only from the job folder). */
 function ThumbImg({ jobId, path }: { jobId: string; path: string }) {
-  return <Image src={`/api/material/${jobId}/image?path=${encodeURIComponent(path)}`} alt="Miniatura zrzutu" width={48} height={48} unoptimized className="h-12 w-12 rounded border border-slate-200 object-cover" />;
+  return <Image src={`/api/material/${jobId}/image?path=${encodeURIComponent(path)}`} alt="Screenshot thumbnail" width={48} height={48} unoptimized className="h-12 w-12 rounded border border-slate-200 object-cover" />;
 }
 
 /** Size in MB (or GB above 1024 MB) for the upload progress. */
@@ -689,7 +689,7 @@ async function uploadFiles(
 ): Promise<string> {
   const res = await fetch("/api/material/upload", { method: "POST" });
   const body = (await res.json()) as { uploadId?: string; error?: string };
-  if (!res.ok || !body.uploadId) throw new Error(body.error ?? "Nie udało się rozpocząć wgrywania");
+  if (!res.ok || !body.uploadId) throw new Error(body.error ?? "Could not start the upload");
   const id = body.uploadId;
   const totalBytes = queue.reduce((s, q) => s + q.file.size, 0);
   let done = 0;
@@ -703,7 +703,7 @@ async function uploadFiles(
       const r = await fetch(`/api/material/upload/${id}?${qs}`, { method: "PUT", body: q.file });
       if (!r.ok) {
         const err = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(err.error ?? `Nie udało się wgrać pliku ${q.path}`);
+        throw new Error(err.error ?? `Could not upload the file ${q.path}`);
       }
       done += 1;
       bytes += q.file.size;

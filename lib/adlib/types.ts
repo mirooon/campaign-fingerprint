@@ -11,7 +11,7 @@ export interface AdRecord {
   libraryUrl: string;
   fetchedAt: string;
   advertiser?: { name: string; id?: string; legalName?: string; location?: string; verified?: boolean | null };
-  payers?: string[]; // płatnik: Meta z danych DSA, Google z `ad_funded_by` (gdy inny niż reklamodawca)
+  payers?: string[]; // payer: Meta from the DSA data, Google from `ad_funded_by` (when different from the advertiser)
   firstSeen?: string;
   lastSeen?: string;
   regions?: string[];

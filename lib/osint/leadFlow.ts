@@ -47,24 +47,24 @@ export function leadFlowTokens(html: string): string[] {
   return [...out].sort().slice(0, MAX_TOKENS);
 }
 
-/** Human-readable label of a lead-funnel token (Polish, for the graph). */
+/** Human-readable label of a lead-funnel token (for the graph). */
 export function leadFlowLabel(token: string): string {
   const [kind, ...rest] = token.split(":");
   const v = rest.join(":");
   const short = (s: string) => `${s.slice(0, 8)}…`;
   switch (kind) {
     case "form":
-      return `formularz ${short(v)}`;
+      return `form ${short(v)}`;
     case "field":
-      return `pole formularza ${v.split(":")[0]} ${short(v.split(":")[1] ?? "")}`;
+      return `form field ${v.split(":")[0]} ${short(v.split(":")[1] ?? "")}`;
     case "flow":
-      return `lejek ${short(v)}`;
+      return `funnel ${short(v)}`;
     case "key":
-      return `klucz szyfrowania zdarzeń ${v}`;
+      return `event encryption key ${v}`;
     case "evhost":
-      return `serwer zdarzeń formularza ${v}`;
+      return `form event server ${v}`;
     case "src":
-      return `źródło ruchu ${short(v)}`;
+      return `traffic source ${short(v)}`;
     default:
       return token;
   }

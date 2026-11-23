@@ -11,7 +11,7 @@ import { parseCsv } from "../pipeline/ingest";
 import { ADLIB_CONFIG } from "./config";
 import type { AdLibrarySource, AdRecord, AdSearchQuery } from "./types";
 
-const HOW_TO_GET_ACCESS = "pobierz eksport CSV z repozytorium reklam X (instrukcja i stan: docs/ZRODLA-METADANYCH.md), zapisz plik i podaj go w X_ADS_FILE albo --x-file";
+const HOW_TO_GET_ACCESS = "download the CSV export of the X ad repository (instructions and status: docs/ZRODLA-METADANYCH.md), save the file and give it in X_ADS_FILE or --x-file";
 
 /** Spellings of each column in the export, compared after folding case, spaces, dashes and underscores. */
 const COLUMNS = {
@@ -41,7 +41,7 @@ export function parseXExport(content: string, fetchedAt: string): AdRecord[] {
   const col = (field: keyof typeof COLUMNS) => headers.find((h) => (COLUMNS[field] as readonly string[]).includes(fold(h)));
   const c = Object.fromEntries((Object.keys(COLUMNS) as Array<keyof typeof COLUMNS>).map((f) => [f, col(f)])) as Record<keyof typeof COLUMNS, string | undefined>;
   const missing = (["id", "advertiser"] as const).filter((f) => !c[f]);
-  if (missing.length) throw new Error(`X: plik nie wygląda na eksport repozytorium reklam, brak kolumn: ${missing.join(", ")} (są: ${headers.join(", ")})`);
+  if (missing.length) throw new Error(`X: the file does not look like an ad repository export, missing columns: ${missing.join(", ")} (present: ${headers.join(", ")})`);
   /** Trimmed value of a field in a row, undefined when the column or the value is missing. */
   const val = (row: Record<string, string>, f: keyof typeof COLUMNS) => (c[f] ? row[c[f] as string]?.trim() || undefined : undefined);
   return rows.flatMap((row): AdRecord[] => {
@@ -86,8 +86,8 @@ export function createXSource(opts: XOptions = {}): AdLibrarySource {
     platform: "x",
     async available() {
       const f = file();
-      if (!f) return { ok: false, reason: `brak pliku eksportu (${ADLIB_CONFIG.x.fileEnv} albo --x-file)`, howToGetAccess: HOW_TO_GET_ACCESS };
-      return existsSync(f) ? { ok: true } : { ok: false, reason: `plik ${f} nie istnieje`, howToGetAccess: HOW_TO_GET_ACCESS };
+      if (!f) return { ok: false, reason: `no export file (${ADLIB_CONFIG.x.fileEnv} or --x-file)`, howToGetAccess: HOW_TO_GET_ACCESS };
+      return existsSync(f) ? { ok: true } : { ok: false, reason: `file ${f} does not exist`, howToGetAccess: HOW_TO_GET_ACCESS };
     },
     async search(q: AdSearchQuery) {
       /** Case-insensitive substring test; false for a missing text. */

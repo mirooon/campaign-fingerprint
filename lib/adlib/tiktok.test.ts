@@ -27,14 +27,14 @@ describe("TikTok source", () => {
 
   it("reports an error answer with its message", () => {
     expect(() => parseTikTokAds(JSON.stringify({ error: { code: "access_token_invalid", message: "bad token" } }), NOW)).toThrow(/bad token/);
-    expect(() => parseTikTokAds("<html>", NOW)).toThrow(/niepoprawna odpowiedź/);
+    expect(() => parseTikTokAds("<html>", NOW)).toThrow(/invalid answer/);
   });
 
   it("is unavailable without the keys, with how to apply for access", async () => {
     const a = await createTikTokSource({ env: {} }).available();
     expect(a.ok).toBe(false);
     expect(a.reason).toContain("TIKTOK_CLIENT_KEY");
-    expect(a.howToGetAccess).toMatch(/wniosek/i);
+    expect(a.howToGetAccess).toMatch(/apply/i);
     expect((await createTikTokSource({ env: KEYS }).available()).ok).toBe(true);
   });
 

@@ -85,7 +85,7 @@ export function createWaybackSource(opts: WaybackOptions = {}): ArchiveSource {
       if (attempt > 0 && config.waybackRetryDelayMs > 0) await new Promise((r) => setTimeout(r, config.waybackRetryDelayMs));
       try {
         const res = await http(url, { headers: { "user-agent": USER_AGENT }, timeoutMs: config.waybackTimeoutMs });
-        if (res.status === 429) throw new ArchiveLookupError("wayback", "limit zapytań Internet Archive (HTTP 429), spróbuj później", Number(res.headers["retry-after"]) || undefined);
+        if (res.status === 429) throw new ArchiveLookupError("wayback", "Internet Archive rate limit (HTTP 429), try later", Number(res.headers["retry-after"]) || undefined);
         if (res.status < 500) return res;
         last = `HTTP ${res.status}`;
       } catch (e) {
@@ -93,7 +93,7 @@ export function createWaybackSource(opts: WaybackOptions = {}): ArchiveSource {
         last = e instanceof Error ? e.message : String(e);
       }
     }
-    throw new ArchiveLookupError("wayback", `Internet Archive nie odpowiedział (${last}), po jednym ponowieniu`);
+    throw new ArchiveLookupError("wayback", `Internet Archive did not respond (${last}), after one retry`);
   }
 
   return {
@@ -107,22 +107,22 @@ export function createWaybackSource(opts: WaybackOptions = {}): ArchiveSource {
       const from = range.after ? cdxTime(range.after) : null;
       if (from) params.set("from", from);
       const index = await get(`${CDX_URL}?${params}`);
-      if (index.status !== 200) throw new ArchiveLookupError("wayback", `CDX odpowiedział HTTP ${index.status}`);
+      if (index.status !== 200) throw new ArchiveLookupError("wayback", `CDX answered HTTP ${index.status}`);
       let json: unknown;
       try {
         json = JSON.parse(index.body.toString("utf8") || "[]");
       } catch (e) {
-        throw new ArchiveLookupError("wayback", `CDX zwrócił nie-JSON: ${(e as Error).message}`);
+        throw new ArchiveLookupError("wayback", `CDX returned non-JSON: ${(e as Error).message}`);
       }
       const row = closestRow(parseCdx(json), target);
       if (!row) return [];
       const page = await get(`https://web.archive.org/web/${row.timestamp}id_/${row.original}`);
-      if (page.status !== 200) throw new ArchiveLookupError("wayback", `kopia ${row.timestamp} nie do pobrania (HTTP ${page.status})`);
+      if (page.status !== 200) throw new ArchiveLookupError("wayback", `copy ${row.timestamp} cannot be fetched (HTTP ${page.status})`);
       let html: string;
       try {
         html = decodeBody(page.body, config.maxBodyBytes).toString("utf8");
       } catch (e) {
-        throw new ArchiveLookupError("wayback", `kopia ${row.timestamp} nieczytelna: ${(e as Error).message}`);
+        throw new ArchiveLookupError("wayback", `copy ${row.timestamp} unreadable: ${(e as Error).message}`);
       }
       const copy: ArchivedCopy = {
         source: "wayback",

@@ -18,7 +18,7 @@ describe("Meta Ad Library adapter", () => {
     const out = parseAdLibraryOutput(SAMPLE, ["1000000000000101", "1000000000000303", "1111111111111"]);
     expect(out["1000000000000101"]).toMatchObject({ payers: ["Testowa Spolka"], takenDown: true, euReach: 123456, ageMin: 35, locations: ["Poland"], error: null });
     expect(out["1000000000000303"].error).toBe("rate limited");
-    expect(out["1111111111111"].error).toBe("brak odpowiedzi");
+    expect(out["1111111111111"].error).toBe("no answer");
   });
 
   it("records the SHA-256 of the raw record and the time of the fetch", async () => {

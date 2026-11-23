@@ -18,7 +18,7 @@ export interface ExpansionQuery {
  * so only ads that came from a library give such a query; each query appears once.
  */
 export function expansionQueries(graph: EvidenceGraph, campaign: Campaign): ExpansionQuery[] {
-  const out: ExpansionQuery[] = campaign.domains.map((domain) => ({ platform: "google", query: { keyword: domain }, reason: "domena kampanii" }));
+  const out: ExpansionQuery[] = campaign.domains.map((domain) => ({ platform: "google", query: { keyword: domain }, reason: "campaign domain" }));
   const members = new Set(campaign.members.map((m) => `item:${m}`));
   const nodes = new Map(graph.nodes.map((n) => [n.id, n]));
   const seen = new Set<string>();
@@ -29,7 +29,7 @@ export function expansionQueries(graph: EvidenceGraph, campaign: Campaign): Expa
     const id = node?.data.advertiserId as string | undefined;
     if (node?.type !== "advertiser" || !platform || !id || seen.has(node.id)) continue;
     seen.add(node.id);
-    out.push({ platform, query: { advertiser: id }, reason: "konto reklamodawcy z biblioteki reklam" });
+    out.push({ platform, query: { advertiser: id }, reason: "advertiser account from the ad library" });
   }
   return out;
 }

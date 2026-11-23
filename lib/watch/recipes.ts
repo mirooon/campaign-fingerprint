@@ -60,18 +60,18 @@ export type ConfirmRule = z.infer<typeof confirmSchema>;
  */
 export function parseRecipes(json: unknown): WatchRecipe[] {
   const parsed = watchRecipesFileSchema.safeParse(Array.isArray(json) ? { recipes: json } : json);
-  if (!parsed.success) throw new Error(`przepisy: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
+  if (!parsed.success) throw new Error(`recipes: ${parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`);
   const seen = new Set<string>();
   for (const r of parsed.data.recipes) {
-    if (seen.has(r.id)) throw new Error(`przepisy: powtórzony identyfikator „${r.id}”`);
+    if (seen.has(r.id)) throw new Error(`recipes: repeated ID “${r.id}”`);
     seen.add(r.id);
-    if (r.source === "certlist" && !r.confirm) throw new Error(`przepis „${r.id}”: lista CERT wymaga filtra confirm (rejestrator, NS albo pora rejestracji); sam regex daje setki fałszywych trafień`);
+    if (r.source === "certlist" && !r.confirm) throw new Error(`recipe “${r.id}”: the CERT list needs a confirm filter (registrar, NS or registration time); a regex alone gives hundreds of false hits`);
     for (const [what, pattern] of [["query", r.source === "certlist" || r.source === "ct" ? r.query : null], ["feature.regex", r.feature?.regex ?? null]] as const) {
       if (!pattern) continue;
       try {
         new RegExp(pattern, "i");
       } catch (e) {
-        throw new Error(`przepis „${r.id}”: zły regex w ${what} (${(e as Error).message})`);
+        throw new Error(`recipe “${r.id}”: bad regex in ${what} (${(e as Error).message})`);
       }
     }
   }
@@ -102,13 +102,13 @@ export function confirmByRegistration(rule: ConfirmRule, facts: RegistrationFact
   if (rule.registrars?.length) {
     named++;
     const hit = rule.registrars.find((r) => facts.registrar?.toLowerCase().includes(r.toLowerCase()));
-    if (hit) confirmations.push(`ten sam rejestrator (${facts.registrar})`);
+    if (hit) confirmations.push(`same registrar (${facts.registrar})`);
   }
   if (rule.nameserverPairs?.length) {
     named++;
     const ns = new Set(facts.nameservers.map((n) => n.toLowerCase().replace(/\.$/, "")));
     const pair = rule.nameserverPairs.find((p) => p.every((n) => ns.has(n.toLowerCase().replace(/\.$/, ""))));
-    if (pair) confirmations.push(`ta sama para serwerów nazw (${pair.join(", ")})`);
+    if (pair) confirmations.push(`same name server pair (${pair.join(", ")})`);
   }
   if (rule.registeredHoursUtc) {
     named++;
@@ -116,7 +116,7 @@ export function confirmByRegistration(rule: ConfirmRule, facts: RegistrationFact
     if (Number.isFinite(t)) {
       const h = new Date(t).getUTCHours();
       const { from, to } = rule.registeredHoursUtc;
-      if (from <= to ? h >= from && h <= to : h >= from || h <= to) confirmations.push(`rejestracja w oknie godzin ${from}–${to} UTC (${h}:00)`);
+      if (from <= to ? h >= from && h <= to : h >= from || h <= to) confirmations.push(`registered within the hour window ${from}–${to} UTC (${h}:00)`);
     }
   }
   const need = Math.min(rule.minMatches ?? named, named);

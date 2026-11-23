@@ -29,7 +29,7 @@ export interface CompanyRegistryRecord {
   address: string | null;
   /** Postal code of the seat ("00-001"), or null. */
   postalCode: string | null;
-  /** Registry status: the VAT status ("Czynny", "Zwolniony", "Niezarejestrowany") or "wpisany" / "wykreślony" for KRS. */
+  /** Registry status: the VAT status ("Czynny", "Zwolniony", "Niezarejestrowany") or "registered" / "deregistered" for KRS. */
   status: string | null;
   /** Date of registration (YYYY-MM-DD), or null. */
   registeredAt: string | null;
@@ -169,7 +169,7 @@ export function parseKrsExtract(json: unknown, krs: string, fetchedAt: string | 
     name: str(obj(d1?.danePodmiotu)?.nazwa),
     address,
     postalCode,
-    status: removedAt ? "wykreślony" : "wpisany",
+    status: removedAt ? "deregistered" : "registered",
     registeredAt: isoDate(head?.dataRejestracjiWKRS),
     removedAt,
   };
@@ -225,21 +225,21 @@ export function evaluateCompanyRegistry(records: CompanyRegistryRecord[], ctx: C
   for (const r of records.filter((x) => x.found && !x.error)) {
     const label = `${r.source === "vat" ? "NIP" : "KRS"} ${r.id}`;
     if (r.name && ctx.brandNames.length && !ctx.brandNames.some((b) => namesAgree(b, r.name!, cfg))) {
-      raise("companyNameMismatch", `${label}: w rejestrze „${r.name}”, na stronie „${ctx.brandNames[0]}”`);
+      raise("companyNameMismatch", `${label}: “${r.name}” in the register, “${ctx.brandNames[0]}” on the page`);
     }
     if (r.address && ctx.pageAddresses.length && !ctx.pageAddresses.some((a) => addressAgrees(a, r))) {
-      raise("companyAddressMismatch", `${label}: siedziba w rejestrze ${r.address}, na stronie ${ctx.pageAddresses[0].street} ${ctx.pageAddresses[0].number}, ${ctx.pageAddresses[0].postalCode}`);
+      raise("companyAddressMismatch", `${label}: registered office ${r.address} in the register, on the page ${ctx.pageAddresses[0].street} ${ctx.pageAddresses[0].number}, ${ctx.pageAddresses[0].postalCode}`);
     }
     const vatRemoved = r.source === "vat" && r.status !== null && cfg.removedVatStatuses.includes(foldDiacritics(r.status.toLowerCase()));
-    if (r.removedAt || vatRemoved) raise("companyRemoved", `${label}: ${r.removedAt ? `wykreślona ${r.removedAt}` : `status VAT „${r.status}”`}`);
+    if (r.removedAt || vatRemoved) raise("companyRemoved", `${label}: ${r.removedAt ? `deregistered ${r.removedAt}` : `VAT status “${r.status}”`}`);
     const age = daysBetween(r.registeredAt, ctx.firstSeen);
-    if (age !== null && age >= 0 && age < cfg.recentDays) raise("companyRecent", `${label}: zarejestrowana ${age} dni przed pierwszym zapisem materiału`);
+    if (age !== null && age >= 0 && age < cfg.recentDays) raise("companyRecent", `${label}: registered ${age} days before the sample was first recorded`);
     const gap = daysBetween(ctx.domainCreated, r.registeredAt);
-    if (gap !== null && gap > cfg.companyYoungerGapDays) raise("companyYoungerThanDomain", `${label}: firma zarejestrowana ${r.registeredAt}, ${gap} dni po domenie sklepu`);
+    if (gap !== null && gap > cfg.companyYoungerGapDays) raise("companyYoungerThanDomain", `${label}: company registered ${r.registeredAt}, ${gap} days after the shop domain`);
     const domainAge = daysBetween(ctx.domainCreated, ctx.firstSeen);
     const companyYears = age === null ? null : age / 365;
     if (domainAge !== null && domainAge >= 0 && domainAge <= cfg.youngDomainDays && companyYears !== null && companyYears >= cfg.oldCompanyYears) {
-      raise("domainYoungerThanCompany", `${label}: firma z ${r.registeredAt}, a domena sklepu ma ${domainAge} dni`);
+      raise("domainYoungerThanCompany", `${label}: company from ${r.registeredAt}, while the shop domain is ${domainAge} days old`);
     }
   }
   const order: CompanyRegistryFlag[] = ["companyNameMismatch", "companyAddressMismatch", "companyRemoved", "companyRecent", "companyYoungerThanDomain", "domainYoungerThanCompany"];

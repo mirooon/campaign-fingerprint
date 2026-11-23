@@ -20,19 +20,19 @@ export function isBotChallenge(status: number | null, body: string | null | unde
 /**
  * Compares the crawler and mobile variants of one page: a different final address, a DOM simhash distance
  * above `domThreshold` (bits of 64) or one variant served and the other not make cloaking suspected, with
- * the reasons in Polish. A challenge page on either side makes the check `bot_challenge`, never suspected.
+ * the reasons in plain words. A challenge page on either side makes the check `bot_challenge`, never suspected.
  */
 export function cloakingVerdict(crawler: CloakingVariant, mobile: CloakingVariant, domThreshold: number): CloakingCheck {
   const norm = (u: string | null) => (u ? (normalizeUrl(u)?.url ?? u) : null);
   const finalUrlDiffers = !!crawler.finalUrl && !!mobile.finalUrl && norm(crawler.finalUrl) !== norm(mobile.finalUrl);
   const domDistance = crawler.domSimhash && mobile.domSimhash ? simhashDistance(crawler.domSimhash, mobile.domSimhash) : null;
   if (crawler.botChallenge || mobile.botChallenge) {
-    return { crawler, mobile, finalUrlDiffers, domDistance, suspected: false, reasons: [`pobranie zablokowane przez ochronę przed botami (${crawler.botChallenge ? "crawler" : "przeglądarka mobilna"}): nie da się ocenić cloakingu`], state: "bot_challenge" };
+    return { crawler, mobile, finalUrlDiffers, domDistance, suspected: false, reasons: [`fetch blocked by bot protection (${crawler.botChallenge ? "crawler" : "mobile browser"}): cloaking cannot be assessed`], state: "bot_challenge" };
   }
   const ok = (v: CloakingVariant) => !v.error && v.status !== null && v.status >= 200 && v.status < 300;
   const reasons: string[] = [];
-  if (finalUrlDiffers) reasons.push(`inny adres końcowy: crawler → ${crawler.finalUrl}, przeglądarka mobilna → ${mobile.finalUrl}`);
-  if (domDistance !== null && domDistance > domThreshold) reasons.push(`inna struktura strony (simhash DOM, odległość ${domDistance}/64)`);
-  if (ok(crawler) !== ok(mobile)) reasons.push(`różny wynik pobrania: crawler ${crawler.status ?? crawler.error}, mobilna ${mobile.status ?? mobile.error}`);
+  if (finalUrlDiffers) reasons.push(`different final URL: crawler → ${crawler.finalUrl}, mobile browser → ${mobile.finalUrl}`);
+  if (domDistance !== null && domDistance > domThreshold) reasons.push(`different page structure (DOM simhash, distance ${domDistance}/64)`);
+  if (ok(crawler) !== ok(mobile)) reasons.push(`different fetch result: crawler ${crawler.status ?? crawler.error}, mobile ${mobile.status ?? mobile.error}`);
   return { crawler, mobile, finalUrlDiffers, domDistance, suspected: reasons.length > 0, reasons, state: "checked" };
 }

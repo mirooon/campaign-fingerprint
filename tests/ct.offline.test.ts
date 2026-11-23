@@ -83,7 +83,7 @@ describe("CT watcher on the sample", () => {
     expect(z.cert).toMatchObject({ issuer: "Demo CA (fikcyjny)", log: "Demo CT Log 2026 (fikcyjny)" });
     expect(z.candidate.similar_domains).toEqual(["zwrot24-dolorem51.test", "zwrot37-voluptas12.example", "zwrot88-praesentium40.example"]);
     expect(z.observed_utc).toMatch(/Z$/);
-    expect(recs.every((x) => x.status === "candidate" && x.note.includes("nie dowód"))).toBe(true);
+    expect(recs.every((x) => x.status === "candidate" && x.note.includes("not proof"))).toBe(true);
 
     // a restart reads the feed and does not report the same domains again
     const again = new CtWatcher({ set, feedFile: feed, source: "replay" });

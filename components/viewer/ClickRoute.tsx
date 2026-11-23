@@ -14,9 +14,9 @@ function linkStyle(l: RouteLink): string {
 }
 
 /**
- * "Trasa kliknięcia" (B-021): the chain ad → tracking link → redirects → lure page → form or shop as a row of links,
- * each with its role in words, the defanged address, the status ("przekierował", "nie odpowiada", "zablokowany")
- * and the age of the domain against the ad ("zarejestrowana 2 dni przed emisją"). Loads the route of one material
+ * "Click route" (B-021): the chain ad → tracking link → redirects → lure page → form or shop as a row of links,
+ * each with its role in words, the defanged address, the status ("redirected", "no response", "blocked")
+ * and the age of the domain against the ad ("registered 2 days before the ad ran"). Loads the route of one sample
  * from `/api/click-route` (of the base, or of the job when `jobId` is given).
  */
 export default function ClickRoute({ itemId, jobId }: { itemId: string; jobId?: string }) {
@@ -27,24 +27,24 @@ export default function ClickRoute({ itemId, jobId }: { itemId: string; jobId?: 
     fetch(`/api/click-route?${q}`, { signal: ctl.signal })
       .then(async (r) => {
         const body = (await r.json()) as { route?: RouteLink[]; error?: string };
-        setState(r.ok && body.route ? { status: "ready", route: body.route } : { status: "error", message: body.error ?? "Nie udało się wczytać trasy." });
+        setState(r.ok && body.route ? { status: "ready", route: body.route } : { status: "error", message: body.error ?? "Could not load the route." });
       })
       .catch((e: Error) => {
-        if (e.name !== "AbortError") setState({ status: "error", message: `Nie udało się wczytać trasy: ${e.message}` });
+        if (e.name !== "AbortError") setState({ status: "error", message: `Could not load the route: ${e.message}` });
       });
     return () => ctl.abort();
   }, [itemId, jobId]);
   return (
-    <section aria-label="Trasa kliknięcia">
-      <h4 className="mb-1.5 text-sm font-semibold">Trasa kliknięcia<Help term="trasa_klikniecia" /></h4>
-      <p className="mb-1.5 text-xs text-slate-600">Którędy idzie osoba, która kliknie w reklamę: od reklamy, przez linki pośrednie, do strony, na której oszust zbiera dane albo pieniądze. Adresy są rozbrojone<Help term="rozbrojony_adres" />.</p>
-      {state.status === "loading" && <p className="text-sm text-slate-600">Wczytywanie trasy…</p>}
+    <section aria-label="Click route">
+      <h4 className="mb-1.5 text-sm font-semibold">Click route<Help term="trasa_klikniecia" /></h4>
+      <p className="mb-1.5 text-xs text-slate-600">The path of a person who clicks the ad: from the ad, through intermediate links, to the page where the scammer collects data or money. URLs are defanged<Help term="rozbrojony_adres" />.</p>
+      {state.status === "loading" && <p className="text-sm text-slate-600">Loading the route…</p>}
       {state.status === "error" && <p className="text-sm text-slate-600">{state.message}</p>}
       {state.status === "ready" && (
         <ol className="flex flex-wrap items-stretch gap-1.5">
           {state.route.map((l, i) => (
             <li key={l.step} className="flex items-center gap-1.5">
-              {i > 0 && <ArrowRight size={16} aria-label="następnie" className="shrink-0 text-slate-500" />}
+              {i > 0 && <ArrowRight size={16} aria-label="then" className="shrink-0 text-slate-500" />}
               <div className={`w-52 rounded-md border p-2 text-xs ${linkStyle(l)}`}>
                 <div className="font-semibold text-slate-900">{l.step + 1}. {l.roleLabel}{l.role === "lure" && <Help term="strona_przyneta" />}</div>
                 {l.url && <div className="mt-0.5"><Defanged value={l.url} /></div>}

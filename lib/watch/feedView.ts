@@ -35,7 +35,7 @@ export function watchRowToFeedRecord(row: WatchRow): CtFeedRecord | null {
       template: null,
       similar_domains: [],
       tokens: [],
-      evidence: [`źródło: ${row.source}${row.recipe ? `, przepis: ${row.recipe}` : ""}`, `werdykt analizy: ${row.verdict}`, ...(row.confirmations ?? [])],
+      evidence: [`source: ${row.source}${row.recipe ? `, recipe: ${row.recipe}` : ""}`, `analysis verdict: ${row.verdict}`, ...(row.confirmations ?? [])],
       ...(row.confirmations?.length ? { confirmations: row.confirmations } : {}),
     },
     enrichment: null,

@@ -52,8 +52,8 @@ describe("analyzeMaterial: archive step", () => {
     const res = await analyzeMaterial({ url: DEAD }, ctx("a1", { sources: [source([copy])] }));
     const [it] = res.items;
     expect(it.bodySource).toBe("wayback");
-    expect(it.archive).toMatchObject({ status: "used", detail: "kopia z wayback z 2026-10-18", copy: { source: "wayback", sourceUrl: copy.sourceUrl, capturedAt: copy.capturedAt, used: true } });
-    expect(step(res)).toMatchObject({ status: "done", detail: "kopia z wayback z 2026-10-18" });
+    expect(it.archive).toMatchObject({ status: "used", detail: "copy from wayback of 2026-10-18", copy: { source: "wayback", sourceUrl: copy.sourceUrl, capturedAt: copy.capturedAt, used: true } });
+    expect(step(res)).toMatchObject({ status: "done", detail: "copy from wayback of 2026-10-18" });
     expect(it.verdict).not.toBe("insufficient");
   });
 
@@ -64,7 +64,7 @@ describe("analyzeMaterial: archive step", () => {
     expect(it.verdictText).toMatch(/brak strony i brak kopii archiwalnej/);
     expect(it.missing?.join(" ")).toMatch(/archiw/);
     expect(it.bodySource).toBeUndefined();
-    expect(step(res)).toMatchObject({ status: "skipped", detail: "brak kopii archiwalnej (wayback)" });
+    expect(step(res)).toMatchObject({ status: "skipped", detail: "no archived copy (wayback)" });
   });
 
   it("skips the step with the reason in an offline run and leaves the verdict as without it", async () => {

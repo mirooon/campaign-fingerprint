@@ -16,7 +16,7 @@ import type { ArchivedCopy, ArchiveSource } from "./types";
 const API = "https://urlscan.io";
 const USER_AGENT = "hacknation-osint-starter/0.1 (passive lookup)";
 const DAY_MS = 86_400_000;
-const SIGNUP = "Darmowy klucz API: konto na https://urlscan.io/user/signup, klucz w ustawieniach konta; podaj go w zmiennej URLSCAN_API_KEY";
+const SIGNUP = "Free API key: an account at https://urlscan.io/user/signup, the key is in the account settings; put it in the URLSCAN_API_KEY variable";
 
 export interface UrlscanOptions {
   http?: ArchiveHttp;
@@ -199,7 +199,7 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
       try {
         res = await http(url, { headers: headers(), timeoutMs: config.urlscanTimeoutMs });
       } catch (e) {
-        throw new ArchiveLookupError("urlscan", `urlscan nie odpowiedział (${e instanceof Error ? e.message : String(e)})`);
+        throw new ArchiveLookupError("urlscan", `urlscan did not respond (${e instanceof Error ? e.message : String(e)})`);
       }
       if (res.status === 429) {
         const retry = Number(res.headers["retry-after"]) || config.urlscanDefaultRetryAfterS;
@@ -214,7 +214,7 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
   }
 
   function pausedReason(): string {
-    return `limit zapytań urlscan (HTTP 429): kolejne zapytanie po ${new Date(blockedUntil).toISOString().slice(11, 16)} UTC (Retry-After)`;
+    return `urlscan rate limit (HTTP 429): next request after ${new Date(blockedUntil).toISOString().slice(11, 16)} UTC (Retry-After)`;
   }
 
   /** Records of one search query (at most `urlscanPageSize`). */
@@ -224,7 +224,7 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
     try {
       return parseSearch(JSON.parse(res.body.toString("utf8")));
     } catch (e) {
-      throw new ArchiveLookupError("urlscan", `wyszukiwanie urlscan zwróciło nie-JSON: ${(e as Error).message}`);
+      throw new ArchiveLookupError("urlscan", `urlscan search returned non-JSON: ${(e as Error).message}`);
     }
   }
 
@@ -239,25 +239,25 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
       try {
         const res = await request(url);
         if (res.status === 200) return res.body;
-        notes.push(`brak: ${what} (HTTP ${res.status})`);
+        notes.push(`missing: ${what} (HTTP ${res.status})`);
       } catch (e) {
         if (!(e instanceof ArchiveLookupError)) throw e;
-        notes.push(`brak: ${what} (${e.reason})`);
+        notes.push(`missing: ${what} (${e.reason})`);
       }
       return null;
     };
-    const page = await part("lista żądań", `${API}/result/${id}/`);
+    const page = await part("request list", `${API}/result/${id}/`);
     if (page) {
       const requests = parseResultRequests(page.toString("utf8"));
       if (requests.length) copy.requests = requests;
-      else notes.push("lista żądań: nie rozpoznano strony wyniku urlscan");
+      else notes.push("request list: the urlscan result page was not recognized");
     }
     if (apiKey) {
       const dom = await part("DOM", `${API}/dom/${id}/`);
       if (dom) copy.html = dom.toString("utf8");
-    } else notes.push("DOM pominięty: brak klucza URLSCAN_API_KEY");
+    } else notes.push("DOM skipped: no URLSCAN_API_KEY key");
     if (opts.screenshotDir) {
-      const shot = await part("zrzut", `${API}/screenshots/${id}.png`);
+      const shot = await part("screenshot", `${API}/screenshots/${id}.png`);
       if (shot) {
         mkdirSync(opts.screenshotDir, { recursive: true });
         copy.screenshotPath = path.join(opts.screenshotDir, `${id}.png`);
@@ -276,15 +276,15 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
         for (const scan of scans) {
           try {
             const res = await request(scan.sourceUrl);
-            if (res.status !== 200) scan.notes = [`brak: lista żądań (HTTP ${res.status})`];
+            if (res.status !== 200) scan.notes = [`missing: request list (HTTP ${res.status})`];
             else {
               const requests = parseResultRequests(res.body.toString("utf8"));
               if (requests.length) scan.requests = requests;
-              else scan.notes = ["lista żądań: nie rozpoznano strony wyniku urlscan"];
+              else scan.notes = ["request list: the urlscan result page was not recognized"];
             }
           } catch (e) {
             if (!(e instanceof ArchiveLookupError)) throw e;
-            scan.notes = [`brak: lista żądań (${e.reason})`];
+            scan.notes = [`missing: request list (${e.reason})`];
           }
         }
       }
@@ -292,14 +292,14 @@ export function createUrlscanSource(opts: UrlscanOptions = {}): UrlscanSource {
     },
     available: async () => {
       if (now().getTime() < blockedUntil) return { ok: false, reason: pausedReason(), howToGetAccess: SIGNUP };
-      return apiKey ? { ok: true } : { ok: true, reason: "bez klucza: wyszukiwanie działa, DOM zapisanych stron pominięty", howToGetAccess: SIGNUP };
+      return apiKey ? { ok: true } : { ok: true, reason: "no key: search works, the DOM of saved pages is skipped", howToGetAccess: SIGNUP };
     },
     async lookup(url, range = {}) {
       const fetchedAt = now().toISOString();
       const target = Date.parse(range.before ?? fetchedAt);
       const after = range.after ? Date.parse(range.after) : -Infinity;
       const wanted = parts(url);
-      if (!wanted) throw new ArchiveLookupError("urlscan", `adres nie do przeszukania: ${url}`);
+      if (!wanted) throw new ArchiveLookupError("urlscan", `URL cannot be searched: ${url}`);
       const found = new Map<string, ScanRecord & { level: "exact" | "path" }>();
       const take = (records: ScanRecord[]) => {
         for (const r of records) {

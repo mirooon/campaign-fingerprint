@@ -13,7 +13,7 @@ import { adLibraryPython, adLibraryUrl, AD_LIBRARY_ID_RE, detectAdLibrary, looku
 import { fetchAdCreative } from "./ytdlp";
 import type { AdLibrarySource, AdRecord, AdSearchQuery } from "./types";
 
-const HOW_TO_GET_ACCESS = "uv tool install meta-ads-collector (bez klucza; albo ustaw META_ADS_PYTHON na Pythona z tym pakietem)";
+const HOW_TO_GET_ACCESS = "uv tool install meta-ads-collector (no key; or set META_ADS_PYTHON to a Python with this package)";
 
 export interface MetaSourceOptions {
   run?: ToolRunner;
@@ -49,10 +49,10 @@ export function parseMetaSearchOutput(stdout: string, fetchedAt: string): AdReco
   try {
     json = start < 0 ? {} : JSON.parse(stdout.slice(start));
   } catch {
-    throw new Error("Meta: niepoprawny wynik skryptu wyszukiwania");
+    throw new Error("Meta: invalid output of the search script");
   }
   if (str(json.error)) throw new Error(`Meta: ${str(json.error)}`);
-  if (!Array.isArray(json.ads)) throw new Error("Meta: niepoprawny wynik skryptu wyszukiwania (brak pola ads)");
+  if (!Array.isArray(json.ads)) throw new Error("Meta: invalid output of the search script (no ads field)");
   return json.ads.flatMap((a): AdRecord[] => {
     const adId = str(a.id);
     if (!adId) return [];
@@ -89,29 +89,29 @@ export function createMetaSource(opts: MetaSourceOptions = {}): AdLibrarySource 
     platform: "meta",
     async available() {
       const st = await detectAdLibrary({ run, env });
-      return st.available ? { ok: true } : { ok: false, reason: st.reason ?? "MetaAdsCollector niedostępny", howToGetAccess: HOW_TO_GET_ACCESS };
+      return st.available ? { ok: true } : { ok: false, reason: st.reason ?? "MetaAdsCollector unavailable", howToGetAccess: HOW_TO_GET_ACCESS };
     },
     async search(q: AdSearchQuery) {
       const python = await adLibraryPython(env);
-      if (!python) throw new Error(`Meta: brak meta-ads-collector. ${HOW_TO_GET_ACCESS}`);
+      if (!python) throw new Error(`Meta: no meta-ads-collector. ${HOW_TO_GET_ACCESS}`);
       const args = ["-I", path.join(process.cwd(), "scripts", "py", "ad_library_search.py"), "--country", q.country ?? "PL", "--limit", String(q.limit ?? 25)];
       if (q.keyword) args.push("--query", q.keyword);
       if (q.advertiser) args.push("--advertiser", q.advertiser);
       if (q.from) args.push("--from", q.from);
       if (q.to) args.push("--to", q.to);
       const r = await run(python, args, { timeoutMs: 120_000 });
-      if (r.timedOut) throw new Error("Meta: przekroczony czas wyszukiwania");
-      if (r.code !== 0) throw new Error(`Meta: ${(r.stderr.trim().split("\n").pop() ?? "błąd skryptu").slice(0, 200)}`);
+      if (r.timedOut) throw new Error("Meta: the search timed out");
+      if (r.code !== 0) throw new Error(`Meta: ${(r.stderr.trim().split("\n").pop() ?? "script error").slice(0, 200)}`);
       return parseMetaSearchOutput(r.stdout, now());
     },
     async getAd(adId: string) {
       if (!AD_LIBRARY_ID_RE.test(adId)) return null;
       const python = await adLibraryPython(env);
-      if (!python) throw new Error(`Meta: brak meta-ads-collector. ${HOW_TO_GET_ACCESS}`);
+      if (!python) throw new Error(`Meta: no meta-ads-collector. ${HOW_TO_GET_ACCESS}`);
       const info = (await lookupAdLibrary([adId], { python, run }))[adId];
       if (!info || info.error) return null;
       const got = opts.creatives ? await fetchAdCreative(adId, { run, env, ytDlp: opts.ytDlp }) : null;
-      if (got?.error) opts.onNote?.(`Meta ${adId}: kreacja pominięta (${got.error})`);
+      if (got?.error) opts.onNote?.(`Meta ${adId}: creative skipped (${got.error})`);
       const c = got?.creative;
       const name = info.pageName ?? c?.uploader;
       return {

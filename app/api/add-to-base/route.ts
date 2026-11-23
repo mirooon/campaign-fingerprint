@@ -1,6 +1,6 @@
 /**
  * POST /api/add-to-base  { jobId, ids: string[], force? }
- * Adds materials of a finished analysis job to the base of known campaigns (`addToBase`), so the next analysis
+ * Adds samples of a finished analysis job to the base of known campaigns (`addToBase`), so the next analysis
  * sees them. Answers `{ result, messages }`: what was added and what was not, with the reasons. The bundled
  * sample base is read-only (403 with an explanation): point VIEWER_DATA_DIR at a copy to let it grow.
  */
@@ -18,7 +18,7 @@ const Body = z.object({
   force: z.boolean().optional(),
 });
 
-/** POST /api/add-to-base: adds the chosen materials of a job to the base; errors come as `{ error }` with 400, 403, 404, 409 or 500. */
+/** POST /api/add-to-base: adds the chosen samples of a job to the base; errors come as `{ error }` with 400, 403, 404, 409 or 500. */
 export async function POST(request: Request): Promise<Response> {
   const limited = rateLimitResponse(request);
   if (limited) return limited;
@@ -26,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     json = await request.json();
   } catch {
-    return Response.json({ error: "Niepoprawny JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const parsed = Body.safeParse(json);
   if (!parsed.success) return Response.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });
@@ -34,8 +34,8 @@ export async function POST(request: Request): Promise<Response> {
   if (refusal) return Response.json({ error: refusal }, { status: 403 });
   const { jobId, ids, force } = parsed.data;
   const job = getJob(jobId);
-  if (!job) return Response.json({ error: "Nie ma takiego zadania (serwer mógł zostać uruchomiony ponownie)" }, { status: 404 });
-  if (job.status !== "done" || !job.result) return Response.json({ error: "Analiza tego zadania jeszcze się nie skończyła" }, { status: 409 });
+  if (!job) return Response.json({ error: "No such job (the server may have been restarted)" }, { status: 404 });
+  if (job.status !== "done" || !job.result) return Response.json({ error: "The analysis of this job has not finished yet" }, { status: 409 });
   const out = await addJobToBase({ dataDir: DATA_DIR, workDir: path.join(/*turbopackIgnore: true*/ job.dir, "praca"), result: job.result, ids, force });
   if (!out.ok) return Response.json({ error: out.error }, { status: out.status });
   return Response.json({ result: out.result, messages: out.messages }, { headers: { "cache-control": "no-store" } });

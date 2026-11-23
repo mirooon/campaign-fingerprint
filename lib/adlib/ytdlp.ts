@@ -18,9 +18,9 @@ export function parseYtDlpAd(stdout: string): AdCreativeInfo {
   try {
     j = start < 0 ? {} : JSON.parse(stdout.slice(start));
   } catch {
-    throw new Error("niepoprawna odpowiedź yt-dlp");
+    throw new Error("invalid yt-dlp answer");
   }
-  if (!Object.keys(j).length) throw new Error("niepoprawna odpowiedź yt-dlp");
+  if (!Object.keys(j).length) throw new Error("invalid yt-dlp answer");
   return {
     text: str(j.description),
     title: str(j.title),
@@ -41,10 +41,10 @@ export async function fetchAdCreative(
   opts: { run?: ToolRunner; ytDlp?: string | null; env?: EnvMap } = {},
 ): Promise<{ creative: AdCreativeInfo | null; error: string | null }> {
   const bin = opts.ytDlp === undefined ? await which("yt-dlp", opts.env ?? process.env) : opts.ytDlp;
-  if (!bin) return { creative: null, error: "brak yt-dlp (brew install yt-dlp)" };
+  if (!bin) return { creative: null, error: "no yt-dlp (brew install yt-dlp)" };
   const r = await (opts.run ?? defaultRunner)(bin, ["--skip-download", "--dump-json", "--ignore-no-formats-error", "--no-warnings", adLibraryUrl(adId)], { timeoutMs: 90_000 });
-  if (r.timedOut) return { creative: null, error: "yt-dlp: przekroczony czas" };
-  if (r.code !== 0) return { creative: null, error: `yt-dlp: ${(r.stderr.trim().split("\n").pop() ?? "błąd").slice(0, 200)}` };
+  if (r.timedOut) return { creative: null, error: "yt-dlp: timed out" };
+  if (r.code !== 0) return { creative: null, error: `yt-dlp: ${(r.stderr.trim().split("\n").pop() ?? "error").slice(0, 200)}` };
   try {
     return { creative: parseYtDlpAd(r.stdout), error: null };
   } catch (e) {

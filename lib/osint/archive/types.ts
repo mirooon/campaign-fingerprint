@@ -23,7 +23,7 @@ export interface ArchivedCopy {
   meta?: { ip?: string; asn?: string; server?: string; tlsIssuer?: string; title?: string };
   /** The copy was found but must not feed the features (see `judgeCopy`). */
   rejected?: { reason: string };
-  /** What the copy lacks and why ("DOM pominięty: brak klucza URLSCAN_API_KEY", "brak: lista żądań (HTTP 404)"). */
+  /** What the copy lacks and why ("DOM skipped: no URLSCAN_API_KEY key", "missing: request list (HTTP 404)"). */
   notes?: string[];
 }
 

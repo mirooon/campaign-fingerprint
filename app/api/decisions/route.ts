@@ -9,8 +9,8 @@ import { DECISIONS, type Decision } from "@/lib/viewer/decisions";
 import { currentDecisionsFile, loadDecisions, saveDecision } from "@/lib/viewer/decisionsFile";
 
 const Body = z.object({
-  campaign: z.string().trim().regex(/^[A-Za-z0-9_-]{1,32}$/, "Niepoprawny identyfikator kampanii"),
-  status: z.custom<Decision>((v) => typeof v === "string" && (DECISIONS as string[]).includes(v), "Niepoprawna decyzja").nullable(),
+  campaign: z.string().trim().regex(/^[A-Za-z0-9_-]{1,32}$/, "Invalid campaign ID"),
+  status: z.custom<Decision>((v) => typeof v === "string" && (DECISIONS as string[]).includes(v), "Invalid decision").nullable(),
 });
 
 /** GET /api/decisions: all decisions of the base; an unreadable file answers `{ error }` with 500. */
@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     json = await request.json();
   } catch {
-    return Response.json({ error: "Niepoprawny JSON" }, { status: 400 });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
   const parsed = Body.safeParse(json);
   if (!parsed.success) return Response.json({ error: parsed.error.issues.map((i) => i.message).join("; ") }, { status: 400 });

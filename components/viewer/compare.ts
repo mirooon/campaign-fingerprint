@@ -92,17 +92,20 @@ export function sharedEntities(idx: GraphIndex, a: string, b: string, direct: Pa
 export type PersonaSource = "ingest" | "ner" | "fuzzy" | "watchlist";
 
 export const PERSONA_SOURCE_LABELS: Record<PersonaSource, string> = {
-  ingest: "dane wejściowe (np. DROZD)",
-  ner: "NER (wynik modelu)",
-  fuzzy: "OCR/ASR, dopasowanie przybliżone",
-  watchlist: "lista obserwowanych nazwisk",
+  ingest: "input data (e.g. DROZD)",
+  ner: "NER (model output)",
+  fuzzy: "OCR/ASR, approximate match",
+  watchlist: "watchlist of names",
 };
 
-/** Parses the Polish evidence text of a mentions_persona edge into its source. */
+/**
+ * Parses the evidence text of a mentions_persona edge (written by lib/graph/link.ts) into its source. Both the
+ * English wording and the Polish one of graphs built before the English labels are recognised.
+ */
 export function personaSourceOf(evidence: string): PersonaSource {
-  if (/danych wejściowych/i.test(evidence)) return "ingest";
+  if (/input data|danych wejściowych/i.test(evidence)) return "ingest";
   if (/\bNER\b/.test(evidence)) return "ner";
-  if (/OCR|ASR|przybliżon/i.test(evidence)) return "fuzzy";
+  if (/OCR|ASR|approximate|przybliżon/i.test(evidence)) return "fuzzy";
   return "watchlist";
 }
 
@@ -168,6 +171,7 @@ export function personaOptions(campaigns: Campaign[]): PersonaOption[] {
       byId.set(p.id, cur);
     }
   }
+  // Polish collation on purpose: the names are Polish (Ł after L), the UI language does not change that
   return [...byId.values()].sort((x, y) => y.campaigns - x.campaigns || y.ads - x.ads || x.name.localeCompare(y.name, "pl"));
 }
 
@@ -188,29 +192,34 @@ export function weightPartsOf(node: GraphNode): WeightParts | null {
   return { base: p.base, listFactor: p.listFactor, idf: p.idf, ubiquity: typeof p.ubiquity === "number" ? p.ubiquity : undefined };
 }
 
-/** "typ 0.95 × lista 0.05 × odwrotna częstość 0.505 × powszechność 1" */
+/** "type 0.95 × list 0.05 × inverse frequency 0.505 × ubiquity 1" */
 export function weightFormula(parts: WeightParts): string {
-  const terms = [`typ ${parts.base}`, `lista ${parts.listFactor}`, `odwrotna częstość ${parts.idf}`];
-  if (parts.ubiquity !== undefined) terms.push(`powszechność ${parts.ubiquity}`);
+  const terms = [`type ${parts.base}`, `list ${parts.listFactor}`, `inverse frequency ${parts.idf}`];
+  if (parts.ubiquity !== undefined) terms.push(`ubiquity ${parts.ubiquity}`);
   return terms.join(" × ");
 }
 
 export const SIMILARITY_LABELS: Record<string, string> = {
-  similar_image: "podobna kreacja (dHash)",
-  similar_image_semantic: "ten sam szablon kreacji (CLIP)",
-  similar_text: "podobna treść",
-  similar_dom: "ten sam szablon strony (simhash DOM)",
-  similar_audio: "ten sam podkład audio (Chromaprint)",
-  similar_voice: "ten sam głos mówcy (SpeechBrain)",
+  similar_image: "similar creative (dHash)",
+  similar_image_semantic: "same creative template (CLIP)",
+  similar_text: "similar text",
+  similar_dom: "same page template (DOM simhash)",
+  similar_audio: "same audio track (Chromaprint)",
+  similar_voice: "same speaker voice (SpeechBrain)",
 };
 
 export function similarityLabel(t: EdgeType | null): string {
-  return t ? (SIMILARITY_LABELS[t] ?? t) : "podobieństwo";
+  return t ? (SIMILARITY_LABELS[t] ?? t) : "similarity";
 }
 
-/** Polish plural: 1 kampania, 2–4 kampanie, 5+ kampanii (12–14 kampanii). */
-export function plural(n: number, forms: [string, string, string]): string {
+/**
+ * Plural form of a noun: an English pair `[singular, plural]` gives "1 case", "2 cases". A three-form array is the
+ * Polish set (1 kampania, 2–4 kampanie, 5+ kampanii, 12–14 kampanii) still passed by callers outside this file
+ * until they switch to English pairs.
+ */
+export function plural(n: number, forms: readonly [string, string] | readonly [string, string, string]): string {
   if (n === 1) return forms[0];
+  if (forms.length === 2) return forms[1];
   const lastTwo = n % 100;
   const last = n % 10;
   return last >= 2 && last <= 4 && (lastTwo < 12 || lastTwo > 14) ? forms[1] : forms[2];

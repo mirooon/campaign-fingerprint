@@ -102,6 +102,8 @@ describe("comparison helpers", () => {
     expect(personaSourceOf("persona z OCR/ASR (dopasowanie przybliżone)")).toBe("fuzzy");
     expect(personaSourceOf("persona z listy obserwowanych nazwisk")).toBe("watchlist");
     expect(personaSourcesOf("persona z listy obserwowanych nazwisk; z kolumny danych wejściowych")).toEqual(["watchlist", "ingest"]);
+    expect(personaSourceOf("persona from the input data column")).toBe("ingest");
+    expect(personaSourceOf("persona from OCR/ASR (approximate match)")).toBe("fuzzy");
   });
 
   it("tolerates campaigns without attributes (older campaigns.json)", () => {
@@ -116,11 +118,15 @@ describe("comparison helpers", () => {
     const node = graph.nodes.find((n) => n.id === "endpoint:api.web3forms.com/submit")!;
     const parts = weightPartsOf(node)!;
     expect(parts.ubiquity).toBeDefined();
-    expect(weightFormula(parts)).toMatch(/^typ 0\.95 × lista 0\.05 × odwrotna częstość [\d.]+ × powszechność [\d.]+$/);
-    expect(weightFormula({ base: 0.5, listFactor: 1, idf: 0.8 })).toBe("typ 0.5 × lista 1 × odwrotna częstość 0.8");
+    expect(weightFormula(parts)).toMatch(/^type 0\.95 × list 0\.05 × inverse frequency [\d.]+ × ubiquity [\d.]+$/);
+    expect(weightFormula({ base: 0.5, listFactor: 1, idf: 0.8 })).toBe("type 0.5 × list 1 × inverse frequency 0.8");
   });
 
-  it("uses Polish plural forms", () => {
+  it("uses English singular/plural pairs", () => {
+    expect([0, 1, 2, 5].map((n) => plural(n, ["case", "cases"]))).toEqual(["cases", "case", "cases", "cases"]);
+  });
+
+  it("still reads the Polish three-form set", () => {
     const forms: [string, string, string] = ["kampania", "kampanie", "kampanii"];
     expect([1, 2, 4, 5, 12, 14, 22, 25, 0].map((n) => plural(n, forms))).toEqual([
       "kampania",

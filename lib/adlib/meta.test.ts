@@ -34,7 +34,7 @@ describe("Meta source", () => {
   });
 
   it("reports an unreadable output as an error with the reason, not as an empty result", () => {
-    expect(() => parseMetaSearchOutput("Traceback ...", NOW)).toThrow(/niepoprawny wynik/);
+    expect(() => parseMetaSearchOutput("Traceback ...", NOW)).toThrow(/invalid output/);
     expect(() => parseMetaSearchOutput(JSON.stringify({ error: "init: blocked" }), NOW)).toThrow(/init: blocked/);
   });
 

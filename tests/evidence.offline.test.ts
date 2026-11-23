@@ -310,7 +310,7 @@ describe("evidence pack", () => {
     const res = pack("c1-01", "c1-payer", { enriched: ds });
     const ad = res.json.observations.ads.find((a: { item_id: string }) => a.item_id === "c1-01");
     expect(ad).toMatchObject({ payer_kinds: ["person"], payer_equals_beneficiary: true, payer_suspicious: false });
-    expect(ad.payer_notes.join(" ")).toMatch(/kradzie/);
+    expect(ad.payer_notes.join(" ")).toMatch(/identity theft/);
     expect(ad.company_identifiers).toEqual([{ kind: "nip", value: "1234563219", checksum_valid: false, check: "checksum", source: "text", quote: "NIP 123-456-32-19" }]);
     expect(ad.legal_entities).toEqual(["Fikcyjny Sklep Sp. z o.o."]);
     const md = res.read("evidence.md");

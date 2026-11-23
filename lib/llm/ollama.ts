@@ -60,21 +60,21 @@ export class OllamaProvider implements LlmProvider {
     } catch (e) {
       const name = (e as Error)?.name;
       if (name === "TimeoutError" || name === "AbortError") {
-        throw new LlmError(`Ollama: przekroczono limit czasu ${timeoutMs} ms (${endpoint})`, "ollama", "zwiększ LLM_TIMEOUT_MS albo użyj mniejszego modelu", e);
+        throw new LlmError(`Ollama: timed out after ${timeoutMs} ms (${endpoint})`, "ollama", "raise LLM_TIMEOUT_MS or use a smaller model", e);
       }
-      throw new LlmError(`Ollama nie odpowiada pod ${this.host}`, "ollama", "uruchom `brew services start ollama` lub `ollama serve`, albo ustaw OLLAMA_HOST", e);
+      throw new LlmError(`Ollama does not respond at ${this.host}`, "ollama", "run `brew services start ollama` or `ollama serve`, or set OLLAMA_HOST", e);
     }
     const text = await res.text();
     let json: T;
     try {
       json = JSON.parse(text) as T;
     } catch {
-      throw new LlmError(`Ollama: niepoprawna odpowiedź HTTP ${res.status}: ${text.slice(0, 200)}`, "ollama");
+      throw new LlmError(`Ollama: invalid answer HTTP ${res.status}: ${text.slice(0, 200)}`, "ollama");
     }
     if (!res.ok || json.error) {
       const msg = json.error ?? `HTTP ${res.status}`;
       if (res.status === 404 || /not found/i.test(msg)) {
-        throw new LlmError(`Ollama: model "${model}" nie jest dostępny (${msg})`, "ollama", `pobierz go: ollama pull ${model}`);
+        throw new LlmError(`Ollama: model "${model}" is not available (${msg})`, "ollama", `pull it: ollama pull ${model}`);
       }
       throw new LlmError(`Ollama: ${msg}`, "ollama");
     }
@@ -103,12 +103,12 @@ export class OllamaProvider implements LlmProvider {
     delete jsonSchema.$schema;
     const schemaHint: ChatMessage = {
       role: "system",
-      content: `Odpowiadaj wyłącznie poprawnym JSON zgodnym z tym schematem:\n${JSON.stringify(jsonSchema)}`,
+      content: `Respond only with valid JSON that matches this schema:\n${JSON.stringify(jsonSchema)}`,
     };
     let lastError = "";
     for (let attempt = 0; attempt < 2; attempt++) {
       const convo: ChatMessage[] = [schemaHint, ...messages];
-      if (lastError) convo.push({ role: "user", content: `Poprzednia odpowiedź była niepoprawna (${lastError}). Zwróć poprawny JSON.` });
+      if (lastError) convo.push({ role: "user", content: `The previous answer was invalid (${lastError}). Return valid JSON.` });
       const res = await this.post<OllamaChatResponse>(
         "/api/chat",
         { model, messages: convo, stream: false, format: jsonSchema, options: { temperature: opts.temperature ?? 0 } },
@@ -121,10 +121,10 @@ export class OllamaProvider implements LlmProvider {
         if (parsed.success) return parsed.data;
         lastError = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ").slice(0, 300);
       } catch {
-        lastError = "to nie jest JSON";
+        lastError = "not JSON";
       }
     }
-    throw new LlmError(`Ollama: odpowiedź modelu ${model} nie pasuje do schematu (${lastError})`, "ollama");
+    throw new LlmError(`Ollama: the answer of model ${model} does not match the schema (${lastError})`, "ollama");
   }
 
   /** Embeddings via /api/embed (bge-m3 by default), batched. */
@@ -141,7 +141,7 @@ export class OllamaProvider implements LlmProvider {
         model,
       );
       if (!res.embeddings || res.embeddings.length !== chunk.length) {
-        throw new LlmError(`Ollama: /api/embed zwróciło ${res.embeddings?.length ?? 0} wektorów zamiast ${chunk.length}`, "ollama");
+        throw new LlmError(`Ollama: /api/embed returned ${res.embeddings?.length ?? 0} vectors instead of ${chunk.length}`, "ollama");
       }
       out.push(...res.embeddings);
     }

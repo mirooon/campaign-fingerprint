@@ -141,7 +141,7 @@ describe("enrichItems: archive step", () => {
     expect(page.kit?.assets?.length).toBeGreaterThan(0);
     expect(page.archive).toMatchObject({ source: "wayback", sourceUrl: expect.stringContaining("web.archive.org"), capturedAt: "2026-10-18T02:02:57.000Z", used: true });
     expect((page.archive as Record<string, unknown>).html).toBeUndefined();
-    expect(out.perItem.m1.archive).toEqual({ status: "used", detail: "kopia z wayback z 2026-10-18" });
+    expect(out.perItem.m1.archive).toEqual({ status: "used", detail: "copy from wayback of 2026-10-18" });
   });
 
   it("takes the request list of a urlscan copy without a DOM as the page's resources", async () => {
@@ -160,7 +160,7 @@ describe("enrichItems: archive step", () => {
     expect(page.extract).toBeNull();
     expect(page.kit).toBeNull();
     expect(page.bodySource).toBeUndefined();
-    expect(page.archive).toMatchObject({ used: false, rejected: { reason: "kopia sprzed rejestracji domeny" } });
+    expect(page.archive).toMatchObject({ used: false, rejected: { reason: "copy made before the domain was registered" } });
     expect(out.domains["dead.example"].reRegistered).toBe(true);
     expect(out.perItem.m1.archive?.status).toBe("rejected");
   });
@@ -168,7 +168,7 @@ describe("enrichItems: archive step", () => {
   it("checks the era of the domain with the archive's own RDAP lookup when the page sources have none (a run on saved files)", async () => {
     const rdap = async (domain: string) => ({ domain, registrar: null, registrarIanaId: null, created: "2026-09-10T00:00:00Z", expires: null, updated: null, status: [], nameservers: [], abuseEmail: null, source: null });
     const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", skip: { rdap: false }, archive: { sources: [archiveSource("wayback", [waybackCopy("2016-05-01T00:00:00.000Z")])], rdap } });
-    expect(out.pages["https://dead.example/lp/"].archive).toMatchObject({ used: false, rejected: { reason: "kopia sprzed rejestracji domeny" } });
+    expect(out.pages["https://dead.example/lp/"].archive).toMatchObject({ used: false, rejected: { reason: "copy made before the domain was registered" } });
     expect(out.domains["dead.example"].reRegistered).toBe(true);
   });
 
@@ -206,7 +206,7 @@ describe("enrichItems: archive step", () => {
 
   it("says that there is neither a page nor a copy", async () => {
     const out = await enrichItems([deadItem], { sources: deadLive(), baseDir: ".", archive: { sources: [archiveSource("wayback", []), archiveSource("urlscan", [])] } });
-    expect(out.perItem.m1.archive).toEqual({ status: "none", detail: "brak kopii archiwalnej (wayback, urlscan)" });
+    expect(out.perItem.m1.archive).toEqual({ status: "none", detail: "no archived copy (wayback, urlscan)" });
   });
 });
 

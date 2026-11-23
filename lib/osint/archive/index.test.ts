@@ -40,15 +40,15 @@ describe("judgeCopy", () => {
   const ctx = { config: DEFAULT_ARCHIVE_CONFIG };
   it("rejects a copy made before the registration of the domain, and marks the domain as re-registered", () => {
     const v = judgeCopy(copy("wayback", "2016-05-01T00:00:00Z"), { ...ctx, domainCreated: "2026-09-10T00:00:00Z" });
-    expect(v).toEqual({ reason: "kopia sprzed rejestracji domeny", reRegistered: true });
+    expect(v).toEqual({ reason: "copy made before the domain was registered", reRegistered: true });
   });
   it("uses the oldest known certificate when RDAP gives no creation date", () => {
     const v = judgeCopy(copy("wayback", "2026-01-01T00:00:00Z"), { ...ctx, oldestCert: "2026-09-12T00:00:00Z" });
-    expect(v).toEqual({ reason: "kopia sprzed rejestracji domeny", reRegistered: false });
+    expect(v).toEqual({ reason: "copy made before the domain was registered", reRegistered: false });
   });
   it("rejects a copy older than the first sighting by more than the allowed days, without claiming re-registration", () => {
     const v = judgeCopy(copy("urlscan", "2026-08-01T00:00:00Z"), { ...ctx, firstSeen: "2026-10-20T00:00:00Z" });
-    expect(v?.reason).toMatch(/30 dni/);
+    expect(v?.reason).toMatch(/30 days/);
     expect(v?.reRegistered).toBe(false);
   });
   it("accepts a copy within the allowed age, a later copy, and a copy when nothing is known to compare with", () => {
@@ -80,10 +80,10 @@ describe("findArchivedCopy", () => {
     const out = await findArchivedCopy(URL_, { sources: [wb.source], domainCreated: "2026-09-10T00:00:00Z" });
     expect(out.copy).toBeNull();
     expect(out.rejected).toHaveLength(1);
-    expect(out.rejected[0].rejected?.reason).toBe("kopia sprzed rejestracji domeny");
+    expect(out.rejected[0].rejected?.reason).toBe("copy made before the domain was registered");
     expect(out.reRegistered).toBe(true);
     expect(out.tried[0].status).toBe("rejected");
-    expect(out.summary).toMatch(/sprzed rejestracji/);
+    expect(out.summary).toMatch(/before the domain was registered/);
     // a second query looks for a copy from the current owner
     expect(wb.calls[1].after).toBe("2026-09-10T00:00:00.000Z");
   });
@@ -94,7 +94,7 @@ describe("findArchivedCopy", () => {
     expect(out.copy?.capturedAt).toBe("2026-10-02T08:30:00Z");
     expect(out.rejected).toHaveLength(1);
     expect(out.reRegistered).toBe(true);
-    expect(out.summary).toBe("kopia z wayback z 2026-10-02");
+    expect(out.summary).toBe("copy from wayback of 2026-10-02");
   });
 
   it("asks the sources in order and stops at the first acceptable copy", async () => {
@@ -119,7 +119,7 @@ describe("findArchivedCopy", () => {
     const wb = fake("wayback", () => []);
     const out = await findArchivedCopy(URL_, { sources: [us.source, wb.source] });
     expect(out.copy?.source).toBe("urlscan");
-    expect(out.summary).toBe("kopia z urlscan z 2026-11-03");
+    expect(out.summary).toBe("copy from urlscan of 2026-11-03");
   });
 
   it("records why a source was skipped (limit) or failed (error) and goes on to the next one", async () => {
@@ -138,11 +138,11 @@ describe("findArchivedCopy", () => {
 
   it("says plainly that there is no copy when every source answered with nothing", async () => {
     const out = await findArchivedCopy(URL_, { sources: [fake("urlscan", () => []).source, fake("wayback", () => []).source] });
-    expect(out.summary).toBe("brak kopii archiwalnej (urlscan, wayback)");
+    expect(out.summary).toBe("no archived copy (urlscan, wayback)");
   });
 
   it("explains that no source is available when the list is empty", async () => {
-    expect((await findArchivedCopy(URL_, { sources: [] })).summary).toMatch(/brak źródeł/);
+    expect((await findArchivedCopy(URL_, { sources: [] })).summary).toMatch(/no archive sources/);
   });
 });
 

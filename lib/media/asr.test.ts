@@ -63,7 +63,7 @@ describe("detectAsr", () => {
       env: { WHISPER_MODEL: path.join(dir, "missing.bin"), MLX_WHISPER_MODEL: "example-org/whisper-not-downloaded", HF_HUB_CACHE: emptyHub },
     });
     expect(notCached.available).toBe(false);
-    expect(notCached.reason).toContain("lokalnie");
+    expect(notCached.reason).toContain("locally");
 
     const cachedRepo = path.join(emptyHub, "models--example-org--whisper-cached");
     mkdirSync(cachedRepo);
@@ -77,8 +77,8 @@ describe("detectAsr", () => {
   it("is unavailable with reasons when nothing is installed", async () => {
     const s = await detectAsr({ run: fakeRunner(() => ({ code: null, stderr: "ENOENT" })), env: {} });
     expect(s).toMatchObject({ available: false, tool: null, model: null });
-    expect(s.reason).toContain("whisper-cli niedostępny");
-    expect(s.reason).toContain("mlx_whisper niedostępny");
+    expect(s.reason).toContain("whisper-cli unavailable");
+    expect(s.reason).toContain("mlx_whisper unavailable");
   });
 });
 

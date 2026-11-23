@@ -16,7 +16,7 @@ import type { AdLibrarySource, AdRecord, AdSearchQuery } from "./types";
 
 const CONF = ADLIB_CONFIG.googleRpc;
 const DOMAIN_RE = /^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
-const HOW_TO_ENABLE = `${CONF.enableEnv}=1 (nieoficjalne RPC publicznej strony; ryzyko warunków serwisu opisane w docs/ZRODLA-METADANYCH.md)`;
+const HOW_TO_ENABLE = `${CONF.enableEnv}=1 (unofficial RPC of the public page; the terms-of-service risk is described in docs/ZRODLA-METADANYCH.md)`;
 
 /** Function that sends one form POST and returns the answer body (injected; the default uses `fetch`). */
 export type RpcFetch = (url: string, init: { method: "POST"; headers: Record<string, string>; body: string }) => Promise<string>;
@@ -49,13 +49,13 @@ function parseJson(body: string): Record<string, unknown> {
   } catch {
     // reported below with one message for every unreadable answer
   }
-  throw new Error("Google RPC: niepoprawna odpowiedź (to nie JSON usługi; możliwa blokada albo zmiana formatu)");
+  throw new Error("Google RPC: invalid answer (not the service JSON; possibly blocked or the format changed)");
 }
 
 /** Records of a `SearchCreatives` answer; `domain` is the one searched for and becomes each record's landing address. */
 export function parseSearchCreatives(body: string, o: { domain: string; fetchedAt: string }): AdRecord[] {
   const list = parseJson(body)["1"];
-  if (!Array.isArray(list)) throw new Error("Google RPC: niepoprawna odpowiedź (brak listy reklam)");
+  if (!Array.isArray(list)) throw new Error("Google RPC: invalid answer (no ad list)");
   return list.flatMap((c): AdRecord[] => {
     const o1 = c as Record<string, unknown>;
     const adId = text(o1["2"]);
@@ -81,7 +81,7 @@ export function parseSearchCreatives(body: string, o: { domain: string; fetchedA
 /** Advertisers named by a `SearchSuggestions` answer (name, `AR…` ID, country). */
 export function parseSuggestions(body: string): Array<{ name: string; advertiserId: string; country?: string }> {
   const list = parseJson(body)["1"];
-  if (!Array.isArray(list)) throw new Error("Google RPC: niepoprawna odpowiedź (brak listy reklamodawców)");
+  if (!Array.isArray(list)) throw new Error("Google RPC: invalid answer (no advertiser list)");
   return list.flatMap((e) => {
     const a = (e as { "1"?: Record<string, unknown> })["1"] ?? {};
     const name = text(a["1"]);
@@ -117,11 +117,11 @@ export function createGoogleRpcSource(opts: GoogleRpcOptions = {}): AdLibrarySou
   return {
     platform: "google",
     async available() {
-      return env[CONF.enableEnv] === "1" ? { ok: true } : { ok: false, reason: "wyszukiwanie po domenie przez nieoficjalne RPC jest wyłączone", howToGetAccess: HOW_TO_ENABLE };
+      return env[CONF.enableEnv] === "1" ? { ok: true } : { ok: false, reason: "searching by domain through the unofficial RPC is turned off", howToGetAccess: HOW_TO_ENABLE };
     },
     async search(q: AdSearchQuery) {
       const domain = q.keyword?.trim().toLowerCase();
-      if (!domain || !looksLikeDomain(domain)) throw new Error("Google RPC: szukam tylko po domenie (--keyword oferta.example)");
+      if (!domain || !looksLikeDomain(domain)) throw new Error("Google RPC: searches by domain only (--keyword oferta.example)");
       const body = buildSearchCreativesBody({ domain, region: q.country, pageSize: Math.min(q.limit ?? CONF.pageSize, CONF.pageSize) });
       return parseSearchCreatives(await send(`${CONF.base}/SearchService/SearchCreatives?authuser=`, { method: "POST", headers, body }), { domain, fetchedAt: now() });
     },

@@ -104,7 +104,7 @@ describe("AnthropicProvider (SDK with injected fetch, no network)", () => {
   it("maps refusals and auth errors to LlmError", async () => {
     const refusal = { ...message(""), stop_reason: "refusal", stop_details: { type: "refusal", category: "cyber", explanation: null } };
     const client = new Anthropic({ apiKey: "k", fetch: fakeFetch([{ json: refusal }], []), maxRetries: 0 });
-    await expect(new AnthropicProvider({ client }).chat([{ role: "user", content: "x" }])).rejects.toThrow(/odmówił/);
+    await expect(new AnthropicProvider({ client }).chat([{ role: "user", content: "x" }])).rejects.toThrow(/refused/);
 
     const authClient = new Anthropic({
       apiKey: "bad",

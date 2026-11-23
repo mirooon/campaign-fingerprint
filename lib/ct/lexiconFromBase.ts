@@ -31,5 +31,5 @@ export function lexiconFromGraph(graph: EvidenceGraph): { brands: string[] } {
 
 /** The lexicon file (`ct-lexicon.json` of a base), in the format `loadCtConfig` reads. */
 export function ctLexiconFile(brands: string[], now: Date): { _comment: string; lexicon: { brands: string[] } } {
-  return { _comment: `Wygenerowano z bazy ${now.toISOString()}: podrabiane marki i nazwy landerów kampanii (lib/ct/lexiconFromBase.ts). Nie edytuj: kolejne bun run base nadpisze plik.`, lexicon: { brands } };
+  return { _comment: `Generated from the base ${now.toISOString()}: impersonated brands and lander names of the campaigns (lib/ct/lexiconFromBase.ts). Do not edit: the next bun run base overwrites the file.`, lexicon: { brands } };
 }

@@ -21,7 +21,7 @@ export async function detectOcr(opts: { run?: ToolRunner; lang?: string; bin?: s
   const lang = opts.lang ?? "pol";
   const v = await run(bin, ["--version"], { timeoutMs: 15_000 });
   if (v.code !== 0) {
-    return { available: false, reason: `${bin} niedostępny (${v.timedOut ? "timeout" : "brak programu lub błąd"})`, version: null, langs: [] };
+    return { available: false, reason: `${bin} unavailable (${v.timedOut ? "timeout" : "program missing or failed"})`, version: null, langs: [] };
   }
   const version = /tesseract\s+v?(\d+(?:\.\d+)*)/i.exec(`${v.stdout}\n${v.stderr}`)?.[1] ?? null;
   const l = await run(bin, ["--list-langs"], { timeoutMs: 15_000 });
@@ -34,7 +34,7 @@ export async function detectOcr(opts: { run?: ToolRunner; lang?: string; bin?: s
       : [];
   const missing = lang.split("+").filter((code) => !langs.includes(code));
   if (missing.length) {
-    return { available: false, reason: `brak danych językowych tesseract: ${missing.join(", ")}`, version, langs };
+    return { available: false, reason: `missing tesseract language data: ${missing.join(", ")}`, version, langs };
   }
   return { available: true, reason: null, version, langs };
 }

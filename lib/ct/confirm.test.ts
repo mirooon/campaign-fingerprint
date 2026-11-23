@@ -49,7 +49,7 @@ describe("potwierdzenie kandydata CT po infrastrukturze kampanii", () => {
   it("ta sama para NS i godzina rejestracji w oknie → confirmed, z opisem każdej cechy", () => {
     const r = confirmCandidate(candidate(), infra.get("K01")!);
     expect(r.confirmed).toBe(true);
-    expect(r.confirmations).toEqual(["ta sama para serwerów nazw (ns1.k.test, ns2.k.test)", "rejestracja o godzinie 18:00 UTC, w oknie godzin kampanii (17–19)"]);
+    expect(r.confirmations).toEqual(["same name server pair (ns1.k.test, ns2.k.test)", "registered at 18:00 UTC, within the campaign hour window (17–19)"]);
   });
 
   it("jedna cecha to jeszcze nie potwierdzenie, a domena innej infrastruktury nie ma żadnej", () => {
@@ -69,7 +69,7 @@ describe("potwierdzenie kandydata CT po infrastrukturze kampanii", () => {
     const r = confirmCandidate(e, infra.get("K01")!);
     expect(r.confirmed).toBe(true);
     expect(r.confirmations.join(" | ")).toContain("192.0.2.10");
-    expect(r.confirmations.join(" | ")).toContain("skrót treści strony");
-    expect(r.confirmations.join(" | ")).not.toContain("tytuł");
+    expect(r.confirmations.join(" | ")).toContain("page body hash");
+    expect(r.confirmations.join(" | ")).not.toContain("title");
   });
 });

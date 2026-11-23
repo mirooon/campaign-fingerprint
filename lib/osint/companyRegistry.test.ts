@@ -38,7 +38,7 @@ describe("companyRegistry parsers", () => {
   });
   it("reads the KRS extract without persons", () => {
     const r = parseKrsExtract(KRS, "0000000001");
-    expect(r).toMatchObject({ found: true, name: "ATRAPA TRADING SPÓŁKA AKCYJNA", registeredAt: "2012-03-15", postalCode: "11-111", status: "wpisany" });
+    expect(r).toMatchObject({ found: true, name: "ATRAPA TRADING SPÓŁKA AKCYJNA", registeredAt: "2012-03-15", postalCode: "11-111", status: "registered" });
     expect(r.address).toBe("ul. Testowa 7/2, 11-111 Gdzieśtam");
     expect(JSON.stringify(r)).not.toContain("Fikcyjnowski");
   });

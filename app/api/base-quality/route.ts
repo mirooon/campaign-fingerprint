@@ -1,7 +1,7 @@
 /**
- * GET /api/base-quality — quality of the data of the whole base: per material the five checks (zrzut, strona, HAR,
- * adres, wideo) with the reason and effect of a gap, and counts per check. Reads `provenance.json` of the base when
- * it has one; without it the picture rests on the data of the materials and says so in `note`.
+ * GET /api/base-quality — quality of the data of the whole base: per sample the five checks (screenshot, page, HAR,
+ * address, video) with the reason and effect of a gap, and counts per check. Reads `provenance.json` of the base when
+ * it has one; without it the picture rests on the data of the samples and says so in `note`.
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
@@ -15,14 +15,14 @@ export async function GET(): Promise<Response> {
   // Render per request: without it `next build` prerenders this response once from the repository's data/.
   await connection();
   const { graph, error } = loadViewerData();
-  if (!graph) return Response.json({ error: error ?? "Brak bazy" }, { status: 503 });
+  if (!graph) return Response.json({ error: error ?? "No base" }, { status: 503 });
   const file = path.join(DATA_DIR, "provenance.json");
   let provenance: CaseProvenance[] | null = null;
   if (existsSync(file)) {
     try {
       provenance = (JSON.parse(readFileSync(file, "utf8")) as { cases?: CaseProvenance[] }).cases ?? [];
     } catch (e) {
-      return Response.json({ error: `Nie udało się odczytać provenance.json: ${(e as Error).message}` }, { status: 500 });
+      return Response.json({ error: `Could not read provenance.json: ${(e as Error).message}` }, { status: 500 });
     }
   }
   return Response.json(baseQuality({ provenance, nodes: graph.nodes }), { headers: { "cache-control": "no-store" } });

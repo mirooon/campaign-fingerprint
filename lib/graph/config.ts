@@ -368,7 +368,7 @@ export interface LinkConfig {
   };
 }
 
-const CF = "Cloudflare (współdzielony anycast/proxy CDN)";
+const CF = "Cloudflare (shared anycast/proxy CDN)";
 
 export const DEFAULT_LINK_CONFIG: LinkConfig = {
   typeWeights: {
@@ -584,15 +584,15 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { asn: 30148, factor: 0.05, ipFactor: 0.05, reason: "Sucuri (proxy)" },
       { asn: 60068, factor: 0.1, ipFactor: 0.1, reason: "CDN77/Datacamp (CDN)" },
       { asn: 199524, factor: 0.1, ipFactor: 0.1, reason: "G-Core (CDN)" },
-      { asn: 15169, factor: 0.05, ipFactor: 0.2, reason: "Google (współdzielona infrastruktura)" },
+      { asn: 15169, factor: 0.05, ipFactor: 0.2, reason: "Google (shared infrastructure)" },
       { asn: 396982, factor: 0.05, ipFactor: 0.5, reason: "Google Cloud" },
-      { asn: 16509, factor: 0.05, ipFactor: 0.3, reason: "Amazon AWS (w tym CloudFront)" },
+      { asn: 16509, factor: 0.05, ipFactor: 0.3, reason: "Amazon AWS (including CloudFront)" },
       { asn: 14618, factor: 0.05, ipFactor: 0.3, reason: "Amazon AWS" },
       { asn: 8075, factor: 0.05, ipFactor: 0.3, reason: "Microsoft/Azure" },
-      { asn: 32934, factor: 0.05, ipFactor: 0.1, reason: "Meta (infrastruktura platformy)" },
-      { asn: 46606, factor: 0.1, ipFactor: 0.3, reason: "Unified Layer (hosting współdzielony)" },
-      { asn: 26496, factor: 0.1, ipFactor: 0.3, reason: "GoDaddy (hosting współdzielony)" },
-      { asn: 47583, factor: 0.1, ipFactor: 0.3, reason: "Hostinger (hosting współdzielony)" },
+      { asn: 32934, factor: 0.05, ipFactor: 0.1, reason: "Meta (platform infrastructure)" },
+      { asn: 46606, factor: 0.1, ipFactor: 0.3, reason: "Unified Layer (shared hosting)" },
+      { asn: 26496, factor: 0.1, ipFactor: 0.3, reason: "GoDaddy (shared hosting)" },
+      { asn: 47583, factor: 0.1, ipFactor: 0.3, reason: "Hostinger (shared hosting)" },
     ],
     ipCidrs: [
       ...[
@@ -620,41 +620,41 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "2c0f:f248::/32",
       ].map((cidr) => ({ cidr, factor: 0.02, reason: CF })),
       { cidr: "151.101.0.0/16", factor: 0.05, reason: "Fastly (CDN)" },
-      { cidr: "76.76.21.0/24", factor: 0.05, reason: "Vercel (anycast platformy)" },
-      { cidr: "75.2.60.5/32", factor: 0.05, reason: "Netlify (load balancer platformy)" },
+      { cidr: "76.76.21.0/24", factor: 0.05, reason: "Vercel (platform anycast)" },
+      { cidr: "75.2.60.5/32", factor: 0.05, reason: "Netlify (platform load balancer)" },
       { cidr: "185.199.108.0/22", factor: 0.05, reason: "GitHub Pages" },
       { cidr: "199.36.158.100/32", factor: 0.05, reason: "Firebase Hosting" },
       // registrars point suspended domains at a public resolver address: a trait of the suspension, not of an operator
-      { cidr: "1.1.1.0/24", factor: 0.02, reason: "adres zastępczy zawieszonej domeny (publiczny resolver, wpisywany przez rejestratora)" },
+      { cidr: "1.1.1.0/24", factor: 0.02, reason: "placeholder address of a suspended domain (public resolver, set by the registrar)" },
     ],
     mxSuffixes: [
-      { match: "google.com", factor: 0.05, reason: "poczta Google (masowo współdzielona)" },
-      { match: "googlemail.com", factor: 0.05, reason: "poczta Google (masowo współdzielona)" },
-      { match: "outlook.com", factor: 0.05, reason: "poczta Microsoft (masowo współdzielona)" },
-      { match: "protection.outlook.com", factor: 0.05, reason: "poczta Microsoft 365 (masowo współdzielona)" },
-      { match: "hotmail.com", factor: 0.05, reason: "poczta Microsoft (masowo współdzielona)" },
-      { match: "zoho.com", factor: 0.05, reason: "poczta Zoho (masowo współdzielona)" },
-      { match: "zoho.eu", factor: 0.05, reason: "poczta Zoho (masowo współdzielona)" },
-      { match: "yandex.net", factor: 0.05, reason: "poczta Yandex (masowo współdzielona)" },
-      { match: "yandex.ru", factor: 0.05, reason: "poczta Yandex (masowo współdzielona)" },
-      { match: "mail.ru", factor: 0.05, reason: "poczta Mail.ru (masowo współdzielona)" },
-      { match: "privateemail.com", factor: 0.05, reason: "poczta Namecheap (rejestrator)" },
-      { match: "registrar-servers.com", factor: 0.05, reason: "poczta Namecheap (rejestrator)" },
-      { match: "secureserver.net", factor: 0.05, reason: "poczta GoDaddy (rejestrator)" },
-      { match: "domaincontrol.com", factor: 0.05, reason: "poczta GoDaddy (rejestrator)" },
-      { match: "ovh.net", factor: 0.1, reason: "poczta OVH (hosting, masowo współdzielona)" },
-      { match: "home.pl", factor: 0.1, reason: "poczta home.pl (hosting)" },
-      { match: "nazwa.pl", factor: 0.1, reason: "poczta nazwa.pl (hosting)" },
-      { match: "emailsrvr.com", factor: 0.1, reason: "poczta Rackspace (hosting)" },
-      { match: "titan.email", factor: 0.1, reason: "poczta Titan (hosting)" },
-      { match: "hostinger.com", factor: 0.1, reason: "poczta Hostinger (hosting)" },
-      { match: "mxrouting.net", factor: 0.1, reason: "poczta MXroute (hosting)" },
-      { match: "improvmx.com", factor: 0.05, reason: "przekierowanie ImprovMX (masowo współdzielone)" },
-      { match: "forwardemail.net", factor: 0.05, reason: "przekierowanie Forward Email (masowo współdzielone)" },
-      { match: "mailgun.org", factor: 0.1, reason: "Mailgun (masowo współdzielony)" },
+      { match: "google.com", factor: 0.05, reason: "Google mail (shared at mass scale)" },
+      { match: "googlemail.com", factor: 0.05, reason: "Google mail (shared at mass scale)" },
+      { match: "outlook.com", factor: 0.05, reason: "Microsoft mail (shared at mass scale)" },
+      { match: "protection.outlook.com", factor: 0.05, reason: "Microsoft 365 mail (shared at mass scale)" },
+      { match: "hotmail.com", factor: 0.05, reason: "Microsoft mail (shared at mass scale)" },
+      { match: "zoho.com", factor: 0.05, reason: "Zoho mail (shared at mass scale)" },
+      { match: "zoho.eu", factor: 0.05, reason: "Zoho mail (shared at mass scale)" },
+      { match: "yandex.net", factor: 0.05, reason: "Yandex mail (shared at mass scale)" },
+      { match: "yandex.ru", factor: 0.05, reason: "Yandex mail (shared at mass scale)" },
+      { match: "mail.ru", factor: 0.05, reason: "Mail.ru mail (shared at mass scale)" },
+      { match: "privateemail.com", factor: 0.05, reason: "Namecheap mail (registrar)" },
+      { match: "registrar-servers.com", factor: 0.05, reason: "Namecheap mail (registrar)" },
+      { match: "secureserver.net", factor: 0.05, reason: "GoDaddy mail (registrar)" },
+      { match: "domaincontrol.com", factor: 0.05, reason: "GoDaddy mail (registrar)" },
+      { match: "ovh.net", factor: 0.1, reason: "OVH mail (hosting, shared at mass scale)" },
+      { match: "home.pl", factor: 0.1, reason: "home.pl mail (hosting)" },
+      { match: "nazwa.pl", factor: 0.1, reason: "nazwa.pl mail (hosting)" },
+      { match: "emailsrvr.com", factor: 0.1, reason: "Rackspace mail (hosting)" },
+      { match: "titan.email", factor: 0.1, reason: "Titan mail (hosting)" },
+      { match: "hostinger.com", factor: 0.1, reason: "Hostinger mail (hosting)" },
+      { match: "mxrouting.net", factor: 0.1, reason: "MXroute mail (hosting)" },
+      { match: "improvmx.com", factor: 0.05, reason: "ImprovMX forwarding (shared at mass scale)" },
+      { match: "forwardemail.net", factor: 0.05, reason: "Forward Email forwarding (shared at mass scale)" },
+      { match: "mailgun.org", factor: 0.1, reason: "Mailgun (shared at mass scale)" },
     ],
     nameserverSuffixes: [
-      { match: "ns.cloudflare.com", factor: 0.1, reason: "NS Cloudflare (masowo współdzielone)" },
+      { match: "ns.cloudflare.com", factor: 0.1, reason: "Cloudflare NS (shared at mass scale)" },
       { match: "awsdns", factor: 0.1, reason: "Amazon Route 53" },
       { match: "domaincontrol.com", factor: 0.1, reason: "NS GoDaddy" },
       { match: "registrar-servers.com", factor: 0.1, reason: "NS Namecheap" },
@@ -675,28 +675,28 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { match: "linode.com", factor: 0.1, reason: "NS Linode" },
       { match: "home.pl", factor: 0.1, reason: "NS home.pl" },
       { match: "nazwa.pl", factor: 0.1, reason: "NS nazwa.pl" },
-      { match: "sedoparking.com", factor: 0.05, reason: "NS parkingu domen (Sedo)" },
-      { match: "parkingcrew.net", factor: 0.05, reason: "NS parkingu domen (ParkingCrew)" },
-      { match: "bodis.com", factor: 0.05, reason: "NS parkingu domen (Bodis)" },
-      { match: "above.com", factor: 0.05, reason: "NS parkingu domen (Above)" },
-      { match: "dns-parking.com", factor: 0.05, reason: "NS parkingu/hostingu (Hostinger)" },
-      { match: "afternic.com", factor: 0.05, reason: "NS parkingu domen (Afternic)" },
-      { match: "dan.com", factor: 0.05, reason: "NS parkingu domen (Dan.com)" },
-      { match: "dyna-ns.net", factor: 0.02, reason: "NS zawieszenia domen rejestratora (Dynadot): cecha usługi rejestratora, nie operatora" },
+      { match: "sedoparking.com", factor: 0.05, reason: "domain parking NS (Sedo)" },
+      { match: "parkingcrew.net", factor: 0.05, reason: "domain parking NS (ParkingCrew)" },
+      { match: "bodis.com", factor: 0.05, reason: "domain parking NS (Bodis)" },
+      { match: "above.com", factor: 0.05, reason: "domain parking NS (Above)" },
+      { match: "dns-parking.com", factor: 0.05, reason: "parking/hosting NS (Hostinger)" },
+      { match: "afternic.com", factor: 0.05, reason: "domain parking NS (Afternic)" },
+      { match: "dan.com", factor: 0.05, reason: "domain parking NS (Dan.com)" },
+      { match: "dyna-ns.net", factor: 0.02, reason: "registrar's domain suspension NS (Dynadot): a feature of the registrar's service, not of the operator" },
     ],
     suspendedRdapStatuses: ["clienthold", "serverhold"],
     certIssuers: [
-      { match: "let's encrypt", factor: 0.6, reason: "darmowy CA (Let's Encrypt)" },
-      { match: "zerossl", factor: 0.6, reason: "darmowy CA (ZeroSSL)" },
-      { match: "google trust services", factor: 0.6, reason: "darmowy/automatyczny CA (Google Trust Services)" },
-      { match: "cloudflare", factor: 0.5, reason: "certyfikat wystawiony dla proxy Cloudflare" },
-      { match: "cpanel", factor: 0.6, reason: "automatyczny CA hostingu (cPanel)" },
-      { match: "buypass", factor: 0.6, reason: "darmowy CA (Buypass Go)" },
+      { match: "let's encrypt", factor: 0.6, reason: "free CA (Let's Encrypt)" },
+      { match: "zerossl", factor: 0.6, reason: "free CA (ZeroSSL)" },
+      { match: "google trust services", factor: 0.6, reason: "free/automatic CA (Google Trust Services)" },
+      { match: "cloudflare", factor: 0.5, reason: "certificate issued for the Cloudflare proxy" },
+      { match: "cpanel", factor: 0.6, reason: "automatic hosting CA (cPanel)" },
+      { match: "buypass", factor: 0.6, reason: "free CA (Buypass Go)" },
     ],
     certSanMarkers: [
-      { match: "cloudflaressl.com", factor: 0.02, reason: "współdzielony certyfikat Cloudflare" },
-      { match: "incapsula.com", factor: 0.02, reason: "współdzielony certyfikat Imperva" },
-      { match: "edgecastcdn.net", factor: 0.05, reason: "współdzielony certyfikat CDN" },
+      { match: "cloudflaressl.com", factor: 0.02, reason: "shared Cloudflare certificate" },
+      { match: "incapsula.com", factor: 0.02, reason: "shared Imperva certificate" },
+      { match: "edgecastcdn.net", factor: 0.05, reason: "shared CDN certificate" },
     ],
     registrars: [
       "godaddy",
@@ -723,7 +723,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "home.pl",
       "nazwa.pl",
       "cyber_folks",
-    ].map((match) => ({ match, factor: 0.6, reason: `popularny rejestrator (${match})` })),
+    ].map((match) => ({ match, factor: 0.6, reason: `popular registrar (${match})` })),
     domains: [
       ...[
         "facebook.com",
@@ -752,7 +752,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "wikipedia.org",
         "yandex.ru",
         "yandex.com",
-      ].map((match) => ({ match, factor: 0, reason: "duża platforma (nie świadczy o powiązaniu)" })),
+      ].map((match) => ({ match, factor: 0, reason: "large platform (does not indicate a link)" })),
       ...[
         "bit.ly",
         "bitly.com",
@@ -765,7 +765,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "shorturl.at",
         "rb.gy",
         "linktr.ee",
-      ].map((match) => ({ match, factor: 0, reason: "skracacz linków (liczy się pełny URL, nie domena)" })),
+      ].map((match) => ({ match, factor: 0, reason: "link shortener (the full URL counts, not the domain)" })),
       ...[
         "cloudflare.com",
         "googleapis.com",
@@ -791,14 +791,14 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "amazonaws.com",
         "akamaihd.net",
         "tiktokcdn.com",
-      ].map((match) => ({ match, factor: 0, reason: "CDN/biblioteka/usługa współdzielona" })),
+      ].map((match) => ({ match, factor: 0, reason: "shared CDN/library/service" })),
       ...["unsplash.com", "pexels.com", "pixabay.com", "shutterstock.com", "istockphoto.com", "gettyimages.com", "freepik.com", "depositphotos.com"].map((match) => ({
         match,
         factor: 0,
-        reason: "bank zdjęć (te same zdjęcia na niezwiązanych stronach)",
+        reason: "stock photo library (the same photos on unrelated pages)",
       })),
       ...["onet.pl", "wp.pl", "interia.pl", "gazeta.pl", "o2.pl", "money.pl", "bankier.pl", "tvn24.pl", "polsatnews.pl", "rmf24.pl"].map(
-        (match) => ({ match, factor: 0, reason: "popularny portal (linki dla uwiarygodnienia)" }),
+        (match) => ({ match, factor: 0, reason: "popular portal (links added for credibility)" }),
       ),
     ],
     pivots: [],
@@ -841,7 +841,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "zoho.com",
         "airtable.com",
         "netlify.com",
-      ].map((match) => ({ match, factor: 0.05, reason: "publiczny serwis formularzy (współdzielony przez wiele stron)" })),
+      ].map((match) => ({ match, factor: 0.05, reason: "public form service (shared by many pages)" })),
       ...[
         "google-analytics.com",
         "analytics.google.com",
@@ -862,11 +862,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "cloudflareinsights.com",
         "recaptcha.net",
         "hcaptcha.com",
-      ].map((match) => ({ match, factor: 0.05, reason: "analityka/antyspam (współdzielone przez wiele stron)" })),
+      ].map((match) => ({ match, factor: 0.05, reason: "analytics/anti-spam (shared by many pages)" })),
       ...["ipinfo.io", "ipgeolocation.io", "ip-api.com", "ipapi.co", "ipify.org", "geojs.io"].map((match) => ({
         match,
         factor: 0.05,
-        reason: "publiczna usługa geolokalizacji IP (część kitów, ale współdzielona)",
+        reason: "public IP geolocation service (used by some kits, but shared)",
       })),
     ],
     endpointPlatformPaths: [
@@ -875,14 +875,14 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       ...["/api/v1/trigger/", "/api/v1/agent/", "/api/v1/pwa/manifest/", "/aio-static/", "/aio-sw.js"].map((match) => ({
         match,
         factor: 0.01,
-        reason: "plik lub ścieżka SDK platformy stron (window.aio), wspólne dla wszystkich jej kont",
+        reason: "file or path of the page-builder platform SDK (window.aio), common to all its accounts",
         platform: "aio",
       })),
       // public scans: the same script on landers of many unrelated operators in many countries
-      { match: "/include/events-stat.js", factor: 0.1, reason: "skrypt zdarzeń platformy trackera (Binom), wspólny dla wszystkich jej instalacji", platform: "binom" },
-      { match: "/click", factor: 0.1, reason: "ścieżka linku kampanii platformy trackera (/click?key=…), wspólna dla wszystkich jej instalacji", platform: "binom" },
+      { match: "/include/events-stat.js", factor: 0.1, reason: "event script of the tracker platform (Binom), common to all its installations", platform: "binom" },
+      { match: "/click", factor: 0.1, reason: "campaign link path of the tracker platform (/click?key=…), common to all its installations", platform: "binom" },
       // public scans: the email-decode script of the proxy on pages of many unrelated operators
-      { match: "/cdn-cgi/", factor: 0.02, reason: "ścieżka dodawana przez CDN (Cloudflare) każdej stronie za jego proxy (np. email-decode.min.js): cecha CDN, nie operatora" },
+      { match: "/cdn-cgi/", factor: 0.02, reason: "path the CDN (Cloudflare) adds to every page behind its proxy (e.g. email-decode.min.js): a feature of the CDN, not of the operator" },
     ],
     multiTenantBackends: [
       ...[
@@ -921,14 +921,14 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "leadsquared.com",
         "keycrm.app",
         "lp-crm.biz",
-      ].map((match) => ({ match, factor: 0.1, reason: "usługa wielu klientów (formularze, zbieranie leadów, webhooki, CRM): bez identyfikatora klienta cecha usługi, nie operatora" })),
+      ].map((match) => ({ match, factor: 0.1, reason: "multi-customer service (forms, lead collection, webhooks, CRM): without a customer ID it is a feature of the service, not of the operator" })),
       // public scans (urlscan, 44 scans of unrelated sites in many sectors): one script for many clients
-      { match: "afrdtech.com", factor: 0.1, reason: "publiczna usługa wielu klientów (skrypt na stronach wielu niezwiązanych branż w publicznych skanach)" },
+      { match: "afrdtech.com", factor: 0.1, reason: "public multi-customer service (script found on pages of many unrelated industries in public scans)" },
     ],
     browserHosts: ["gvt1.com", "gvt2.com", "mozilla.net", "mozilla.com", "mozilla.org", "firefox.com", "msedge.net", "bing.com", "brave.com", "opera.com", "operacdn.com", "grammarly.com", "grammarly.io", "lastpass.com", "1password.com", "adblockplus.org", "getadblock.com"].map((match) => ({
       match,
       factor: 0,
-      reason: "ruch przeglądarki albo rozszerzenia analityka (aktualizacje, telemetria), nie strony",
+      reason: "traffic of the analyst's browser or extension (updates, telemetry), not of the page",
     })),
     // public scans: several landers of one campaign load their libraries from one site on a free hosting platform
     accountSiteSuffixes: [
@@ -949,11 +949,11 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "lovable.app",
       "azurestaticapps.net",
       "azurewebsites.net",
-    ].map((match) => ({ match, factor: 0.7, reason: `witryna jednego konta darmowego hostingu (${match})` })),
+    ].map((match) => ({ match, factor: 0.7, reason: `site of a single free-hosting account (${match})` })),
     genericScamBrands: ["quantumai", "immediate*", "bitcoinera", "bitcoincode", "bitcoinprofit", "bitcoinsupreme", "bitcoinrevolution", "cryptogenius", "cryptosoft", "teslax", "bitindex*", "trustpair", "oilprofit", "bitqt", "yuanpay*"].map((match) => ({
       match,
       factor: 0.2,
-      reason: "ogólna nazwa „platformy inwestycyjnej” używana przez wiele niezwiązanych oszustw",
+      reason: "generic “investment platform” name used by many unrelated scams",
     })),
     // seed from public registers (KRS), to be completed by the owner of the data: firms that many unrelated shops name in the footer
     companyIdIntermediaries: [
@@ -961,16 +961,16 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       { match: "nip:7792369887", name: "PayPro S.A. (Przelewy24)" },
       { match: "nip:6793087624", name: "InPost S.A." },
       { match: "nip:5260250995", name: "Poczta Polska S.A." },
-    ].map(({ match, name }) => ({ match, factor: 0, reason: `identyfikator pośrednika (${name}): występuje w stopkach wielu niezwiązanych sklepów` })),
+    ].map(({ match, name }) => ({ match, factor: 0, reason: `intermediary ID (${name}): appears in the footers of many unrelated shops` })),
     // filled by hand with addresses of virtual offices that many unrelated shops give; the repository keeps only a fictional example
-    postalAddressExclusions: [{ match: "biurowa 1|00000|przykladowo", name: "biuro wirtualne (przykład)" }].map(({ match, name }) => ({
+    postalAddressExclusions: [{ match: "biurowa 1|00000|przykladowo", name: "virtual office (example)" }].map(({ match, name }) => ({
       match,
       factor: 0,
-      reason: `adres pośrednika (${name}): podają go sklepy niezwiązane ze sobą`,
+      reason: `intermediary address (${name}): given by shops unrelated to each other`,
     })),
     paramSchemaPlatformParts: [
-      { match: "key:hex", factor: 0.1, reason: "format linku kampanii platformy trackera (key=<32 hex>), cecha typu platformy, nie operatora", platform: "binom" },
-      { match: "utm_visit:uuid", factor: 0.1, reason: "domyślny szablon linku platformy stron (utm_visit=<UUIDv7> i losowe utm_*), cecha platformy, nie operatora", platform: "aio" },
+      { match: "key:hex", factor: 0.1, reason: "campaign link format of the tracker platform (key=<32 hex>), a feature of the platform type, not of the operator", platform: "binom" },
+      { match: "utm_visit:uuid", factor: 0.1, reason: "default link template of the page-builder platform (utm_visit=<UUIDv7> and random utm_*), a feature of the platform, not of the operator", platform: "aio" },
     ],
     endpointGenericPaths: [
       "/",
@@ -1016,7 +1016,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "/api.php",
       "/handler.php",
       "/process.php",
-    ].map((match) => ({ match, factor: 0.05, reason: "ogólna ścieżka formularza (występuje na niezwiązanych stronach)" })),
+    ].map((match) => ({ match, factor: 0.05, reason: "generic form path (appears on unrelated pages)" })),
     hiddenFieldGeneric: [
       "csrf",
       "csrf_token",
@@ -1060,9 +1060,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "^(swiper|slick|owl\\.carousel|lightbox|fancybox|aos|wow|gsap|lodash|underscore|moment|axios|vue|react|react-dom|alpine)([.-][\\w.]+)?(\\.min)?\\.(js|css)$",
         "^(font-?awesome|all|animate|normalize|reset)(\\.min)?\\.css$",
         "^(intl-tel-input|intltelinput|utils|imask|inputmask|jquery\\.mask|cleave)(\\.min)?\\.(js|css)$",
-      ].map((match) => ({ match, factor: 0.05, reason: "popularna biblioteka JS/CSS" })),
+      ].map((match) => ({ match, factor: 0.05, reason: "popular JS/CSS library" })),
       ...["^(style|styles|main|app|script|scripts|index|common|custom|global|site|theme|bundle|vendor)(\\.min)?\\.(js|css)$"].map(
-        (match) => ({ match, factor: 0.1, reason: "ogólna nazwa pliku (style.css, main.js ...)" }),
+        (match) => ({ match, factor: 0.1, reason: "generic file name (style.css, main.js ...)" }),
       ),
     ],
     commentPatterns: [
@@ -1082,19 +1082,19 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "^(begin|end)\\b",
       "cookie(bot| consent| banner)",
       "^(header|footer|navigation|nav|sidebar|main content|content|wrapper|container)( (start|end))?$",
-    ].map((match) => ({ match, factor: 0.05, reason: "standardowy komentarz (snippet trackera lub szablonu CMS)" })),
+    ].map((match) => ({ match, factor: 0.05, reason: "standard comment (tracker snippet or CMS template)" })),
     pathIdSharedPrefixes: [
       ...["/cdn/shop/", "/cdn/extensions/"].map((match) => ({
         match,
         factor: 0.05,
-        reason: "platforma sklepowa: identyfikator aplikacji lub motywu, wspólny dla wielu sklepów",
+        reason: "shop platform: app or theme ID, common to many shops",
       })),
       // The page platform keeps a library of ready landers under "666", served to many accounts: the
       // UUID there names a lander of the library, not the account (landing-cdn/<account uuid>/ does).
       ...["/_cdn/production/landing-cdn/666/", "/_cdn/production/action-files-test/666/"].map((match) => ({
         match,
         factor: 0.05,
-        reason: "wspólna biblioteka gotowych landerów platformy stron („666”), używana przez wiele kont",
+        reason: "shared library of ready-made landers of the page-builder platform (“666”), used by many accounts",
       })),
     ],
     cnameTargets: [
@@ -1119,7 +1119,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "incapdns.net",
         "sucuri.net",
         "edgecastcdn.net",
-      ].map((match) => ({ match, factor: 0.02, reason: "CDN (cel CNAME współdzielony przez tysiące niezwiązanych stron)" })),
+      ].map((match) => ({ match, factor: 0.02, reason: "CDN (CNAME target shared by thousands of unrelated pages)" })),
       ...[
         "azurewebsites.net",
         "herokuapp.com",
@@ -1148,7 +1148,7 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
         "godaddysites.com",
         "weebly.com",
         "blogspot.com",
-      ].map((match) => ({ match, factor: 0.05, reason: "platforma hostingowa (cel CNAME współdzielony)" })),
+      ].map((match) => ({ match, factor: 0.05, reason: "hosting platform (shared CNAME target)" })),
     ],
     campaignParamGenericValues: [
       "facebook",
@@ -1215,9 +1215,9 @@ export const DEFAULT_LINK_CONFIG: LinkConfig = {
       "automatic",
     ],
     campaignParamWeakNames: [
-      { match: "utm_source", factor: 0.2, reason: "utm_source zwykle wskazuje tylko platformę" },
-      { match: "utm_medium", factor: 0.2, reason: "utm_medium zwykle wskazuje tylko typ ruchu" },
-      { match: "placement", factor: 0.1, reason: "miejsce wyświetlenia reklamy (wartość platformy, np. Facebook_Mobile_Feed)" },
+      { match: "utm_source", factor: 0.2, reason: "utm_source usually names only the platform" },
+      { match: "utm_medium", factor: 0.2, reason: "utm_medium usually names only the traffic type" },
+      { match: "placement", factor: 0.1, reason: "ad placement (a platform value, e.g. Facebook_Mobile_Feed)" },
     ],
     campaignParamPerClickNames: ["click_id"],
   },

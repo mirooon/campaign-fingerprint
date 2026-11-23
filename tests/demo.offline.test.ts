@@ -56,9 +56,9 @@ describe("demo batch", () => {
     expect(new Set(pages.map((p) => (p.features.personas as string[])[0])).size).toBe(3);
     expect(new Set(pages.map((p) => String(p.features.finalUrl ?? p.features.landingUrl).split("/")[2])).size).toBe(3);
     const evidence = result.newCampaigns![0].evidence.join(" | ");
-    expect(evidence).toMatch(/serwer trackera/);
-    expect(evidence).toMatch(/konto .* na platformie/);
-    expect(evidence).toMatch(/backend .*klient/);
+    expect(evidence).toMatch(/tracker server/);
+    expect(evidence).toMatch(/page-builder account/);
+    expect(evidence).toMatch(/backend .*client/);
   });
 
   it("gives the same result on a second run", async () => {

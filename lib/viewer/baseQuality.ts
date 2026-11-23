@@ -1,7 +1,7 @@
 /**
- * Quality of the data of the whole base (B-032): for every material the five checks of the completeness list
- * (zrzut, strona, HAR, adres, wideo) with the reason and the effect of a gap, and counts per check ("ile spraw bez
- * HAR"). Built from `provenance.json` of the base when it exists, else from the data of the graph's item nodes.
+ * Quality of the data of the whole base (B-032): for every sample the five checks of the completeness list
+ * (screenshot, page, HAR, URL, video) with the reason and the effect of a gap, and counts per check ("how many cases
+ * without a HAR"). Built from `provenance.json` of the base when it exists, else from the data of the graph's item nodes.
  * Pure functions.
  */
 import type { GraphNode } from "@/lib/graph/model";
@@ -11,13 +11,13 @@ import { completeness, type CaseProvenance, type CheckItem } from "./completenes
 export const QUALITY_CHECKS = ["screenshot", "page", "har", "address", "video"] as const;
 export type QualityCheck = (typeof QUALITY_CHECKS)[number];
 
-export const QUALITY_LABEL: Record<QualityCheck, string> = { screenshot: "Zrzut", page: "Strona", har: "HAR", address: "Adres", video: "Wideo" };
+export const QUALITY_LABEL: Record<QualityCheck, string> = { screenshot: "Screenshot", page: "Page", har: "HAR", address: "URL", video: "Video" };
 
 export interface QualityCell {
   check: QualityCheck;
   /** "unknown": the base does not record this (no provenance.json), so nothing can be said. */
   status: "ok" | "warn" | "missing" | "unknown";
-  /** Tooltip: the reason and its effect on the comparison ("Brak zapisanej strony: nie porównamy szablonu …"). */
+  /** Tooltip: the reason and its effect on the comparison ("No saved page: we cannot compare the template …"). */
   text: string;
   /** A gap that does not hurt the comparison by itself (e.g. no HAR when the page is saved). */
   optional: boolean;
@@ -49,7 +49,7 @@ export interface BaseQuality {
 /** One cell from the check item the completeness list produced for it. */
 function cell(check: QualityCheck, items: CheckItem[], known: boolean): QualityCell {
   const it = items.find((i) => i.id === check);
-  if (!it) return { check, status: known ? "ok" : "unknown", text: known ? "" : "Baza nie zapisuje tej informacji (brak provenance.json).", optional: false };
+  if (!it) return { check, status: known ? "ok" : "unknown", text: known ? "" : "The base does not record this information (no provenance.json).", optional: false };
   return { check, status: it.status, text: [it.label, it.effect].filter(Boolean).join(" · "), optional: !!it.optional };
 }
 
@@ -74,5 +74,5 @@ export function baseQuality(input: { provenance: CaseProvenance[] | null; nodes:
     missing: rows.filter((r) => r.cells.find((c) => c.check === check)?.status === "missing").length,
     warn: rows.filter((r) => r.cells.find((c) => c.check === check)?.status === "warn").length,
   }));
-  return { total: rows.length, counts, rows, note: input.provenance ? null : "Baza nie ma provenance.json (zapisu, skąd pochodzi każdy plik), więc HAR i część braków są nieznane: ocena opiera się na danych materiałów." };
+  return { total: rows.length, counts, rows, note: input.provenance ? null : "The base has no provenance.json (the record of where each file comes from), so the HAR and some gaps are unknown: the assessment relies on the sample data." };
 }

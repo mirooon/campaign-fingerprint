@@ -60,7 +60,7 @@ describe("defaultSplit", () => {
   it("3+ loose images and nothing else -> one case with a question", () => {
     const d = defaultSplit(f("a.png", "b.jpg", "c.png"));
     expect(d.mode).toBe("single");
-    expect(d.question).toMatch(/jednej reklamy czy kilku różnych/);
+    expect(d.question).toMatch(/one ad or of several different ones/);
   });
   it("one ZIP alone or a ZIP next to other material -> one case", () => {
     expect(defaultSplit(f("sprawa_03.zip"))).toEqual({ mode: "single", question: null });
@@ -69,7 +69,7 @@ describe("defaultSplit", () => {
   it("2+ loose ZIPs and nothing else loose -> every ZIP is a case (asked), also next to case folders", () => {
     const d = defaultSplit(f("partia/a.zip", "partia/b.zip"));
     expect(d.mode).toBe("files");
-    expect(d.question).toMatch(/Każdy ZIP to osobna sprawa/);
+    expect(d.question).toMatch(/Is each ZIP a separate case/);
     expect(defaultSplit(f("partia/s1/x.png", "partia/s2/y.har", "partia/a.zip", "partia/b.zip"))).toEqual({ mode: "files", question: null });
   });
 });
@@ -77,8 +77,8 @@ describe("defaultSplit", () => {
 describe("detectCases", () => {
   it("folders: three cases plus loose files as one more", () => {
     const cases = detectCases(f("partia/s1/a.png", "partia/s2/b.har", "partia/s3/c.html", "partia/luzny.png"), "folders");
-    expect(cases.map((c) => c.name)).toEqual(["s1", "s2", "s3", "partia (luźne pliki)"]);
-    expect(cases[1].notes).toContain("HAR bez zapisanej strony: treść strony weźmiemy z HAR");
+    expect(cases.map((c) => c.name)).toEqual(["s1", "s2", "s3", "partia (loose files)"]);
+    expect(cases[1].notes).toContain("HAR without a saved page: we take the page content from the HAR");
     // paths stay as uploaded
     expect(cases[0].files[0].path).toBe("partia/s1/a.png");
   });
@@ -99,8 +99,8 @@ describe("detectCases", () => {
     const [c] = detectCases(f("sprawa-7/notatka.txt"), "single");
     expect(c.name).toBe("sprawa-7");
     expect(c.analyzable).toBe(false);
-    expect(c.notes).toContain("brak plików do analizy");
-    expect(c.notes.some((n) => n.startsWith("nieobsługiwany plik"))).toBe(true);
+    expect(c.notes).toContain("no files to analyze");
+    expect(c.notes.some((n) => n.startsWith("unsupported file"))).toBe(true);
   });
   it("a capture bundle with an HLS video and .DS_Store has nothing unsupported", () => {
     const [c] = detectCases(
@@ -110,13 +110,13 @@ describe("detectCases", () => {
     expect(c.counts.unsupported).toBeUndefined();
     expect(c.counts.screenshot).toBe(1);
     expect(c.files.some((x) => x.path.endsWith(".DS_Store"))).toBe(false);
-    expect(c.notes.some((n) => n.startsWith("nieobsługiwany plik"))).toBe(false);
+    expect(c.notes.some((n) => n.startsWith("unsupported file"))).toBe(false);
   });
   it("files: loose page assets go with the only loose page; an HLS stream gets a note", () => {
     const cases = detectCases(f("strona.html", "app.js", "z.png"), "files");
     expect(cases.map((c) => [c.name, c.files.length])).toEqual([["strona", 2], ["z", 1]]);
     const [s] = detectCases(f("v/output.m3u8", "v/output_000.ts"), "single");
-    expect(s.notes.some((n) => n.startsWith("wideo ze strony (HLS)"))).toBe(true);
+    expect(s.notes.some((n) => n.startsWith("video from the page (HLS)"))).toBe(true);
     expect(s.analyzable).toBe(true);
   });
   it("a case made of a ZIP only is analyzable, named after the archive, with a note that the server unpacks it", () => {
@@ -124,8 +124,8 @@ describe("detectCases", () => {
     expect(c.name).toBe("sprawa_03");
     expect(c.analyzable).toBe(true);
     expect(c.counts).toEqual({ zip: 1 });
-    expect(c.notes).toContain("ZIP: rozpakowany na serwerze przy analizie, cała zawartość należy do tej sprawy");
-    expect(c.notes).not.toContain("brak plików do analizy");
+    expect(c.notes).toContain("ZIP: unpacked on the server during the analysis, all its contents belong to this case");
+    expect(c.notes).not.toContain("no files to analyze");
   });
   it("a ZIP inside a case folder makes that case analyzable; loose ZIPs split into cases of their own", () => {
     const folders = detectCases(f("partia/s1/material.zip", "partia/s2/notatka.txt"), "folders");
@@ -157,6 +157,6 @@ describe("safeCaseName", () => {
   it("removes path characters", () => {
     expect(safeCaseName("../../etc")).toBe("_.._etc");
     expect(safeCaseName("Sprawa 12 (zrzuty)")).toBe("Sprawa 12 _zrzuty_");
-    expect(safeCaseName("")).toBe("sprawa");
+    expect(safeCaseName("")).toBe("case");
   });
 });

@@ -4,7 +4,7 @@ import type { EvidenceGraph, GraphNode, ItemLink, PairEvidence } from "@/lib/gra
 import { previewThresholds, thresholdSteps } from "./thresholdPreview";
 
 const node = (key: string): GraphNode => ({ id: `item:${key}`, type: "item", key, label: key, df: 1, weight: null, strong: false, discounts: [], data: {}, campaignId: null });
-const ev = (weight: number): PairEvidence => ({ kind: "pivot", pivot: "tracker:t", pivotType: "tracker", edgeType: null, weight, strong: false, discounted: false, evidence: "wspólny tracker", pathA: [], pathB: [] });
+const ev = (weight: number): PairEvidence => ({ kind: "pivot", pivot: "tracker:t", pivotType: "tracker", edgeType: null, weight, strong: false, discounted: false, evidence: "shared tracker", pathA: [], pathB: [] });
 const link = (a: string, b: string, score: number): ItemLink => ({ a, b, score, strong: false, evidence: [ev(score)] });
 
 /** Four ads in a chain a–b, b–c, c–d with scores 0,5, 0,1 and 0,2: the threshold decides which links still join ads. */
@@ -15,14 +15,14 @@ function graph(): EvidenceGraph {
 }
 
 describe("previewThresholds", () => {
-  it("wyższy próg łączy mniej: liczba kampanii liczona regułami backendu", () => {
+  it("a higher threshold links less: the number of campaigns counted by the backend rules", () => {
     const rows = previewThresholds(graph(), DEFAULT_LINK_CONFIG, [0.15, 0.3, 0.6]);
     expect(rows.map((r) => r.value)).toEqual([0.15, 0.3, 0.6]);
     expect(rows[0]).toMatchObject({ campaigns: 2, singletons: 0, largest: 2 });
     expect(rows[1]).toMatchObject({ campaigns: 1, singletons: 2, largest: 2 });
     expect(rows[2]).toMatchObject({ campaigns: 0, singletons: 4, largest: 1 });
   });
-  it("próg zgodny z obliczeniem backendu dla tego samego grafu i konfiguracji", async () => {
+  it("the threshold agrees with the backend computation for the same graph and configuration", async () => {
     const { clusterCampaigns } = await import("@/lib/graph/cluster");
     const direct = clusterCampaigns(graph(), { config: { ...DEFAULT_LINK_CONFIG, minLinkScore: 0.15 } }).campaigns.campaigns.filter((c) => c.size > 1).length;
     expect(previewThresholds(graph(), DEFAULT_LINK_CONFIG, [0.15])[0].campaigns).toBe(direct);
@@ -30,7 +30,7 @@ describe("previewThresholds", () => {
 });
 
 describe("thresholdSteps", () => {
-  it("kroki podglądu obejmują aktualny próg, posortowane i bez powtórzeń", () => {
+  it("the preview steps include the current threshold, sorted and without repeats", () => {
     expect(thresholdSteps(0.15)).toContain(0.15);
     const s = thresholdSteps(0.17);
     expect(s).toEqual([...s].sort((x, y) => x - y));

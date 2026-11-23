@@ -40,7 +40,7 @@ function emit(obj: Record<string, unknown>): void {
 /** Reads the job spec, runs the analysis with the config and personas chosen for the run, and writes the result to `spec.out`. */
 async function main(): Promise<void> {
   const specFile = process.argv[2];
-  if (!specFile) throw new Error("brak pliku zadania");
+  if (!specFile) throw new Error("no job file");
   const spec = JSON.parse(readFileSync(specFile, "utf8")) as RunnerSpec;
   const pick = (...files: string[]) => files.find((f) => existsSync(f));
   const dataDir = spec.dataDir;

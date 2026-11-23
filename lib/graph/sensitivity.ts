@@ -78,7 +78,7 @@ export function thresholdPaths(config: LinkConfig): ConfigPath[] {
 export function getPath(config: LinkConfig, path: ConfigPath): number {
   let node: unknown = config;
   for (const k of path.split(".")) node = isTree(node) ? node[k] : undefined;
-  if (typeof node !== "number") throw new Error(`ścieżka ${path} nie wskazuje liczby w konfiguracji`);
+  if (typeof node !== "number") throw new Error(`path ${path} does not point to a number in the configuration`);
   return node;
 }
 

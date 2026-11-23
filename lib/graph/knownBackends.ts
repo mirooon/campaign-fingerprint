@@ -14,11 +14,11 @@ interface KnownBackend {
 const ENTRIES: KnownBackend[] = list.entries;
 
 /**
- * Label "znany backend leadów (źródło: ...)" when `host` is a known backend or a subdomain of one;
+ * Label "known lead backend (source: ...)" when `host` is a known backend or a subdomain of one;
  * null otherwise.
  */
 export function knownBackendLabel(host: string): string | null {
   const h = host.toLowerCase();
   const hit = ENTRIES.find((e) => h === e.domain || h.endsWith(`.${e.domain}`));
-  return hit ? `znany backend leadów (źródło: ${hit.source}, ${hit.url})` : null;
+  return hit ? `known lead backend (source: ${hit.source}, ${hit.url})` : null;
 }

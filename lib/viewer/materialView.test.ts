@@ -25,7 +25,7 @@ const result: MaterialResult = {
 };
 
 describe("batchSummary", () => {
-  it("liczby lejka sumują się: materiały = duplikaty + znane + nowe + za mało danych", () => {
+  it("the funnel numbers add up: samples = duplicates + known + new + insufficient data", () => {
     const s = batchSummary(result, 9);
     expect(s.files).toBe(9);
     expect(s.materials).toBe(6);
@@ -38,8 +38,8 @@ describe("batchSummary", () => {
     expect(s.unread).toBe(0);
     expect(s.withErrors).toBe(0);
   });
-  it("sprawa, której import nie odczytał, liczy się jako materiał „za mało danych” i jako błąd", () => {
-    // HTML bez adresu jako osobny materiał: 3 pliki, 2 rekordy, 1 sprawa w skipped
+  it("a case the import could not read counts as an “insufficient data” sample and as an error", () => {
+    // HTML without a URL as a separate sample: 3 files, 2 records, 1 case in skipped
     const s = batchSummary({ items: [item("m1"), item("m2")], skipped: [{ id: "strona", reason: "brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)" }] }, 3);
     expect(s.materials).toBe(3);
     expect(s.unread).toBe(1);
@@ -47,7 +47,7 @@ describe("batchSummary", () => {
     expect(s.withErrors).toBe(1);
     expect(s.duplicates + s.known + s.fresh + s.insufficient).toBe(s.materials);
   });
-  it("pominięty plik sprawy, która dała rekord, nie jest osobnym materiałem", () => {
+  it("a skipped file of a case that gave a record is not a separate sample", () => {
     const s = batchSummary({ items: [item("m1", { caseId: "sprawa-1" })], skipped: [{ id: "sprawa-1/kopia.html", reason: "brak adresu strony" }] }, 2);
     expect(s.materials).toBe(1);
     expect(s.unread).toBe(0);
@@ -65,25 +65,25 @@ describe("unreadMaterials", () => {
       { id: "sprawa-3", reason: "brak strony, zrzutu ani wideo w katalogu" },
     ],
   };
-  it("jedna pozycja na sprawę bez rekordu, z powodami bez powtórzeń i radą, co dorzucić", () => {
+  it("one entry per case without a record, with reasons without repeats and advice on what to add", () => {
     const list = unreadMaterials(res);
     expect(list.map((u) => u.id)).toEqual(["sprawa-2", "sprawa-3"]);
     expect(list[0].reasons).toHaveLength(2);
     expect(list[0].hints.join(" ")).toMatch(/HAR/);
-    expect(list[1].hints.join(" ")).toMatch(/zrzut reklamy/);
+    expect(list[1].hints.join(" ")).toMatch(/ad screenshot/);
   });
-  it("te same sprawy co wiersze „insufficient” w eksporcie", () => {
+  it("the same cases as the “insufficient” rows of the export", () => {
     const rows = resultRows(res);
     expect(rows.map((r) => r.material_id)).toEqual(["m1", "sprawa-2", "sprawa-3"]);
     expect(rows[1].verdict).toBe("insufficient");
     expect(rows[1].confidence).toBe("uncertain");
   });
-  it("rada dla braku adresu strony mówi o HAR; powód bez rady nie daje pustych linii", () => {
-    expect(unreadHints(["brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)"]).join(" ")).toMatch(/dołącz HAR/i);
-    expect(unreadHints(["coś innego"])).toEqual([]);
+  it("the advice for a missing page URL mentions a HAR; a reason without advice gives no empty lines", () => {
+    expect(unreadHints(["brak adresu strony (ani komentarza „saved from url”, ani dokumentu w HAR)"]).join(" ")).toMatch(/add a HAR/i);
+    expect(unreadHints(["something else"])).toEqual([]);
     expect(unreadHints(["brak adresu strony", "brak adresu strony"])).toHaveLength(2);
   });
-  it("wiersze nieodczytanych spraw widać przy „wszystkie” i „za mało danych”", () => {
+  it("rows of unread cases show for “all” and “insufficient data”", () => {
     expect(unreadVisible("all")).toBe(true);
     expect(unreadVisible("insufficient")).toBe(true);
     expect(unreadVisible("known")).toBe(false);
@@ -92,7 +92,7 @@ describe("unreadMaterials", () => {
 });
 
 describe("filterItems", () => {
-  it("filtruje po werdykcie; nowe = nowa kampania + podobna do znanych", () => {
+  it("filters by verdict; new = new campaign + similar to known ones", () => {
     expect(filterItems(result.items, "all")).toHaveLength(6);
     expect(filterItems(result.items, "fresh").map((i) => i.id)).toEqual(["b", "c"]);
     expect(filterItems(result.items, "duplicate").map((i) => i.id)).toEqual(["d"]);
@@ -101,32 +101,32 @@ describe("filterItems", () => {
 });
 
 describe("resultConfidence", () => {
-  it("wariant po kreacji nie jest „pewny”", () => {
+  it("a variant by the creative is not “certain”", () => {
     expect(resultConfidence(result.items[0])).toBe("certain");
     expect(resultConfidence(result.items[5])).not.toBe("certain");
   });
-  it("brak pewności dla „za mało danych”", () => {
+  it("no confidence for “insufficient data”", () => {
     expect(resultConfidence(result.items[4])).toBeNull();
   });
 });
 
 describe("variantNote", () => {
-  it("opisuje wariant i wskazuje materiał, do którego kreacja jest podobna", () => {
-    expect(variantNote(result.items[5])).toContain("niższa pewność");
+  it("describes the variant and names the sample the creative is similar to", () => {
+    expect(variantNote(result.items[5])).toContain("lower confidence");
     expect(variantNote(result.items[0])).toBeNull();
   });
 });
 
 describe("resultRows", () => {
-  it("wiersze eksportu mają kolumny w ustalonej kolejności", () => {
+  it("export rows have their columns in a fixed order", () => {
     const rows = resultRows(result);
     expect(Object.keys(rows[0])).toEqual(["material_id", "case", "verdict", "campaign_id", "similar_campaigns", "new_campaign_id", "duplicate_of", "confidence", "score", "top_premise", "missing_data", "blisko_bez_polaczenia"]);
     expect(rows[3].duplicate_of).toBe("a");
   });
 });
 
-describe("filterItems: niepewne do sprawdzenia", () => {
-  it("filtr „uncertain” zostawia tylko materiały pokazane jako niepewne, bez „za mało danych” i bez „brak wspólnych śladów”", () => {
+describe("filterItems: uncertain to check", () => {
+  it("the “uncertain” filter keeps only samples shown as uncertain, without “insufficient data” and without “no shared traces”", () => {
     const rows = filterItems(result.items, "uncertain");
     expect(rows.map((i) => i.id)).toEqual(["b", "f"]);
     expect(rows.every((i) => resultConfidence(i) === "uncertain")).toBe(true);
@@ -134,30 +134,30 @@ describe("filterItems: niepewne do sprawdzenia", () => {
 });
 
 describe("shownConfidence", () => {
-  it("nowy materiał bez żadnego powiązania z bazą: „brak wspólnych śladów”, nie „blisko progu”; eksport zostaje „uncertain”", () => {
+  it("a new sample without any link to the base: “no shared traces”, not “close to the threshold”; the export stays “uncertain”", () => {
     const c = result.items[2];
     expect(shownConfidence(c)).toBe("no_traces");
     expect(resultConfidence(c)).toBe("uncertain");
     expect(resultRows(result)[2].confidence).toBe("uncertain");
   });
-  it("powiązanie poniżej progu zostaje „niepewne”", () => {
+  it("a link below the threshold stays “uncertain”", () => {
     expect(shownConfidence(result.items[1])).toBe("uncertain");
     expect(shownConfidence(item("g", { links: [{ ...weakLink, otherCampaign: "K03", score: 0.1, rule: "below" }] }))).toBe("uncertain");
   });
-  it("duplikat bez powiązań nie dostaje „brak wspólnych śladów” (to kopia innego materiału)", () => {
+  it("a duplicate without links does not get “no shared traces” (it is a copy of another sample)", () => {
     expect(shownConfidence(item("h", { verdict: "duplicate", duplicateOf: { id: "c", reason: "ten sam plik" } }))).toBe("uncertain");
   });
-  it("pozostałe poziomy bez zmian", () => {
+  it("the other levels are unchanged", () => {
     expect(shownConfidence(result.items[0])).toBe("certain");
     expect(shownConfidence(result.items[4])).toBeNull();
   });
 });
 
 describe("sortItems", () => {
-  it("po werdykcie: znane, podobne, nowe, duplikaty, za mało danych", () => {
+  it("by verdict: known, similar, new, duplicates, insufficient data", () => {
     expect(sortItems(result.items, "verdict").map((i) => i.id)).toEqual(["a", "f", "b", "c", "d", "e"]);
   });
-  it("po pewności: pewne, prawdopodobne, niepewne, brak wspólnych śladów, bez pewności na końcu", () => {
+  it("by confidence: certain, likely, uncertain, no shared traces, no confidence last", () => {
     expect(sortItems(result.items, "confidence").map((i) => i.id)).toEqual(["a", "d", "b", "f", "c", "e"]);
   });
 });

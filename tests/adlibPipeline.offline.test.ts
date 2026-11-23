@@ -78,7 +78,7 @@ describe("search -> case folders -> analyze-material", () => {
       adAdvertiserId: "AR0000000000000000001",
       adAdvertiserLegalName: "Fikcyjna Firma Sp. z o.o.",
       adAdvertiserLocation: "PL",
-      adAdvertiserVerified: "tak",
+      adAdvertiserVerified: "yes",
     });
     const m = result.items.find((i) => i.id === "meta_1000000000000501")!;
     expect(m.features.adPlatform).toBe("meta");

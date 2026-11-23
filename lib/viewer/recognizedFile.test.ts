@@ -16,7 +16,7 @@ function dataDir(): string {
 }
 
 describe("loadRecognized", () => {
-  it("czyta indeksy twarzy i głosów oraz listę osób z katalogu danych", () => {
+  it("reads the face and voice indexes and the list of people from the data folder", () => {
     const d = dataDir();
     mkdirSync(path.join(d, "faces"));
     mkdirSync(path.join(d, "voices"));
@@ -27,13 +27,13 @@ describe("loadRecognized", () => {
     expect(out.people).toEqual([{ id: "ewa-przykladowa", name: "Ewa Przykładowa", role: null, category: null, source: "ostrzeżenie testowe", faces: 2, voices: 1 }]);
     expect(out.notes).toEqual([]);
   });
-  it("brak galerii to pusta lista z powodem, nie wyjątek", () => {
+  it("a missing gallery gives an empty list with a reason, not an exception", () => {
     const out = loadRecognized(dataDir());
     expect(out.people).toEqual([]);
     expect(out.notes.join(" ")).toContain("faces/index.json");
     expect(out.notes.join(" ")).toContain("voices/index.json");
   });
-  it("uszkodzony plik jest zgłoszony z powodem, a drugi indeks nadal czytany", () => {
+  it("a broken file is reported with a reason, and the other index is still read", () => {
     const d = dataDir();
     mkdirSync(path.join(d, "faces"));
     mkdirSync(path.join(d, "voices"));

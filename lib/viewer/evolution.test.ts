@@ -31,44 +31,44 @@ function threeMaterials(): G {
 }
 
 describe("evolutionRows", () => {
-  it("pierwszy materiał otwiera kampanię, kolejne pokazują, co się zmieniło, a co zostało", () => {
+  it("the first sample opens the campaign, the next ones show what changed and what was kept", () => {
     const rows = evolutionRows({ members: ["m3", "m1", "m2"] }, threeMaterials());
     expect(rows.map((r) => r.id)).toEqual(["m1", "m2", "m3"]);
     expect(rows[0].first).toBe(true);
-    expect(rows[1].changed.map((c) => c.kind)).toEqual(["domena", "osoba"]);
+    expect(rows[1].changed.map((c) => c.kind)).toEqual(["domain", "person"]);
     expect(rows[1].kept).toEqual(["tracker"]);
-    expect(evolutionSentence(rows[1])).toBe("zmieniło się: domena, osoba; zostało: tracker");
-    expect(evolutionSentence(rows[0])).toBe("początek kampanii");
+    expect(evolutionSentence(rows[1])).toBe("changed: domain, person; kept: tracker");
+    expect(evolutionSentence(rows[0])).toBe("campaign start");
   });
-  it("zmiana niesie nową wartość, nie całą listę", () => {
+  it("a change carries the new value, not the whole list", () => {
     const rows = evolutionRows({ members: ["m1", "m2"] }, threeMaterials());
-    expect(rows[1].changed[0]).toEqual({ kind: "domena", added: ["druga.test"] });
+    expect(rows[1].changed[0]).toEqual({ kind: "domain", added: ["druga.test"] });
   });
-  it("wartość znana z wcześniejszego materiału (nie tylko poprzedniego) nie jest zmianą", () => {
+  it("a value known from an earlier sample (not only the previous one) is not a change", () => {
     const g = threeMaterials();
     wire(g.nodes, g.edges, "m4", "2026-09-12T00:00:00.000Z", "pierwsza.test", "adam-testowy", "GA-1");
     const row = evolutionRows({ members: ["m1", "m2", "m3", "m4"] }, g)[3];
     expect(row.changed).toEqual([]);
-    expect(row.kept).toEqual(["domena", "osoba", "tracker"]);
-    expect(evolutionSentence(row)).toBe("bez zmian; zostało: domena, osoba, tracker");
+    expect(row.kept).toEqual(["domain", "person", "tracker"]);
+    expect(evolutionSentence(row)).toBe("no change; kept: domain, person, tracker");
   });
-  it("narracja z węzła materiału liczy się jak cecha", () => {
+  it("the narrative of the sample node counts as a trait", () => {
     const g = threeMaterials();
     const topic = (id: string) => ({ topics: [{ id, score: 2, terms: [] }], hooks: [] });
     g.nodes.find((n) => n.id === "item:m1")!.data.narrative = topic("investment");
     g.nodes.find((n) => n.id === "item:m2")!.data.narrative = topic("subsidy");
     const row = evolutionRows({ members: ["m1", "m2"] }, g)[1];
-    expect(row.changed.map((c) => c.kind)).toContain("narracja");
-    expect(row.changed.find((c) => c.kind === "narracja")?.added).toEqual(["dotacje i świadczenia"]);
+    expect(row.changed.map((c) => c.kind)).toContain("narrative");
+    expect(row.changed.find((c) => c.kind === "narrative")?.added).toEqual(["subsidies and benefits"]);
   });
-  it("łącze wychodzące (links_to) nie jest cechą kampanii", () => {
+  it("an outbound link (links_to) is not a campaign trait", () => {
     const g = threeMaterials();
     g.nodes.push(node("domain", "cudza.test"));
     g.edges.push(edge("url:https://druga.test/m2", "domain:cudza.test", "links_to"));
     const row = evolutionRows({ members: ["m1", "m2"] }, g)[1];
     expect(row.changed[0].added).toEqual(["druga.test"]);
   });
-  it("materiały bez daty idą na koniec", () => {
+  it("samples without a date go last", () => {
     const g = threeMaterials();
     g.nodes.find((n) => n.id === "item:m1")!.data.firstSeen = null;
     expect(evolutionRows({ members: ["m1", "m2", "m3"] }, g).map((r) => r.id)).toEqual(["m2", "m3", "m1"]);
@@ -76,7 +76,7 @@ describe("evolutionRows", () => {
 });
 
 describe("campaignTimeline", () => {
-  it("składa emisje, rejestracje domen i certyfikaty po kolei, z wiekiem domeny względem reklamy", () => {
+  it("puts ad appearances, domain registrations and certificates in order, with the domain age against the ad", () => {
     const g = threeMaterials();
     g.nodes.find((n) => n.id === "domain:druga.test")!.data.created = "2026-09-01T00:00:00.000Z";
     g.nodes.push(node("cert", "abc", { label: "cert", data: { notBefore: "2026-09-02T00:00:00.000Z", issuer: "Testowy CA" } }));
@@ -85,16 +85,16 @@ describe("campaignTimeline", () => {
     expect(events.map((e) => e.kind)).toEqual(["registered", "ad", "cert", "ad", "ad"]);
     const reg = events.find((e) => e.kind === "registered")!;
     expect(reg.text).toContain("druga.test");
-    expect(reg.text).toContain("domena zarejestrowana 4 dni przed emisją");
+    expect(reg.text).toContain("domain registered 4 days before the ad was first shown");
     expect(events.find((e) => e.kind === "cert")!.text).toContain("Testowy CA");
   });
-  it("domena bez daty rejestracji nie daje zdarzenia", () => {
+  it("a domain without a registration date gives no event", () => {
     expect(campaignTimeline({ members: ["m1"] }, threeMaterials()).map((e) => e.kind)).toEqual(["ad"]);
   });
 });
 
 describe("traitMatrix", () => {
-  it("kolumny to ślady wspólne dla co najmniej dwóch materiałów, od najsilniejszych", () => {
+  it("the columns are traces shared by at least two samples, strongest first", () => {
     const g = threeMaterials();
     const tracker = g.nodes.find((n) => n.id === "tracker:GA-1")!;
     tracker.weight = 0.6;
@@ -107,7 +107,7 @@ describe("traitMatrix", () => {
     expect(m.rows.find((r) => r.id === "m2")!.has).toEqual([true, true, true]);
     expect(m.rows.find((r) => r.id === "m1")!.has).toEqual([false, true, false]);
   });
-  it("ogranicza liczbę kolumn i mówi, ile pominięto", () => {
+  it("limits the number of columns and says how many were cut", () => {
     const m = traitMatrix({ members: ["m1", "m2", "m3"] }, threeMaterials(), 0);
     expect(m.columns).toEqual([]);
     expect(m.hidden).toBe(1);

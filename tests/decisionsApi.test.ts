@@ -47,8 +47,8 @@ describe("/api/decisions i /api/evidence", () => {
     const { POST } = await import("../app/api/evidence/route");
     const blocked = await POST(post("/api/evidence", { campaign: "K01" }));
     expect(blocked.status).toBe(409);
-    expect(((await blocked.json()) as { error: string }).error).toContain("odrzucone");
+    expect(((await blocked.json()) as { error: string }).error).toContain("rejected");
     const passed = await POST(post("/api/evidence", { campaign: "K02" }));
-    expect(((await passed.json()) as { error: string }).error).toContain("Brak bazy znanych kampanii");
+    expect(((await passed.json()) as { error: string }).error).toContain("No base of known campaigns");
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MaterialItemResult, MaterialLink } from "@/lib/pipeline/analyzeMaterial";
+import { fmtNum } from "./format";
 import { closestLink, familyThresholdFromRules, nearestCampaignOf, verdictScale } from "./scale";
 
 const T = { campaign: 0.15, family: 0.3 };
@@ -12,45 +13,45 @@ function item(over: Partial<MaterialItemResult>): MaterialItemResult {
 }
 
 describe("closestLink", () => {
-  it("najbliższy znany materiał to powiązanie o najwyższym wyniku, także poniżej progu", () => {
+  it("the closest known sample is the link with the highest score, also below the threshold", () => {
     expect(closestLink(item({ links: [link("a", "K01", 0.05), link("b", "K02", 0.12)] }))?.other).toBe("b");
     expect(closestLink(item({}))).toBeNull();
   });
 });
 
 describe("verdictScale", () => {
-  it("nowy wzorzec: najbliższy materiał z wynikiem i progiem kampanii", () => {
+  it("new pattern: the closest sample with its score and the campaign threshold", () => {
     const s = verdictScale(item({ links: [link("k2-03", "K02", 0.12)] }), T);
     expect(s.zone).toBe("new");
-    expect(s.sentence).toBe("Najbliższy znany materiał (k2-03, kampania K02) ma wynik 0.12, próg łączenia w kampanię to 0.15.");
+    expect(s.sentence).toBe(`The closest known sample (k2-03, campaign K02) has a score of ${fmtNum(0.12)}; the campaign linking threshold is ${fmtNum(0.15)}.`);
     expect(s.closest).toEqual({ id: "k2-03", score: 0.12 });
   });
-  it("nowy wzorzec bez żadnego powiązania", () => {
-    expect(verdictScale(item({}), T).sentence).toBe("Żaden znany materiał nie ma wspólnego śladu z tym materiałem.");
+  it("new pattern without any link", () => {
+    expect(verdictScale(item({}), T).sentence).toBe("No known sample shares a trace with this sample.");
   });
-  it("znana kampania: wynik przekracza próg", () => {
+  it("known campaign: the score exceeds the threshold", () => {
     const s = verdictScale(item({ verdict: "known_campaign", campaign: "K01", links: [link("a", "K01", 0.82, "campaign")] }), T);
     expect(s.zone).toBe("campaign");
-    expect(s.sentence).toBe("Wynik 0.82 z materiałem a przekracza próg łączenia w kampanię 0.15.");
+    expect(s.sentence).toBe(`Score ${fmtNum(0.82)} with sample a exceeds the campaign linking threshold ${fmtNum(0.15)}.`);
   });
-  it("wynik ponad progiem, ale reguła zmieniła rezultat na grupę podobnych", () => {
+  it("score above the threshold, but a rule changed the result to a similar-campaign group", () => {
     const s = verdictScale(item({ verdict: "similar_campaigns", similarCampaigns: ["K01"], links: [link("a", "K01", 0.6, "account_conflict")] }), T);
     expect(s.zone).toBe("family");
-    expect(s.sentence).toContain("Wynik 0.60 jest ponad progiem");
-    expect(s.sentence).toBe("Wynik 0.60 jest ponad progiem łączenia w kampanię (0.15), ale to różne konta na platformie stron, czyli różni operatorzy, więc to grupa podobnych kampanii, nie ta sama kampania.");
-    expect(s.sentence).toContain("grupa podobnych kampanii");
+    expect(s.sentence).toContain(`Score ${fmtNum(0.6)} is above the`);
+    expect(s.sentence).toBe(`Score ${fmtNum(0.6)} is above the campaign linking threshold (${fmtNum(0.15)}), but these are different page-builder accounts, i.e. different operators, so this is a group of similar campaigns, not the same campaign.`);
+    expect(s.sentence).toContain("group of similar campaigns");
   });
-  it("podobna kampania z wynikiem poniżej progu kampanii nazywa próg grupy", () => {
+  it("a similar campaign with a score below the campaign threshold names the group threshold", () => {
     const s = verdictScale(item({ verdict: "similar_campaigns", similarCampaigns: ["K01"], links: [link("a", "K01", 0.35, "single_kind")] }), { campaign: 0.5, family: 0.3 });
-    expect(s.sentence).toBe("Wynik 0.35 jest poniżej progu łączenia w kampanię (0.50), ale ponad progiem grupy podobnych (0.30), więc to grupa podobnych kampanii, nie ta sama kampania.");
+    expect(s.sentence).toBe(`Score ${fmtNum(0.35)} is below the campaign linking threshold (${fmtNum(0.5)}), but above the similar-campaign group threshold (${fmtNum(0.3)}), so this is a group of similar campaigns, not the same campaign.`);
   });
 });
 
 describe("familyThresholdFromRules", () => {
-  it("czyta próg grupy z opisu reguł bazy, a bez niego zwraca domyślny", () => {
-    expect(familyThresholdFromRules(["kampania: …", "grupa podobnych kampanii: pozostałe powiązania … ≥ 0.35"])).toBe(0.35);
+  it("reads the group threshold from the base rule descriptions, and without it returns the default", () => {
+    expect(familyThresholdFromRules(["campaign: …", "group of similar campaigns: remaining links … ≥ 0.35"])).toBe(0.35);
     expect(familyThresholdFromRules(undefined)).toBe(0.3);
-    expect(familyThresholdFromRules(["nic"])).toBe(0.3);
+    expect(familyThresholdFromRules(["nothing"])).toBe(0.3);
   });
 });
 
@@ -61,10 +62,10 @@ describe("nearestCampaignOf", () => {
     { a: "s1", b: "same", score: 0.9 },
   ];
   const assignments = { s1: "K09", x1: "K02", x2: "K03", same: "K09" };
-  it("najbliższa inna kampania z materiałem i wynikiem, własna pominięta", () => {
+  it("the nearest other campaign with its sample and score, its own campaign skipped", () => {
     expect(nearestCampaignOf("s1", links, assignments)).toEqual({ campaign: "K02", material: "x1", score: 0.22 });
   });
-  it("materiał bez powiązań z innymi kampaniami nie ma najbliższej", () => {
+  it("a sample without links to other campaigns has no nearest one", () => {
     expect(nearestCampaignOf("zz", links, assignments)).toBeNull();
   });
 });

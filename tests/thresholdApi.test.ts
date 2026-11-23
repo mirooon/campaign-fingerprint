@@ -46,6 +46,6 @@ describe("GET /api/threshold-preview", () => {
     const { GET } = await import("../app/api/threshold-preview/route");
     const res = await GET();
     expect(res.status).toBe(503);
-    expect(((await res.json()) as { error: string }).error).toContain("Brak bazy");
+    expect(((await res.json()) as { error: string }).error).toContain("No base");
   });
 });

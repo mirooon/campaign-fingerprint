@@ -1,5 +1,5 @@
 /**
- * "Kogo rozpoznajemy" (B-025): the closed list of people the tool compares faces and voices with, with the number
+ * "Recognized people" (B-025): the closed list of people the tool compares faces and voices with, with the number
  * of reference samples and the public source that put each person on the list. Pure: it takes the parsed index
  * files and returns counts only, so reference vectors never reach the browser.
  */

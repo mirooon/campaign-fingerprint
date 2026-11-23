@@ -1,7 +1,7 @@
 /**
- * Click route of a material (B-021): the chain ad → tracking link → redirects → lure page → form or shop,
+ * Click route of a sample (B-021): the chain ad → tracking link → redirects → lure page → form or shop,
  * one link per address with its role in plain words, the HTTP/network status, the age of its domain against
- * the ad and the cloaking warning. Pure functions over the enriched data of one material; reading
+ * the ad and the cloaking warning. Pure functions over the enriched data of one sample; reading
  * `enriched.json` stays in the API route.
  */
 import { registrableDomain } from "@/lib/osint/urls";
@@ -15,12 +15,12 @@ export type RouteRole = "ad" | "tracking" | "redirect" | "lure" | "form" | "shop
 export type RouteStatus = "start" | "redirected" | "ok" | "no_response" | "blocked" | "error" | "not_checked";
 
 export const ROUTE_ROLE_LABEL: Record<RouteRole, string> = {
-  ad: "reklama",
-  tracking: "link śledzący",
-  redirect: "przekierowanie",
-  lure: "strona-przynęta",
-  form: "formularz zbierający dane",
-  shop: "sklep",
+  ad: "ad",
+  tracking: "tracking link",
+  redirect: "redirect",
+  lure: "lure page",
+  form: "data-collecting form",
+  shop: "shop",
 };
 
 export interface RouteLink {
@@ -30,9 +30,9 @@ export interface RouteLink {
   /** Address of the link (the GUI shows it defanged); null for the ad itself. */
   url: string | null;
   status: RouteStatus;
-  /** "przekierował (HTTP 302)", "odpowiada (HTTP 200)", "nie odpowiada (przekroczony czas)", "zablokowany" … */
+  /** "redirected (HTTP 302)", "responds (HTTP 200)", "no response (timed out)", "blocked" … */
   statusLabel: string;
-  /** "domena zarejestrowana 2 dni przed emisją"; null without an RDAP date. */
+  /** "domain registered 2 days before the ad was first shown"; null without an RDAP date. */
   domainNote: string | null;
   /** The domain was registered 0–`RECENT_DOMAIN_DAYS` days before the ad. */
   fresh: boolean;
@@ -62,31 +62,31 @@ export interface RouteSource {
 }
 
 const ERROR_LABEL: Record<string, string> = {
-  timeout: "nie odpowiada (przekroczony czas)",
-  network: "nie odpowiada (błąd sieci)",
-  "invalid-url": "nie odpowiada (adres niepoprawny)",
-  "too-many-redirects": "za dużo przekierowań",
-  tls: "błąd certyfikatu TLS",
-  blocked: "zablokowany",
+  timeout: "no response (timed out)",
+  network: "no response (network error)",
+  "invalid-url": "no response (invalid URL)",
+  "too-many-redirects": "too many redirects",
+  tls: "TLS certificate error",
+  blocked: "blocked",
 };
 
 /** Status of the last link: the outcome of the fetch in words. */
 function finalStatus(page: RouteSource["page"]): { status: RouteStatus; label: string } {
-  if (!page) return { status: "not_checked", label: "nie sprawdzono (strona nie została pobrana)" };
-  if (page.errorCode) return { status: page.errorCode === "blocked" ? "blocked" : page.errorCode === "tls" || page.errorCode === "too-many-redirects" ? "error" : "no_response", label: ERROR_LABEL[page.errorCode] ?? `błąd (${page.errorCode})` };
-  if (page.status !== null && page.status >= 400) return { status: "error", label: `odpowiada błędem HTTP ${page.status}` };
-  return { status: "ok", label: `odpowiada (HTTP ${page.status ?? "?"})` };
+  if (!page) return { status: "not_checked", label: "not checked (the page was not fetched)" };
+  if (page.errorCode) return { status: page.errorCode === "blocked" ? "blocked" : page.errorCode === "tls" || page.errorCode === "too-many-redirects" ? "error" : "no_response", label: ERROR_LABEL[page.errorCode] ?? `error (${page.errorCode})` };
+  if (page.status !== null && page.status >= 400) return { status: "error", label: `responds with HTTP error ${page.status}` };
+  return { status: "ok", label: `responds (HTTP ${page.status ?? "?"})` };
 }
 
 /** Warning for the final link: suspected cloaking, or anti-bot protection that made the check impossible. */
 function cloakingWarning(c: RouteSource["cloaking"]): string | null {
   if (!c) return null;
-  if (c.state === "bot_challenge") return "Ochrona przed botami zablokowała pobranie, więc nie da się ocenić, czy strona wygląda inaczej dla robota (cloaking).";
-  return c.suspected ? "Ostrzeżenie: strona wygląda inaczej dla robota i dla przeglądarki mobilnej (cloaking), więc zapis może nie pokazywać tego, co widzi ofiara." : null;
+  if (c.state === "bot_challenge") return "Bot protection blocked the fetch, so it cannot be judged whether the page looks different to a bot (cloaking).";
+  return c.suspected ? "Warning: the page looks different to a bot and to a mobile browser (cloaking), so the record may not show what the victim sees." : null;
 }
 
 /**
- * The route of one material as a list of links: the ad first, then every address of the chain. The first
+ * The route of one sample as a list of links: the ad first, then every address of the chain. The first
  * address that redirects is the tracking link, further hops are redirects, and the last one is the lure
  * page (or a form or a shop when the page is one). Age of each link's domain is measured against the ad.
  */
@@ -103,8 +103,8 @@ export function clickRoute(src: RouteSource): RouteLink[] {
     const a = age(url);
     return { step: 0, role, roleLabel: ROUTE_ROLE_LABEL[role], url, status, statusLabel, domainNote: a.note, fresh: a.fresh, warning };
   };
-  const links: RouteLink[] = [link("ad", null, "start", "kliknięcie w reklamę")];
-  hops.forEach((h, i) => links.push(link(i === 0 ? "tracking" : "redirect", h.url, "redirected", `przekierował (${h.kind === "meta-refresh" ? "meta refresh" : `HTTP ${h.status}`})`)));
+  const links: RouteLink[] = [link("ad", null, "start", "click on the ad")];
+  hops.forEach((h, i) => links.push(link(i === 0 ? "tracking" : "redirect", h.url, "redirected", `redirected (${h.kind === "meta-refresh" ? "meta refresh" : `HTTP ${h.status}`})`)));
   if (end) {
     const s = finalStatus(src.page);
     links.push(link(src.finalKind ?? "lure", end, s.status, s.label, cloakingWarning(src.cloaking)));
@@ -112,7 +112,7 @@ export function clickRoute(src: RouteSource): RouteLink[] {
   return links.map((l, i) => ({ ...l, step: i }));
 }
 
-/** Route data of one material from the enriched dataset; null when the material is unknown. A form is a page whose kit names a backend it sends to; a shop is a page on a shop platform. */
+/** Route data of one sample from the enriched dataset; null when the sample is unknown. A form is a page whose kit names a backend it sends to; a shop is a page on a shop platform. */
 export function routeSourceOf(ds: Pick<EnrichedDataset, "items" | "perItem" | "pages" | "domains">, itemId: string): RouteSource | null {
   const item = ds.items.find((i) => i.id === itemId);
   const enr = ds.perItem[itemId];

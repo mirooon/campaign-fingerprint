@@ -54,7 +54,7 @@ describe("records of the landing-page platform (window.aio)", () => {
     const fam = res.campaigns.families!;
     expect(fam).toHaveLength(1);
     expect(fam[0].members).toEqual(["alfa", "beta"]);
-    expect(fam[0].apart[0]).toMatch(/różne konta na platformie stron/);
+    expect(fam[0].apart[0]).toMatch(/different page-builder accounts/);
     const alfaCampaign = res.campaigns.campaigns.find((c) => c.members.includes("alfa"))!;
     expect(alfaCampaign.familyId).toBe(fam[0].id);
     expect(res.campaigns.campaigns.find((c) => c.members.includes("other"))!.familyId).toBeNull();
@@ -136,7 +136,7 @@ describe("tracker server and clicked ad from the landing URL", () => {
     ]);
     const l = res.graph.links.find((x) => x.a === "m1" && x.b === "m2")!;
     expect(l.evidence[0]).toMatchObject({ pivot: "click_server:a1b2c3", strong: false });
-    expect(l.evidence[0].evidence).toContain("maszyna a1b2c3");
+    expect(l.evidence[0].evidence).toContain("machine a1b2c3");
     expect(res.graph.nodes.find((n) => n.id === "click_server:a1b2c3")?.data.pids).toEqual([4242]);
     const m1 = res.graph.nodes.find((n) => n.id === "item:m1")!;
     expect(m1.data).toMatchObject({ clickTime: "2026-03-14T10:20:30Z", metaAdId: "120211122233344455", metaAppId: "123450000067890" });
@@ -157,7 +157,7 @@ describe("favicon of an impersonated brand", () => {
   it("is discounted as a trait of the brand, not of the operator", async () => {
     const { Discounter } = await import("./weights");
     const d = new Discounter(DEFAULT_LINK_CONFIG).discountsFor({ type: "favicon", key: "mmh3:1357924680", id: "favicon:mmh3:1357924680", data: { impersonatedBrand: "Kurier Testowy" } });
-    expect(d).toEqual([{ reason: "favicon podrabianej marki „Kurier Testowy” (cecha marki, pod którą się podszywają, nie operatora)", factor: 0.1, rule: "kit.brandAssetFactor" }]);
+    expect(d).toEqual([{ reason: "favicon of the impersonated brand “Kurier Testowy” (a feature of the brand they impersonate, not of the operator)", factor: 0.1, rule: "kit.brandAssetFactor" }]);
   });
 });
 

@@ -50,7 +50,7 @@ describe("persona from a face", () => {
     expect(fromFace).toMatchObject({ source: "face", similarity: 0.71 });
     expect(ds.perItem[FACE_ITEM].faces?.find((f) => f.persona)).toMatchObject({ persona: PERSONA, x: 40, w: 120 });
     const edge = graph.edges.find((e) => e.type === "mentions_persona" && e.source === `item:${FACE_ITEM}` && e.target === `persona:${PERSONA}`);
-    expect(edge?.evidence).toContain("z twarzy");
+    expect(edge?.evidence).toContain("from a face");
 
     // different infrastructure: two campaigns; the shared bait puts them in one group
     const a = campaigns.assignments[TEXT_ITEM];
@@ -122,7 +122,7 @@ describe("persona from a voice", () => {
     expect(ds.perItem[FACE_ITEM].voices).toEqual([{ start: 0, end: 6, persona: PERSONA, similarity: 0.65 }]);
     expect(ds.perItem[FACE_ITEM].personas.find((p) => p.id === PERSONA)).toMatchObject({ source: "voice", matched: "głos", similarity: 0.65 });
     const edge = graph.edges.find((e) => e.type === "mentions_persona" && e.source === `item:${FACE_ITEM}` && e.target === `persona:${PERSONA}`);
-    expect(edge?.evidence).toContain("z głosu");
+    expect(edge?.evidence).toContain("from a voice");
 
     // different domains, registrars and trackers: two campaigns, one group through the shared bait
     const a = campaigns.assignments[TEXT_ITEM];

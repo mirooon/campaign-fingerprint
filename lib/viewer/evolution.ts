@@ -1,8 +1,8 @@
 /**
- * Campaign card logic (§8.2, B-036): "evolution" of a campaign material by material (what changed against
+ * Campaign card logic (§8.2, B-036): "evolution" of a campaign sample by sample (what changed against
  * the earlier ones and what stayed), the timeline of domain registrations, certificates and ad appearances,
  * and the matrix of shared traits. Pure functions over `graph.json` (nodes and directed edges); the backend's
- * `Campaign.evolution` is an aggregate per type, this one answers per material.
+ * `Campaign.evolution` is an aggregate per type, this one answers per sample.
  */
 import type { EntityType, EvidenceGraph, GraphNode } from "@/lib/graph/model";
 import { NARRATIVE_TOPIC_LABEL, domainAgeNote } from "./fields";
@@ -17,14 +17,14 @@ interface TraitKind {
 
 /** Kinds of traits in the order the sentence lists them: what an operator rotates (domain, person, narrative, creative) first, then what it tends to keep. */
 export const TRAIT_KINDS: TraitKind[] = [
-  { label: "domena", types: ["domain"] },
-  { label: "osoba", types: ["persona"] },
-  { label: "narracja", types: [] },
-  { label: "kreacja", types: ["imagehash"] },
-  { label: "reklamodawca", types: ["advertiser"] },
+  { label: "domain", types: ["domain"] },
+  { label: "person", types: ["persona"] },
+  { label: "narrative", types: [] },
+  { label: "creative", types: ["imagehash"] },
+  { label: "advertiser", types: ["advertiser"] },
   { label: "tracker", types: ["tracker"] },
-  { label: "konto platformy", types: ["platform_account", "path_id"] },
-  { label: "serwer", types: ["endpoint", "click_server", "ip"] },
+  { label: "platform account", types: ["platform_account", "path_id"] },
+  { label: "server", types: ["endpoint", "click_server", "ip"] },
 ];
 
 /** Edge that points at somebody else's site (an outbound link), so it says nothing about the campaign's own traits. */
@@ -120,7 +120,7 @@ export function evolutionRows(campaign: { members: string[] }, graph: Graph): Ev
         const n = nodes.get(nid);
         if (n && kind.types.includes(n.type)) values.set(n.id, n.label);
       }
-      const topic = kind.label === "narracja" ? narrativeTopic(itemNode) : null;
+      const topic = kind.label === "narrative" ? narrativeTopic(itemNode) : null;
       if (topic) values.set(`narrative:${topic}`, topic);
       if (!values.size) continue;
       const before = seen.get(kind.label)!;
@@ -135,11 +135,11 @@ export function evolutionRows(campaign: { members: string[] }, graph: Graph): Ev
   });
 }
 
-/** One sentence of a row: "zmieniło się: domena, osoba; zostało: tracker", "bez zmian; zostało: …" or "początek kampanii". */
+/** One sentence of a row: "changed: domain, person; kept: tracker", "no change; kept: …" or "campaign start". */
 export function evolutionSentence(row: EvolutionRow): string {
-  if (row.first) return "początek kampanii";
-  const changed = row.changed.length ? `zmieniło się: ${row.changed.map((c) => c.kind).join(", ")}` : "bez zmian";
-  return row.kept.length ? `${changed}; zostało: ${row.kept.join(", ")}` : changed;
+  if (row.first) return "campaign start";
+  const changed = row.changed.length ? `changed: ${row.changed.map((c) => c.kind).join(", ")}` : "no change";
+  return row.kept.length ? `${changed}; kept: ${row.kept.join(", ")}` : changed;
 }
 
 export interface TimelineEvent {
@@ -153,7 +153,7 @@ const KIND_ORDER: Record<TimelineEvent["kind"], number> = { registered: 0, cert:
 
 /**
  * Timeline of a campaign: the first appearance of each ad, the registration of each domain of the
- * campaign (with how many days before its first ad it happened: "domena ożyła przed reklamą") and the
+ * campaign (with how many days before its first ad it happened: "the domain came alive before the ad") and the
  * certificates of those domains. Events without a date are left out. Sorted by time.
  */
 export function campaignTimeline(campaign: { members: string[] }, graph: Graph): TimelineEvent[] {
@@ -165,7 +165,7 @@ export function campaignTimeline(campaign: { members: string[] }, graph: Graph):
   const certs = new Map<string, GraphNode>();
   for (const id of campaign.members) {
     const date = dateOf(nodes.get(`item:${id}`)?.data.firstSeen);
-    if (date) events.push({ date, kind: "ad", text: `pierwsza reklama: materiał ${id}` });
+    if (date) events.push({ date, kind: "ad", text: `first ad: sample ${id}` });
     for (const nid of reachable(`item:${id}`, out)) {
       const n = nodes.get(nid);
       if (n?.type !== "domain") continue;
@@ -180,7 +180,7 @@ export function campaignTimeline(campaign: { members: string[] }, graph: Graph):
     if (created) {
       const days = firstAd ? Math.floor((Date.parse(firstAd) - Date.parse(created)) / 86_400_000) : null;
       const age = domainAgeNote(days, "domain");
-      events.push({ date: created, kind: "registered", text: `${domain.label}: ${age ?? "zarejestrowana"}` });
+      events.push({ date: created, kind: "registered", text: `${domain.label}: ${age ?? "registered"}` });
     }
     for (const cid of out.get(nid) ?? []) {
       const cert = nodes.get(cid);
@@ -189,7 +189,7 @@ export function campaignTimeline(campaign: { members: string[] }, graph: Graph):
   }
   for (const cert of certs.values()) {
     const date = dateOf(cert.data.notBefore);
-    if (date) events.push({ date, kind: "cert", text: `certyfikat ${typeof cert.data.issuer === "string" ? cert.data.issuer : ""}`.trim() });
+    if (date) events.push({ date, kind: "cert", text: `certificate ${typeof cert.data.issuer === "string" ? cert.data.issuer : ""}`.trim() });
   }
   return events.sort((a, b) => a.date.localeCompare(b.date) || KIND_ORDER[a.kind] - KIND_ORDER[b.kind]);
 }

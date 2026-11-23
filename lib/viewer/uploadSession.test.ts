@@ -41,7 +41,7 @@ describe("upload session (file-by-file, streamed to disk)", () => {
 
   it("rejects unsafe paths and uploads over MATERIAL_MAX_MB", async () => {
     const s = await createUploadSession();
-    await expect(addUploadFile(s, "a", "../poza.txt", stream("x"), 1)).rejects.toThrow(/ścieżka/);
+    await expect(addUploadFile(s, "a", "../poza.txt", stream("x"), 1)).rejects.toThrow(/path/);
     vi.stubEnv("MATERIAL_MAX_MB", "1");
     await expect(addUploadFile(s, "a", "duzy.bin", stream("x"), 2 * 1024 * 1024)).rejects.toThrow(/limit/);
   });

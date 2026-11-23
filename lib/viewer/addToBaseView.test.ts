@@ -5,25 +5,25 @@ import { addMessages, addToBaseRefusal } from "./addToBaseView";
 const empty: AddToBaseResult = { added: [], skipped: [], createdCampaigns: [], historyDir: null };
 
 describe("addMessages", () => {
-  it("mówi, co dodano i do jakiej kampanii, także nowo utworzonej", () => {
+  it("says what was added and to which campaign, a newly created one too", () => {
     const msgs = addMessages({ ...empty, added: [{ id: "n1", verdict: "new_campaign", campaign: "K11" }, { id: "n2", verdict: "known_campaign", campaign: "K03" }], createdCampaigns: ["K11"] });
-    expect(msgs[0]).toBe("Dodano do bazy 2 samples: n1 (nowa kampania K11), n2 (kampania K03).");
+    expect(msgs[0]).toBe("Added 2 samples to the base: n1 (new campaign K11), n2 (campaign K03).");
   });
-  it("mówi, czego nie dodano i dlaczego, z oryginałem duplikatu", () => {
-    const msgs = addMessages({ ...empty, skipped: [{ id: "n3", reason: "duplikat materiału już w bazie", duplicateOf: "c1-01" }, { id: "n4", reason: "za mało danych do porównania" }] });
-    expect(msgs).toEqual(["Nic nie dodano do bazy.", "Nie dodano n3: duplikat materiału już w bazie (duplikat materiału c1-01).", "Nie dodano n4: za mało danych do porównania."]);
+  it("says what was not added and why, with the original of a duplicate", () => {
+    const msgs = addMessages({ ...empty, skipped: [{ id: "n3", reason: "duplicate of a sample already in the base", duplicateOf: "c1-01" }, { id: "n4", reason: "insufficient data for comparison" }] });
+    expect(msgs).toEqual(["Nothing was added to the base.", "Not added n3: duplicate of a sample already in the base (duplicate of sample c1-01).", "Not added n4: insufficient data for comparison."]);
   });
-  it("jeden dodany materiał to liczba pojedyncza", () => {
-    expect(addMessages({ ...empty, added: [{ id: "n1", verdict: "new_campaign", campaign: null }] })[0]).toBe("Dodano do bazy 1 sample: n1.");
+  it("one added sample is singular", () => {
+    expect(addMessages({ ...empty, added: [{ id: "n1", verdict: "new_campaign", campaign: null }] })[0]).toBe("Added 1 sample to the base: n1.");
   });
 });
 
 describe("addToBaseRefusal", () => {
-  it("baza przykładowa jest tylko do odczytu i dostaje opis, jak dopisywać", () => {
+  it("the sample base is read-only and gets a description of how to add samples", () => {
     expect(addToBaseRefusal(true)).toContain("VIEWER_DATA_DIR");
     expect(addToBaseRefusal(false)).toBeNull();
   });
-  it("wynik przykładu nie trafia do bazy, nawet własnej", () => {
-    expect(addToBaseRefusal(false, true)).toContain("przykładu");
+  it("the result of the example does not go into a base, not even your own", () => {
+    expect(addToBaseRefusal(false, true)).toContain("example");
   });
 });

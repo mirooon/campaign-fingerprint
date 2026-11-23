@@ -61,14 +61,14 @@ export function closeUploadSession(id: string): void {
  */
 export async function addUploadFile(s: UploadSession, caseName: string, rel: string, body: ReadableStream<Uint8Array> | null, declared: number): Promise<void> {
   const safe = safeRelative(rel);
-  if (!safe) throw new UploadError(`Niedozwolona ścieżka pliku: ${rel}`);
-  if (s.files + 1 > maxFiles()) throw new UploadError(`Za dużo plików (maks. ${maxFiles()}, MATERIAL_MAX_FILES)`);
+  if (!safe) throw new UploadError(`File path not allowed: ${rel}`);
+  if (s.files + 1 > maxFiles()) throw new UploadError(`Too many files (max. ${maxFiles()}, MATERIAL_MAX_FILES)`);
   const limit = maxBytes();
-  if (s.bytes + Math.max(0, declared) > limit) throw new UploadError(`Pliki przekraczają limit ${limitLabel(limit)} (MATERIAL_MAX_MB)`);
-  const name = safeCaseName(caseName || "sprawa");
+  if (s.bytes + Math.max(0, declared) > limit) throw new UploadError(`The files exceed the limit of ${limitLabel(limit)} (MATERIAL_MAX_MB)`);
+  const name = safeCaseName(caseName || "case");
   const caseDir = path.join(s.casesDir, name);
   const dest = path.join(caseDir, safe);
-  if (!dest.startsWith(caseDir + path.sep)) throw new UploadError(`Niedozwolona ścieżka pliku: ${rel}`);
+  if (!dest.startsWith(caseDir + path.sep)) throw new UploadError(`File path not allowed: ${rel}`);
   await mkdir(path.dirname(dest), { recursive: true });
   if (body) await pipeline(Readable.fromWeb(body as unknown as WebReadableStream<Uint8Array>), createWriteStream(dest));
   else await writeFile(dest, "");
@@ -77,7 +77,7 @@ export async function addUploadFile(s: UploadSession, caseName: string, rel: str
   s.files += 1;
   s.counts.set(name, (s.counts.get(name) ?? 0) + 1);
   if (/\.zip$/i.test(safe)) s.zips.push(dest);
-  if (s.bytes > limit) throw new UploadError(`Pliki przekraczają limit ${limitLabel(limit)} (MATERIAL_MAX_MB)`);
+  if (s.bytes > limit) throw new UploadError(`The files exceed the limit of ${limitLabel(limit)} (MATERIAL_MAX_MB)`);
 }
 
 /**
@@ -130,7 +130,7 @@ export function extractLargeZip(zipPath: string, target: string, budget: number)
     execFile(py, ["-I", "-c", PY_EXTRACT, zipPath, target, String(Number.isFinite(budget) ? budget : 1e18)], { maxBuffer: 1024 * 1024 }, (err, stdout) => {
       if (err) {
         const code = (err as { code?: unknown }).code;
-        reject(new UploadError(code === 3 ? "Archiwum po rozpakowaniu przekracza limit (MATERIAL_MAX_MB)" : `Nie udało się rozpakować archiwum ${path.basename(zipPath)}: ${err.message}`));
+        reject(new UploadError(code === 3 ? "The unpacked archive exceeds the limit (MATERIAL_MAX_MB)" : `Could not unpack the archive ${path.basename(zipPath)}: ${err.message}`));
         return;
       }
       resolve(Number(String(stdout).trim()) || 0);

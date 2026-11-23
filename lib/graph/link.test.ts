@@ -284,7 +284,7 @@ describe("similarity and explain", () => {
       { textMethod: "none" },
     );
     expect(graph.links).toHaveLength(1);
-    expect(graph.links[0].evidence[0].evidence).toContain("klatki wideo");
+    expect(graph.links[0].evidence[0].evidence).toContain("video frames");
   });
 
   it("ignores CLIP pairs below the configured cosine", () => {

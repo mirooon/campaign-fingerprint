@@ -58,7 +58,7 @@ export function loadSingleMaterialRules(graph: EvidenceGraph, campaigns: Campaig
   try {
     return singleMaterialRules(graph, campaigns, baseLinkConfig());
   } catch (e) {
-    console.warn(`[viewer] powody pojedynczych materiałów pominięte: ${(e as Error).message}`);
+    console.warn(`[viewer] reasons for single samples skipped: ${(e as Error).message}`);
     return {};
   }
 }

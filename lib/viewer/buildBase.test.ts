@@ -6,7 +6,7 @@ import { baseSummary, buildBaseRefusal, replaceQuestion, restoreBase, setAsideBa
 
 describe("build a new base (B-284)", () => {
   it("refuses the sample base", () => {
-    expect(buildBaseRefusal(true)).toContain("tylko do odczytu");
+    expect(buildBaseRefusal(true)).toContain("read-only");
     expect(buildBaseRefusal(false)).toBeNull();
   });
 
@@ -16,7 +16,7 @@ describe("build a new base (B-284)", () => {
     writeFileSync(path.join(dir, "campaigns.json"), JSON.stringify({ campaigns: [{ size: 2 }, { size: 1 }], assignments: { a: "K01", b: "K01", c: "K02" } }));
     const s = baseSummary(dir);
     expect(s).toEqual({ exists: true, campaigns: 1, materials: 3 });
-    expect(replaceQuestion(s)).toContain("zastąpi obecną (1 kampanii, 3 materiałów)");
+    expect(replaceQuestion(s)).toContain("replace the current one (1 campaign, 3 samples)");
   });
 
   it("sets the previous base aside and restores it after a failed build", () => {

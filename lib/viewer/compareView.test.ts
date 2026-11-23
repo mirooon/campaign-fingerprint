@@ -7,7 +7,7 @@ function ev(over: Partial<PairEvidence>): PairEvidence {
 }
 
 describe("familyShares", () => {
-  it("udział rodzin w wyniku sumuje się do 100%, a pominięte przesłanki nie liczą się", () => {
+  it("the family shares of the score add up to 100%, and discounted evidence does not count", () => {
     const shares = familyShares([
       ev({ pivotType: "tracker", weight: 0.6 }),
       ev({ kind: "similarity", edgeType: "similar_text", weight: 0.6 }),
@@ -16,11 +16,11 @@ describe("familyShares", () => {
     expect(shares.map((s) => s.family).sort()).toEqual(["content", "infra"]);
     expect(shares.reduce((n, s) => n + s.percent, 0)).toBe(100);
   });
-  it("nieznany rodzaj i brak przesłanek nie dają udziałów", () => {
+  it("an unknown kind and no evidence give no shares", () => {
     expect(familyShares([])).toEqual([]);
     expect(familyShares([ev({ pivotType: null, edgeType: null })])).toEqual([]);
   });
-  it("rodzina z mocniejszą przesłanką dostaje większy procent", () => {
+  it("the family with stronger evidence gets a larger percentage", () => {
     const shares = familyShares([ev({ pivotType: "tracker", weight: 0.8 }), ev({ kind: "similarity", edgeType: "similar_image", weight: 0.2 })]);
     const by = Object.fromEntries(shares.map((s) => [s.family, s.percent]));
     expect(by.infra).toBeGreaterThan(by.look);
@@ -28,21 +28,21 @@ describe("familyShares", () => {
 });
 
 describe("markShared", () => {
-  it("zaznacza wspólny fragment co najmniej czterech słów w obu tekstach", () => {
+  it("marks a shared passage of at least four words in both texts", () => {
     const { a, b } = markShared("Gwiazda ujawnia sposób na szybki zarobek dla każdego", "Wywiad: ujawnia sposób na szybki zarobek, mówi ekspert");
     expect(a.filter((s) => s.shared).map((s) => s.text.trim())).toEqual(["ujawnia sposób na szybki zarobek"]);
     expect(b.filter((s) => s.shared).map((s) => s.text.trim().replace(/,$/, ""))).toEqual(["ujawnia sposób na szybki zarobek"]);
     expect(a.map((s) => s.text).join("")).toBe("Gwiazda ujawnia sposób na szybki zarobek dla każdego");
   });
-  it("krótsze zbieżności i teksty bez wspólnych fragmentów nie są zaznaczane", () => {
+  it("shorter matches and texts without shared passages are not marked", () => {
     const { a, b } = markShared("kup teraz tanio", "kup teraz drogo");
     expect([...a, ...b].some((s) => s.shared)).toBe(false);
   });
-  it("pomija wielkość liter i znaki interpunkcyjne przy porównaniu", () => {
+  it("ignores letter case and punctuation in the comparison", () => {
     const { b } = markShared("Zarobek, bez ryzyka. Dla każdego!", "ZAROBEK bez ryzyka dla każdego");
     expect(b.filter((s) => s.shared)).toHaveLength(1);
   });
-  it("pusty tekst daje pusty wynik", () => {
+  it("an empty text gives an empty result", () => {
     expect(markShared("", "coś tam jeszcze jest")).toEqual({ a: [], b: [{ text: "coś tam jeszcze jest", shared: false }] });
   });
 });

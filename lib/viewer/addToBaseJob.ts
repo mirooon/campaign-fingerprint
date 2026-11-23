@@ -1,7 +1,7 @@
 /**
- * "Dodaj do bazy" in the viewer (B-284): the bridge between an analysis job and `addToBase`. The runner
+ * "Add to base" in the viewer (B-284): the bridge between an analysis job and `addToBase`. The runner
  * (a child process) keeps what the analysis computed in the job's work folder; this module reads it back,
- * adds the chosen materials to the base and words the outcome ("co dodano, a czego nie i dlaczego").
+ * adds the chosen samples to the base and words the outcome ("what was added, what was not and why").
  * The bundled sample base is never written (see `addToBaseRefusal`).
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -38,15 +38,15 @@ export type AddJobResult = { ok: true; result: AddToBaseResult; messages: string
 /** Adds the chosen materials of a finished job to the base in `dataDir`; a message with a status instead of an exception when the job kept nothing to add or the write fails. */
 export async function addJobToBase(input: AddJobInput): Promise<AddJobResult> {
   const file = capturedFile(input.workDir);
-  if (!existsSync(file)) return { ok: false, status: 409, error: "Zadanie nie zachowało danych do dopisania (uruchom analizę ponownie)." };
+  if (!existsSync(file)) return { ok: false, status: 409, error: "The job did not keep the data to add (run the analysis again)." };
   const wanted = new Set(input.ids);
   const items = input.result.items.filter((i) => wanted.has(i.id));
-  if (!items.length) return { ok: false, status: 404, error: "Żaden z wybranych materiałów nie należy do tej analizy." };
+  if (!items.length) return { ok: false, status: 404, error: "None of the chosen samples belongs to this analysis." };
   try {
     const captured = JSON.parse(readFileSync(file, "utf8")) as AnalyzedMaterial;
     const result = await addToBase(input.dataDir, { result: { ...input.result, items }, captured }, { source: "gui", force: input.force, now: input.now });
     return { ok: true, result, messages: addMessages(result) };
   } catch (e) {
-    return { ok: false, status: 500, error: `Nie udało się dodać do bazy: ${(e as Error).message}` };
+    return { ok: false, status: 500, error: `Could not add to the base: ${(e as Error).message}` };
   }
 }

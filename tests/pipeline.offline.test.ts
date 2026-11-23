@@ -172,7 +172,7 @@ describe("page kit, CNAME, domain pattern, campaign parameters and personas", ()
     // one edge per persona, keeping both ways it was found
     const personaEdges = graph.edges.filter((e) => e.source === "item:c1-01" && e.type === "mentions_persona");
     expect(personaEdges).toHaveLength(1);
-    expect(personaEdges[0].evidence).toBe("persona z kolumny danych wejściowych; z listy obserwowanych nazwisk");
+    expect(personaEdges[0].evidence).toBe("persona from the input data column; from the watchlist of names");
     const k = campaigns.campaigns.find((c) => c.members.includes("c1-01"))!;
     expect(k.attributes.personas[0]).toMatchObject({ id: "adam-testowy", name: "Adam Testowy" });
     expect(k.attributes.cyrillic).toBeGreaterThan(0);

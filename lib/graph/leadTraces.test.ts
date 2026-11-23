@@ -52,7 +52,7 @@ describe("affiliate network and CRM traces (1)", () => {
     const res = run([kitSpec("a", "https://alpha.example/", hidden("aff-58213")), kitSpec("b", "https://beta.test/", hidden("aff-58213"))]);
     expect(same(res, "a", "b")).toBe(true);
     const ev = evidenceOf(res, "a", "b").find((e) => e.pivotType === "campaign_param");
-    expect(ev?.evidence).toContain("z formularza");
+    expect(ev?.evidence).toContain("from the form");
   });
 
   it("aff_id=1 on two pages links nothing", () => {

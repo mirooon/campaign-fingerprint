@@ -1,6 +1,6 @@
 /**
- * Logic of the "Celowo nie połączone" view: rows of the near-miss table, the notes of a new material
- * card, the reason a material of the base was left alone, and the "Różne" line of a group of similar
+ * Logic of the "Deliberately not linked" view: rows of the near-miss table, the notes of a new sample
+ * card, the reason a sample of the base was left alone, and the "Different" line of a group of similar
  * campaigns. Texts in plain words come from lib/viewer/plain.ts; the data are written by `build-graph`
  * (`near-misses.json`) and `analyze-material` (`MaterialItemResult.nearMisses`).
  */
@@ -14,7 +14,7 @@ export interface NearMissRow {
   a: string;
   b: string;
   score: number;
-  /** Shared traces by their names in the GUI; a trace weakened by a discount is marked "pominięty ślad". */
+  /** Shared traces by their names in the GUI; a trace weakened by a discount is marked "discounted trace". */
   traces: string[];
   rule: NearMissRule;
   ruleName: string;
@@ -30,7 +30,7 @@ export function nearMissRows(file: NearMissesFile): NearMissRow[] {
       a: p.a,
       b: p.b,
       score: p.score,
-      traces: p.sharedKinds.map((k) => `${typeInfo(k)?.name ?? k}${discounted.has(k) ? " (pominięty ślad)" : ""}`),
+      traces: p.sharedKinds.map((k) => `${typeInfo(k)?.name ?? k}${discounted.has(k) ? " (discounted trace)" : ""}`),
       rule: p.rule,
       ruleName: NEAR_MISS_RULE_INFO[p.rule].term,
       reasonPlain: NEAR_MISS_RULE_INFO[p.rule].text,
@@ -38,17 +38,17 @@ export function nearMissRows(file: NearMissesFile): NearMissRow[] {
   });
 }
 
-/** Lines for the card of a new material: "Blisko kampanii X, ale nie dołączony, bo …", one per known campaign; none for a record without near misses. */
+/** Lines for the card of a new sample: "Close to campaign X, but not joined because …", one per known campaign; none for a record without near misses. */
 export function nearMissNotes(nearMisses: MaterialNearMiss[] | undefined): string[] {
-  return (nearMisses ?? []).map((n) => `Blisko kampanii ${n.campaign}, ale nie dołączony, bo ${notJoinedReason(n.rule)}`);
+  return (nearMisses ?? []).map((n) => `Close to campaign ${n.campaign}, but not joined because ${notJoinedReason(n.rule)}`);
 }
 
-/** Plain reason of a rule that continues "…, ale nie dołączony, bo ": its explanation with a lower-case first letter. */
+/** Plain reason of a rule that continues "…, but not joined because ": its explanation with a lower-case first letter. */
 export function notJoinedReason(rule: NearMissRule): string {
   return lowerFirst(NEAR_MISS_RULE_INFO[rule].text);
 }
 
-/** The sentence with a lower-case first letter, so it continues "…, bo ". */
+/** The sentence with a lower-case first letter, so it continues "… because ". */
 function lowerFirst(s: string): string {
   return s.charAt(0).toLowerCase() + s.slice(1);
 }
@@ -68,7 +68,7 @@ export interface NearestCampaign {
 
 /**
  * Rule that kept a material left alone out of its nearest campaign: the rule of the pair in `near-misses.json`
- * (the data of the "Celowo nie połączone" tab); for a pair cut from that list, the rule the server computed for
+ * (the data of the "Deliberately not linked" tab); for a pair cut from that list, the rule the server computed for
  * the same pair (`computed`, see singleRules.ts); null when neither has it.
  */
 export function singleMaterialRule(material: string, other: string, file: NearMissesFile | null, computed: SingleRule | undefined): NearMissRule | null {
@@ -78,25 +78,25 @@ export function singleMaterialRule(material: string, other: string, file: NearMi
 }
 
 /**
- * Line on the card of a material left alone. Without links: "Bez powiązań z innymi materiałami.". Below the link
- * threshold: the nearest campaign, its score and "poniżej progu łączenia". At or above the threshold: the rule
- * that held the material back and its reason, in the words of the analysis card ("…, ale nie dołączony, bo …");
+ * Line on the card of a sample left alone. Without links: "No links to other samples.". Below the link
+ * threshold: the nearest campaign, its score and "below the linking threshold". At or above the threshold: the rule
+ * that held the sample back and its reason, in the words of the analysis card ("…, but not joined because …");
  * a plain admission when the base does not record the rule.
  */
 export function singleMaterialNote(nearest: NearestCampaign | null, minLinkScore: number, rule: NearMissRule | null): string {
-  if (!nearest) return "Bez powiązań z innymi materiałami.";
-  const head = `Najbliżej kampanii ${nearest.campaign} (materiał ${nearest.material}), wynik ${fmtNum(nearest.score)}`;
-  if (nearest.score < minLinkScore) return `${head} poniżej progu łączenia ${fmtNum(minLinkScore)}.`;
-  const over = `${head} ponad progiem łączenia ${fmtNum(minLinkScore)}, ale nie dołączony`;
-  return rule ? `${over} (reguła „${NEAR_MISS_RULE_INFO[rule].term}”), bo ${notJoinedReason(rule)}` : `${over}. Powodu nie ma w zapisanych danych tej bazy.`;
+  if (!nearest) return "No links to other samples.";
+  const head = `Closest to campaign ${nearest.campaign} (sample ${nearest.material}), score ${fmtNum(nearest.score)}`;
+  if (nearest.score < minLinkScore) return `${head}, below the linking threshold ${fmtNum(minLinkScore)}.`;
+  const over = `${head}, above the linking threshold ${fmtNum(minLinkScore)}, but not joined`;
+  return rule ? `${over} (rule “${NEAR_MISS_RULE_INFO[rule].term}”) because ${notJoinedReason(rule)}` : `${over}. The reason is not in the saved data of this base.`;
 }
 
-/** "Różne" entry the base stores for a link between campaigns refused as one kind of evidence (`buildFamilies`, cluster.ts). */
-export const ONE_KIND_APART = "łączy je tylko jeden rodzaj dowodu";
+/** "Different" entry the base stores for a link between campaigns refused as one kind of evidence (`buildFamilies`, cluster.ts). */
+export const ONE_KIND_APART = "only one kind of evidence links them";
 
-/** One stored "Osobno, bo" entry in plain words: the one-kind entry gets the kit clause, other entries stay as stored. */
+/** One stored "Kept apart because" entry in plain words: the one-kind entry gets the kit clause, other entries stay as stored. */
 export function apartLine(entry: string): string {
-  return entry === ONE_KIND_APART ? `${ONE_KIND_APART} (cechy zestawu stron liczą się razem jako jeden rodzaj)` : entry;
+  return entry === ONE_KIND_APART ? `${ONE_KIND_APART} (page-kit features count together as one kind)` : entry;
 }
 
 /** Rules of a link refused as one kind of evidence (verdict "single_kind" of `campaignLinkDecision`). */
@@ -106,19 +106,19 @@ const SINGLE_KIND_RULES: ReadonlySet<NearMissRule> = new Set(["discounted-only",
 const KIT_KINDS: ReadonlySet<string> = new Set(DEFAULT_LINK_CONFIG.campaignRules.notAloneKinds);
 
 /**
- * "Różne" of a group of similar campaigns in plain words. The base stores "łączy je tylko jeden rodzaj dowodu",
- * while "Wspólne" may list three traces: page-kit traces count together as one kind and traces shared by many
+ * "Different" of a group of similar campaigns in plain words. The base stores "only one kind of evidence links them",
+ * while "Shared" may list three traces: page-kit traces count together as one kind and traces shared by many
  * sites are discounted. When every pair of the group refused as one kind in `near-misses.json` is "kit-only",
- * the entry says the kit counts as one kind and names the discounted traces outside the kit (e.g. "Adres IP");
+ * the entry says the kit counts as one kind and names the discounted traces outside the kit (e.g. "IP address");
  * otherwise (no file, no such pair, other rules) it keeps the stored words with the kit clause. Other entries
- * ("różne konta…", "tylko treść") stay as stored. Display only: the base files and the rules are unchanged.
+ * ("different page-builder accounts…", "only the content…") stay as stored. Display only: the base files and the rules are unchanged.
  */
 export function familyApartLines(family: CampaignFamily, file: NearMissesFile | null): string[] {
   const pairs = (file?.pairs ?? []).filter((p) => p.familyId === family.id && SINGLE_KIND_RULES.has(p.rule));
   const kitOnly = pairs.length > 0 && pairs.every((p) => p.rule === "kit-only");
   const discounted = [...new Set(pairs.flatMap((p) => p.discounted.filter((d) => !KIT_KINDS.has(d.kind)).map((d) => typeInfo(d.kind)?.name ?? d.kind)))].slice(0, 3);
   const oneKind = kitOnly
-    ? `łączą je tylko cechy zestawu stron, liczone razem jako jeden rodzaj dowodu${discounted.length ? `; ${discounted.join(", ")} pominięto jako ślad wielu stron` : ""}`
+    ? `only page-kit features link them, counted together as one kind of evidence${discounted.length ? `; ${discounted.join(", ")} discounted as a trace of many sites` : ""}`
     : apartLine(ONE_KIND_APART);
   return family.apart.map((a) => (a === ONE_KIND_APART ? oneKind : a));
 }

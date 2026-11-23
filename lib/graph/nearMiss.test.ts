@@ -179,10 +179,10 @@ describe("findNearMisses: which pairs are listed", () => {
     expect(file).toMatchObject({ version: 1, generatedAt: FILE_STAMP, minLinkScore: config.minLinkScore, maxPairs: 2 });
   });
 
-  it("every pair has a reason in Polish that names the rule's cause", () => {
+  it("every pair has a reason that names the rule's cause", () => {
     const file = near([linkOf("a", "b", [pivot("asset", 0.55), pivot("hidden_fields", 0.6)])]);
     expect(file.pairs[0].rule).toBe("kit-only");
-    expect(file.pairs[0].reason).toMatch(/zestaw/i);
+    expect(file.pairs[0].reason).toMatch(/page kit/i);
   });
 });
 
@@ -206,7 +206,7 @@ describe("nearMissesOfMaterial: known campaigns a new record came close to", () 
     const out = of(null);
     expect(out.map((n) => n.campaign)).toEqual(["K01", "K03", "K02"]);
     expect(out[0]).toMatchObject({ campaign: "K01", other: "o2", rule: "kit-only" });
-    expect(out[0].reason).toMatch(/zestaw/i);
+    expect(out[0].reason).toMatch(/page kit/i);
     expect(out[1]).toMatchObject({ campaign: "K03", rule: "below-min-score" });
   });
 

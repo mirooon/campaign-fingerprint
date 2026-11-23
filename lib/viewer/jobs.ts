@@ -98,7 +98,7 @@ export function applyProgress(job: Job, e: MaterialProgress): void {
   if (c.status === "waiting" && e.status === "start") c.status = "running";
   if (e.step === "import" && e.status === "skipped") {
     c.status = "error";
-    c.detail = e.detail ?? "brak plików do analizy";
+    c.detail = e.detail ?? "no files to analyze";
   }
   if (e.step === "import" && e.status === "error") {
     c.status = "error";
@@ -149,7 +149,7 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
         if (msg.t === "progress") applyProgress(job, msg);
         else if (msg.t === "log" && msg.m) pushLog(job, msg.m);
         else if (msg.t === "error" && msg.m) {
-          pushLog(job, `błąd: ${msg.m}`);
+          pushLog(job, `error: ${msg.m}`);
           job.error = msg.m;
         }
       } catch {
@@ -163,7 +163,7 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
   });
   child.on("error", (e) => {
     clearTimeout(timeout);
-    finish(job, null, `Nie udało się uruchomić analizy: ${e.message}`);
+    finish(job, null, `Could not start the analysis: ${e.message}`);
   });
   child.on("close", (code) => {
     clearTimeout(timeout);
@@ -175,11 +175,11 @@ export async function startJob(job: Job, spec: Omit<RunnerSpec, "out" | "workDir
         finish(job, { ...res, provenance: (prov?.cases ?? []).map(withoutFiles), failedLookups: jobFailedLookups(res, prov), lookups: job.live, fileCount: job.fileCount }, null);
         return;
       } catch (e) {
-        finish(job, null, `Nie udało się odczytać wyniku: ${(e as Error).message}`);
+        finish(job, null, `Could not read the result: ${(e as Error).message}`);
         return;
       }
     }
-    finish(job, null, job.error ?? `Analiza zakończona błędem (kod ${code ?? "?"})${job.log.length ? `: ${job.log.at(-1)}` : ""}`);
+    finish(job, null, job.error ?? `The analysis ended with an error (code ${code ?? "?"})${job.log.length ? `: ${job.log.at(-1)}` : ""}`);
   });
 }
 
@@ -192,11 +192,11 @@ function finish(job: Job, result: JobResult | null, error: string | null): void 
     for (const c of job.cases) {
       if (c.status === "error") continue;
       c.status = withItems.has(c.name) ? "done" : "error";
-      if (c.status === "error") c.detail ??= result.skipped.find((s) => s.id === c.name || s.id.startsWith(`${c.name}/`))?.reason ?? "brak materiału w wyniku";
+      if (c.status === "error") c.detail ??= result.skipped.find((s) => s.id === c.name || s.id.startsWith(`${c.name}/`))?.reason ?? "no sample in the result";
     }
   } else {
     job.status = "error";
-    job.error = error ?? "nieznany błąd";
+    job.error = error ?? "unknown error";
     for (const c of job.cases) if (c.status !== "done") Object.assign(c, { status: "error", detail: c.detail ?? job.error });
   }
 }

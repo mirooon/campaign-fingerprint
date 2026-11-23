@@ -63,5 +63,5 @@ export function rateLimitResponse(request: Request): Response | null {
   if (holder.__analyzeLimiter?.signature !== signature) holder.__analyzeLimiter = { signature, limiter: createRateLimiter(config) };
   const r = holder.__analyzeLimiter.limiter.check(clientKey(request.headers));
   if (r.ok) return null;
-  return Response.json({ error: `Za wiele zapytań, spróbuj za ${r.retryAfterS} s` }, { status: 429, headers: { "retry-after": String(r.retryAfterS) } });
+  return Response.json({ error: `Too many requests, try again in ${r.retryAfterS} s` }, { status: 429, headers: { "retry-after": String(r.retryAfterS) } });
 }

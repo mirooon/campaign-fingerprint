@@ -26,7 +26,7 @@ function fixture(): { graph: G; campaigns: Campaign[] } {
 const ids = (nodes: Array<{ id: string }>) => nodes.map((n) => n.id).sort();
 
 describe("reducedGraph", () => {
-  it("przegląd: kampanie i wspólne ślady, reklamy zwinięte", () => {
+  it("overview: campaigns and shared traces, ads collapsed", () => {
     const { graph, campaigns } = fixture();
     const r = reducedGraph(graph, campaigns, { expanded: new Set() });
     expect(ids(r.nodes.filter((n) => n.kind === "campaign"))).toEqual(["campaign:K01", "campaign:K02"]);
@@ -35,14 +35,14 @@ describe("reducedGraph", () => {
     const t1 = r.edges.filter((e) => e.target === "tracker:T1").map((e) => e.source).sort();
     expect(t1).toEqual(["campaign:K01", "campaign:K02"]);
   });
-  it("rozwinięcie kampanii pokazuje jej materiały i które z nich mają ślad", () => {
+  it("expanding a campaign shows its samples and which of them have the trace", () => {
     const { graph, campaigns } = fixture();
     const r = reducedGraph(graph, campaigns, { expanded: new Set(["campaign:K02"]) });
     expect(ids(r.nodes.filter((n) => n.kind === "item"))).toEqual(["item:b1", "item:b2"]);
     expect(r.edges.some((e) => e.source === "item:b2" && e.target === "domain:D")).toBe(true);
     expect(r.edges.some((e) => e.source === "campaign:K02" && e.target === "item:b1")).toBe(true);
   });
-  it("graf od jednego materiału: jego kampania i jej ślady, kolejne kampanie po rozwinięciu śladu", () => {
+  it("graph from one sample: its campaign and its traces, further campaigns after expanding a trace", () => {
     const { graph, campaigns } = fixture();
     const start = reducedGraph(graph, campaigns, { expanded: new Set(), seed: "a1" });
     expect(ids(start.nodes.filter((n) => n.kind === "campaign"))).toEqual(["campaign:K01"]);
@@ -50,12 +50,12 @@ describe("reducedGraph", () => {
     const grown = reducedGraph(graph, campaigns, { expanded: new Set(["tracker:T1"]), seed: "a1" });
     expect(ids(grown.nodes.filter((n) => n.kind === "campaign"))).toEqual(["campaign:K01", "campaign:K02"]);
   });
-  it("limit śladów na kampanię zostawia najsilniejsze", () => {
+  it("the limit of traces per campaign keeps the strongest", () => {
     const { graph, campaigns } = fixture();
     const r = reducedGraph(graph, campaigns, { expanded: new Set(), seed: "a1", maxTraces: 1 });
     expect(ids(r.nodes.filter((n) => n.kind === "trace"))).toEqual(["tracker:T2"]);
   });
-  it("kampania jednego materiału bez wspólnych śladów nie pojawia się w przeglądzie", () => {
+  it("a one-sample campaign without shared traces does not appear in the overview", () => {
     const { graph, campaigns } = fixture();
     expect(reducedGraph(graph, campaigns, { expanded: new Set() }).nodes.some((n) => n.id === "campaign:K03")).toBe(false);
   });

@@ -15,16 +15,16 @@ const premiseOf = (host: string) => {
 describe("known lead backends", () => {
   it("labels a host from the list, subdomains too, and nothing else", () => {
     expect(knownBackendLabel("getyourapi.site")).toContain("Infoblox");
-    expect(knownBackendLabel("v2.GetYourApi.site")).toContain("źródło");
+    expect(knownBackendLabel("v2.GetYourApi.site")).toContain("source");
     expect(knownBackendLabel("nieznany.example")).toBeNull();
   });
 
   it("puts the label and the source on the premise without changing its weight", () => {
     const known = premiseOf("getyourapi.site");
     const other = premiseOf("leads-api.test");
-    expect(known.evidence).toContain("znany backend leadów");
+    expect(known.evidence).toContain("known lead backend");
     expect(known.evidence).toContain("Infoblox");
-    expect(other.evidence).not.toContain("znany backend leadów");
+    expect(other.evidence).not.toContain("known lead backend");
     expect(known.weight).toBe(other.weight);
   });
 });

@@ -44,7 +44,7 @@ describe("analyst corrections (B-281)", () => {
   it("joins a must-link pair with a strong analyst link", () => {
     const res = clusterWithCorrections(graph(), { ...emptyCorrections(), mustLink: [{ a: "a", b: "d", note: "ten sam operator" }] });
     expect(res.campaigns.assignments.a).toBe(res.campaigns.assignments.d);
-    expect(premises(res.graph, "a", "d").some((p) => p.startsWith(`${ANALYST_PREMISE}: połączone`))).toBe(true);
+    expect(premises(res.graph, "a", "d").some((p) => p.startsWith(`${ANALYST_PREMISE}: linked`))).toBe(true);
   });
 
   it("lets cannot-link win over must-link", () => {
@@ -58,7 +58,7 @@ describe("analyst corrections (B-281)", () => {
     const res = clusterWithCorrections(g, { ...emptyCorrections(), disabledPivots: [{ pivot }] });
     const remaining = res.graph.links.find((l) => l.a === "a" && l.b === "b");
     expect(remaining?.evidence.some((e) => e.pivot === pivot) ?? false).toBe(false);
-    expect(premises(res.graph, "a", "b").some((p) => p === `${ANALYST_PREMISE}: wyłączony ślad ${pivot}`)).toBe(true);
+    expect(premises(res.graph, "a", "b").some((p) => p === `${ANALYST_PREMISE}: disabled trace ${pivot}`)).toBe(true);
   });
 
   it("parses short forms and rejects broken pairs", () => {

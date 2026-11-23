@@ -1,6 +1,6 @@
 /**
- * The four families of features (§6.4): Treść, Wygląd, Strona, Infrastruktura.
- * One place that maps every entity type, similarity type and material feature key to a family.
+ * The four families of features (§6.4): Content, Look, Page, Infrastructure.
+ * One place that maps every entity type, similarity type and sample feature key to a family.
  */
 import type { EntityType, SimilarityEdgeType } from "@/lib/graph/model";
 
@@ -9,35 +9,35 @@ export type FeatureFamily = "content" | "look" | "page" | "infra";
 export const FAMILY_ORDER: FeatureFamily[] = ["content", "look", "page", "infra"];
 
 export const FAMILY_LABEL: Record<FeatureFamily, string> = {
-  content: "Treść",
-  look: "Wygląd",
-  page: "Strona",
-  infra: "Infrastruktura",
+  content: "Content",
+  look: "Look",
+  page: "Page",
+  infra: "Infrastructure",
 };
 
 export const FAMILY_HINT: Record<FeatureFamily, string> = {
-  content: "tekst reklamy, odczyt ze zrzutu, transkrypcja, persona, reklamodawca",
-  look: "kreacja, podobny obraz, favicon, podrabiana marka",
-  page: "szablon i kod strony, formularz, skrypty, komentarze, sposób działania",
-  infra: "domena, rejestrator, serwery, certyfikat, trackery, konta i identyfikatory",
+  content: "ad text, text from the screenshot, transcript, persona, advertiser",
+  look: "creative, similar image, favicon, imitated brand",
+  page: "page template and code, form, scripts, comments, modus operandi",
+  infra: "domain, registrar, servers, certificate, trackers, accounts and IDs",
 };
 
 export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily | null> = {
   item: null,
-  // Treść
+  // Content
   advertiser: "content",
   persona: "content",
   fictional_expert: "content",
   profit_claim: "content",
   similar_text: "content",
-  // Wygląd
+  // Look
   imagehash: "look",
   similar_image: "look",
   similar_image_semantic: "look",
   favicon: "look",
   similar_audio: "look",
   similar_voice: "look",
-  // Strona
+  // Page
   similar_dom: "page",
   endpoint: "page",
   hidden_fields: "page",
@@ -52,7 +52,7 @@ export const TYPE_FAMILY: Record<EntityType | SimilarityEdgeType, FeatureFamily 
   lead_flow: "page",
   overlay_template: "page",
   reused_footage: "page",
-  // Infrastruktura
+  // Infrastructure
   url: "infra",
   host: "infra",
   domain: "infra",

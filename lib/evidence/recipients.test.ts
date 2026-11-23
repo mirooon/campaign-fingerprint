@@ -44,7 +44,7 @@ describe("recipientFiles", () => {
 
   it("writes the registrar file with domains and the abuse contact, and leaves shared infrastructure out", () => {
     const csv = files["wskazniki/rejestrator.csv"];
-    expect(csv.split("\n")[0]).toBe("domena,rejestrator,iana_id,abuse_email,utworzona_utc,reklam_w_kampanii");
+    expect(csv.split("\n")[0]).toBe("domain,registrar,iana_id,abuse_email,created_utc,ads_in_campaign");
     expect(csv).toContain("oferta.example,Rejestrator Testowy Ltd,9999,abuse@rejestrator.example");
     expect(csv).not.toContain("cdn.example");
   });
@@ -60,8 +60,8 @@ describe("recipientFiles", () => {
   it("proposes recipients with a reason, conditionally", () => {
     const md = files["odbiorcy.md"];
     expect(md).toMatch(/UODO[\s\S]*Adam Testowy/);
-    expect(md).toMatch(/KNF[\s\S]*ofert/);
-    expect(md).toMatch(/UKE[^\n]*po wcześniejszym zgłoszeniu/);
+    expect(md).toMatch(/KNF[\s\S]*offer/);
+    expect(md).toMatch(/UKE[^\n]*after an earlier report/);
     const none = byName(recipientFiles(facts({ personas: [], financialOffer: false })))["odbiorcy.md"];
     expect(none).not.toMatch(/UODO/);
     expect(none).not.toMatch(/KNF/);

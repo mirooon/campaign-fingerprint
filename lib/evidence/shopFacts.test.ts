@@ -22,10 +22,10 @@ describe("shopFacts", () => {
   it("renders a block per ad and the caveat that the flags do not link", () => {
     const f = shopFacts(extractFromHtml(html, "https://nowymarket.test/"), "2026-11-01");
     const md = renderShopSignals([{ item_id: "a", shop_signals: f }, { item_id: "b", shop_signals: null }]);
-    expect(md).toContain("#### Sygnały sklepu");
+    expect(md).toContain("#### Shop signals");
     expect(md).toContain("**a**");
     expect(md).not.toContain("**b**");
-    expect(md).toContain("nie łączą reklam");
+    expect(md).toContain("do not link the ads");
     expect(renderShopSignals([{ item_id: "b" }])).toBe("");
   });
 });

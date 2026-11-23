@@ -1,5 +1,5 @@
 /**
- * Status of a domain on the CERT Polska Warning List (Lista Ostrzeżeń) from a LOCAL copy of the
+ * Status of a domain on the CERT Polska Warning List from a LOCAL copy of the
  * list (`domains.json`, format v2): no online queries, so the status is as old as the copy and says
  * so (`copyUtc`). Pure functions; reading the file is left to the caller (lib/evidence/certListFile.ts).
  */
@@ -48,7 +48,7 @@ function iso(v: unknown): string | null {
  */
 export function parseCertList(text: string): CertListEntry[] {
   const data: unknown = JSON.parse(text);
-  if (!Array.isArray(data)) throw new Error("to nie jest lista domen CERT (oczekiwano tablicy JSON)");
+  if (!Array.isArray(data)) throw new Error("not a CERT domain list (a JSON array was expected)");
   const entries: CertListEntry[] = [];
   for (const row of data as Array<Record<string, unknown>>) {
     const domain = str(row?.DomainAddress)?.toLowerCase().replace(/\.$/, "");

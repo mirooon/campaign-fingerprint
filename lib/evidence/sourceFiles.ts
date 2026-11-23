@@ -13,14 +13,14 @@ export interface PackProvenance {
 }
 
 export const SOURCE_FILE_LABEL: Record<CaseFileRole, string> = {
-  har: "zapis ruchu przeglądarki (HAR)",
-  saved_html: "zapisana strona (HTML)",
-  screenshot: "zrzut reklamy",
-  more_screenshot: "dalszy zrzut reklamy",
-  page_screenshot: "zrzut strony docelowej",
-  video: "nagranie reklamy",
-  page_video: "wideo ze strony docelowej (sklejone z HLS)",
-  info_json: "opis nagrania (.info.json)",
+  har: "browser traffic record (HAR)",
+  saved_html: "saved page (HTML)",
+  screenshot: "screenshot of the ad",
+  more_screenshot: "further screenshot of the ad",
+  page_screenshot: "screenshot of the landing page",
+  video: "recording of the ad",
+  page_video: "video from the landing page (stitched from HLS)",
+  info_json: "description of the recording (.info.json)",
 };
 
 /** Folder of the pack for a file role; HAR and saved pages go there only as redacted copies (REDACTORS). */

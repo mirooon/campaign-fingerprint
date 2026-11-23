@@ -13,7 +13,7 @@ export interface ReportEntry {
   /** ISO UTC of the report. */
   reported_utc: string;
   category: string;
-  /** Outcome as written by the analyst ("wysłane", "usunięte", "odrzucone", …). */
+  /** Outcome as written by the analyst ("sent", "removed", "rejected", …). */
   status: string;
   /** ISO UTC of the recipient's reaction; null while there is none. */
   response_utc: string | null;
@@ -41,7 +41,7 @@ function toEntry(o: Record<string, unknown>): ReportEntry | null {
   const recipient = str(o.recipient);
   const status = str(o.status);
   if (!reported || !recipient || !status) return null;
-  return { campaign_id: str(o.campaign_id), recipient, reported_utc: reported, category: str(o.category) ?? "nieokreślona", status, response_utc: iso(o.response_utc), reference: str(o.reference) };
+  return { campaign_id: str(o.campaign_id), recipient, reported_utc: reported, category: str(o.category) ?? "unspecified", status, response_utc: iso(o.response_utc), reference: str(o.reference) };
 }
 
 /** Reports from JSON lines or from a JSON array; every line or element that cannot be read is returned with its number (1-based) and the reason. */
@@ -51,13 +51,13 @@ export function parseReports(text: string): { entries: ReportEntry[]; errors: Ar
   const add = (o: unknown, line: number): void => {
     const e = o && typeof o === "object" ? toEntry(o as Record<string, unknown>) : null;
     if (e) entries.push(e);
-    else errors.push({ line, reason: "brak odbiorcy, daty zgłoszenia (reported_utc) albo statusu" });
+    else errors.push({ line, reason: "no recipient, report date (reported_utc) or status" });
   };
   if (text.trimStart().startsWith("[")) {
     try {
       (JSON.parse(text) as unknown[]).forEach((o, i) => add(o, i + 1));
     } catch (e) {
-      errors.push({ line: 1, reason: `to nie jest poprawny JSON: ${(e as Error).message}` });
+      errors.push({ line: 1, reason: `not valid JSON: ${(e as Error).message}` });
     }
     return { entries, errors };
   }
@@ -66,7 +66,7 @@ export function parseReports(text: string): { entries: ReportEntry[]; errors: Ar
     try {
       add(JSON.parse(raw), i + 1);
     } catch (e) {
-      errors.push({ line: i + 1, reason: `to nie jest poprawny JSON: ${(e as Error).message}` });
+      errors.push({ line: i + 1, reason: `not valid JSON: ${(e as Error).message}` });
     }
   });
   return { entries, errors };

@@ -26,7 +26,7 @@ describe("buildCustodyLog", () => {
   it("still writes three entries when the import left no provenance, and says so", () => {
     const log = buildCustodyLog({ ...base, imports: [] });
     expect(log).toHaveLength(3);
-    expect(log[0].action).toMatch(/brak provenance/);
+    expect(log[0].action).toMatch(/no provenance/);
   });
 });
 
@@ -38,6 +38,6 @@ describe("timestampFields", () => {
   it("names the token file, the TSA and the time when there is one", () => {
     const f = timestampFields({ file: "manifest.tsr", tsa: "https://tsa.example/", sha256: "d".repeat(64), utc: "2026-11-19T12:01:00.000Z" }, null);
     expect(f.timestamp_token).toEqual({ file: "manifest.tsr", tsa: "https://tsa.example/", sha256: "d".repeat(64), utc: "2026-11-19T12:01:00.000Z" });
-    expect(f.timestamp_note).toMatch(/dostawc\w* kwalifikowan/);
+    expect(f.timestamp_note).toMatch(/qualified provider/);
   });
 });

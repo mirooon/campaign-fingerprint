@@ -18,7 +18,7 @@ describe("parseCertList", () => {
   });
 
   it("rejects text that is not a list", () => {
-    expect(() => parseCertList("{}")).toThrow(/lista/i);
+    expect(() => parseCertList("{}")).toThrow(/list/i);
   });
 });
 

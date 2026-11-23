@@ -54,12 +54,12 @@ export async function stampManifest(dir: string, url: string, opts: StampOptions
       body: query as BodyInit,
       signal: AbortSignal.timeout(opts.timeoutMs ?? 15_000),
     });
-    if (!res.ok) return fail(`TSA odpowiedziała HTTP ${res.status}`);
+    if (!res.ok) return fail(`TSA answered HTTP ${res.status}`);
     const token = Buffer.from(await res.arrayBuffer());
     writeFileSync(path.join(dir, "manifest.tsr"), token);
     record(dir, timestampFields({ file: "manifest.tsr", tsa: url, sha256: createHash("sha256").update(token).digest("hex"), utc: now().toISOString() }, null));
     return { ok: true, file: "manifest.tsr" };
   } catch (e) {
-    return fail(`nie udało się uzyskać znacznika: ${(e as Error).message}`);
+    return fail(`could not get a timestamp: ${(e as Error).message}`);
   }
 }

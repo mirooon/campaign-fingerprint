@@ -107,7 +107,7 @@ describe("analyst data and tokens", () => {
     const originals = provenance.cases[0].files!.filter((f) => f.role === "har" || f.role === "saved_html").map((f) => f.sha256);
     expect(derived.map((m) => m.derived_from_sha256).sort()).toEqual([...originals].sort());
     for (const d of derived) {
-      expect(d.redaction).toMatch(/zredagowan/);
+      expect(d.redaction).toMatch(/redacted/);
       expect(createHash("sha256").update(readFileSync(path.join(packDir, d.file))).digest("hex")).toBe(d.sha256);
       expect(d.sha256).not.toBe(d.derived_from_sha256);
     }

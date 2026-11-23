@@ -44,8 +44,8 @@ describe("renderPreservationRequest", () => {
     expect(md).toContain("oferta.example");
     expect(md).toContain("abuse@rejestrator.example");
     expect(md).toContain("2026-09-05");
-    expect(md).toMatch(/dane rejestrac|dane abonenta|logi/i);
-    expect(md).not.toContain("[UZUPEŁNIJ");
+    expect(md).toMatch(/registrant data|subscriber data|logs/i);
+    expect(md).not.toContain("[FILL IN");
   });
   it("leaves out domains on shared infrastructure, which do not identify an operator", () => {
     expect(renderPreservationRequest(facts())).not.toContain("cdn.example");
@@ -58,7 +58,7 @@ describe("renderKnfNotice", () => {
     expect(md).toContain("Adam Testowy");
     expect(md).toContain("oferta.example");
     expect(md).toContain("bc1qsyntetyczny");
-    expect(md).toMatch(/2 reklam/);
+    expect(md).toMatch(/2 ads/);
     expect(renderKnfNotice(facts({ financialOffer: false }))).toBeNull();
   });
 });
@@ -66,11 +66,11 @@ describe("renderKnfNotice", () => {
 describe("renderProsecutorNotice", () => {
   it("states the grounds of the campaign and who may file, with the CERT status and dates", () => {
     const md = renderProsecutorNotice(facts({ domains: [domain({ domain: "oferta.example", cert_status: "active", cert_insert_date: "2026-10-10T00:00:00.000Z" })] }));
-    expect(md).toMatch(/art\. 286/);
-    expect(md).toMatch(/art\. 190a/);
-    expect(md).toMatch(/pokrzywdzon|osoba, której wizerunek/i);
+    expect(md).toMatch(/Art\. 286/);
+    expect(md).toMatch(/Art\. 190a/);
+    expect(md).toMatch(/injured|person whose image/i);
     expect(md).toContain("2026-10-10");
-    expect(md).not.toContain("[UZUPEŁNIJ");
+    expect(md).not.toContain("[FILL IN");
   });
   it("does not cite the impersonation article when no person is named", () => {
     expect(renderProsecutorNotice(facts({ personas: [] }))).not.toMatch(/190a/);

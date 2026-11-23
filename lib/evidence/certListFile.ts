@@ -10,11 +10,11 @@ export type CertListLoad = { snapshot: CertListSnapshot; reason: null } | { snap
 
 /** Loads the list copy from `file` (default: env CERT_LIST_FILE); `reason` says why there is no snapshot. */
 export function loadCertList(file: string | undefined = process.env.CERT_LIST_FILE): CertListLoad {
-  if (!file) return { snapshot: null, reason: "nie podano lokalnej kopii listy (CERT_LIST_FILE albo --cert-list)" };
-  if (!existsSync(file)) return { snapshot: null, reason: `brak pliku listy: ${file}` };
+  if (!file) return { snapshot: null, reason: "no local copy of the list given (CERT_LIST_FILE or --cert-list)" };
+  if (!existsSync(file)) return { snapshot: null, reason: `no list file: ${file}` };
   try {
     return { snapshot: { entries: parseCertList(readFileSync(file, "utf8")), copyUtc: statSync(file).mtime.toISOString() }, reason: null };
   } catch (e) {
-    return { snapshot: null, reason: `nie udało się wczytać listy ${file}: ${(e as Error).message}` };
+    return { snapshot: null, reason: `could not load the list ${file}: ${(e as Error).message}` };
   }
 }

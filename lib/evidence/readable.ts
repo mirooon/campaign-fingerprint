@@ -7,9 +7,18 @@
 import { typeInfo } from "../viewer/plain";
 import type { SharedTrace } from "./traces";
 
-/** Name of a trace type as the GUI shows it ("domain" → "Domena"); the raw type when the dictionary has none. */
+/** Name of a trace type as the GUI shows it ("domain" → "Domain"); the raw type when the dictionary has none. */
 export function traceTypeName(type: string): string {
   return typeInfo(type)?.name ?? type;
+}
+
+/**
+ * The same name for the middle of a sentence: the first letter in lower case ("Domain" → "domain",
+ * "Page-builder account" → "page-builder account"), but an abbreviation keeps its case ("IP address", "URL", "NS").
+ */
+export function traceTypeNameInText(type: string): string {
+  const name = traceTypeName(type);
+  return /^\p{Lu}\p{Ll}/u.test(name) ? name[0].toLowerCase() + name.slice(1) : name;
 }
 
 /**
@@ -19,9 +28,9 @@ export function traceTypeName(type: string): string {
  */
 export function whyInCampaign(adId: string, traces: SharedTrace[]): string {
   const own = traces.filter((t) => t.ads.includes(adId));
-  if (!own.length) return "brak wspólnego śladu z innymi reklamami (połączona przez pośrednie ogniwa)";
+  if (!own.length) return "no trace shared with other ads (linked through intermediate links)";
   const rest = own.length - 1;
-  return `${traceTypeName(own[0].type)}: ${own[0].value}${rest ? ` (+${rest} ${rest === 1 ? "ślad" : "ślady"})` : ""}`;
+  return `${traceTypeName(own[0].type)}: ${own[0].value}${rest ? ` (+${rest} ${rest === 1 ? "trace" : "traces"})` : ""}`;
 }
 
 /** Method key of the pack (`similarity_methods`) that each similarity edge type belongs to. */
@@ -48,5 +57,5 @@ const SHARED_INFRA = /cloudflare/i;
 
 /** Marker for a name server or network name of Cloudflare (many independent sites behind one name); null for any other. */
 export function sharedInfrastructureNote(name: string): string | null {
-  return SHARED_INFRA.test(name) ? "wspólne dla wielu niezależnych stron, nie łączy" : null;
+  return SHARED_INFRA.test(name) ? "shared by many independent sites, does not link" : null;
 }

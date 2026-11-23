@@ -43,7 +43,7 @@ export interface AdLibraryFacts {
   records: RepositoryRecord[] | null;
 }
 
-const SOURCE = "Meta Ad Library (MetaAdsCollector, publiczny endpoint biblioteki reklam)";
+const SOURCE = "Meta Ad Library (MetaAdsCollector, public endpoint of the ad library)";
 
 /** Record as written to the pack. */
 function toRecord(r: AdLibraryInfo): RepositoryRecord {

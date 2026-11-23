@@ -1,4 +1,4 @@
-# Odcisk kampanii
+# Odcisk kampanii (Campaign Fingerprint)
 
 *Łączenie oszukańczych reklam w kampanie*
 
@@ -130,7 +130,7 @@ Commity przy każdej liczbie, wrażliwość wag i testy twardych negatywów: [do
 Szybki start działa na danych syntetycznych z repozytorium. Potrzebujesz Dockera z Compose v2 i internetu przy pierwszej budowie.
 
 ```bash
-git clone https://github.com/mirooon/odcisk-kampanii.git && cd odcisk-kampanii
+git clone https://github.com/mirooon/campaign-fingerprint.git && cd campaign-fingerprint
 mkdir -p dane                                          # katalog wymiany plików z kontenerem (/dane)
 docker compose build app                               # pierwsza budowa: 3–5 minut
 docker compose run --rm app bun run demo               # baza syntetyczna (12 spraw) i 8 materiałów do oceny
@@ -178,7 +178,7 @@ OCR (tesseract z językiem polskim), ffmpeg, modele twarzy i głosu oraz lokalny
 - Repozytorium nie zawiera danych organizatora zadania. Dane przykładowe i testowe są syntetyczne, wygenerowane skryptem `scripts/gen-sample.ts`: fikcyjne osoby, domeny `.example` i `.test`, adresy IP z pul dokumentacyjnych.
 - Zdjęcia osób publicznych używane do porównywania twarzy pochodzą z Wikimedia Commons. Źródło, autor i licencja każdego zdjęcia są w [data/faces/ZRODLA.md](data/faces/ZRODLA.md). Dopasowanie to wskazówka do sprawdzenia przez człowieka, nigdy ustalenie tożsamości.
 - Materiały są przetwarzane lokalnie. Zapytania wychodzące (DNS, RDAP, kopie archiwalne, biblioteki reklam) to pasywne zapytania, które włączasz flagami CLI, np. `--live`, `--lookups` i `--archive`, albo polem „Fetch public domain data” w przeglądarce. Obraz Dockera ustawia `ANALYZE_OFFLINE=1`, co je blokuje. Narzędzie nie renderuje stron, nie wykonuje ich JavaScriptu i pokazuje adresy w formie rozbrojonej (`hxxps://example[.]test`).
-- Wersja oddana jury HackNation to tag [`hacknation-2026`](https://github.com/mirooon/odcisk-kampanii/tree/hacknation-2026) (polski interfejs). Instrukcja jej uruchomienia jest w [docs/JURY.md](docs/JURY.md).
+- Wersja oddana jury HackNation to tag [`hacknation-2026`](https://github.com/mirooon/campaign-fingerprint/tree/hacknation-2026) (polski interfejs). Instrukcja jej uruchomienia jest w [docs/JURY.md](docs/JURY.md).
 
 ## Ograniczenia
 

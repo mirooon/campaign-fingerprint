@@ -1,18 +1,23 @@
 /**
- * Polish formats for the GUI: decimal comma (0,82), short dates (9 paź 2026, 08:24) and plural forms.
+ * Formats for the GUI: decimal point (0.82), short en-GB dates (9 Oct 2026, 08:24) and English plurals.
  * Pure functions, no React.
  */
-import { plural } from "@/components/viewer/compare";
 
-export { plural };
+/** Singular and plural form of a noun ("sample", "samples"); a third form is accepted and ignored. */
+export type Forms = readonly [singular: string, plural: string, ...rest: string[]];
 
-/** 0.8234 -> "0,82" (fixed digits, decimal comma). */
-export function fmtNum(n: number | null | undefined, digits = 2): string {
-  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
-  return n.toFixed(digits).replace(".", ",");
+/** English plural: 1 campaign, 0 or 2+ campaigns. */
+export function plural(n: number, forms: Forms): string {
+  return n === 1 ? forms[0] : forms[1];
 }
 
-const MONTHS = ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"];
+/** 0.8234 -> "0.82" (fixed digits, decimal point). */
+export function fmtNum(n: number | null | undefined, digits = 2): string {
+  if (n === null || n === undefined || !Number.isFinite(n)) return "—";
+  return n.toFixed(digits);
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function parts(d: Date, timeZone: string): { y: number; m: number; day: number; hh: string; mm: string } {
   const f = new Intl.DateTimeFormat("en-GB", { timeZone, year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
@@ -21,8 +26,8 @@ function parts(d: Date, timeZone: string): { y: number; m: number; day: number; 
 }
 
 /**
- * ISO date -> "9 paź 2026" or "9 paź 2026, 08:24". A date at midnight UTC (date-only data) is shown
- * without the time and without a time-zone shift; other times in Polish time.
+ * ISO date -> "9 Oct 2026" or "9 Oct 2026, 08:24". A date at midnight UTC (date-only data) is shown
+ * without the time and without a time-zone shift; other times in Warsaw time (Europe/Warsaw).
  */
 export function fmtDate(iso: string | null | undefined, opts: { time?: boolean; timeZone?: string } = {}): string {
   if (!iso) return "—";
@@ -35,7 +40,7 @@ export function fmtDate(iso: string | null | undefined, opts: { time?: boolean; 
   return opts.time === false ? date : `${date}, ${p.hh}:${p.mm}`;
 }
 
-/** Date range of a campaign: "5 wrz – 20 paź 2026" style, full dates when the years differ. */
+/** Date range of a campaign: "5 Sep 2026 – 20 Oct 2026"; a single date when both ends are the same day. */
 export function fmtRange(from: string | null | undefined, to: string | null | undefined): string {
   if (!from && !to) return "—";
   if (!from || !to) return fmtDate(from ?? to, { time: false });
@@ -52,19 +57,19 @@ export function fmtElapsed(ms: number): string {
   return `${m} min ${String(s % 60).padStart(2, "0")} s`;
 }
 
-/** "3 materiały", "5 materiałów" ... */
-export function count(n: number, forms: [string, string, string]): string {
+/** "1 sample", "3 samples" ... */
+export function count(n: number, forms: Forms): string {
   return `${n} ${plural(n, forms)}`;
 }
 
-export const MATERIAL: [string, string, string] = ["materiał", "materiały", "materiałów"];
-export const CAMPAIGN: [string, string, string] = ["kampania", "kampanie", "kampanii"];
-/** A material left alone: a campaign of one material, which still has its own K number. */
-export const SINGLE_MATERIAL: [string, string, string] = ["pojedynczy materiał", "pojedyncze materiały", "pojedynczych materiałów"];
-export const CASE: [string, string, string] = ["sprawa", "sprawy", "spraw"];
-export const FILE: [string, string, string] = ["plik", "pliki", "plików"];
-export const TRACE: [string, string, string] = ["wspólny ślad", "wspólne ślady", "wspólnych śladów"];
-export const FEATURE: [string, string, string] = ["cecha", "cechy", "cech"];
-export const PREMISE: [string, string, string] = ["przesłanka", "przesłanki", "przesłanek"];
-export const GROUP: [string, string, string] = ["grupa podobnych", "grupy podobnych", "grup podobnych"];
-export const ERROR: [string, string, string] = ["błąd", "błędy", "błędów"];
+export const MATERIAL: Forms = ["sample", "samples"];
+export const CAMPAIGN: Forms = ["campaign", "campaigns"];
+/** A sample left alone: a campaign of one sample, which still has its own K number. */
+export const SINGLE_MATERIAL: Forms = ["single sample", "single samples"];
+export const CASE: Forms = ["case", "cases"];
+export const FILE: Forms = ["file", "files"];
+export const TRACE: Forms = ["shared trace", "shared traces"];
+export const FEATURE: Forms = ["feature", "features"];
+export const PREMISE: Forms = ["evidence item", "evidence items"];
+export const GROUP: Forms = ["similar-campaign group", "similar-campaign groups"];
+export const ERROR: Forms = ["error", "errors"];

@@ -3,7 +3,7 @@
 import type { Campaign, CampaignFamily } from "@/lib/graph/model";
 import { ENTITY_LABELS_PL, isSimilarityEdge, type SimilarityEdgeType } from "@/lib/graph/model";
 import type { CampaignSummary } from "@/lib/pipeline/summary";
-import { campaignAttributes, campaignHasPersona, personaOptions, plural } from "./compare";
+import { campaignAttributes, campaignHasPersona, personaOptions } from "./compare";
 import { campaignColor } from "./palette";
 import { familyApartLines } from "@/lib/viewer/nearMissView";
 
@@ -12,19 +12,17 @@ function fmtDate(iso: string | null): string {
 }
 
 const SIMILARITY_SHORT: Record<SimilarityEdgeType, string> = {
-  similar_image: "Obrazy",
-  similar_image_semantic: "Szablon kreacji",
-  similar_text: "Treść",
-  similar_dom: "Szablon strony",
+  similar_image: "Images",
+  similar_image_semantic: "Creative template",
+  similar_text: "Text",
+  similar_dom: "Page template",
   similar_audio: "Audio",
-  similar_voice: "Głos",
+  similar_voice: "Voice",
 };
 
 function evidenceTypeLabel(type: Campaign["topEvidence"][number]["type"]): string {
   return isSimilarityEdge(type) ? SIMILARITY_SHORT[type] : ENTITY_LABELS_PL[type];
 }
-
-const KAMPANIA: [string, string, string] = ["kampania", "kampanie", "kampanii"];
 
 function CampaignAttributesRow({ campaign }: { campaign: Campaign }) {
   const a = campaignAttributes(campaign);
@@ -32,23 +30,23 @@ function CampaignAttributesRow({ campaign }: { campaign: Campaign }) {
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1 text-[11px]">
       {a.personas.slice(0, 3).map((p) => (
-        <span key={p.id} className="rounded bg-fuchsia-50 px-1.5 py-0.5 text-fuchsia-900" title={`Persona (wizerunek) w ${p.count} reklamach: słaby sygnał, do filtrowania`}>
+        <span key={p.id} className="rounded bg-fuchsia-50 px-1.5 py-0.5 text-fuchsia-900" title={`Persona (likeness) in ${p.count} ${p.count === 1 ? "ad" : "ads"}: a weak signal, for filtering`}>
           {p.name} <span className="text-fuchsia-500">×{p.count}</span>
         </span>
       ))}
       {a.personas.length > 3 && <span className="text-slate-400">+{a.personas.length - 3}</span>}
       {a.cyrillic > 0 && (
-        <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-900" title="Reklamy z cyrylicą w komentarzach strony lub parametrach kampanii">
-          cyrylica ×{a.cyrillic}
+        <span className="rounded bg-sky-50 px-1.5 py-0.5 text-sky-900" title="Ads with Cyrillic in page comments or campaign parameters">
+          Cyrillic ×{a.cyrillic}
         </span>
       )}
       {a.cloakingSuspected > 0 && (
-        <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-800" title="Reklamy, których strona wyglądała inaczej dla crawlera platformy i dla przeglądarki mobilnej">
+        <span className="rounded bg-red-50 px-1.5 py-0.5 text-red-800" title="Ads whose page looked different to the platform crawler and to a mobile browser">
           cloaking ×{a.cloakingSuspected}
         </span>
       )}
       {a.deepfakeScoreMax !== null && (
-        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-900" title="Najwyższy wynik deepfake z danych wejściowych (np. DROZD): wynik modelu, wskazówka">
+        <span className="rounded bg-amber-50 px-1.5 py-0.5 text-amber-900" title="Highest deepfake score from the input data (e.g. DROZD): a model score, a hint">
           deepfake max {a.deepfakeScoreMax.toFixed(2)}
         </span>
       )}
@@ -76,19 +74,19 @@ export default function CampaignList({ campaigns, selected, onSelect, summaries,
   const multi = filtered.filter((c) => c.size > 1);
   const singles = filtered.length - multi.length;
   return (
-    <nav aria-label="Kampanie" className="flex flex-col gap-2">
+    <nav aria-label="Campaigns" className="flex flex-col gap-2">
       {options.length > 0 && onPersonaChange && (
         <label className="flex flex-col gap-1 text-xs text-slate-600">
-          <span className="font-medium">Persona (wizerunek)</span>
+          <span className="font-medium">Persona (likeness)</span>
           <select
             value={persona?.id ?? ""}
             onChange={(e) => onPersonaChange(e.target.value || null)}
             className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs text-slate-800"
           >
-            <option value="">wszystkie osoby</option>
+            <option value="">all people</option>
             {options.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({p.campaigns} {plural(p.campaigns, KAMPANIA)}, {p.ads} rekl.)
+                {p.name} ({p.campaigns} {p.campaigns === 1 ? "campaign" : "campaigns"}, {p.ads} {p.ads === 1 ? "ad" : "ads"})
               </option>
             ))}
           </select>
@@ -101,9 +99,9 @@ export default function CampaignList({ campaigns, selected, onSelect, summaries,
           selected === null ? "border-slate-900 bg-slate-900 text-white" : "border-slate-200 bg-white hover:border-slate-400"
         }`}
       >
-        <span className="font-semibold">{persona ? `Kampanie z personą: ${persona.name}` : "Wszystkie kampanie"}</span>
+        <span className="font-semibold">{persona ? `Campaigns with persona: ${persona.name}` : "All campaigns"}</span>
         <span className={`block text-xs ${selected === null ? "text-slate-300" : "text-slate-500"}`}>
-          {multi.length} {plural(multi.length, KAMPANIA)} · {singles} {plural(singles, ["niepowiązana reklama", "niepowiązane reklamy", "niepowiązanych reklam"])}
+          {multi.length} {multi.length === 1 ? "campaign" : "campaigns"} · {singles} {singles === 1 ? "unlinked ad" : "unlinked ads"}
         </span>
       </button>
       {campaigns.map((c, i) => {
@@ -123,11 +121,11 @@ export default function CampaignList({ campaigns, selected, onSelect, summaries,
               <span className="h-3 w-3 shrink-0 rounded-sm" style={{ background: campaignColor(i, c.size) }} aria-hidden />
               <span className="font-mono text-sm font-semibold">{c.id}</span>
               <span className="text-xs text-slate-500">
-                {c.size} {c.size === 1 ? "reklama" : c.size < 5 ? "reklamy" : "reklam"}
+                {c.size} {c.size === 1 ? "ad" : "ads"}
               </span>
               {c.size > 1 && (
-                <span className="ml-auto text-[11px] text-slate-400" title="Średnia siła powiązań wewnątrz kampanii">
-                  spójność {c.cohesion.toFixed(2)}
+                <span className="ml-auto text-[11px] text-slate-400" title="Average link strength inside the campaign">
+                  cohesion {c.cohesion.toFixed(2)}
                 </span>
               )}
             </div>
@@ -139,9 +137,9 @@ export default function CampaignList({ campaigns, selected, onSelect, summaries,
             {c.familyId && familyById.get(c.familyId) && (
               <div
                 className="mt-1 rounded bg-violet-50 px-1.5 py-0.5 text-[11px] text-violet-900"
-                title={`Grupa podobnych kampanii ${c.familyId}: ${familyById.get(c.familyId)!.topEvidence.map((e) => e.label).slice(0, 3).join("; ")}. Osobno, bo: ${familyApartLines(familyById.get(c.familyId)!, null).join("; ") || "brak dowodu na poziomie kampanii"}.`}
+                title={`Group of similar campaigns ${c.familyId}: ${familyById.get(c.familyId)!.topEvidence.map((e) => e.label).slice(0, 3).join("; ")}. Kept apart because: ${familyApartLines(familyById.get(c.familyId)!, null).join("; ") || "no evidence at campaign level"}.`}
               >
-                podobne kampanie {c.familyId}: {familyById.get(c.familyId)!.campaigns.filter((x) => x !== c.id).join(", ")}
+                similar campaigns {c.familyId}: {familyById.get(c.familyId)!.campaigns.filter((x) => x !== c.id).join(", ")}
                 <span className="text-violet-600"> · {evidenceTypeLabel(familyById.get(c.familyId)!.topEvidence[0]?.type ?? "similar_dom")}</span>
               </div>
             )}

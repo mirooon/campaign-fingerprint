@@ -10,10 +10,10 @@ import { evidenceStrength, STRENGTH_INFO } from "@/lib/viewer/strength";
 import { Help } from "./ui";
 import { ReadHow } from "./Guide";
 
-const KIND_LABEL = { ad: "reklama", registered: "rejestracja domeny", cert: "certyfikat" } as const;
+const KIND_LABEL = { ad: "ad", registered: "domain registration", cert: "certificate" } as const;
 
 /**
- * "Dlaczego to jedna kampania" of the campaign card (B-036): the matrix of shared traces (materials × traces,
+ * "Why this is one campaign" of the campaign card (B-036): the matrix of shared traces (materials × traces,
  * strongest first) as the main evidence, the timeline of registrations, certificates and ads, and the
  * evolution: for each material what changed against the earlier ones and what stayed. Draws what
  * `lib/viewer/evolution.ts` computes from the graph.
@@ -27,17 +27,17 @@ export default function CampaignEvolution({ campaign, graph }: { campaign: Campa
   const { matrix, timeline, rows } = view;
   return (
     <div className="space-y-3">
-      <section aria-label="Macierz wspólnych śladów">
-        <h4 className="text-sm font-semibold">Wspólne ślady materiałów<Help term="wspolny_slad" /></h4>
+      <section aria-label="Matrix of shared traces">
+        <h4 className="text-sm font-semibold">Shared traces of samples<Help term="wspolny_slad" /></h4>
         {matrix.columns.length === 0 ? (
-          <p className="mt-1 text-xs text-slate-600">Materiały nie mają wspólnych śladów, łączy je tylko podobieństwo treści.</p>
+          <p className="mt-1 text-xs text-slate-600">The samples have no shared traces; only similar content links them.</p>
         ) : (
           <div className="mt-1 overflow-x-auto">
             <table className="border-collapse text-xs">
-              <caption className="sr-only">Które materiały kampanii mają który wspólny ślad; kolumny od najsilniejszego śladu</caption>
+              <caption className="sr-only">Which samples of the campaign have which shared trace; columns from the strongest trace</caption>
               <thead>
                 <tr>
-                  <th scope="col" className="p-1 text-left font-medium text-slate-600">Materiał</th>
+                  <th scope="col" className="p-1 text-left font-medium text-slate-600">Sample</th>
                   {matrix.columns.map((col) => (
                     <th key={col.id} scope="col" className="max-w-28 p-1 text-left align-bottom font-normal" title={`${STRENGTH_INFO[evidenceStrength({ strong: col.strong, discounted: col.skipped, weight: col.weight ?? 0, pivotType: col.type })].label}: ${col.label}`}>
                       <span className="block text-[10px] uppercase tracking-wide text-slate-500">{typeInfo(col.type)?.name ?? col.type}</span>
@@ -54,7 +54,7 @@ export default function CampaignEvolution({ campaign, graph }: { campaign: Campa
                     {row.has.map((has, i) => (
                       <td key={matrix.columns[i].id} className={`p-1 text-center ${has ? "bg-slate-800 text-white" : "text-slate-300"}`}>
                         <span aria-hidden>{has ? "●" : "·"}</span>
-                        <span className="sr-only">{has ? "ma" : "nie ma"}</span>
+                        <span className="sr-only">{has ? "has" : "does not have"}</span>
                       </td>
                     ))}
                   </tr>
@@ -63,12 +63,12 @@ export default function CampaignEvolution({ campaign, graph }: { campaign: Campa
             </table>
           </div>
         )}
-        {matrix.hidden > 0 && <p className="mt-1 text-xs text-slate-600">Pominięto jeszcze {matrix.hidden} słabszych wspólnych śladów.</p>}
+        {matrix.hidden > 0 && <p className="mt-1 text-xs text-slate-600">{matrix.hidden} weaker shared {matrix.hidden === 1 ? "trace" : "traces"} not shown.</p>}
       </section>
 
-      <section aria-label="Co się zmieniało w kampanii">
-        <h4 className="text-sm font-semibold">Ewolucja kampanii</h4>
-        <p className="text-xs text-slate-600">Przy każdym materiale: co zmieniło się względem wcześniejszych, a co zostało.</p>
+      <section aria-label="What changed in the campaign">
+        <h4 className="text-sm font-semibold">Campaign evolution</h4>
+        <p className="text-xs text-slate-600">For each sample: what changed compared with the earlier ones, and what was kept.</p>
         <ol className="mt-1 space-y-1 text-sm">
           {rows.map((r) => (
             <li key={r.id} className="rounded border border-slate-200 bg-white px-2 py-1">
@@ -84,8 +84,8 @@ export default function CampaignEvolution({ campaign, graph }: { campaign: Campa
       </section>
 
       {timeline.length > 0 && (
-        <section aria-label="Oś czasu">
-          <h4 className="text-sm font-semibold">Oś czasu</h4>
+        <section aria-label="Timeline">
+          <h4 className="text-sm font-semibold">Timeline</h4>
           <ol className="mt-1 space-y-0.5 border-l-2 border-slate-300 pl-3 text-xs">
             {timeline.map((e, i) => (
               <li key={i}>

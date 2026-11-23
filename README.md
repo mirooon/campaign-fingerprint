@@ -4,7 +4,7 @@
 
 Campaign Fingerprint takes single reports of scam ads (screenshots, saved pages, HAR files, recordings, links), groups them into campaigns run by the same operator and shows the evidence behind every link.
 
-Built solo in 48 hours at HackNation 2026 (21–22 Nov 2026, Poland) for NASK's *Kolekcjoner fejków* (Fake Collector) challenge.
+Built solo in 24 hours at HackNation 2026 (21–22 Nov 2026, Poland) for NASK's *Kolekcjoner fejków* (Fake Collector) challenge.
 
 [Wersja polska](README.pl.md)
 
@@ -189,7 +189,7 @@ OCR (tesseract with Polish), ffmpeg, the face and voice models and a local LLM a
 - Pages are read statically. Content that appears only after JavaScript runs is invisible.
 - Samples are compared in pairs, O(n²). Tens of thousands of samples would need an index.
 - Face, voice, speech-to-text and CLIP matching run from the command line only. The tool does not detect deepfakes and does not judge whether a single ad is a scam.
-- It was built in 48 hours, so expect rough edges.
+- It was built in 24 hours, so expect rough edges.
 
 ## License
 

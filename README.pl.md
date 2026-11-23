@@ -4,7 +4,7 @@
 
 Odcisk kampanii bierze pojedyncze zgłoszenia oszukańczych reklam (zrzuty ekranu, zapisane strony, pliki HAR, nagrania, linki), łączy je w kampanie jednego operatora i przy każdym połączeniu pokazuje przesłanki.
 
-Projekt zbudowany w pojedynkę w 48 godzin na HackNation 2026 (21–22.11.2026, Polska) w odpowiedzi na zadanie NASK *Kolekcjoner fejków*.
+Projekt zbudowany w pojedynkę w 24 godziny na HackNation 2026 (21–22.11.2026, Polska) w odpowiedzi na zadanie NASK *Kolekcjoner fejków*.
 
 [English version](README.md) · Instrukcja dla jury HackNation 2026 (stan z 22.11.2026): [docs/JURY.md](docs/JURY.md)
 
@@ -189,7 +189,7 @@ OCR (tesseract z językiem polskim), ffmpeg, modele twarzy i głosu oraz lokalny
 - Strony są czytane statycznie. Treść, która pojawia się dopiero po wykonaniu JavaScriptu, jest niewidoczna.
 - Materiały są porównywane parami, O(n²). Dziesiątki tysięcy materiałów wymagałyby indeksu.
 - Porównywanie twarzy, głosu, transkrypcja mowy i CLIP działają tylko z wiersza poleceń. Narzędzie nie wykrywa deepfake'ów i nie ocenia, czy pojedyncza reklama jest oszustwem.
-- Powstało w 48 godzin, więc ma niedoróbki.
+- Powstało w 24 godziny, więc ma niedoróbki.
 
 ## Licencja
 

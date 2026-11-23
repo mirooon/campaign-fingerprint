@@ -1235,22 +1235,22 @@ export function buildEvidenceGraph(
           ...(machine ? { machine } : {}),
           ...(trackerCampaign ? { trackerCampaign: true } : {}),
         });
-        const where = relation < 1 ? "linku wychodzącym strony" : cp.origin === "form" ? "ukrytym polu formularza strony" : cp.origin === "script" ? "skrypcie strony" : "URL";
-        g.edge(itemNode, id, "carries_param", `parametr ${cp.name} w ${where} ${cp.sourceUrl}${machine ? ` (serwer trackera ${machine})` : ""}`);
+        const where = relation < 1 ? "the page's outbound link" : cp.origin === "form" ? "a hidden field of the page form" : cp.origin === "script" ? "the page script" : "the URL";
+        g.edge(itemNode, id, "carries_param", `parameter ${cp.name} in ${where} ${cp.sourceUrl}${machine ? ` (tracker server ${machine})` : ""}`);
         const what =
           cp.canonicalName === "tracker_campaign"
-            ? `ten sam klucz kampanii w trackerze (${cp.name}=${value})`
+            ? `the same campaign key in the tracker (${cp.name}=${value})`
             : machine
-              ? `ta sama kampania na tym samym serwerze trackera (${cp.canonicalName}=${value}, maszyna ${machine})`
-              : `ten sam parametr kampanii ${cp.canonicalName}=${value}${origin}`;
-        add(id, "campaign_param", [itemNode, id], relation, relation < 1 ? `${what} (w linku wychodzącym strony)` : what);
+              ? `the same campaign on the same tracker server (${cp.canonicalName}=${value}, machine ${machine})`
+              : `the same campaign parameter ${cp.canonicalName}=${value}${origin}`;
+        add(id, "campaign_param", [itemNode, id], relation, relation < 1 ? `${what} (in the page's outbound link)` : what);
       }
       // A Meta ad ID in the link's parameters (utm_content={{ad.id}}, ad_id=) is the same clicked ad as the
       // adid inside an fbclid: one meta_ad node for both (B-156)
       if (relation === 1 && META_AD_ID_PARAMS.has(cp.canonicalName) && /^\d{15,19}$/.test(value)) {
-        const id = g.node("meta_ad", value, `reklama Meta ${value}`, { adId: value });
-        g.edge(itemNode, id, "clicked_ad", `identyfikator reklamy Mety w parametrze ${cp.name} linku`);
-        add(id, "meta_ad", [itemNode, id], 1, `ta sama reklama w Mecie (identyfikator ${value} z parametru ${cp.name})`);
+        const id = g.node("meta_ad", value, `Meta ad ${value}`, { adId: value });
+        g.edge(itemNode, id, "clicked_ad", `Meta ad ID in link parameter ${cp.name}`);
+        add(id, "meta_ad", [itemNode, id], 1, `the same Meta ad (ID ${value} from parameter ${cp.name})`);
       }
     }
 
@@ -1263,14 +1263,14 @@ export function buildEvidenceGraph(
     );
     if (linkIds) {
       for (const owner of linkIds.ownerIds) {
-        const id = g.node("platform_account", owner, `konto ${owner.slice(0, 8)}… na platformie stron`, { ownerId: owner, platform: "aio" });
-        g.edge(itemNode, id, "built_on", `link platformy stron wskazuje konto (launcher=${owner}, ta sama wartość co owner_uuid)`);
-        add(id, "platform_account", [itemNode, id], 1, `to samo konto na platformie stron (launcher = owner_uuid ${owner})`);
+        const id = g.node("platform_account", owner, `page-builder account ${owner.slice(0, 8)}…`, { ownerId: owner, platform: "aio" });
+        g.edge(itemNode, id, "built_on", `the page-builder link points to the account (launcher=${owner}, the same value as owner_uuid)`);
+        add(id, "platform_account", [itemNode, id], 1, `the same page-builder account (launcher = owner_uuid ${owner})`);
       }
       for (const c of linkIds.campaignIds) {
-        const id = g.node("platform_campaign", c, `kampania ${c.slice(0, 8)}`, { campaignId: c });
-        g.edge(itemNode, id, "built_on", `link platformy stron wskazuje kampanię (cuuid=${c})`);
-        add(id, "platform_campaign", [itemNode, id], 1, `ta sama kampania na platformie stron (cuuid ${c})`);
+        const id = g.node("platform_campaign", c, `campaign ${c.slice(0, 8)}`, { campaignId: c });
+        g.edge(itemNode, id, "built_on", `the page-builder link points to the campaign (cuuid=${c})`);
+        add(id, "platform_campaign", [itemNode, id], 1, `the same page-builder campaign (cuuid ${c})`);
       }
       if (linkIds.sourceIds.length) itemData.platformSourceIds = linkIds.sourceIds;
       // suuid of a showcase link is a lead-funnel trace too (B-332)
@@ -1286,9 +1286,9 @@ export function buildEvidenceGraph(
       // Keyed by the machine only: the "process ID" of this tracker product is one constant on many
       // installations (a trait of the platform, not of one server), so it stays a detail of the node.
       const prevPids = (g.nodes.get(nodeId("click_server", x.machine))?.data.pids as number[] | undefined) ?? [];
-      const id = g.node("click_server", x.machine, `serwer trackera ${x.machine}`, { machine: x.machine, pids: [...new Set([...prevPids, x.pid])].sort((p, q) => p - q) });
-      g.edge(itemNode, id, "routed_by", `identyfikator kliknięcia ${x.param}=${x.value} w formacie xid: wydany ${x.time}, maszyna ${x.machine}, proces ${x.pid} (stała instalacji platformy), licznik ${x.counter}`);
-      add(id, "click_server", [itemNode, id], relation, `ten sam serwer trackera (clickid w formacie xid: maszyna ${x.machine}${relation < 1 ? ", w linku wychodzącym strony" : ""})`);
+      const id = g.node("click_server", x.machine, `tracker server ${x.machine}`, { machine: x.machine, pids: [...new Set([...prevPids, x.pid])].sort((p, q) => p - q) });
+      g.edge(itemNode, id, "routed_by", `click ID ${x.param}=${x.value} in xid format: issued ${x.time}, machine ${x.machine}, process ${x.pid} (a constant of the platform installation), counter ${x.counter}`);
+      add(id, "click_server", [itemNode, id], relation, `the same tracker server (clickid in xid format: machine ${x.machine}${relation < 1 ? ", in the page's outbound link" : ""})`);
       if (relation === 1) {
         itemData.clickTime ??= x.time;
         itemData.clickCounter ??= x.counter;
@@ -1298,9 +1298,9 @@ export function buildEvidenceGraph(
       if (f.appId) itemData.metaAppId ??= f.appId;
       if (!f.adId) continue;
       itemData.metaAdId ??= f.adId;
-      const id = g.node("meta_ad", f.adId, `reklama Meta ${f.adId}`, { adId: f.adId, appId: f.appId });
-      g.edge(itemNode, id, "clicked_ad", `fbclid w linku zawiera identyfikator klikniętej reklamy ${f.adId}${f.appId ? ` (app_id ${f.appId})` : ""}`);
-      add(id, "meta_ad", [itemNode, id], 1, `ta sama reklama w Mecie (identyfikator ${f.adId} odczytany z fbclid)`);
+      const id = g.node("meta_ad", f.adId, `Meta ad ${f.adId}`, { adId: f.adId, appId: f.appId });
+      g.edge(itemNode, id, "clicked_ad", `the fbclid in the link contains the ID of the clicked ad ${f.adId}${f.appId ? ` (app_id ${f.appId})` : ""}`);
+      add(id, "meta_ad", [itemNode, id], 1, `the same Meta ad (ID ${f.adId} read from fbclid)`);
     }
 
     // Template of the tracking link (parameter names + value shapes): the traffic-distribution system
@@ -1308,16 +1308,16 @@ export function buildEvidenceGraph(
     const schemaPlatform = schema ? (config.lists.paramSchemaPlatformParts ?? []).find((r) => r.platform && schema.key.split("|").includes(r.match))?.platform : undefined;
     if (schemaPlatform) itemData.pagePlatforms = [...new Set([...((itemData.pagePlatforms as string[] | undefined) ?? []), schemaPlatform])].sort();
     if (schema) {
-      const id = g.node("param_schema", schema.key, `szablon linku: ${schema.names.join(", ")}`, { schema: schema.key, names: schema.names });
-      g.edge(itemNode, id, "follows_schema", "nazwy parametrów linku docelowego i rodzaj ich wartości");
-      add(id, "param_schema", [itemNode, id], 1, `ten sam szablon linku śledzącego (${schema.names.join(", ")}; wartości losowe)`);
+      const id = g.node("param_schema", schema.key, `link template: ${schema.names.join(", ")}`, { schema: schema.key, names: schema.names });
+      g.edge(itemNode, id, "follows_schema", "parameter names of the landing link and the kind of their values");
+      add(id, "param_schema", [itemNode, id], 1, `the same tracking-link template (${schema.names.join(", ")}; random values)`);
     }
 
     // Personas (impersonated people): weak signal, mainly for filtering and triage
     // One edge per persona; every way it was found is kept in the edge evidence ("; "-separated).
     const personaHows = new Map<string, { name: string; role: string | null; category: string | null; hows: string[] }>();
     for (const pm of enr?.personas ?? []) {
-      const how = pm.source === "ingest" ? "z kolumny danych wejściowych" : pm.source === "ner" ? "z NER (model językowy)" : pm.source === "face" ? `z twarzy (podobna twarz${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.source === "voice" ? `z głosu (głos podobny do osoby${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; do przeglądu przez człowieka)` : pm.fuzzy ? "z OCR/ASR (dopasowanie przybliżone)" : "z listy obserwowanych nazwisk";
+      const how = pm.source === "ingest" ? "from the input data column" : pm.source === "ner" ? "from NER (language model)" : pm.source === "face" ? `from a face (similar face${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; for human review)` : pm.source === "voice" ? `from a voice (voice similar to the person${pm.similarity !== undefined ? `, ${pm.similarity.toFixed(2)}` : ""}; for human review)` : pm.fuzzy ? "from OCR/ASR (approximate match)" : "from the watchlist of names";
       const cur = personaHows.get(pm.id) ?? { name: pm.name, role: pm.role, category: pm.category ?? null, hows: [] };
       if (!cur.hows.includes(how)) cur.hows.push(how);
       cur.role ??= pm.role;
@@ -1327,9 +1327,9 @@ export function buildEvidenceGraph(
     for (const [pid, p] of personaHows) {
       const id = g.node("persona", pid, p.name, { name: p.name, role: p.role, ...(p.category ? { category: p.category } : {}) });
       g.edge(itemNode, id, "mentions_persona", `persona ${p.hows.join("; ")}`);
-      add(id, "persona", [itemNode, id], 1, `ta sama persona: ${p.name}`);
+      add(id, "persona", [itemNode, id], 1, `the same persona: ${p.name}`);
     }
-    // Group of the impersonated person ("podszywa się pod: dziennikarkę"): a trait of the group, only for entries that have one
+    // Group of the impersonated person ("impersonates: a journalist"): a trait of the group, only for entries that have one
     const personaCategories = [...personaHows.values()].filter((p) => p.category).map((p) => ({ name: p.name, category: p.category }));
     if (personaCategories.length) itemData.personaCategories = personaCategories;
     // The same set of people in one material (a fake conversation of two known persons) is rarer than one
@@ -1339,8 +1339,8 @@ export function buildEvidenceGraph(
       for (let j = i + 1; j < personaIds.length; j++) {
         const [p, q] = [personaHows.get(personaIds[i])!, personaHows.get(personaIds[j])!];
         const id = g.node("persona", `pair:${personaIds[i]}+${personaIds[j]}`, `${p.name} + ${q.name}`, { pair: true, names: [p.name, q.name] });
-        g.edge(itemNode, id, "mentions", `para osób w jednym materiale (${p.name}, ${q.name})`);
-        add(id, "persona", [itemNode, id], 1, `ta sama para osób: ${p.name} i ${q.name}`);
+        g.edge(itemNode, id, "mentions", `pair of people in one sample (${p.name}, ${q.name})`);
+        add(id, "persona", [itemNode, id], 1, `the same pair of people: ${p.name} and ${q.name}`);
       }
     }
 
@@ -1386,17 +1386,17 @@ export function buildEvidenceGraph(
     // The scam's own brand (product, "investment platform"): a page-kit trait, campaignRules.notAloneKinds
     const brandBody = [item.text, ui?.text, enr?.asrText ? stripHallucinations(enr.asrText) : null, enr?.videoOcrText, pageEx?.title, pageEx?.description, pageEx?.visibleText].filter(Boolean).join("\n");
     for (const b of scamBrands({ body: brandBody, landingName: typeof itemData.landingName === "string" ? itemData.landingName : null })) {
-      const id = g.node("campaign_param", `scam_brand=${b.key}`, `marka oszustwa: ${b.name}`, { canonicalName: "scam_brand", name: "marka oszustwa", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
-      g.edge(itemNode, id, "mentions", `nazwa produktu lub „platformy” w treści (${b.source})`);
-      add(id, "campaign_param", [itemNode, id], 1, `ta sama marka oszustwa: ${b.name}`);
+      const id = g.node("campaign_param", `scam_brand=${b.key}`, `scam brand: ${b.name}`, { canonicalName: "scam_brand", name: "scam brand", value: b.name, key: b.key, scamBrand: true, cyrillic: false, macro: false });
+      g.edge(itemNode, id, "mentions", `product or “platform” name in the text (${b.source})`);
+      add(id, "campaign_param", [itemNode, id], 1, `the same scam brand: ${b.name}`);
     }
     // A made-up expert ("dr Jan Testowy"): one operator invented the name, so the same name (or a typo of it) links (B-313)
     const experts = expertsOf.get(item.id) ?? [];
     for (const x of experts) {
       const key = expertCanon.get(x.key) ?? x.key;
       const id = g.node("fictional_expert", key, `${x.title === "prof" ? "prof." : "dr"} ${x.name}`, { title: x.title, name: x.name });
-      g.edge(itemNode, id, "mentions", `ekspert „${x.name}” (${x.title === "prof" ? "prof." : "dr"}) spoza listy osób publicznych`);
-      add(id, "fictional_expert", [itemNode, id], 1, `ten sam zmyślony ekspert: ${x.title === "prof" ? "prof." : "dr"} ${x.name}`);
+      g.edge(itemNode, id, "mentions", `expert “${x.name}” (${x.title === "prof" ? "prof." : "dr"}) not on the list of public figures`);
+      add(id, "fictional_expert", [itemNode, id], 1, `the same fictitious expert: ${x.title === "prof" ? "prof." : "dr"} ${x.name}`);
     }
     if (experts.length) itemData.fictionalExperts = experts.map((x) => `${x.title === "prof" ? "prof." : "dr"} ${x.name}`);
     // Company identifiers and bank accounts of the page and of the screenshots: a trace that only supports a link
@@ -1412,10 +1412,10 @@ export function buildEvidenceGraph(
       if (isAccount && !c.valid) continue;
       const type = isAccount ? "bank_account" : "company_id";
       const key = isAccount ? c.value : `${c.kind}:${c.value}`;
-      const label = isAccount ? `rachunek ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;
+      const label = isAccount ? `bank account ${c.value.slice(0, 4)}…${c.value.slice(-4)}` : `${c.kind.toUpperCase()} ${c.value}`;
       const id = g.node(type, key, label, { kind: c.kind, value: c.value, valid: c.valid, check: c.check });
-      g.edge(itemNode, id, "mentions", `${isAccount ? "rachunek bankowy" : "identyfikator firmy"} na ${c.source === "ocr" ? "zrzucie ekranu (OCR)" : "stronie"}${c.valid ? "" : " (nie przechodzi sprawdzenia)"}`);
-      add(id, type, [itemNode, id], 1, isAccount ? `ten sam rachunek bankowy ${c.value}` : `ten sam identyfikator firmy ${c.kind.toUpperCase()} ${c.value}`);
+      g.edge(itemNode, id, "mentions", `${isAccount ? "bank account" : "company ID"} on ${c.source === "ocr" ? "the screenshot (OCR)" : "the page"}${c.valid ? "" : " (fails the check)"}`);
+      add(id, type, [itemNode, id], 1, isAccount ? `the same bank account ${c.value}` : `the same company ID ${c.kind.toUpperCase()} ${c.value}`);
     }
     // Shop signals (legal pages, discounts, payments, reviews ...) and contact data of the landing page: attributes
     // of the material that explain why it looks like a fake shop, never a trace. The one exception is a full postal
@@ -1445,8 +1445,8 @@ export function buildEvidenceGraph(
       if (contact.phoneAreaMismatch) itemData.phoneAreaMismatch = contact.phoneAreaMismatch;
       for (const a of contact.address.addresses) {
         const id = g.node("postal_address", a.key, `${a.street} ${a.number}, ${a.postalCode} ${a.city}`, { street: a.street, number: a.number, flat: a.flat, postalCode: a.postalCode, city: a.city });
-        g.edge(itemNode, id, "mentions", "adres siedziby na stronie sklepu");
-        add(id, "postal_address", [itemNode, id], 1, `ten sam adres: ${a.street} ${a.number}, ${a.postalCode} ${a.city}`);
+        g.edge(itemNode, id, "mentions", "registered address on the shop page");
+        add(id, "postal_address", [itemNode, id], 1, `the same address: ${a.street} ${a.number}, ${a.postalCode} ${a.city}`);
       }
       // the domain of a contact address other than the shop's is linked like any domain the page points to
       const deadContactDomains = contact.otherEmailDomains.filter((d) => dataset.domains[d]?.contactDomainDead);
@@ -1455,8 +1455,8 @@ export function buildEvidenceGraph(
         const disc = discounter.domainDiscount(d);
         if (disc && disc.factor === 0) continue;
         const id = g.node("domain", d, d, { registrableDomain: d });
-        g.edge(itemNode, id, "links_to", "domena adresu e-mail kontaktowego (inna niż domena sklepu)");
-        add(id, "domain", [itemNode, id], config.outboundLinkFactor, `adres e-mail na domenie ${d}`);
+        g.edge(itemNode, id, "links_to", "domain of the contact email address (other than the shop's domain)");
+        add(id, "domain", [itemNode, id], config.outboundLinkFactor, `email address on domain ${d}`);
       }
     }
     if (enr?.creativeBrand) itemData.creativeBrand = enr.creativeBrand;
@@ -1470,9 +1470,9 @@ export function buildEvidenceGraph(
       itemData.profitClaims = claims.map(({ amount, currency, period, quote }) => ({ amount, currency, period, quote }));
       const key = profitClaimKey(claims);
       if (key) {
-        const id = g.node("profit_claim", key, `obiecywany zysk ${key.replaceAll("|", ", ")}`, { pairs: key.split("|") });
-        g.edge(itemNode, id, "mentions", `kwoty zysku w treści (${claims.filter((c) => !c.standard).map((c) => c.quote).join("; ")})`);
-        add(id, "profit_claim", [itemNode, id], 1, `te same kwoty obiecywanego zysku (${key.replaceAll("|", ", ")})`);
+        const id = g.node("profit_claim", key, `promised profit ${key.replaceAll("|", ", ")}`, { pairs: key.split("|") });
+        g.edge(itemNode, id, "mentions", `profit amounts in the text (${claims.filter((c) => !c.standard).map((c) => c.quote).join("; ")})`);
+        add(id, "profit_claim", [itemNode, id], 1, `the same promised profit amounts (${key.replaceAll("|", ", ")})`);
       }
     }
     if (narrative) {
@@ -1519,7 +1519,7 @@ export function buildEvidenceGraph(
     const observedUrls = enr?.observedUrls ?? [];
     if (observedUrls.length) {
       itemData.observedUrls = [
-        ...new Set(observedUrls.map((o) => `${o.host}${o.frameTime !== undefined ? ` (nagranie ${o.frameTime} s)` : ""}${o.platform ? " (strona platformy)" : ""}`)),
+        ...new Set(observedUrls.map((o) => `${o.host}${o.frameTime !== undefined ? ` (recording ${o.frameTime} s)` : ""}${o.platform ? " (platform page)" : ""}`)),
       ];
       const inApp = observedUrls.find((o) => o.inAppBrowser)?.inAppBrowser;
       if (inApp) itemData.inAppBrowser = inApp;
@@ -1532,11 +1532,11 @@ export function buildEvidenceGraph(
       const urlNode = addUrlInfra(o.url, [itemNode], 1);
       if (urlNode) {
         if (o.source === "qr_code") {
-          g.edge(itemNode, urlNode, "mentions", "adres zakodowany w kodzie QR na zrzucie");
+          g.edge(itemNode, urlNode, "mentions", "URL encoded in a QR code on the screenshot");
           continue;
         }
-        const where = o.source === "address_bar_video" ? `nagraniu ekranu (${o.frameTime} s)` : "zrzucie ekranu";
-        g.edge(itemNode, urlNode, "mentions", `adres w pasku przeglądarki na ${where}${o.inAppBrowser ? `, przeglądarka w aplikacji ${o.inAppBrowser}` : ""}`);
+        const where = o.source === "address_bar_video" ? `the screen recording (${o.frameTime} s)` : "the screenshot";
+        g.edge(itemNode, urlNode, "mentions", `URL in the browser address bar on ${where}${o.inAppBrowser ? `, in-app browser ${o.inAppBrowser}` : ""}`);
       }
     }
 
@@ -1546,14 +1546,14 @@ export function buildEvidenceGraph(
     for (const target of new Set(wrapped.map((u) => (u ? unwrapPlatformUrl(u) : null)).filter((u): u is string => !!u))) {
       if (enr?.landing && normalizeUrl(target)?.host === normalizeUrl(landingPage?.fetch.finalUrl ?? "")?.host) continue;
       const urlNode = addUrlInfra(target, [itemNode], 1);
-      if (urlNode) g.edge(itemNode, urlNode, "mentions", "adres docelowy z linku-opakowania platformy (przekierowanie serwisu)");
+      if (urlNode) g.edge(itemNode, urlNode, "mentions", "target URL from a platform wrapper link (site redirect)");
     }
 
     // URLs mentioned in the ad copy (other than the landing URL)
     for (const u of enr?.text?.urls ?? []) {
       if (enr?.landing && normalizeUrl(u)?.url === enr.landing.url) continue;
       const urlNode = addUrlInfra(u, [itemNode], 1);
-      if (urlNode) g.edge(itemNode, urlNode, "mentions", "URL w treści reklamy");
+      if (urlNode) g.edge(itemNode, urlNode, "mentions", "URL in the ad text");
     }
 
     factsByItem.set(item.id, dedupeFacts(facts));
@@ -1578,7 +1578,7 @@ export function buildEvidenceGraph(
     node.df = pivotItems.get(node.id)?.length ?? 0;
     node.discounts = discounter.discountsFor({ type: node.type, key: node.key, id: node.id, data: node.data });
     const nameFactor = nameFactors.get(node.id) ?? 1;
-    if (nameFactor < 1) node.discounts.push({ reason: "pospolite imiona w bloku komentarzy (częste w blokach innych stron)", factor: nameFactor, rule: "comment_names" });
+    if (nameFactor < 1) node.discounts.push({ reason: "common first names in the comment block (frequent in blocks of other pages)", factor: nameFactor, rule: "comment_names" });
     const base = node.data.burst
       ? config.registrationBurstWeight
       : node.data.exactFile
@@ -1658,7 +1658,7 @@ export function buildEvidenceGraph(
       return mine.some((p) => pivotsOf.get(b)?.has(p));
     };
     const discountText = node.discounts.length
-      ? ` — zdyskontowane: ${node.discounts.map((d) => `${d.reason} (×${d.factor})`).join("; ")}`
+      ? ` — discounted: ${node.discounts.map((d) => `${d.reason} (×${d.factor})`).join("; ")}`
       : "";
     for (let i = 0; i < holders.length; i++) {
       for (let j = i + 1; j < holders.length; j++) {
@@ -1678,7 +1678,7 @@ export function buildEvidenceGraph(
           weight: round(weight),
           strong: node.strong && rel >= 1,
           discounted: node.discounts.length > 0 || rel < 1,
-          evidence: `${how}${discountText}${rel < 1 ? ` (relacja pośrednia ×${round(rel)})` : ""}`,
+          evidence: `${how}${discountText}${rel < 1 ? ` (indirect relation ×${round(rel)})` : ""}`,
           pathA: first.fact.path,
           pathB: second.fact.path,
         });
@@ -1703,7 +1703,7 @@ export function buildEvidenceGraph(
       const d = hammingDistance(a.dhash, b.dhash);
       if (d === 0 || d > thr) continue;
       const weight = config.similarity.imageWeight * (1 - (0.5 * d) / Math.max(1, thr));
-      const ev = `prawie identyczna kreacja (dHash, odległość Hamminga ${d}/64)`;
+      const ev = `near-identical creative (dHash, Hamming distance ${d}/64)`;
       pushPair(withImage[i].id, withImage[j].id, simEvidence("similar_image", weight, ev, 1 - d / 64));
       g.edge(nodeId("item", withImage[i].id), nodeId("item", withImage[j].id), "similar_image", ev, round(weight));
     }
@@ -1716,7 +1716,7 @@ export function buildEvidenceGraph(
       const { count, best } = sharedShots(dataset.perItem[withShots[i].id].videoShots!, dataset.perItem[withShots[j].id].videoShots!);
       if (!count) continue;
       const weight = config.similarity.imageWeight * (1 - (0.5 * best) / Math.max(1, SHOT_HAMMING));
-      const ev = `to samo ujęcie wideo w innym montażu (${count} wspólnych ujęć, dHash, odległość Hamminga ${best}/64)`;
+      const ev = `the same video shot in another montage (${count} shared shot${count === 1 ? "" : "s"}, dHash, Hamming distance ${best}/64)`;
       pushPair(withShots[i].id, withShots[j].id, simEvidence("similar_image", weight, ev, 1 - best / 64));
       g.edge(nodeId("item", withShots[i].id), nodeId("item", withShots[j].id), "similar_image", ev, round(weight));
     }
@@ -1740,7 +1740,7 @@ export function buildEvidenceGraph(
       const c = cosineDense(ca.v, cb.v);
       if (c < sem.minCosine) continue;
       const weight = sem.weight * (0.5 + (0.5 * (c - sem.minCosine)) / Math.max(1e-9, 1 - sem.minCosine));
-      const ev = `ten sam szablon kreacji (CLIP${ca.video || cb.video ? ", klatki wideo" : ""}, cosinus ${c.toFixed(2)})`;
+      const ev = `the same creative template (CLIP${ca.video || cb.video ? ", video frames" : ""}, cosine ${c.toFixed(2)})`;
       pushPair(withEmb[i].id, withEmb[j].id, simEvidence("similar_image_semantic", weight, ev, c));
       g.edge(nodeId("item", withEmb[i].id), nodeId("item", withEmb[j].id), "similar_image_semantic", ev, round(weight));
     }
@@ -1762,7 +1762,7 @@ export function buildEvidenceGraph(
       const d = simhashDistance(a, b);
       if (d > domThr) continue;
       const weight = config.similarity.dom.weight * (1 - (0.5 * d) / Math.max(1, domThr));
-      const ev = `ta sama struktura strony docelowej (simhash DOM, odległość ${d}/64)`;
+      const ev = `the same landing page structure (simhash DOM, distance ${d}/64)`;
       pushPair(withDom[i].id, withDom[j].id, simEvidence("similar_dom", weight, ev, 1 - d / 64));
       g.edge(nodeId("item", withDom[i].id), nodeId("item", withDom[j].id), "similar_dom", ev, round(weight));
     }
@@ -1776,7 +1776,7 @@ export function buildEvidenceGraph(
       if (sim < config.similarity.audio.minSimilarity) continue;
       const span = Math.max(1e-9, 1 - config.similarity.audio.minSimilarity);
       const weight = config.similarity.audio.weight * (0.5 + (0.5 * (sim - config.similarity.audio.minSimilarity)) / span);
-      const ev = `ta sama ścieżka dźwiękowa (Chromaprint, podobieństwo ${sim.toFixed(2)})`;
+      const ev = `the same audio track (Chromaprint, similarity ${sim.toFixed(2)})`;
       pushPair(withAudio[i].id, withAudio[j].id, simEvidence("similar_audio", weight, ev, sim));
       g.edge(nodeId("item", withAudio[i].id), nodeId("item", withAudio[j].id), "similar_audio", ev, round(weight));
     }
@@ -1794,7 +1794,7 @@ export function buildEvidenceGraph(
       const c = speakerSimilarity(ea.speakerEmbedding!, eb.speakerEmbedding!);
       if (c < voice.minCosine) continue;
       const weight = voice.weight * (0.5 + (0.5 * (c - voice.minCosine)) / Math.max(1e-9, 1 - voice.minCosine));
-      const ev = `ten sam głos mówcy (SpeechBrain ECAPA, cosinus ${c.toFixed(2)}; także sklonowany głos tej samej osoby)`;
+      const ev = `the same speaker's voice (SpeechBrain ECAPA, cosine ${c.toFixed(2)}; also a cloned voice of the same person)`;
       pushPair(withVoice[i].id, withVoice[j].id, simEvidence("similar_voice", weight, ev, c));
       g.edge(nodeId("item", withVoice[i].id), nodeId("item", withVoice[j].id), "similar_voice", ev, round(weight));
     }
@@ -1830,7 +1830,7 @@ export function buildEvidenceGraph(
         const c = sim(i, j);
         if (c < threshold) continue;
         const weight = config.similarity.text.weight * (0.5 + (0.5 * (c - threshold)) / Math.max(1e-9, 1 - threshold));
-        const ev = `podobna treść reklamy (cosinus ${c.toFixed(2)}, ${textMethod === "embedding" ? "embeddingi" : "TF-IDF n-gramów"})`;
+        const ev = `similar ad text (cosine ${c.toFixed(2)}, ${textMethod === "embedding" ? "embeddings" : "TF-IDF n-grams"})`;
         pushPair(items[i].id, items[j].id, simEvidence("similar_text", weight, ev, c));
         g.edge(nodeId("item", items[i].id), nodeId("item", items[j].id), "similar_text", ev, round(weight));
       }
@@ -1933,7 +1933,7 @@ function kitStringPremise(shared: KitPairShare[], cfg: LinkConfig["kitString"]):
   if (!cfg || !shared.length) return null;
   if (shared.length < cfg.minShared && !shared.some((s) => s.words >= cfg.longWords)) return null;
   const best = [...shared].sort((x, y) => y.weight - x.weight)[0];
-  const quotes = shared.slice(0, 3).map((s) => `„${s.text.length > 50 ? `${s.text.slice(0, 49)}…` : s.text}”`).join(", ");
+  const quotes = shared.slice(0, 3).map((s) => `“${s.text.length > 50 ? `${s.text.slice(0, 49)}…` : s.text}”`).join(", ");
   return {
     kind: "pivot",
     pivot: best.pivot,
@@ -1942,7 +1942,7 @@ function kitStringPremise(shared: KitPairShare[], cfg: LinkConfig["kitString"]):
     weight: round(best.weight),
     strong: false,
     discounted: false,
-    evidence: `${shared.length === 1 ? "ten sam komunikat" : `te same komunikaty (${shared.length})`} ze skryptu zestawu stron: ${quotes}`,
+    evidence: `${shared.length === 1 ? "the same message" : `the same messages (${shared.length})`} from the page-kit script: ${quotes}`,
     pathA: best.pathA,
     pathB: best.pathB,
   };
@@ -2021,13 +2021,13 @@ function addRegistrationBursts(
         const first = new Date(group[0].created).toISOString().slice(0, 10);
         const spanH = Math.round((group[group.length - 1].created - group[0].created) / 3_600_000);
         const regName = dataset.domains[group[0].domain]?.rdap?.registrar ?? "";
-        const id = g.node("registrar", `${groupKey}|${first}`, `seria rejestracji: ${regName}, ${first} (${group.length} domen w ${spanH} h)`, {
+        const id = g.node("registrar", `${groupKey}|${first}`, `registration burst: ${regName}, ${first} (${group.length} domains in ${spanH} h)`, {
           registrar: regName,
           burst: true,
           domains: group.map((x) => x.domain),
         });
         for (const x of group) {
-          g.edge(nodeId("domain", x.domain), id, "registration_burst", `zarejestrowana ${new Date(x.created).toISOString().slice(0, 16).replace("T", " ")}`);
+          g.edge(nodeId("domain", x.domain), id, "registration_burst", `registered ${new Date(x.created).toISOString().slice(0, 16).replace("T", " ")}`);
           burstOf.set(x.domain, id);
         }
       }
@@ -2052,7 +2052,7 @@ function addRegistrationBursts(
         type: "registrar",
         path: [...f.path, burst],
         relation: 1,
-        how: `domeny zarejestrowane seryjnie (${label.data.registrar}, w odstępie ≤ ${config.registrationBurstHours} h)`,
+        how: `domains registered in a burst (${label.data.registrar}, within ≤ ${config.registrationBurstHours} h)`,
       });
     }
     facts.push(...dedupeFacts(extra).filter((e) => !facts.some((f) => f.pivot === e.pivot)));
@@ -2086,12 +2086,12 @@ function round(x: number): number {
 /** Relation of the team_id+user_id pair (B-330): 0.9 x 0.7 stays below strongThreshold, so it never merges alone. */
 const AFFILIATE_TEAM_RELATION = 0.7;
 
-/** Polish reader label of an affiliate-network ID kind (B-330). */
+/** Reader label of an affiliate-network ID kind (B-330). */
 const AFFILIATE_KIND_LABEL: Record<AffiliateId["kind"], string> = {
-  team_user: "zespół i użytkownik",
-  stream: "strumień (stream_id)",
-  offer_uuid: "oferta (offer_uuid)",
-  api_key: "klucz API",
+  team_user: "team and user",
+  stream: "stream (stream_id)",
+  offer_uuid: "offer (offer_uuid)",
+  api_key: "API key",
 };
 
 /**
@@ -2114,20 +2114,20 @@ function linkAffiliateIds(
     const key = `${a.kind === "team_user" ? "team" : a.kind}:${a.host}:${a.value.toLowerCase()}`;
     if (seen.has(key)) continue;
     seen.add(key);
-    const where = a.via === "form" ? "ukrytym polu formularza" : a.via === "referer" ? "zakodowanym parametrze referer linku" : "linku zamówienia";
+    const where = a.via === "form" ? "a hidden form field" : a.via === "referer" ? "the encoded referer parameter of the link" : "the order link";
     if (a.kind === "api_key") {
       if (crmHashes.has(a.value)) continue;
-      const id = g.node("crm_key", a.value, `klucz API sieci afiliacyjnej (sha256 ${a.value.slice(0, 12)}…)`, { sha256: a.value, field: "api_key", via: a.via, host: a.host });
-      g.edge(itemNode, id, "posts_to", `klucz API sieci afiliacyjnej ${a.host} w ${where} (sha256 ${a.value.slice(0, 12)}…)`);
-      add(id, "crm_key", [itemNode, id], 1, `ten sam klucz API sieci afiliacyjnej (sha256 ${a.value.slice(0, 12)}…)`);
+      const id = g.node("crm_key", a.value, `affiliate network API key (sha256 ${a.value.slice(0, 12)}…)`, { sha256: a.value, field: "api_key", via: a.via, host: a.host });
+      g.edge(itemNode, id, "posts_to", `affiliate network API key ${a.host} in ${where} (sha256 ${a.value.slice(0, 12)}…)`);
+      add(id, "crm_key", [itemNode, id], 1, `the same affiliate network API key (sha256 ${a.value.slice(0, 12)}…)`);
       continue;
     }
     if (a.kind === "stream") streams.add(a.value.toLowerCase());
     const what = AFFILIATE_KIND_LABEL[a.kind];
     const id = g.node("affiliate_account", key, `${a.host} · ${what} ${a.value}`, { kind: a.kind, host: a.host, value: a.value, via: a.via, ...(a.attrs ? { attrs: a.attrs } : {}) });
-    g.edge(itemNode, id, "carries_param", `konto sieci afiliacyjnej ${a.host} (${what} ${a.value}) w ${where}`);
+    g.edge(itemNode, id, "carries_param", `affiliate network account ${a.host} (${what} ${a.value}) in ${where}`);
     // the team+user pair is two small numbers: below strongThreshold, it only supports a link (rule kind affiliate_team)
-    add(id, "affiliate_account", [itemNode, id], a.kind === "team_user" ? AFFILIATE_TEAM_RELATION : 1, `to samo konto w sieci afiliacyjnej ${a.host}: ${what} ${a.value}`);
+    add(id, "affiliate_account", [itemNode, id], a.kind === "team_user" ? AFFILIATE_TEAM_RELATION : 1, `the same affiliate network account ${a.host}: ${what} ${a.value}`);
   }
   return streams;
 }

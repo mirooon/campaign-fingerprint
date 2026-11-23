@@ -97,11 +97,11 @@ describe("comparison helpers", () => {
   });
 
   it("parses persona sources from edge evidence", () => {
-    expect(personaSourceOf("persona z kolumny danych wejściowych")).toBe("ingest");
-    expect(personaSourceOf("persona z NER (model językowy)")).toBe("ner");
-    expect(personaSourceOf("persona z OCR/ASR (dopasowanie przybliżone)")).toBe("fuzzy");
-    expect(personaSourceOf("persona z listy obserwowanych nazwisk")).toBe("watchlist");
-    expect(personaSourcesOf("persona z listy obserwowanych nazwisk; z kolumny danych wejściowych")).toEqual(["watchlist", "ingest"]);
+    expect(personaSourceOf("persona from the input data column")).toBe("ingest");
+    expect(personaSourceOf("persona from NER (language model)")).toBe("ner");
+    expect(personaSourceOf("persona from OCR/ASR (approximate match)")).toBe("fuzzy");
+    expect(personaSourceOf("persona from the watchlist of names")).toBe("watchlist");
+    expect(personaSourcesOf("persona from the watchlist of names; from the input data column")).toEqual(["watchlist", "ingest"]);
   });
 
   it("tolerates campaigns without attributes (older campaigns.json)", () => {

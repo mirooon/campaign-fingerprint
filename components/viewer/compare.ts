@@ -98,11 +98,11 @@ export const PERSONA_SOURCE_LABELS: Record<PersonaSource, string> = {
   watchlist: "lista obserwowanych nazwisk",
 };
 
-/** Parses the Polish evidence text of a mentions_persona edge into its source. */
+/** Parses the evidence text of a mentions_persona edge (lib/graph/link.ts) into its source. */
 export function personaSourceOf(evidence: string): PersonaSource {
-  if (/danych wejściowych/i.test(evidence)) return "ingest";
+  if (/input data/i.test(evidence)) return "ingest";
   if (/\bNER\b/.test(evidence)) return "ner";
-  if (/OCR|ASR|przybliżon/i.test(evidence)) return "fuzzy";
+  if (/OCR|ASR|approximate/i.test(evidence)) return "fuzzy";
   return "watchlist";
 }
 

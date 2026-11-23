@@ -180,7 +180,7 @@ export async function analyzeAd(
     for (const [other, evs] of perItem) {
       if (itemCampaign[other] !== cand.campaignId) continue;
       for (const e of evs) {
-        const k = `${e.key}|${e.evidence.split(" (cosinus")[0].split(" (dHash")[0]}`;
+        const k = `${e.key}|${e.evidence.split(" (cosine")[0].split(" (dHash")[0]}`;
         const a = agg.get(k) ?? { evidence: e.evidence, weight: e.weight, strong: e.strong, discounted: e.discounted, items: [] };
         a.weight = Math.max(a.weight, e.weight);
         a.items.push(other);

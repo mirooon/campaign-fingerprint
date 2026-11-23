@@ -18,7 +18,7 @@ export interface FamilyShare {
 }
 
 /**
- * Share of each feature family (Treść, Wygląd, Strona, Infrastruktura) in the pair's score: the contribution of
+ * Share of each feature family (Content, Look, Page, Infrastructure) in the pair's score: the contribution of
  * each premise to the noisy-OR score (skipped premises do not count), summed per family and shown in whole percents
  * that add up to 100 (largest remainder). Premises of unknown type are left out.
  */

@@ -11,9 +11,9 @@ export interface AuthorNote {
   text: string;
 }
 
-/** Strips the quotes and the ellipsis a feature label wraps around a comment („…”). */
+/** Strips the quotes and the ellipsis a feature label wraps around a comment (“…”, also „…” of older bases). */
 function bare(label: string): string {
-  return label.replace(/^[„"]\s*/, "").replace(/\s*[”"]$/, "").replace(/…$/, "").trim();
+  return label.replace(/^[“„"]\s*/, "").replace(/\s*[”"]$/, "").replace(/…$/, "").trim();
 }
 
 /** Author's notes among the comments of a page, in the order given; ordinary code comments are left out. */
@@ -23,11 +23,11 @@ export function authorNotes(comments: string[]): AuthorNote[] {
     const text = bare(raw);
     const c = text.match(/^comment\s*(\d+)\s*:\s*(.+?)(?:\s+[—–-]\s+([^—–]{1,40}))?$/i);
     if (c) {
-      notes.push({ kind: "comment", label: `komentarz scenariusza nr ${c[1]}${c[3] ? ` (rola: ${c[3].trim()})` : ""}`, text: c[2].trim() });
+      notes.push({ kind: "comment", label: `script comment no. ${c[1]}${c[3] ? ` (role: ${c[3].trim()})` : ""}`, text: c[2].trim() });
       continue;
     }
     const p = text.match(/^x-post\s*:\s*(.+)$/i);
-    if (p) notes.push({ kind: "post", label: "scenariusz posta w serwisie społecznościowym", text: p[1].trim() });
+    if (p) notes.push({ kind: "post", label: "scripted social media post", text: p[1].trim() });
   }
   return notes;
 }

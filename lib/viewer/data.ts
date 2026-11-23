@@ -30,11 +30,11 @@ export function loadViewerData(): ViewerData {
     const campaigns = read<CampaignsFile>("campaigns.json");
     const summariesFile = read<{ summaries: Record<string, CampaignSummary> }>("summaries.json");
     if (!graph || !campaigns) {
-      return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `Brak bazy znanych kampanii w ${DATA_DIR} (graph.json, campaigns.json). Zbuduj ją: bun run base -- --cases <katalog spraw> (w kontenerze: docker compose run --rm app bun run base -- --cases /dane/probka), albo bun run pipeline --offline dla próbki.` };
+      return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `No base of known campaigns in ${DATA_DIR} (graph.json, campaigns.json). Build it: bun run base -- --cases <cases folder> (in the container: docker compose run --rm app bun run base -- --cases /dane/probka), or bun run pipeline --offline for the sample.` };
     }
     return { graph, campaigns, nearMisses: read<NearMissesFile>("near-misses.json"), summaries: summariesFile?.summaries ?? {}, error: null };
   } catch (e) {
-    return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `Nie udało się wczytać danych: ${(e as Error).message}` };
+    return { graph: null, campaigns: null, nearMisses: null, summaries: {}, error: `Could not load the data: ${(e as Error).message}` };
   }
 }
 

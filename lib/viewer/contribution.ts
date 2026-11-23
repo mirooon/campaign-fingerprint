@@ -4,7 +4,7 @@
  * so the segments add up exactly to the score.
  *
  * When the stored score of the pair differs from the computed one by more than 0.01:
- * - stored > computed (the stored evidence list is shortened): a "pozostałe przesłanki" segment
+ * - stored > computed (the stored evidence list is shortened): an "other evidence" segment
  *   fills the gap;
  * - stored < computed (the rules left some premises out, e.g. modus operandi): the segments are
  *   scaled down to the stored score.
@@ -13,7 +13,7 @@
 export const SCORE_TOLERANCE = 0.01;
 
 export interface Segment<T> {
-  /** Premise behind the segment (null for "pozostałe przesłanki"). */
+  /** Premise behind the segment (null for "other evidence"). */
   item: T | null;
   weight: number;
   from: number;
@@ -27,7 +27,7 @@ export interface Contribution<T> {
   computed: number;
   /** Score shown (stored when it differs). */
   total: number;
-  /** A "pozostałe przesłanki" segment was added. */
+  /** An "other evidence" segment was added. */
   rest: boolean;
 }
 

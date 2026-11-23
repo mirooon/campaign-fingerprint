@@ -11,7 +11,7 @@ import { workRoot } from "./jobs";
 
 export type CorrectionsResult = { ok: true; file: CorrectionsFile } | { ok: false; error: string };
 
-/** One change of the corrections: join, split ("to połączenie jest błędne"), disable a trace, or undo a pair/trace. */
+/** One change of the corrections: join, split ("this link is wrong"), disable a trace, or undo a pair/trace. */
 export type CorrectionAction =
   | { action: "must"; a: string; b: string; note?: string }
   | { action: "cannot"; a: string; b: string; note?: string }
@@ -34,7 +34,7 @@ export function loadCorrectionsFile(file: string): CorrectionsResult {
   try {
     return { ok: true, file: parseCorrections(JSON.parse(readFileSync(file, "utf8"))) };
   } catch (e) {
-    return { ok: false, error: `Nie udało się odczytać ${path.basename(file)} (${(e as Error).message}). Plik został nietknięty: napraw go albo usuń.` };
+    return { ok: false, error: `Could not read ${path.basename(file)} (${(e as Error).message}). The file was left untouched: fix it or delete it.` };
   }
 }
 
@@ -81,6 +81,6 @@ export function saveCorrectionAction(file: string, act: CorrectionAction, now: D
     renameSync(tmp, file);
     return { ok: true, file: next };
   } catch (e) {
-    return { ok: false, error: `Nie udało się zapisać korekty: ${(e as Error).message}` };
+    return { ok: false, error: `Could not save the correction: ${(e as Error).message}` };
   }
 }

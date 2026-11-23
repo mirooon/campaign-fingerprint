@@ -1,5 +1,5 @@
 /**
- * The "Dociągnij publiczne dane o domenach" option of the analysis form (passive DNS and RDAP lookups). The server
+ * The "Fetch public domain data" option of the analysis form (passive DNS and RDAP lookups). The server
  * started with ANALYZE_OFFLINE=1 (the container default) never asks public registries, whatever the form sends, so
  * the option starts off and is locked there; otherwise it follows the analyst's choice of this browser session.
  * Pure functions: the page reads the environment, the form keeps the choice.
@@ -18,7 +18,7 @@ export interface LiveLookupsOption {
 }
 
 /** Note under a locked checkbox. */
-export const OFFLINE_NOTE = "Serwer pracuje bez internetu (ANALYZE_OFFLINE=1), więc analiza korzysta tylko z wgranych materiałów.";
+export const OFFLINE_NOTE = "The server works offline (ANALYZE_OFFLINE=1), so the analysis uses only the uploaded samples.";
 
 /**
  * State of the checkbox: off and locked with a note when the server works offline; otherwise the choice made in

@@ -1,5 +1,5 @@
 /**
- * "Zbuduj nową bazę" in the viewer (B-284): builds a fresh base of known campaigns from uploaded cases and, after the
+ * "Build a new base" in the viewer (B-284): builds a fresh base of known campaigns from uploaded cases and, after the
  * analyst confirmed the replacement, swaps it in. The previous base is never deleted: it is moved to a hidden folder
  * `.poprzednia-baza-<stamp>` inside the base folder. The bundled sample base is read-only.
  */
@@ -15,7 +15,7 @@ export interface BaseSummary {
 
 /** Why the base cannot be rebuilt from the GUI, or null when it can. */
 export function buildBaseRefusal(sampleBase: boolean): string | null {
-  return sampleBase ? "Baza przykładowa jest tylko do odczytu. Żeby zbudować własną bazę, uruchom podgląd z VIEWER_DATA_DIR wskazującym na pusty albo własny katalog." : null;
+  return sampleBase ? "The sample base is read-only. To build a base of your own, start the viewer with VIEWER_DATA_DIR pointing at an empty folder or one of your own." : null;
 }
 
 /** Counts campaigns (≥ 2 materials) and materials of the base in `dataDir`; an unreadable campaigns file counts as no base. */
@@ -32,8 +32,8 @@ export function baseSummary(dataDir: string): BaseSummary {
 
 /** Sentence of the replacement confirmation for the current base. */
 export function replaceQuestion(s: BaseSummary): string {
-  if (!s.exists) return "Obecnie nie ma bazy: nowa baza powstanie w katalogu bazy.";
-  return `Nowa baza zastąpi obecną (${s.campaigns} kampanii, ${s.materials} materiałów). Poprzednią odłożymy do ukrytego katalogu .poprzednia-baza-…, nic nie zostanie usunięte.`;
+  if (!s.exists) return "There is no base yet: the new base will be created in the base folder.";
+  return `The new base will replace the current one (${s.campaigns} ${s.campaigns === 1 ? "campaign" : "campaigns"}, ${s.materials} ${s.materials === 1 ? "sample" : "samples"}). We will move the previous one to the hidden folder .poprzednia-baza-…, nothing will be deleted.`;
 }
 
 /**

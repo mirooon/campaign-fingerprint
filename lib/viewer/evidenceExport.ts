@@ -46,21 +46,21 @@ function loadInputs(input: EvidenceExportInput): { graph: EvidenceGraph; campaig
   const provenanceIn = (dir: string): PackProvenance | null => (existsSync(path.join(dir, "provenance.json")) ? readJson<PackProvenance>(path.join(dir, "provenance.json")) : null);
   const isNew = /^N\d+$/.test(input.campaignId);
   if (isNew) {
-    if (!input.jobWorkDir) return { status: 404, error: `Kampania ${input.campaignId} pochodzi z analizy materiału: podaj zadanie, w którym powstała.` };
+    if (!input.jobWorkDir) return { status: 404, error: `Campaign ${input.campaignId} comes from a sample analysis: give the job it was created in.` };
     const dir = evidenceInputsDir(input.jobWorkDir);
     const mapFile = path.join(dir, "nowe-kampanie.json");
-    if (!existsSync(mapFile)) return { status: 409, error: "Zadanie nie zachowało danych do paczki dowodów (uruchom analizę ponownie)." };
+    if (!existsSync(mapFile)) return { status: 409, error: "The job did not keep the data for the evidence pack (run the analysis again)." };
     const campaignId = readJson<Record<string, string>>(mapFile)[input.campaignId];
-    if (!campaignId) return { status: 404, error: `Zadanie nie ma kampanii ${input.campaignId}.` };
+    if (!campaignId) return { status: 404, error: `The job has no campaign ${input.campaignId}.` };
     return { graph: readJson(path.join(dir, "graph.json")), campaigns: readJson(path.join(dir, "campaigns.json")), enriched: readJson(path.join(dir, "enriched.json")), campaignId, provenance: provenanceIn(dir) };
   }
   const campaignsFile = path.join(input.dataDir, "campaigns.json");
   const graphFile = path.join(input.dataDir, "graph.json");
-  if (!existsSync(campaignsFile) || !existsSync(graphFile)) return { status: 409, error: "Brak bazy znanych kampanii (graph.json, campaigns.json)." };
+  if (!existsSync(campaignsFile) || !existsSync(graphFile)) return { status: 409, error: "No base of known campaigns (graph.json, campaigns.json)." };
   const campaigns = readJson<CampaignsFile>(campaignsFile);
-  if (!campaigns.campaigns.some((c) => c.id === input.campaignId)) return { status: 404, error: `Nie ma kampanii ${input.campaignId} w bazie.` };
+  if (!campaigns.campaigns.some((c) => c.id === input.campaignId)) return { status: 404, error: `Campaign ${input.campaignId} is not in the base.` };
   const enrichedFile = findEnriched(input.dataDir);
-  if (!enrichedFile) return { status: 409, error: "Brak enriched.json bazy: paczka dowodów potrzebuje danych wzbogaconych (bun run pipeline)." };
+  if (!enrichedFile) return { status: 409, error: "The base has no enriched.json: the evidence pack needs the enriched data (bun run pipeline)." };
   return { graph: readJson(graphFile), campaigns, enriched: readJson(enrichedFile), campaignId: input.campaignId, provenance: provenanceIn(input.dataDir) };
 }
 
@@ -90,7 +90,7 @@ export function buildEvidenceZip(input: EvidenceExportInput): EvidenceExportResu
     const zip = zipSync(Object.fromEntries(names.map((n) => [n, new Uint8Array(readFileSync(path.join(outDir, n)))])));
     return { ok: true, zip, fileName: `paczka-dowodow-${input.campaignId}.zip`, files: names.length };
   } catch (e) {
-    return { ok: false, status: 500, error: `Nie udało się zbudować paczki: ${(e as Error).message}` };
+    return { ok: false, status: 500, error: `Could not build the pack: ${(e as Error).message}` };
   } finally {
     rmSync(outDir, { recursive: true, force: true });
   }

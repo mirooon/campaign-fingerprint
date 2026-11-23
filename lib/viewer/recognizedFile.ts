@@ -1,5 +1,5 @@
 /**
- * Edge of "Kogo rozpoznajemy" (B-025): reads the face and voice galleries and the public list of persons from the
+ * Edge of "Recognized people" (B-025): reads the face and voice galleries and the public list of persons from the
  * data folder and hands them to the pure `recognizedPeople`. A missing or broken file leaves a note with the reason
  * instead of failing the page.
  */
@@ -23,7 +23,7 @@ function readOptional<T>(root: string, file: string, notes: string[], missing: s
   try {
     return JSON.parse(readFileSync(full, "utf8")) as T;
   } catch (e) {
-    notes.push(`${file}: nie udało się odczytać (${(e as Error).message})`);
+    notes.push(`${file}: could not be read (${(e as Error).message})`);
     return null;
   }
 }
@@ -31,8 +31,8 @@ function readOptional<T>(root: string, file: string, notes: string[], missing: s
 /** People of the closed list from the data folder `root` (faces/index.json, voices/index.json, osoby-publiczne.json). */
 export function loadRecognized(root: string): RecognizedResult {
   const notes: string[] = [];
-  const faces = readOptional<ReferenceIndex>(root, path.join("faces", "index.json"), notes, "brak galerii twarzy (scripts/py/setup-face.sh)");
-  const voices = readOptional<ReferenceIndex>(root, path.join("voices", "index.json"), notes, "brak galerii głosów (scripts/py/build_voice_index.py)");
-  const people = readOptional<PublicPerson[]>(root, "osoby-publiczne.json", notes, "brak listy osób, więc nazwy pochodzą z identyfikatorów") ?? [];
+  const faces = readOptional<ReferenceIndex>(root, path.join("faces", "index.json"), notes, "no face gallery (scripts/py/setup-face.sh)");
+  const voices = readOptional<ReferenceIndex>(root, path.join("voices", "index.json"), notes, "no voice gallery (scripts/py/build_voice_index.py)");
+  const people = readOptional<PublicPerson[]>(root, "osoby-publiczne.json", notes, "no list of people, so the names come from the IDs") ?? [];
   return { people: recognizedPeople({ faces, voices, people }), notes };
 }

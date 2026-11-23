@@ -15,10 +15,10 @@ export function loadDecisions(file: string): DecisionsResult {
   if (!existsSync(file)) return { ok: true, file: { version: 1, decisions: {} } };
   try {
     const parsed = JSON.parse(readFileSync(file, "utf8")) as DecisionsFile;
-    if (parsed.version !== 1 || typeof parsed.decisions !== "object" || parsed.decisions === null) throw new Error("nieznany układ pliku");
+    if (parsed.version !== 1 || typeof parsed.decisions !== "object" || parsed.decisions === null) throw new Error("unknown file layout");
     return { ok: true, file: parsed };
   } catch (e) {
-    return { ok: false, error: `Nie udało się odczytać ${path.basename(file)} (${(e as Error).message}). Plik został nietknięty: napraw go albo usuń.` };
+    return { ok: false, error: `Could not read ${path.basename(file)} (${(e as Error).message}). The file was left untouched: fix it or delete it.` };
   }
 }
 
@@ -34,7 +34,7 @@ export function saveDecision(file: string, campaign: string, status: Decision | 
     renameSync(tmp, file);
     return { ok: true, file: next };
   } catch (e) {
-    return { ok: false, error: `Nie udało się zapisać decyzji: ${(e as Error).message}` };
+    return { ok: false, error: `Could not save the decision: ${(e as Error).message}` };
   }
 }
 

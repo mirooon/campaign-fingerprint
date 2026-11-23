@@ -298,7 +298,7 @@ function Features({ item }: { item: MaterialItemResult }) {
   return (
     <div className="space-y-2">
       {platformAccountLines(item.features).map((line, i) => (
-        <p key={i} className={`rounded border px-2.5 py-1.5 text-xs ${line.startsWith("Uwaga") ? "border-amber-400 bg-amber-50 text-amber-900" : "border-slate-200 bg-white text-slate-700"}`}>{line}</p>
+        <p key={i} className={`rounded border px-2.5 py-1.5 text-xs ${line.startsWith("Warning") ? "border-amber-400 bg-amber-50 text-amber-900" : "border-slate-200 bg-white text-slate-700"}`}>{line}</p>
       ))}
       {notes.length > 0 && (
         <div className="rounded border border-violet-300 bg-violet-50 px-2.5 py-1.5 text-sm">

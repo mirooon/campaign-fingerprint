@@ -22,54 +22,54 @@ const VERDICT_STYLE: Record<MaterialItemResult["verdict"], string> = {
 };
 
 const VERDICT_LABEL: Record<MaterialItemResult["verdict"], string> = {
-  known_campaign: "znana kampania",
-  similar_campaigns: "nowa kampania, podobna do znanych",
-  new_campaign: "nowa kampania",
-  duplicate: "duplikat",
-  insufficient: "za mało danych",
+  known_campaign: "known campaign",
+  similar_campaigns: "new campaign, similar to known ones",
+  new_campaign: "new campaign",
+  duplicate: "duplicate",
+  insufficient: "insufficient data",
 };
 
 const FEATURE_LABEL: Record<string, string> = {
-  landingUrl: "Adres strony",
-  finalUrl: "Adres końcowy",
-  landingSource: "Skąd adres",
-  landingFragment: "Fragment adresu",
-  observedUrls: "Pasek adresu (OCR)",
-  inAppBrowser: "Przeglądarka w aplikacji",
-  advertiser: "Reklamodawca",
-  uiView: "Widok na zrzucie",
-  adLibraryIds: "Identyfikator biblioteki reklam",
-  advertiserImpersonatesName: "Reklamodawca podszywa się pod osobę",
-  advertiserMismatch: "Konto reklamowe prawdopodobnie przejęte (nazwa nie pasuje do treści)",
-  profitClaims: "Obiecywany zysk (kwota i okres)",
-  adPlatform: "Biblioteka reklam",
-  adLibraryAdId: "Identyfikator reklamy w bibliotece",
-  adAdvertiserId: "Identyfikator reklamodawcy",
-  adAdvertiserLegalName: "Nazwa prawna reklamodawcy",
-  adAdvertiserLocation: "Kraj reklamodawcy",
-  adAdvertiserVerified: "Reklamodawca zweryfikowany",
-  adRegions: "Regiony emisji",
-  adFirstShown: "Początek emisji reklamy",
-  adLastShown: "Koniec emisji reklamy",
-  personas: "Persony",
-  impersonatedBrand: "Podrabiana marka",
-  platformCampaignName: "Kampania na platformie stron",
-  landingName: "Strona w panelu platformy",
-  trafficSource: "Źródło ruchu",
-  platformAccount: "Konto na platformie",
-  metaAdId: "Reklama w Mecie (fbclid)",
-  clickTime: "Czas kliknięcia (clickid)",
-  clickCounter: "Licznik serwera trackera",
-  firstSeen: "Pierwsza obserwacja",
-  cyrillic: "Cyrylica",
-  cloakingSuspected: "Podejrzenie cloakingu",
-  ocrText: "Tekst ze zrzutu (OCR)",
-  asrText: "Transkrypcja (ASR)",
+  landingUrl: "Page URL",
+  finalUrl: "Final URL",
+  landingSource: "URL source",
+  landingFragment: "URL fragment",
+  observedUrls: "Address bar (OCR)",
+  inAppBrowser: "In-app browser",
+  advertiser: "Advertiser",
+  uiView: "View in screenshot",
+  adLibraryIds: "Ad library ID",
+  advertiserImpersonatesName: "Advertiser impersonates a person",
+  advertiserMismatch: "Ad account probably hijacked (name does not match the content)",
+  profitClaims: "Promised profit (amount and period)",
+  adPlatform: "Ad library",
+  adLibraryAdId: "Ad ID in the library",
+  adAdvertiserId: "Advertiser ID",
+  adAdvertiserLegalName: "Advertiser legal name",
+  adAdvertiserLocation: "Advertiser country",
+  adAdvertiserVerified: "Advertiser verified",
+  adRegions: "Regions shown",
+  adFirstShown: "Ad first shown",
+  adLastShown: "Ad last shown",
+  personas: "Personas",
+  impersonatedBrand: "Impersonated brand",
+  platformCampaignName: "Page-builder campaign",
+  landingName: "Page in the platform panel",
+  trafficSource: "Traffic source",
+  platformAccount: "Page-builder account",
+  metaAdId: "Meta ad (from fbclid)",
+  clickTime: "Click time (clickid)",
+  clickCounter: "Tracker server counter",
+  firstSeen: "First seen",
+  cyrillic: "Cyrillic",
+  cloakingSuspected: "Suspected cloaking",
+  ocrText: "Text from screenshot (OCR)",
+  asrText: "Transcript (ASR)",
 };
 
 function fmt(v: unknown): string {
   if (Array.isArray(v)) return v.join(", ");
-  if (typeof v === "boolean") return v ? "tak" : "nie";
+  if (typeof v === "boolean") return v ? "yes" : "no";
   const s = String(v);
   return s.length > 300 ? `${s.slice(0, 299)}…` : s;
 }
@@ -85,18 +85,18 @@ function ItemResult({ it, onSelectCampaign }: { it: MaterialItemResult; onSelect
       <div className="flex flex-wrap gap-2">
         {it.campaign && (
           <button type="button" onClick={() => onSelectCampaign(it.campaign!)} className="text-sm font-medium text-blue-700 hover:underline">
-            Pokaż kampanię {it.campaign} →
+            Show campaign {it.campaign} →
           </button>
         )}
         {it.similarCampaigns.map((c) => (
           <button key={c} type="button" onClick={() => onSelectCampaign(c)} className="text-sm text-violet-700 hover:underline">
-            podobna: {c} →
+            similar: {c} →
           </button>
         ))}
       </div>
       {Object.keys(it.features).length > 0 && (
         <details open className="text-xs">
-          <summary className="cursor-pointer font-medium text-slate-800">Co odczytano z materiału</summary>
+          <summary className="cursor-pointer font-medium text-slate-800">What we read from the sample</summary>
           <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5">
             {Object.entries(it.features).map(([k, v]) => (
               <div key={k} className="contents">
@@ -109,14 +109,14 @@ function ItemResult({ it, onSelectCampaign }: { it: MaterialItemResult; onSelect
       )}
       {it.links.length > 0 && (
         <details open className="text-xs">
-          <summary className="cursor-pointer font-medium text-slate-800">Najbliższe znane reklamy i przesłanki</summary>
+          <summary className="cursor-pointer font-medium text-slate-800">Closest known ads and evidence</summary>
           <ul className="mt-1 space-y-1.5">
             {it.links.slice(0, 6).map((l) => (
               <li key={l.other} className="rounded border border-slate-100 p-1.5">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono">{l.other}</span>
                   {l.otherCampaign && <span className="text-slate-500">({l.otherCampaign})</span>}
-                  <span className="text-slate-500">wynik {l.score.toFixed(2)}{l.strong ? " · silny" : ""}</span>
+                  <span className="text-slate-500">score {l.score.toFixed(2)}{l.strong ? " · strong" : ""}</span>
                   <span className="ml-auto rounded bg-slate-100 px-1 text-[10px] text-slate-600">{linkRuleLabel(l)}</span>
                 </div>
                 <ul className="mt-0.5 space-y-0.5">
@@ -131,7 +131,7 @@ function ItemResult({ it, onSelectCampaign }: { it: MaterialItemResult; onSelect
           </ul>
         </details>
       )}
-      {it.errors.length > 0 && <p className="break-all text-[11px] text-amber-800">Uwagi: {it.errors.slice(0, 4).join("; ")}</p>}
+      {it.errors.length > 0 && <p className="break-all text-[11px] text-amber-800">Notes: {it.errors.slice(0, 4).join("; ")}</p>}
     </div>
   );
 }
@@ -175,23 +175,23 @@ export default function AnalyzeForm({ onSelectCampaign }: AnalyzeFormProps) {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-base font-semibold text-slate-900">Nowy materiał: do której kampanii należy?</h2>
+        <h2 className="text-base font-semibold text-slate-900">New sample: which campaign does it belong to?</h2>
         <p className="mt-1 text-xs text-slate-500">
-          Zrzuty ekranu, zapisana strona, HAR, nagranie, opis z yt-dlp albo zip z tym wszystkim. Materiał przechodzi te same kroki co cały zbiór
-          (OCR, pasek adresu, konfiguracja platformy, identyfikatory kliknięć…) i trafia do jednego grafu ze znanymi reklamami.
+          Screenshots, a saved page, HAR, a recording, a yt-dlp description or a ZIP with all of them. The sample goes through the same steps as the
+          whole set (OCR, address bar, platform configuration, click IDs…) and joins one graph with the known ads.
         </p>
       </div>
       <form onSubmit={submit} className="space-y-2">
         <div className="flex flex-wrap gap-2">
           <button type="button" onClick={() => fileInput.current?.click()} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700">
-            Wybierz pliki…
+            Choose files…
           </button>
           <button type="button" onClick={() => dirInput.current?.click()} className="rounded-md border border-slate-300 px-2 py-1 text-xs text-slate-700">
-            Wybierz katalog sprawy…
+            Choose case folder…
           </button>
           {files.length > 0 && (
             <button type="button" onClick={() => setFiles([])} className="text-xs text-slate-500 hover:underline">
-              wyczyść
+              clear
             </button>
           )}
           <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => setFiles([...(e.target.files ?? [])])} />
@@ -206,29 +206,29 @@ export default function AnalyzeForm({ onSelectCampaign }: AnalyzeFormProps) {
         </div>
         {files.length > 0 && (
           <p className="text-[11px] text-slate-600">
-            {files.length} plików, {totalMb.toFixed(1)} MB: {files.slice(0, 4).map((f) => f.name).join(", ")}
+            {files.length} {files.length === 1 ? "file" : "files"}, {totalMb.toFixed(1)} MB: {files.slice(0, 4).map((f) => f.name).join(", ")}
             {files.length > 4 ? "…" : ""}
           </p>
         )}
         <label className="block text-xs font-medium text-slate-700">
-          Link z reklamy (opcjonalnie)
+          Link from the ad (optional)
           <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://…" className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="block text-xs font-medium text-slate-700">
-          Treść reklamy (opcjonalnie)
+          Ad text (optional)
           <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} className="mt-0.5 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm" />
         </label>
         <label className="flex items-center gap-1.5 text-xs text-slate-600">
           <input type="checkbox" checked={live} onChange={(e) => setLive(e.target.checked)} className="accent-slate-900" />
-          zapytania pasywne (DNS, RDAP, ASN) i jedno pobranie strony, której nie ma w materiale
+          passive lookups (DNS, RDAP, ASN) and one fetch of the page if the sample does not include it
         </label>
         <label className="flex items-center gap-1.5 text-xs text-slate-600">
           <input type="checkbox" checked={asr} onChange={(e) => setAsr(e.target.checked)} className="accent-slate-900" />
-          transkrypcja i odcisk dźwięku wideo (wolniej)
+          video transcript and audio fingerprint (slower)
         </label>
         <div className="flex gap-2">
           <button type="submit" disabled={busy || (!files.length && !url && !text)} className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white disabled:opacity-40">
-            {busy ? "Analizuję…" : "Analizuj"}
+            {busy ? "Analyzing…" : "Analyze"}
           </button>
           <button
             type="button"
@@ -238,7 +238,7 @@ export default function AnalyzeForm({ onSelectCampaign }: AnalyzeFormProps) {
             }}
             className="rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700"
           >
-            Przykład
+            Example
           </button>
         </div>
       </form>
@@ -250,8 +250,8 @@ export default function AnalyzeForm({ onSelectCampaign }: AnalyzeFormProps) {
           {result.items.map((it) => (
             <ItemResult key={it.id} it={it} onSelectCampaign={onSelectCampaign} />
           ))}
-          {result.skipped.length > 0 && <p className="text-[11px] text-amber-800">Pominięte: {result.skipped.map((s) => `${s.id} (${s.reason})`).join("; ")}</p>}
-          <p className="text-[11px] text-slate-500">Tryb: {result.mode === "offline" ? "tylko materiał, bez sieci" : "materiał + zapytania pasywne"}</p>
+          {result.skipped.length > 0 && <p className="text-[11px] text-amber-800">Skipped: {result.skipped.map((s) => `${s.id} (${s.reason})`).join("; ")}</p>}
+          <p className="text-[11px] text-slate-500">Mode: {result.mode === "offline" ? "sample only, no network" : "sample + passive lookups"}</p>
         </div>
       )}
     </div>

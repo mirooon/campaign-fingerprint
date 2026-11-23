@@ -157,7 +157,7 @@ describe("favicon of an impersonated brand", () => {
   it("is discounted as a trait of the brand, not of the operator", async () => {
     const { Discounter } = await import("./weights");
     const d = new Discounter(DEFAULT_LINK_CONFIG).discountsFor({ type: "favicon", key: "mmh3:1357924680", id: "favicon:mmh3:1357924680", data: { impersonatedBrand: "Kurier Testowy" } });
-    expect(d).toEqual([{ reason: "favicon podrabianej marki „Kurier Testowy” (cecha marki, pod którą się podszywają, nie operatora)", factor: 0.1, rule: "kit.brandAssetFactor" }]);
+    expect(d).toEqual([{ reason: "favicon of the impersonated brand “Kurier Testowy” (a feature of the brand they impersonate, not of the operator)", factor: 0.1, rule: "kit.brandAssetFactor" }]);
   });
 });
 

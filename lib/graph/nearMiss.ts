@@ -23,13 +23,13 @@ export interface NearMissInput {
   kindOf: (e: PairEvidence) => string;
 }
 
-/** Number with a decimal comma and two places, as the sentences of the report print scores. */
-function pl(n: number): string {
-  return n.toFixed(2).replace(".", ",");
+/** Number with two decimal places, as the sentences of the report print scores. */
+function num2(n: number): string {
+  return n.toFixed(2);
 }
 
 /**
- * Sentence in Polish for a refusal: what held the pair back and what trace was missing, so a reviewer sees
+ * Sentence for a refusal: what held the pair back and what trace was missing, so a reviewer sees
  * at once whether the method guarded against a false link or the threshold is just close. `kinds` are the
  * rule kinds of the shared traces, `discounted` the kinds of the traces a discount weakened.
  */
@@ -37,25 +37,25 @@ function refusalReason(rule: NearMissRule, o: { score: number; kinds: string[]; 
   const r = o.config.campaignRules;
   switch (rule) {
     case "below-min-score":
-      return `wynik pary ${pl(o.score)} jest poniżej progu połączenia ${pl(o.config.minLinkScore)}`;
+      return `the pair score ${num2(o.score)} is below the linking threshold ${num2(o.config.minLinkScore)}`;
     case "family-only-kind": {
       const only = o.kinds.filter((k) => (r.familyOnlyKinds ?? []).includes(k));
-      return `wynik pary pochodzi ze śladów, które łączą kampanie tylko w grupę podobnych (${only.join(", ")}); bez nich wynik jest poniżej progu ${pl(o.config.minLinkScore)}`;
+      return `the pair score comes from traces that link campaigns only into a similar-campaign group (${only.join(", ")}); without them the score is below the threshold ${num2(o.config.minLinkScore)}`;
     }
     case "account-conflict":
-      return "reklamy stoją na różnych kontach tej samej platformy stron; wspólny ślad nie wystarcza, bo platforma udostępnia go wielu kontom";
+      return "the ads sit on different accounts of the same page-builder platform; a shared trace is not enough, because the platform gives it to many accounts";
     case "discounted-only":
-      return `jedyne wspólne ślady to infrastruktura używana przez wiele stron (${o.discounted.join(", ") || o.kinds.join(", ")}); po obniżeniu wagi nie wystarczają, brak śladu operatora`;
+      return `the only shared traces are infrastructure used by many sites (${o.discounted.join(", ") || o.kinds.join(", ")}); with their weight lowered they are not enough, and there is no operator trace`;
     case "kit-only":
-      return "łączy je tylko zestaw stron (szablon, motyw, komentarze, struktura), który kupuje i kopiuje wielu operatorów; brak śladu operatora (domena, tracker, konto, portfel, kontakt)";
+      return "only the page kit links them (template, theme, comments, structure), which many operators buy and copy; there is no operator trace (domain, tracker, account, wallet, contact)";
     case "content-only-with-infra":
-      return "łączy je tylko treść (podobny tekst albo obraz), a któraś reklama ma własną infrastrukturę; sama treść nie łączy, brak wspólnego śladu infrastruktury";
+      return "only the content links them (similar text or image), and one of the ads has its own infrastructure; content alone does not link, and there is no shared infrastructure trace";
     case "too-few-content-kinds":
-      return `łączy je jeden rodzaj treści; bez infrastruktury kampania wymaga co najmniej ${r.minContentKinds ?? 2} różnych rodzajów treści`;
+      return `one kind of content links them; without infrastructure a campaign needs at least ${r.minContentKinds ?? 2} different kinds of content`;
     case "too-few-evidence-kinds":
-      return `łączy je za mało rodzajów dowodów (potrzeba ${r.minEvidenceKinds})`;
+      return `too few kinds of evidence link them (${r.minEvidenceKinds} needed)`;
     case "split-by-clustering":
-      return "reguły pozwalają połączyć te reklamy, ale podział na kampanie rozdzielił je między różne kampanie";
+      return "the rules allow these ads to be linked, but the split into campaigns put them in different campaigns";
   }
 }
 

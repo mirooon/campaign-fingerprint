@@ -9,7 +9,7 @@ import { DisablePivotButton, PairCorrection, WrongLinkButton } from "./Correctio
 import { ReadHow } from "./Guide";
 
 /** Analyst premises first, so a decision is never cut off by the evidence limit. */
-const analystFirst = (evidence: PairEvidence[]) => [...evidence].sort((x, y) => Number(y.evidence.startsWith("decyzja analityka")) - Number(x.evidence.startsWith("decyzja analityka")));
+const analystFirst = (evidence: PairEvidence[]) => [...evidence].sort((x, y) => Number(y.evidence.startsWith("analyst decision")) - Number(x.evidence.startsWith("analyst decision")));
 
 export interface DetailsPanelProps {
   node: GraphNode | null;

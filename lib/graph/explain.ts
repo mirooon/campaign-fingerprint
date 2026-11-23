@@ -40,13 +40,13 @@ export function explain(graph: EvidenceGraph, a: string, b: string, config: Link
     path = strongestPath(graph.links, a, b, config.minLinkScore);
   }
   const summary = directLink
-    ? `Bezpośrednie dowody (wynik ${directLink.score.toFixed(2)}): ${direct
+    ? `Direct evidence (score ${directLink.score.toFixed(2)}): ${direct
         .slice(0, 3)
         .map((e) => e.evidence)
         .join("; ")}`
     : path.length
-      ? `Brak bezpośredniego dowodu; łańcuch ${path.length} powiązań przez: ${path.map((s) => s.to).slice(0, -1).join(", ") || "—"}`
-      : "Brak dowodów łączących te reklamy.";
+      ? `No direct evidence; a chain of ${path.length} link${path.length === 1 ? "" : "s"} through: ${path.map((s) => s.to).slice(0, -1).join(", ") || "—"}`
+      : "No evidence links these ads.";
   return { a, b, sameCampaign, direct, directScore: directLink?.score ?? 0, path, summary };
 }
 

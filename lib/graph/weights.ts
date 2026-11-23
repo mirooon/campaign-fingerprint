@@ -164,7 +164,7 @@ export class Discounter {
         const domainCount = Number(p.data.sanRegistrableCount ?? 0);
         if (domainCount > this.config.maxCertDomains) {
           out.push({
-            reason: `certyfikat obejmuje ${domainCount} różnych domen (współdzielony)`,
+            reason: `the certificate covers ${domainCount} different domains (shared)`,
             factor: 0.05,
             rule: "maxCertDomains",
           });
@@ -191,7 +191,7 @@ export class Discounter {
         if (sdk) out.push({ reason: sdk.reason, factor: sdk.factor, rule: `endpointPlatformPaths:${sdk.match}` });
         if (p.data.sameOrigin === true) {
           out.push({
-            reason: "ścieżka na tej samej domenie co strona (odcisk szablonu, nie osobny backend)",
+            reason: "path on the same domain as the page (a template fingerprint, not a separate backend)",
             factor: this.config.kit.sameOriginEndpointFactor,
             rule: "kit.sameOriginEndpointFactor",
           });
@@ -199,7 +199,7 @@ export class Discounter {
           if (generic) out.push({ reason: generic.reason, factor: generic.factor, rule: `endpointGenericPaths:${generic.match}` });
           else if (pathTemplate.split("/").filter(Boolean).length <= 2) {
             out.push({
-              reason: "krótka ścieżka względna (mało charakterystyczna)",
+              reason: "short relative path (not distinctive)",
               factor: this.config.kit.shortEndpointPathFactor,
               rule: "kit.shortEndpointPathFactor",
             });
@@ -224,7 +224,7 @@ export class Discounter {
         const brand = p.data.impersonatedBrand;
         if (typeof brand === "string" && brand) {
           out.push({
-            reason: `favicon podrabianej marki „${brand}” (cecha marki, pod którą się podszywają, nie operatora)`,
+            reason: `favicon of the impersonated brand “${brand}” (a feature of the brand they impersonate, not of the operator)`,
             factor: this.config.kit.brandAssetFactor,
             rule: "kit.brandAssetFactor",
           });
@@ -239,13 +239,13 @@ export class Discounter {
       case "domain_pattern": {
         if (Number(p.data.literalChars ?? Number.POSITIVE_INFINITY) < this.config.kit.domainPatternMinLiteralChars) {
           out.push({
-            reason: "wzorzec bez rdzenia literowego (np. <lorem>-<lorem>.top): generator nazw platformy stron, wspólny dla jej najemców, i łatwa przypadkowa zbieżność",
+            reason: "pattern without a letter core (e.g. <lorem>-<lorem>.top): the name generator of a page-builder platform, common to its tenants, and an easy chance match",
             factor: this.config.kit.domainPatternNoAnchorFactor,
             rule: "kit.domainPatternMinLiteralChars",
           });
         }
         if (p.data.agnostic === true) {
-          out.push({ reason: "wariant wzorca bez TLD (słabszy)", factor: this.config.kit.domainPatternAgnosticFactor, rule: "kit.domainPatternAgnosticFactor" });
+          out.push({ reason: "pattern variant without the TLD (weaker)", factor: this.config.kit.domainPatternAgnosticFactor, rule: "kit.domainPatternAgnosticFactor" });
         }
         break;
       }
@@ -296,16 +296,16 @@ export class Discounter {
         // a number scoped by the tracker server (kit.machineScopedParams) is no coincidence, however short
         const byMachine = typeof p.data.machine === "string";
         if (lists.campaignParamGenericValues.includes(value)) {
-          out.push({ reason: `ogólna wartość parametru („${value}”)`, factor: 0.05, rule: "campaignParamGenericValues" });
+          out.push({ reason: `generic parameter value (“${value}”)`, factor: 0.05, rule: "campaignParamGenericValues" });
         } else if (value.length < 3 && !byMachine) {
-          out.push({ reason: "zbyt krótka wartość parametru", factor: 0.05, rule: "campaignParam:short" });
+          out.push({ reason: "parameter value too short", factor: 0.05, rule: "campaignParam:short" });
         } else if (/^\d{1,4}$/.test(value) && !byMachine) {
-          out.push({ reason: "krótka wartość liczbowa (np. 1, 42)", factor: 0.1, rule: "campaignParam:smallNumber" });
+          out.push({ reason: "short numeric value (e.g. 1, 42)", factor: 0.1, rule: "campaignParam:smallNumber" });
         } else if (p.data.macro === true) {
-          out.push({ reason: "nierozwinięte makro szablonu (wspólne dla wielu reklamodawców)", factor: 0.1, rule: "campaignParam:macro" });
+          out.push({ reason: "unexpanded template macro (common to many advertisers)", factor: 0.1, rule: "campaignParam:macro" });
         } else if (/^\p{L}[\p{L} -]{2,24}$/u.test(value)) {
           out.push({
-            reason: "wartość słowna (może się powtarzać u niezwiązanych reklamodawców)",
+            reason: "word value (may repeat across unrelated advertisers)",
             factor: this.config.kit.campaignParamWordFactor,
             rule: "kit.campaignParamWordFactor",
           });

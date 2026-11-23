@@ -124,7 +124,7 @@ export function evaluateClustering(
 export function formatEval(r: EvalResult): string {
   const pct = (x: number) => x.toFixed(4);
   return [
-    `Ocenione reklamy: ${r.n} | kampanie przewidziane: ${r.predictedClusters} | prawdziwe: ${r.trueClusters}`,
+    `Evaluated ads: ${r.n} | predicted campaigns: ${r.predictedClusters} | true campaigns: ${r.trueClusters}`,
     `Pairwise  P=${pct(r.pairwise.precision)} R=${pct(r.pairwise.recall)} F1=${pct(r.pairwise.f1)}  (TP=${r.pairwise.tp} FP=${r.pairwise.fp} FN=${r.pairwise.fn})`,
     `B-cubed   P=${pct(r.bcubed.precision)} R=${pct(r.bcubed.recall)} F1=${pct(r.bcubed.f1)}`,
     `ARI       ${pct(r.ari)}`,

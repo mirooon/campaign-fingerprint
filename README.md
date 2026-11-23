@@ -31,7 +31,7 @@ Odcisk kampanii links single reports into campaigns by the traces an operator le
 
 The result has two levels:
 
-- **Campaign**: samples run by one operator. Strong evidence, such as a shared page-builder account or tracker ID, or several independent pieces of evidence link them.
+- **Campaign**: samples run by one operator. They are linked by strong evidence, such as a shared page-builder account or tracker ID, or by several independent pieces of evidence.
 - **Group of similar campaigns**: campaigns of different operators that use the same ready-made kit (page template, narrative or persona). Page kits are sold and reused, so a shared kit on its own never makes a campaign.
 
 Every link comes with its evidence in plain words and a strength level. Pairs that look alike but were deliberately not linked are listed with the rule that kept them apart. A new sample is compared with the reference base and gets one verdict: **known campaign**, **similar campaigns**, **new campaign**, **duplicate** or **insufficient data** (with a list of what to add).

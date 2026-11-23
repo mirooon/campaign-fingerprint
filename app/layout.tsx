@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Campaign analysis — Odcisk kampanii",
+  title: "Campaign Fingerprint — campaign analysis",
   description: "Links single fraudulent ads into campaigns by shared traces of infrastructure, images and content.",
 };
 

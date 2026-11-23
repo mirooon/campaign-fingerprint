@@ -41,12 +41,12 @@ describe("plain dictionary", () => {
 });
 
 describe("signals of investigative practice in the GUI dictionary (I28)", () => {
-  it("names every new page technique with a plain explanation and a Polish label", () => {
+  it("names every new page technique with a plain explanation and a label", () => {
     for (const t of ["fake_security_alert", "remote_access_tool", "clickfix_paste"]) {
       expect(TECHNIQUE_LABEL[t]).toBeTruthy();
       expect(TECHNIQUE_INFO[t].why.length).toBeGreaterThan(20);
     }
-    expect(TECHNIQUE_INFO.fake_security_alert.sentence).toContain("zdalnego pulpitu");
+    expect(TECHNIQUE_INFO.fake_security_alert.sentence).toContain("remote desktop");
   });
 
   it("shows a ClickFix command only as kind and a short hash", () => {
@@ -56,10 +56,10 @@ describe("signals of investigative practice in the GUI dictionary (I28)", () => 
 
   it("reads the two domains, the phone line types and the narrative labels", () => {
     expect(featureInfo("displayedDomainMismatch").format!({ displayed: "onet.pl", landing: "losowa-strona.test" })).toEqual(["onet.pl", "losowa-strona.test"]);
-    expect(featureInfo("phoneLines").format!([{ phone: "+48800000000", lineType: "toll_free", country: "PL" }])).toEqual(["+48800000000: bezpłatny, PL"]);
+    expect(featureInfo("phoneLines").format!([{ phone: "+48800000000", lineType: "toll_free", country: "PL" }])).toEqual(["+48800000000: toll-free, PL"]);
     expect(featureInfo("narrative").format!({ topics: [{ id: "tech_support" }], hooks: ["secrecy"] })).toEqual([
-      "temat: fałszywa pomoc techniczna (wirus, zablokowany komputer)",
-      "haczyk: tajemnica (nie mów bankowi ani rodzinie)",
+      "temat: fake tech support (virus, locked computer)",
+      "haczyk: secrecy (don't tell the bank or your family)",
     ]);
   });
 
